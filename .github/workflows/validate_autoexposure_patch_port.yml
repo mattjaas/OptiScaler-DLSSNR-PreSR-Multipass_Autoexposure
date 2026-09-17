@@ -38,14 +38,17 @@ jobs:
       - name: Adapt pinned patchers for PreSR Multipass base
         shell: powershell
         run: |
-          python -m py_compile .\tools\adapt_autoexposure_patchers_for_presr.py
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python -m py_compile .\tools\adapt_autoexposure_patchers_for_presr_dx12.py
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python .\tools\adapt_autoexposure_patchers_for_presr.py .\_autoexposure_patch_source\tools
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python .\tools\adapt_autoexposure_patchers_for_presr_dx12.py .\_autoexposure_patch_source\tools
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $adapters = @(
+            '.\tools\adapt_autoexposure_patchers_for_presr.py',
+            '.\tools\adapt_autoexposure_patchers_for_presr_dx12.py',
+            '.\tools\adapt_autoexposure_patchers_for_presr_exposure_path.py'
+          )
+          foreach ($adapter in $adapters) {
+            python -m py_compile $adapter
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            python $adapter .\_autoexposure_patch_source\tools
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
       - name: Apply all AutoExposure release patches
         shell: powershell
