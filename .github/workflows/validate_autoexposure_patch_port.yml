@@ -19,8 +19,17 @@ jobs:
       - name: Checkout target fork
         uses: actions/checkout@v6
         with:
-          submodules: recursive
           fetch-depth: 1
+          submodules: false
+
+      - name: Enable long paths and checkout submodules
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --system core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --force --depth=1 --recursive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Checkout pinned AutoExposure patch source
         uses: actions/checkout@v6
