@@ -40,7 +40,11 @@ jobs:
         run: |
           python -m py_compile .\tools\adapt_autoexposure_patchers_for_presr.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m py_compile .\tools\adapt_autoexposure_patchers_for_presr_dx12.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python .\tools\adapt_autoexposure_patchers_for_presr.py .\_autoexposure_patch_source\tools
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .\tools\adapt_autoexposure_patchers_for_presr_dx12.py .\_autoexposure_patch_source\tools
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Apply all AutoExposure release patches
