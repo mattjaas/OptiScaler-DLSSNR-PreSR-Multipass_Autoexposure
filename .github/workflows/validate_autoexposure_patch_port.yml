@@ -22,15 +22,6 @@ jobs:
           fetch-depth: 1
           submodules: false
 
-      - name: Enable long paths and checkout submodules
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          git config --system core.longpaths true
-          git submodule sync --recursive
-          git submodule update --init --force --depth=1 --recursive
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
       - name: Checkout pinned AutoExposure patch source
         uses: actions/checkout@v6
         with:
@@ -111,6 +102,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
           python .\_autoexposure_patch_source\tools\embed_dlssnr_spirv.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Enable long paths and checkout submodules
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git config --system core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --force --depth=1 --recursive
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Setup MSBuild
