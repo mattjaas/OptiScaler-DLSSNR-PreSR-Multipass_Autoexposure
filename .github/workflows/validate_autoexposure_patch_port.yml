@@ -1,0 +1,117 @@
+name: Validate AutoExposure patch port
+
+on:
+  push:
+    branches:
+      - sync-autoexposure-release-patches
+
+permissions:
+  contents: read
+
+env:
+  PATCH_SOURCE_COMMIT: e60a3ab6de093972cee7d071a835934cafdf7165
+
+jobs:
+  validate:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout target fork
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Checkout pinned AutoExposure patch source
+        uses: actions/checkout@v6
+        with:
+          repository: mattjaas/OptiScaler_DLSSNR_Autoexposure
+          ref: ${{ env.PATCH_SOURCE_COMMIT }}
+          path: _autoexposure_patch_source
+          fetch-depth: 1
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Apply all AutoExposure release patches
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tools = '.\_autoexposure_patch_source\tools'
+          $patches = @(
+            'apply_dlssnr_autoexposure.py',
+            'apply_dlssnr_exposure_trim_anchors.py',
+            'apply_dlssnr_exposure_trim_fxc_fix.py',
+            'apply_dlssnr_whitepoint_trim_axis.py',
+            'apply_dlssnr_highlight_protected_autoexposure.py',
+            'apply_dlssnr_vulkan_trim_range.py',
+            'apply_dlssnr_vulkan_autoexposure.py',
+            'apply_dlssnr_vulkan_autoexposure_safety.py'
+          )
+
+          foreach ($patch in $patches) {
+            Write-Host "Compiling $patch"
+            python -m py_compile (Join-Path $tools $patch)
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+          foreach ($patch in $patches) {
+            Write-Host "Applying $patch"
+            python (Join-Path $tools $patch)
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+          Write-Host 'Patch diff:'
+          git diff --stat
+          git diff --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compile patched D3D12 shader with FXC
+        shell: powershell
+        run: |
+          $fxc = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\fxc.exe" -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if (-not $fxc) { throw 'fxc.exe was not found in the Windows SDK on windows-latest.' }
+
+          $dir = "${{ github.workspace }}\OptiScaler\shaders\dlssnr\precompile"
+          & $fxc.FullName /nologo /T cs_5_0 /E CSMain /O3 /Fo "$dir\DlssNr_Shader.cso" /Fh "$dir\DlssNr_Shader.h" /Vn DlssNr_cso "$dir\dlssnr.hlsl"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compile patched Vulkan shader with pinned DXC
+        shell: powershell
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'dxc_2026_07_29.zip'
+          $dxcRoot = Join-Path $env:RUNNER_TEMP 'dxc_spirv'
+          Invoke-WebRequest -Uri 'https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2607/dxc_2026_07_29.zip' -OutFile $zip
+
+          $actualHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expectedHash = 'a1dfb116ba3eeae6a1582291b53a8e7bf65ad760676bd3194685c8f7367cd241'
+          if ($actualHash -ne $expectedHash) { throw 'DXC archive SHA256 mismatch' }
+
+          Expand-Archive -Path $zip -DestinationPath $dxcRoot -Force
+          $dxc = Get-ChildItem $dxcRoot -Recurse -Filter dxc.exe |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/]' } |
+            Select-Object -First 1
+          if (-not $dxc) { throw 'Official SPIR-V-capable dxc.exe not found after extraction' }
+
+          $dir = "${{ github.workspace }}\OptiScaler\shaders\dlssnr\precompile"
+          & $dxc.FullName -spirv -T cs_6_0 -E CSMain -D VK_MODE=1 -fvk-use-dx-layout -O3 -Fo "$dir\DlssNr_Shader.spv" "$dir\dlssnr.hlsl"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          python .\_autoexposure_patch_source\tools\embed_dlssnr_spirv.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build patched target fork
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          msbuild .\OptiScaler\dlssnr\forwarder\dlssnr_forwarder.vcxproj /m /p:Configuration=Release /p:Platform=x64 /v:minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          msbuild .\OptiScaler.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
