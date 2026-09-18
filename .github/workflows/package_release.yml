@@ -1,6 +1,11 @@
 name: Package Release
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/package_release.yml'
   workflow_dispatch:
     inputs:
       version:
@@ -272,7 +277,7 @@ jobs:
     - name: Run package_release.ps1
       shell: powershell
       env:
-        PACKAGE_VERSION: ${{ inputs.version }}
+        PACKAGE_VERSION: ${{ inputs.version || 'v0.7.7' }}
       run: |
         $params = @{
             Version = $env:PACKAGE_VERSION
@@ -303,7 +308,7 @@ jobs:
       shell: powershell
       env:
         GH_TOKEN: ${{ github.token }}
-        RELEASE_TAG: ${{ inputs.version }}
+        RELEASE_TAG: ${{ inputs.version || 'v0.7.7' }}
       run: |
         $assets = @(Get-ChildItem -Path ".\release" -Filter "*.zip" -File | Select-Object -ExpandProperty FullName)
         if ($assets.Count -eq 0) {
