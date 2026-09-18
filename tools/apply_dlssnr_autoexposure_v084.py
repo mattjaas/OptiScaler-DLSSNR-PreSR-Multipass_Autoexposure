@@ -1653,7 +1653,10 @@ s = rep(
 )
 s = sub(
     s,
-    r"\s+VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, state\.proxy\.view, state\.keep\.view,\n\s+inputLayout\)\)",
+    r"if \(!state\.pass->Dispatch\(cmdBuffer, encode, width, height, colour->Resource\.ImageViewInfo\.ImageView,\s*"
+    r"VK_NULL_HANDLE,\s*VK_NULL_HANDLE,\s*VK_NULL_HANDLE,\s*VK_NULL_HANDLE,\s*"
+    r"state\.proxy\.view,\s*state\.keep\.view,\s*inputLayout\)\)",
+    "if (!state.pass->Dispatch(cmdBuffer, encode, width, height, colour->Resource.ImageViewInfo.ImageView,\n"
     "                              VK_NULL_HANDLE, VK_NULL_HANDLE,\n"
     "                              state.autoExposureActive ? state.autoExposure.view : VK_NULL_HANDLE,\n"
     "                              state.proxy.view, state.keep.view, inputLayout,\n"
