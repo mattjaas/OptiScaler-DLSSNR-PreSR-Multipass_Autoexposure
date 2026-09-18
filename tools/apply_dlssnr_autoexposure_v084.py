@@ -16,7 +16,10 @@ def rep(text, old, new, label):
     return text.replace(old, new, 1)
 
 def sub(text, pattern, repl, label, flags=re.S):
-    text2, count = re.subn(pattern, repl, text, count=1, flags=flags)
+    # Use a callable replacement so backslashes in generated C/C++ strings (for example "\\n")
+    # stay literal. Passing repl directly to re.subn would interpret replacement escapes and can
+    # turn "\\n" inside a C++ string literal into a real newline, breaking the generated source.
+    text2, count = re.subn(pattern, lambda _m: repl, text, count=1, flags=flags)
     if count != 1:
         raise RuntimeError(f"{label}: expected exactly one match, got {count}")
     return text2
