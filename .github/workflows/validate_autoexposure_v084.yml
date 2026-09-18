@@ -30,40 +30,16 @@ jobs:
       - name: Validate patch scripts
         shell: powershell
         run: |
-          $scripts = @(
-            "apply_dlssnr_autoexposure.py",
-            "apply_dlssnr_exposure_trim_anchors.py",
-            "apply_dlssnr_exposure_trim_fxc_fix.py",
-            "apply_dlssnr_whitepoint_trim_axis.py",
-            "apply_dlssnr_highlight_protected_autoexposure.py",
-            "apply_dlssnr_vulkan_trim_range.py",
-            "apply_dlssnr_vulkan_autoexposure.py",
-            "apply_dlssnr_vulkan_autoexposure_safety.py",
-            "embed_dlssnr_spirv.py"
-          )
-          foreach ($script in $scripts) {
-            python -m py_compile ".\tools\$script"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          python -m py_compile .\tools\apply_dlssnr_autoexposure_v084.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m py_compile .\tools\embed_dlssnr_spirv.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Apply Auto Exposure patches
+      - name: Apply v0.8.4 Auto Exposure port
         shell: powershell
         run: |
-          $scripts = @(
-            "apply_dlssnr_autoexposure.py",
-            "apply_dlssnr_exposure_trim_anchors.py",
-            "apply_dlssnr_exposure_trim_fxc_fix.py",
-            "apply_dlssnr_whitepoint_trim_axis.py",
-            "apply_dlssnr_highlight_protected_autoexposure.py",
-            "apply_dlssnr_vulkan_trim_range.py",
-            "apply_dlssnr_vulkan_autoexposure.py",
-            "apply_dlssnr_vulkan_autoexposure_safety.py"
-          )
-          foreach ($script in $scripts) {
-            Write-Host "Running $script"
-            python ".\tools\$script"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          python .\tools\apply_dlssnr_autoexposure_v084.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Compile DLSS-NR D3D12 shader with FXC
         shell: powershell
