@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - '.github/workflows/package_release.yml'
+      - 'get_hybrid_assets.ps1'
   workflow_dispatch:
     inputs:
       version:
