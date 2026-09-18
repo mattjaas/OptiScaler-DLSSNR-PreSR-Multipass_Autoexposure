@@ -41,8 +41,9 @@ s = rep(
     "    CustomOptional<uint32_t> DlssNrWhitePointSource { 1 };\n\n"
     "    CustomOptional<bool> DlssNrScanMeter { false };\n",
     "    CustomOptional<uint32_t> DlssNrWhitePointSource { 1 };\n\n"
-    "    // OptiScaler-owned automatic exposure controls. Automatic exposure deliberately ignores\n"
-    "    // the game's ExposureTexture and uses the original linear-HDR frame.\n"
+    "    // OptiScaler-owned automatic exposure controls. When active, automatic exposure uses the\n"
+    "    // linear-HDR NR input. Finished-picture mode bypasses this calculation and keeps its own\n"
+    "    // display white-point override.\n"
     "    CustomOptional<float> DlssNrAutoExposureTrim { 5.0f };\n"
     "    CustomOptional<float> DlssNrAutoExposureShadowProtection { 100.0f };\n\n"
     "    // Base-white-point-dependent Trim calibration tables, serialized as baseWhitePoint:trim pairs.\n"
@@ -374,7 +375,7 @@ s = rep(
     "                    ImGui::TextColored(ImVec4(0.45f, 0.8f, 0.45f, 1.0f),\n"
     "                                       \"Automatic exposure %.4f  ->  white point %.2f\", autoEx.exposure,\n"
     "                                       baseWhitePoint * trim);\n"
-    "                    ImGui::TextDisabled(\"Calculated by OptiScaler; the game's ExposureTexture is ignored.\");\n"
+    "                    ImGui::TextDisabled(\"Exposure calculated automatically from a linear HDR frame\");\n"
     "                }\n"
     "                else\n"
     "                    ImGui::TextDisabled(\"Calculating automatic exposure...\");\n"
@@ -428,7 +429,7 @@ trim_replacement = r'''        else if (wpSource == 1)
             }
 
             HelpMarker("OptiScaler calculates exposure from the ORIGINAL linear-HDR frame before Neural Rendering."
-                       "\nThe game's ExposureTexture is ignored. Range: 0.25x to 50.00x."
+                       "\nRange: 0.25x to 50.00x. Default: 5.00x"
                        "\nTry to use the highest value that subjectively looks best; excessive values"
                        "\nwill degrade image quality. Anchor points can use different Trim values for"
                        "\ndifferent Base White Point values."
@@ -854,7 +855,8 @@ s = rep(
     "d3d game meter copy flag",
 )
 auto_dispatch_marker = "    nr.gamePreExposure = frame.PreExposure;\n\n"
-auto_dispatch = r'''    if (whitePointSource == 3 && isHdrBuffer && nr.meter != nullptr && nr.autoExposure != nullptr)
+auto_dispatch = r'''    if (whitePointSource == 3 && !frame.FinishedPicture && isHdrBuffer &&
+        nr.meter != nullptr && nr.autoExposure != nullptr)
     {
         DlssNrConstants meterParams {};
         meterParams.Mode = DlssNrMode_Meter;
@@ -1578,7 +1580,8 @@ s = rep(
 # Add automatic meter/reduce before encode.
 vk_auto_marker = "    auto encode = DlssNr_Common::MakeConstants(DlssNrMode_Encode, width, height, whitePoint, linearHdr, cfg);\n"
 vk_auto_code = r'''    state.autoExposureActive = false;
-    if (requestedWhitePointSource == 3 && linearHdr && state.meter.Valid() && state.autoExposure.Valid())
+    if (requestedWhitePointSource == 3 && !frame.FinishedPicture && linearHdr &&
+        state.meter.Valid() && state.autoExposure.Valid())
     {
         DlssNrConstants meter {};
         meter.Mode = DlssNrMode_Meter;
