@@ -1651,15 +1651,14 @@ s = rep(
     "    FillVkTrimConstants(encode, cfg, requestedWhitePointSource);\n",
     "Vulkan encode auto constants",
 )
-s = rep(
+s = sub(
     s,
-    "                              VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, state.proxy.view, state.keep.view,\n"
-    "                              inputLayout))\n",
+    r"\s+VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, state\.proxy\.view, state\.keep\.view,\n\s+inputLayout\)\)",
     "                              VK_NULL_HANDLE, VK_NULL_HANDLE,\n"
     "                              state.autoExposureActive ? state.autoExposure.view : VK_NULL_HANDLE,\n"
     "                              state.proxy.view, state.keep.view, inputLayout,\n"
     "                              state.autoExposureActive ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL\n"
-    "                                                       : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))\n",
+    "                                                       : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))",
     "Vulkan encode exposure binding",
 )
 # Game meter flag and kind.
@@ -1714,16 +1713,15 @@ s = rep(
     "    FillVkTrimConstants(resolve, cfg, requestedWhitePointSource);\n",
     "Vulkan resolve auto constants",
 )
-s = rep(
+s = sub(
     s,
-    "                              state.keep.view, VK_NULL_HANDLE, target.ImageView, VK_NULL_HANDLE,\n"
-    "                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))\n",
+    r"\s+state\.keep\.view, VK_NULL_HANDLE, target\.ImageView, VK_NULL_HANDLE,\n\s+VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL\)\)",
     "                              state.keep.view,\n"
     "                              state.autoExposureActive ? state.autoExposure.view : VK_NULL_HANDLE,\n"
     "                              target.ImageView, VK_NULL_HANDLE,\n"
     "                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,\n"
     "                              state.autoExposureActive ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL\n"
-    "                                                       : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))\n",
+    "                                                       : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))",
     "Vulkan resolve exposure binding",
 )
 write(rel, s)
