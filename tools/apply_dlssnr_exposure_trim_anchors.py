@@ -322,7 +322,7 @@ s = replace_once(
     r'''            else if (source == 3)
             {
                 ImGui::TextColored(ImVec4(0.45f, 0.8f, 0.45f, 1.0f),
-                                   "GPU Automatic exposure is active; existing scan/game modes are unchanged.");
+                                   "Automatic exposure from HDR frame is active; existing scan/game modes are unchanged.");
             }
 ''',
     r'''            else if (source == 3)
