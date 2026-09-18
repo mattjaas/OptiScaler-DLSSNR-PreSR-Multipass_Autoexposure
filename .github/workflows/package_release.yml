@@ -41,7 +41,208 @@ jobs:
       uses: actions/checkout@v6
       with:
         fetch-depth: 0
-        submodules: 'true'
+        submodules: false
+
+    - name: Checkout submodules with Windows long paths
+      shell: powershell
+      run: |
+        git config --global core.longpaths true
+        git submodule sync --recursive
+        git -c core.longpaths=true submodule update --init --recursive --depth 1
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    - name: Apply DLSS-NR Auto Exposure patch in runner only
+      shell: powershell
+      run: |
+        python -m py_compile .\tools\apply_dlssnr_autoexposure.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python -m py_compile .\tools\apply_dlssnr_exposure_trim_anchors.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python -m py_compile .\tools\apply_dlssnr_exposure_trim_fxc_fix.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python -m py_compile .\tools\apply_dlssnr_whitepoint_trim_axis.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python -m py_compile .\tools\apply_dlssnr_highlight_protected_autoexposure.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python -m py_compile .\tools\apply_dlssnr_vulkan_trim_range.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python -m py_compile .\tools\apply_dlssnr_vulkan_autoexposure.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python -m py_compile .\tools\apply_dlssnr_vulkan_autoexposure_safety.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python -m py_compile .\tools\embed_dlssnr_spirv.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python .\tools\apply_dlssnr_autoexposure.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python .\tools\apply_dlssnr_exposure_trim_anchors.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python .\tools\apply_dlssnr_exposure_trim_fxc_fix.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python .\tools\apply_dlssnr_whitepoint_trim_axis.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python .\tools\apply_dlssnr_highlight_protected_autoexposure.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python .\tools\apply_dlssnr_vulkan_trim_range.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python .\tools\apply_dlssnr_vulkan_autoexposure.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python .\tools\apply_dlssnr_vulkan_autoexposure_safety.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        # Structural checks before spending time on FXC/DXC/MSBuild.
+        $dx12 = Get-Content "${{ github.workspace }}\OptiScaler\shaders\dlssnr\DlssNr_Dx12.cpp" -Raw
+        $vk = Get-Content "${{ github.workspace }}\OptiScaler\dlssnr\DlssNrFeature_Vk.cpp" -Raw
+        $vkh = Get-Content "${{ github.workspace }}\OptiScaler\dlssnr\DlssNrFeature_Vk.h" -Raw
+        $shaderVk = Get-Content "${{ github.workspace }}\OptiScaler\shaders\dlssnr\DlssNr_Vk.h" -Raw
+        $fwd = Get-Content "${{ github.workspace }}\OptiScaler\dlssnr\forwarder\dlssnr_forwarder.cpp" -Raw
+        $menu = Get-Content "${{ github.workspace }}\OptiScaler\dlssnr\DlssNr_Menu.cpp" -Raw
+        $scan = Get-Content "${{ github.workspace }}\OptiScaler\dlssnr\DlssNr_ExposureScan.cpp" -Raw
+        $hlsl = Get-Content "${{ github.workspace }}\OptiScaler\shaders\dlssnr\precompile\dlssnr.hlsl" -Raw
+
+        if ($dx12 -notmatch 'automaticExposureSelected = whitePointSource == 3' -or
+            $dx12 -notmatch 'DlssNrAutoExposureTrim\.value_or_default\(\), 0\.25f, 50\.0f' -or
+            $dx12 -notmatch 'DlssNrAutoExposureShadowProtection' -or
+            $dx12 -notmatch 'AutoExposureStatus' -or
+            $dx12 -notmatch 'ExposureTrimForRuntime' -or
+            $dx12 -notmatch 'baseWhitePoint = g_nr\.gamePreExposure / g_nr\.gameExposure' -or
+            $vk -notmatch 'DlssNrMode_AutoExposure' -or
+            $vk -notmatch 'AutoExposureShadowProtection' -or
+            $vk -notmatch 'autoExposure\.view' -or
+            $vk -notmatch 'AutoExposureStatusVk' -or
+            $vk -notmatch 'FillAutoExposureTrimConstantsVk' -or
+            $vk -notmatch 'kMeterSide = 64' -or
+            $vk -notmatch '0\.25f, 50\.0f' -or
+            $vk -notmatch 'modelExposure = usingAutoExposure \? &g_vk\.autoExposure\.ngx : nullptr' -or
+            $vk -match 'modelExposure = exposure' -or
+            $vkh -notmatch 'AutoExposureStatusVk' -or
+            $shaderVk -notmatch 'kSlotsPerFrame = 8' -or
+            $fwd -notmatch 'ExposureTexture' -or
+            $menu -notmatch 'Automatic exposure' -or
+            $menu -notmatch 'Trim \(x automatic exposure\).*50\.0f' -or
+            $menu -notmatch 'Shadow protection from bright highlights' -or
+            $menu -notmatch '0%: original full-frame arithmetic average' -or
+            $menu -notmatch '100%: strongest protection' -or
+            $menu -notmatch 'Preview Trim value for actual scene' -or
+            $menu -notmatch 'Add Anchor point' -or
+            $menu -notmatch 'Current base white point' -or
+            $menu -notmatch 'AutoExposureStatusVk' -or
+            $menu -match 'Automatic exposure is currently available on D3D12 only' -or
+            $menu -notmatch 'if \(wpSource == 3\)' -or
+            $scan -notmatch 'DlssNrWhitePointSource\.value_or_default\(\) == 2' -or
+            $hlsl -notmatch 'float AutomaticExposureWhitePoint\(\)' -or
+              $hlsl -notmatch 'gUseExposureWhitePoint != 0 \? AutomaticExposureWhitePoint\(\) : WhitePoint\(\)' -or
+              $hlsl -notmatch 'gMode == 12' -or
+              $hlsl -notmatch 'EffectiveExposureTrim' -or
+            $hlsl -notmatch 'InterpolateExposureTrimSegment' -or
+            $hlsl -notmatch 'baseWhitePoint = preExposure / exposure' -or
+            $hlsl -notmatch 'gAutoExposureShadowProtection' -or
+            $hlsl -notmatch 'weightedSceneLogLuma' -or
+            $hlsl -notmatch 'highlightKneeEv = lerp\(3\.0, 1\.0, protection\)' -or
+            $hlsl -notmatch 'highlightCompressionSlope = lerp\(1\.0, 0\.35, protection\)' -or
+            $hlsl -notmatch 'compressedSceneLuma' -or
+            $hlsl -notmatch 'gMotion\.Load\(int3\(0, 0, 0\)\)\.r' -or
+            $hlsl -notmatch '0\.18 / \(meteredSceneLuma \* 0\.82\)' -or
+            $hlsl -notmatch 'gExposureTrimAnchorCount') {
+          Write-Error "Patch completed but expected D3D12/Vulkan Auto Exposure / Trim Anchor markers are missing."
+          exit 1
+        }
+
+    - name: Compile DLSS-NR D3D12 shader with FXC
+      shell: powershell
+      run: |
+        $fxc = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\fxc.exe" `
+          -ErrorAction SilentlyContinue |
+          Sort-Object FullName -Descending |
+          Select-Object -First 1
+
+        if (-not $fxc) {
+          Write-Error "fxc.exe was not found in the Windows SDK on windows-latest."
+          exit 1
+        }
+
+        $dir = "${{ github.workspace }}\OptiScaler\shaders\dlssnr\precompile"
+        Write-Host "Using FXC: $($fxc.FullName)"
+
+        & $fxc.FullName `
+          /nologo `
+          /T cs_5_0 `
+          /E CSMain `
+          /O3 `
+          /Fo "$dir\DlssNr_Shader.cso" `
+          /Fh "$dir\DlssNr_Shader.h" `
+          /Vn DlssNr_cso `
+          "$dir\dlssnr.hlsl"
+
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        if (-not (Test-Path "$dir\DlssNr_Shader.h")) {
+          Write-Error "FXC did not generate DlssNr_Shader.h"
+          exit 1
+        }
+
+    - name: Compile DLSS-NR Vulkan shader with official DXC
+      shell: powershell
+      run: |
+        $zip = Join-Path $env:RUNNER_TEMP "dxc_2026_07_29.zip"
+        $dxcRoot = Join-Path $env:RUNNER_TEMP "dxc_spirv"
+        Invoke-WebRequest -Uri "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2607/dxc_2026_07_29.zip" -OutFile $zip
+
+        $actualHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+        $expectedHash = "a1dfb116ba3eeae6a1582291b53a8e7bf65ad760676bd3194685c8f7367cd241"
+        if ($actualHash -ne $expectedHash) {
+          Write-Error "DXC archive SHA256 mismatch"
+          exit 1
+        }
+
+        Expand-Archive -Path $zip -DestinationPath $dxcRoot -Force
+        $dxc = Get-ChildItem $dxcRoot -Recurse -Filter dxc.exe |
+          Where-Object { $_.FullName -match '[\\/]x64[\\/]' } |
+          Select-Object -First 1
+
+        if (-not $dxc) {
+          Write-Error "Official SPIR-V-capable dxc.exe not found after extraction"
+          exit 1
+        }
+
+        Write-Host "Using DXC: $($dxc.FullName)"
+        $dir = "${{ github.workspace }}\OptiScaler\shaders\dlssnr\precompile"
+
+        & $dxc.FullName `
+          -spirv `
+          -T cs_6_0 `
+          -E CSMain `
+          -D VK_MODE=1 `
+          -fvk-use-dx-layout `
+          -O3 `
+          -Fo "$dir\DlssNr_Shader.spv" `
+          "$dir\dlssnr.hlsl"
+
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        python .\tools\embed_dlssnr_spirv.py
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+        if (-not (Test-Path "$dir\DlssNr_Shader_Vk.h")) {
+          Write-Error "DXC/embed step did not generate DlssNr_Shader_Vk.h"
+          exit 1
+        }
+
 
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
