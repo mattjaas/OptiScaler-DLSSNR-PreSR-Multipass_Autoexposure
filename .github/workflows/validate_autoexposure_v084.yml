@@ -7,11 +7,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
     runs-on: windows-latest
+    env:
+      RELEASE_TAG: v0.8.4-autoexposure-${{ github.run_number }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -87,3 +89,18 @@ jobs:
           name: OptiScaler-v0.8.4-AutoExposure-${{ github.run_number }}
           path: release/*.zip
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $assets = @(Get-ChildItem -Path ".\release" -Filter "*.zip" -File | Select-Object -ExpandProperty FullName)
+          if ($assets.Count -eq 0) {
+            Write-Error "No release ZIP files were produced."
+            exit 1
+          }
+
+          Write-Host "Publishing GitHub Release $env:RELEASE_TAG with $($assets.Count) ZIP asset(s)."
+          & gh release create $env:RELEASE_TAG @assets --target $env:GITHUB_SHA --title $env:RELEASE_TAG --notes "OptiScaler DLSS-NR PreSR Multipass based on upstream v0.8.4, with the Auto Exposure / exposure-dependent Trim port for D3D12 and Vulkan."
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
