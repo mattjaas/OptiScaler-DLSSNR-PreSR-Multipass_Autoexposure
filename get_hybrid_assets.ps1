@@ -9,7 +9,15 @@ $expectedHash = '3e735f825b85872d20c35c0d75404c1a28b7b6e11ca28ef06243a1822519103
 if (Test-Path -LiteralPath $Destination) { throw 'Hybrid asset destination already exists; choose a new directory.' }
 if (-not $Archive) {
     $Archive = Join-Path ([IO.Path]::GetTempPath()) ([IO.Path]::GetRandomFileName() + '.zip')
-    Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass/releases/download/v0.7.5-nr-fixes/OptiScaler-DLSSNR-v0.7.5-nr-fixes.zip' -OutFile $Archive
+    $uri = 'https://github.com/wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass/releases/download/v0.7.5-nr-fixes/OptiScaler-DLSSNR-v0.7.5-nr-fixes.zip'
+
+    # GitHub-hosted runners occasionally see transient connection resets while
+    # downloading release assets. curl's retry-all-errors handles those without
+    # weakening the SHA-256 verification below.
+    & curl.exe --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 --output $Archive $uri
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to download verified hybrid source archive after retries (curl exit $LASTEXITCODE)."
+    }
 }
 if ((Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash -ne $expectedHash) {
     throw 'Hybrid source archive checksum mismatch.'
