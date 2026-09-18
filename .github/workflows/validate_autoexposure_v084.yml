@@ -1,0 +1,113 @@
+name: Validate v0.8.4 Auto Exposure
+
+on:
+  push:
+    branches:
+      - v0.8.4-autoexposure
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Checkout submodules with Windows long paths
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git -c core.longpaths=true submodule update --init --recursive --depth 1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate patch scripts
+        shell: powershell
+        run: |
+          $scripts = @(
+            "apply_dlssnr_autoexposure.py",
+            "apply_dlssnr_exposure_trim_anchors.py",
+            "apply_dlssnr_exposure_trim_fxc_fix.py",
+            "apply_dlssnr_whitepoint_trim_axis.py",
+            "apply_dlssnr_highlight_protected_autoexposure.py",
+            "apply_dlssnr_vulkan_trim_range.py",
+            "apply_dlssnr_vulkan_autoexposure.py",
+            "apply_dlssnr_vulkan_autoexposure_safety.py",
+            "embed_dlssnr_spirv.py"
+          )
+          foreach ($script in $scripts) {
+            python -m py_compile ".\tools\$script"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Apply Auto Exposure patches
+        shell: powershell
+        run: |
+          $scripts = @(
+            "apply_dlssnr_autoexposure.py",
+            "apply_dlssnr_exposure_trim_anchors.py",
+            "apply_dlssnr_exposure_trim_fxc_fix.py",
+            "apply_dlssnr_whitepoint_trim_axis.py",
+            "apply_dlssnr_highlight_protected_autoexposure.py",
+            "apply_dlssnr_vulkan_trim_range.py",
+            "apply_dlssnr_vulkan_autoexposure.py",
+            "apply_dlssnr_vulkan_autoexposure_safety.py"
+          )
+          foreach ($script in $scripts) {
+            Write-Host "Running $script"
+            python ".\tools\$script"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Compile DLSS-NR D3D12 shader with FXC
+        shell: powershell
+        run: |
+          $fxc = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\fxc.exe" -ErrorAction SilentlyContinue |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if (-not $fxc) { throw "fxc.exe was not found" }
+          $dir = "${{ github.workspace }}\OptiScaler\shaders\dlssnr\precompile"
+          & $fxc.FullName /nologo /T cs_5_0 /E CSMain /O3 /Fo "$dir\DlssNr_Shader.cso" /Fh "$dir\DlssNr_Shader.h" /Vn DlssNr_cso "$dir\dlssnr.hlsl"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compile DLSS-NR Vulkan shader with official DXC
+        shell: powershell
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP "dxc_2026_07_29.zip"
+          $dxcRoot = Join-Path $env:RUNNER_TEMP "dxc_spirv"
+          Invoke-WebRequest -Uri "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2607/dxc_2026_07_29.zip" -OutFile $zip
+          $actualHash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expectedHash = "a1dfb116ba3eeae6a1582291b53a8e7bf65ad760676bd3194685c8f7367cd241"
+          if ($actualHash -ne $expectedHash) { throw "DXC archive SHA256 mismatch" }
+          Expand-Archive -Path $zip -DestinationPath $dxcRoot -Force
+          $dxc = Get-ChildItem $dxcRoot -Recurse -Filter dxc.exe |
+            Where-Object { $_.FullName -match '[\\/]x64[\\/]' } |
+            Select-Object -First 1
+          if (-not $dxc) { throw "dxc.exe was not found" }
+          $dir = "${{ github.workspace }}\OptiScaler\shaders\dlssnr\precompile"
+          & $dxc.FullName -spirv -T cs_6_0 -E CSMain -D VK_MODE=1 -fvk-use-dx-layout -O3 -Fo "$dir\DlssNr_Shader.spv" "$dir\dlssnr.hlsl"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python .\tools\embed_dlssnr_spirv.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build and package
+        shell: powershell
+        run: |
+          .\package_release.ps1 -Version "v0.8.4-autoexposure-${{ github.run_number }}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload validation package
+        uses: actions/upload-artifact@v4
+        with:
+          name: OptiScaler-v0.8.4-AutoExposure-${{ github.run_number }}
+          path: release/*.zip
+          if-no-files-found: error
