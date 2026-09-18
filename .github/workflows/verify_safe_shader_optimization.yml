@@ -1,0 +1,86 @@
+name: Verify safe shader optimization
+
+on:
+  push:
+    branches:
+      - v0.8.4-autoexposure
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: github.repository == 'mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout helper branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Checkout source branch
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin v0.8.4-autoexposure-source
+          git checkout -B v0.8.4-autoexposure-source origin/v0.8.4-autoexposure-source
+
+      - name: Verify old/new cbuffer offsets and rebuild shaders
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:GITHUB_WORKSPACE 'OptiScaler\shaders\dlssnr\precompile'
+          $tools = Join-Path $env:GITHUB_WORKSPACE 'OptiScaler\shaders\shader_tools'
+          $oldHlsl = Join-Path $env:RUNNER_TEMP 'dlssnr_old.hlsl'
+          git show d51f4494c5260a7c57a28b2e6ce28a79521f0da9:OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl | Out-File -Encoding ascii $oldHlsl
+
+          & (Join-Path $tools 'fxc.exe') /T cs_5_0 /E CSMain /O3 /Fc (Join-Path $env:RUNNER_TEMP 'old.asm') $oldHlsl /Fo (Join-Path $env:RUNNER_TEMP 'old.cso')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & (Join-Path $tools 'fxc.exe') /T cs_5_0 /E CSMain /O3 /Fc (Join-Path $env:RUNNER_TEMP 'new.asm') (Join-Path $dir 'dlssnr.hlsl') /Fo (Join-Path $dir 'DlssNr_Shader.cso')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $pattern = 'gPreExposure|gExposureSourceWidth|gExposureSourceHeight|gMeterCopiesExposure|gExposureTrim;|gUseExposureWhitePoint|gExposureTrimAnchorCount|gExposureTrimPreview|gExposureTrimAnchorExposure|gExposureTrimAnchorTrim|gAutoExposureShadowProtection'
+          $oldLayout = @(Select-String -Path (Join-Path $env:RUNNER_TEMP 'old.asm') -Pattern $pattern | ForEach-Object { ($_.Line -replace '^\s*;\s*','').Trim() })
+          $newLayout = @(Select-String -Path (Join-Path $env:RUNNER_TEMP 'new.asm') -Pattern $pattern | ForEach-Object { ($_.Line -replace '^\s*;\s*','').Trim() })
+          Write-Host 'OLD exposure cbuffer layout:'
+          $oldLayout | ForEach-Object { Write-Host $_ }
+          Write-Host 'NEW exposure cbuffer layout:'
+          $newLayout | ForEach-Object { Write-Host $_ }
+          if (($oldLayout -join "`n") -ne ($newLayout -join "`n")) { throw 'Exposure cbuffer layout changed' }
+
+          Push-Location $dir
+          python (Join-Path $tools 'create_header.py') DlssNr_Shader.cso DlssNr_Shader.h DlssNr_cso
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & (Join-Path $tools 'dxc.exe') -spirv -T cs_6_0 -E CSMain -O3 -Qstrip_debug -D VK_MODE -Cc -Vi dlssnr.hlsl -Fo DlssNr_Shader_Vk.spv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python (Join-Path $tools 'create_header.py') DlssNr_Shader_Vk.spv DlssNr_Shader_Vk.h dlssnr_spv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+          Write-Host ('SAFE DX12 CSO bytes: ' + (Get-Item "$dir\DlssNr_Shader.cso").Length)
+          Write-Host ('SAFE Vulkan SPV bytes: ' + (Get-Item "$dir\DlssNr_Shader_Vk.spv").Length)
+
+      - name: Checkout submodules
+        shell: powershell
+        run: |
+          git -c core.longpaths=true submodule sync --recursive
+          git -c core.longpaths=true submodule update --init --recursive --force
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Full build and package
+        shell: powershell
+        run: |
+          .\package_release.ps1 -Version 'v0.8.4-autoexposure-safe-opt-test'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Squash and push verified source branch
+        shell: powershell
+        run: |
+          git add OptiScaler
+          git reset --soft 8802b2b470db0462fa1ed03a125e793a7c06d735
+          git add OptiScaler
+          git commit -m 'Add automatic exposure and exposure-dependent Trim'
+          git push --force-with-lease origin HEAD:v0.8.4-autoexposure-source
