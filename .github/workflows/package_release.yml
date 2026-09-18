@@ -30,7 +30,7 @@ on:
         type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   package:
@@ -299,9 +299,18 @@ jobs:
             exit $LASTEXITCODE
         }
 
-    - name: Upload Release Archive
-      uses: actions/upload-artifact@v4
-      with:
-        name: OptiScaler-Release-Package-${{ inputs.version }}
-        path: release/*.zip
-        if-no-files-found: error
+    - name: Publish GitHub Release
+      shell: powershell
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASE_TAG: ${{ inputs.version }}
+      run: |
+        $assets = @(Get-ChildItem -Path ".\release" -Filter "*.zip" -File | Select-Object -ExpandProperty FullName)
+        if ($assets.Count -eq 0) {
+          Write-Error "No release ZIP files were produced."
+          exit 1
+        }
+
+        Write-Host "Publishing GitHub Release $env:RELEASE_TAG with $($assets.Count) ZIP asset(s)."
+        & gh release create $env:RELEASE_TAG @assets --target $env:GITHUB_SHA --title $env:RELEASE_TAG --generate-notes
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
