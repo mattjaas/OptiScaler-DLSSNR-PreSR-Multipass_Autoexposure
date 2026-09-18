@@ -1,0 +1,67 @@
+name: One-shot source branch release
+
+on:
+  push:
+    branches:
+      - v0.8.4-autoexposure
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      RELEASE_TAG: v0.8.4-autoexposure-fast-${{ github.run_number }}
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v6
+        with:
+          ref: v0.8.4-autoexposure-source
+          fetch-depth: 0
+          submodules: false
+
+      - name: Rebuild DLSS-NR shaders with upstream tools
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:GITHUB_WORKSPACE 'OptiScaler\shaders\dlssnr\precompile'
+          $tools = Join-Path $env:GITHUB_WORKSPACE 'OptiScaler\shaders\shader_tools'
+          Push-Location $dir
+          & (Join-Path $tools 'fxc.exe') /T cs_5_0 /E CSMain /O3 dlssnr.hlsl /Fo DlssNr_Shader.cso
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python (Join-Path $tools 'create_header.py') DlssNr_Shader.cso DlssNr_Shader.h DlssNr_cso
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & (Join-Path $tools 'dxc.exe') -spirv -T cs_6_0 -E CSMain -O3 -Qstrip_debug -D VK_MODE -Cc -Vi dlssnr.hlsl -Fo DlssNr_Shader_Vk.spv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python (Join-Path $tools 'create_header.py') DlssNr_Shader_Vk.spv DlssNr_Shader_Vk.h dlssnr_spv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+
+      - name: Checkout submodules
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git -c core.longpaths=true submodule update --init --recursive --depth 1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build and package
+        shell: powershell
+        run: |
+          .\package_release.ps1 -Version "$env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Publish GitHub Release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $sourceSha = (git rev-parse HEAD).Trim()
+          $assets = @(Get-ChildItem -Path '.\release' -Filter '*.zip' -File | Select-Object -ExpandProperty FullName)
+          if ($assets.Count -eq 0) { throw 'No release ZIP files were produced.' }
+          & gh release create $env:RELEASE_TAG @assets --target $sourceSha --title $env:RELEASE_TAG --notes "Source-branch build of v0.8.4 Auto Exposure with parallel automatic-exposure metering/reduction. Built from v0.8.4-autoexposure-source at $sourceSha."
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
