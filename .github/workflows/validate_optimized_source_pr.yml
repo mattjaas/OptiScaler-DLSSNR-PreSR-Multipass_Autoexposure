@@ -1,0 +1,71 @@
+name: Validate optimized source PR branch
+
+on:
+  push:
+    branches:
+      - v0.8.4-autoexposure
+
+permissions:
+  contents: write
+
+jobs:
+  validate-source:
+    if: github.repository == 'mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout helper branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Checkout source PR branch
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin v0.8.4-autoexposure-source
+          git checkout -B v0.8.4-autoexposure-source origin/v0.8.4-autoexposure-source
+
+      - name: Rebuild DLSS-NR shaders exactly like upstream
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:GITHUB_WORKSPACE 'OptiScaler\shaders\dlssnr\precompile'
+          $tools = Join-Path $env:GITHUB_WORKSPACE 'OptiScaler\shaders\shader_tools'
+          Push-Location $dir
+          & (Join-Path $tools 'fxc.exe') /T cs_5_0 /E CSMain /O3 dlssnr.hlsl /Fo DlssNr_Shader.cso
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python (Join-Path $tools 'create_header.py') DlssNr_Shader.cso DlssNr_Shader.h DlssNr_cso
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & (Join-Path $tools 'dxc.exe') -spirv -T cs_6_0 -E CSMain -O3 -Qstrip_debug -D VK_MODE -Cc -Vi dlssnr.hlsl -Fo DlssNr_Shader_Vk.spv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python (Join-Path $tools 'create_header.py') DlssNr_Shader_Vk.spv DlssNr_Shader_Vk.h dlssnr_spv
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+          Write-Host ('DX12 CSO bytes: ' + (Get-Item "$dir\DlssNr_Shader.cso").Length)
+          Write-Host ('Vulkan SPV bytes: ' + (Get-Item "$dir\DlssNr_Shader_Vk.spv").Length)
+
+      - name: Checkout submodules
+        shell: powershell
+        run: |
+          git -c core.longpaths=true submodule sync --recursive
+          git -c core.longpaths=true submodule update --init --recursive --force
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build and package source branch
+        shell: powershell
+        run: |
+          .\package_release.ps1 -Version 'v0.8.4-autoexposure-pr-test'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Squash source changes and push only after successful build
+        shell: powershell
+        run: |
+          git add OptiScaler
+          git reset --soft 8802b2b470db0462fa1ed03a125e793a7c06d735
+          git add OptiScaler
+          git commit -m 'Add automatic exposure and exposure-dependent Trim'
+          git push --force-with-lease origin HEAD:v0.8.4-autoexposure-source
