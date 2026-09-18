@@ -27,28 +27,52 @@ jobs:
           git fetch origin v0.8.4-autoexposure-source
           git checkout -B v0.8.4-autoexposure-source origin/v0.8.4-autoexposure-source
 
-      - name: Verify old/new cbuffer offsets and rebuild shaders
+      - name: Verify cbuffer offsets and rebuild shaders
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $dir = Join-Path $env:GITHUB_WORKSPACE 'OptiScaler\shaders\dlssnr\precompile'
           $tools = Join-Path $env:GITHUB_WORKSPACE 'OptiScaler\shaders\shader_tools'
-          $oldHlsl = Join-Path $env:RUNNER_TEMP 'dlssnr_old.hlsl'
-          git show d51f4494c5260a7c57a28b2e6ce28a79521f0da9:OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl | Out-File -Encoding ascii $oldHlsl
+          $asm = Join-Path $env:RUNNER_TEMP 'new.asm'
 
-          & (Join-Path $tools 'fxc.exe') /T cs_5_0 /E CSMain /O3 /Fc (Join-Path $env:RUNNER_TEMP 'old.asm') $oldHlsl /Fo (Join-Path $env:RUNNER_TEMP 'old.cso')
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & (Join-Path $tools 'fxc.exe') /T cs_5_0 /E CSMain /O3 /Fc (Join-Path $env:RUNNER_TEMP 'new.asm') (Join-Path $dir 'dlssnr.hlsl') /Fo (Join-Path $dir 'DlssNr_Shader.cso')
+          & (Join-Path $tools 'fxc.exe') /T cs_5_0 /E CSMain /O3 /Fc $asm (Join-Path $dir 'dlssnr.hlsl') /Fo (Join-Path $dir 'DlssNr_Shader.cso')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          $pattern = 'gPreExposure|gExposureSourceWidth|gExposureSourceHeight|gMeterCopiesExposure|gExposureTrim;|gUseExposureWhitePoint|gExposureTrimAnchorCount|gExposureTrimPreview|gExposureTrimAnchorExposure|gExposureTrimAnchorTrim|gAutoExposureShadowProtection'
-          $oldLayout = @(Select-String -Path (Join-Path $env:RUNNER_TEMP 'old.asm') -Pattern $pattern | ForEach-Object { ($_.Line -replace '^\s*;\s*','').Trim() })
-          $newLayout = @(Select-String -Path (Join-Path $env:RUNNER_TEMP 'new.asm') -Pattern $pattern | ForEach-Object { ($_.Line -replace '^\s*;\s*','').Trim() })
-          Write-Host 'OLD exposure cbuffer layout:'
-          $oldLayout | ForEach-Object { Write-Host $_ }
-          Write-Host 'NEW exposure cbuffer layout:'
-          $newLayout | ForEach-Object { Write-Host $_ }
-          if (($oldLayout -join "`n") -ne ($newLayout -join "`n")) { throw 'Exposure cbuffer layout changed' }
+          $expected = [ordered]@{
+            gPreExposure = 132
+            gExposureSourceWidth = 136
+            gExposureSourceHeight = 140
+            gMeterCopiesExposure = 144
+            gExposureTrim = 148
+            gUseExposureWhitePoint = 152
+            gExposureTrimAnchorCount = 156
+            gExposureTrimPreview = 160
+            gExposureTrimAnchorExposure0 = 164
+            gExposureTrimAnchorTrim0 = 168
+            gExposureTrimAnchorExposure1 = 172
+            gExposureTrimAnchorTrim1 = 176
+            gExposureTrimAnchorExposure2 = 180
+            gExposureTrimAnchorTrim2 = 184
+            gExposureTrimAnchorExposure3 = 188
+            gExposureTrimAnchorTrim3 = 192
+            gExposureTrimAnchorExposure4 = 196
+            gExposureTrimAnchorTrim4 = 200
+            gExposureTrimAnchorExposure5 = 204
+            gExposureTrimAnchorTrim5 = 208
+            gExposureTrimAnchorExposure6 = 212
+            gExposureTrimAnchorTrim6 = 216
+            gExposureTrimAnchorExposure7 = 220
+            gExposureTrimAnchorTrim7 = 224
+            gAutoExposureShadowProtection = 228
+          }
+          $asmText = Get-Content $asm -Raw
+          foreach ($entry in $expected.GetEnumerator()) {
+            $name = [regex]::Escape($entry.Key)
+            $offset = $entry.Value
+            $pattern = "(?m)\b$name\b.*Offset:\s*$offset\b"
+            if ($asmText -notmatch $pattern) { throw "FXC cbuffer offset mismatch for $($entry.Key): expected $offset" }
+            Write-Host "$($entry.Key) offset $offset OK"
+          }
 
           Push-Location $dir
           python (Join-Path $tools 'create_header.py') DlssNr_Shader.cso DlssNr_Shader.h DlssNr_cso
