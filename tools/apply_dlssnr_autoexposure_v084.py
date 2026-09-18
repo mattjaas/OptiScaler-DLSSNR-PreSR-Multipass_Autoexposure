@@ -966,13 +966,12 @@ s = rep(
     "                     ID3D12Resource* output, unsigned int width,\n",
     "proxy impl decl exposure arg",
 )
-s = rep(
+s = sub(
     s,
+    r"unsigned int Context::Impl::Run\(ID3D12GraphicsCommandList\* cmdList, ID3D12Device\* device, ID3D12Resource\* color,\n\s+ID3D12Resource\* depth, ID3D12Resource\* motion, ID3D12Resource\* output,\n",
     "unsigned int Context::Impl::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Device* device, ID3D12Resource* color,\n"
-    "                                 ID3D12Resource* depth, ID3D12Resource* motion, ID3D12Resource* output,\n",
-    "unsigned int Context::Impl::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Device* device, ID3D12Resource* color,\n"
-    "                                 ID3D12Resource* depth, ID3D12Resource* motion, ID3D12Resource* exposure,\n"
-    "                                 ID3D12Resource* output,\n",
+    "                                ID3D12Resource* depth, ID3D12Resource* motion, ID3D12Resource* exposure,\n"
+    "                                ID3D12Resource* output,\n",
     "proxy impl definition exposure arg",
 )
 s = rep(
@@ -984,10 +983,9 @@ s = rep(
     "    SetResource(params, \"DLSSNR.Output\", output);\n",
     "proxy set exposure resource",
 )
-s = rep(
+s = sub(
     s,
-    "unsigned int Context::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Device* device, ID3D12Resource* color,\n"
-    "                          ID3D12Resource* depth, ID3D12Resource* motion, ID3D12Resource* output, unsigned int width,\n",
+    r"unsigned int Context::Run\(ID3D12GraphicsCommandList\* cmdList, ID3D12Device\* device, ID3D12Resource\* color,\n\s+ID3D12Resource\* depth, ID3D12Resource\* motion, ID3D12Resource\* output, unsigned int width,\n",
     "unsigned int Context::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Device* device, ID3D12Resource* color,\n"
     "                          ID3D12Resource* depth, ID3D12Resource* motion, ID3D12Resource* exposure,\n"
     "                          ID3D12Resource* output, unsigned int width,\n",
@@ -1534,7 +1532,7 @@ s = rep(
     "            LOG_WARN(\"DLSS-NR Vulkan: no exposure meter; the white point stays on the slider\");\n",
     "        const bool meterReady =\n"
     "            (state.meter.Valid() || CreateImage(state.meter, kMeterSide, kMeterSide, VK_FORMAT_R32_SFLOAT, true)) &&\n"
-    "            (state.autoExposure.Valid() || CreateImage(state.autoExposure, 1, 1, VK_FORMAT_R32_SFLOAT, true)) &&\n"
+    "            (state.autoExposure.Valid() || CreateImage(state.autoExposure, 1, 1, VK_FORMAT_R32_SFLOAT, false)) &&\n"
     "            CreateMeterReadback();\n\n"
     "        if (!meterReady)\n"
     "            LOG_WARN(\"DLSS-NR Vulkan: no exposure meter; automatic exposure is unavailable\");\n",
@@ -1679,10 +1677,24 @@ s = rep(
 )
 s = rep(
     s,
-    "                state.meterFrames++;\n",
+    "                vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0,\n"
+    "                                     nullptr, 1, &toHost, 0, nullptr);\n\n"
+    "                state.meterFrames++;\n"
+    "            }\n"
+    "        }\n"
+    "    }\n\n"
+    "    // -----------------------------------------------------------------------------------------\n"
+    "    // The model\n",
+    "                vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0,\n"
+    "                                     nullptr, 1, &toHost, 0, nullptr);\n\n"
     "                state.meterExposureKind[slot] = 1u;\n"
     "                state.meterExposurePreExposure[slot] = state.gamePreExposure;\n"
-    "                state.meterFrames++;\n",
+    "                state.meterFrames++;\n"
+    "            }\n"
+    "        }\n"
+    "    }\n\n"
+    "    // -----------------------------------------------------------------------------------------\n"
+    "    // The model\n",
     "Vulkan game meter kind",
 )
 # Model gets only the owned automatic exposure texture.
