@@ -135,7 +135,7 @@ s = replace_once(
     r'''            static const char* sourceNames[] = { "Paper white only", "The game's own exposure",
                                                  "A buffer the scan found" };''',
     r'''            static const char* sourceNames[] = { "Manual paper white", "Game exposure",
-                                                 "Scanned exposure (experimental)", "Automatic exposure (GPU)" };''',
+                                                 "Scanned exposure (experimental)", "Automatic exposure from HDR frame" };''',
     "menu four source names",
 )
 s = replace_once(
@@ -164,9 +164,9 @@ s = replace_once(
     r'''            HelpMarker("Manual: use Paper white."
                            "\nGame exposure: use only exposure supplied by the game."
                            "\nScanned exposure: keep the existing experimental buffer scan and calibration."
-                           "\nAutomatic exposure (GPU): the new independent OptiScaler calculation from"
+                           "\nAutomatic exposure from HDR frame: the new independent OptiScaler calculation from"
                            "\nthe original linear-HDR frame; the game's ExposureTexture is ignored."
-                           "\n\nScanned exposure remains source 2. GPU Automatic exposure is source 3,"
+                           "\n\nScanned exposure remains source 2. Automatic exposure from HDR frame is source 3,"
                            "\nso the two implementations can be compared directly.");''',
     "menu source help",
 )
@@ -180,7 +180,7 @@ s = replace_once(
     r'''            else if (source == 3)
             {
                 ImGui::TextColored(ImVec4(0.45f, 0.8f, 0.45f, 1.0f),
-                                   "GPU Automatic exposure is active; existing scan/game modes are unchanged.");
+                                   "Automatic exposure from HDR frame is active; existing scan/game modes are unchanged.");
             }
             else if (haveExposure)
             {
