@@ -51,6 +51,43 @@ jobs:
         git -c core.longpaths=true submodule update --init --recursive --depth 1
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    - name: Choose available release version
+      shell: powershell
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REQUESTED_VERSION: ${{ inputs.version }}
+      run: |
+        $baseTag = $env:REQUESTED_VERSION.Trim()
+        if ([string]::IsNullOrWhiteSpace($baseTag)) {
+          Write-Error "Package version cannot be empty."
+          exit 1
+        }
+
+        $tag = $baseTag
+        $suffix = 1
+
+        while ($true) {
+          & git ls-remote --exit-code --tags origin "refs/tags/$tag" *> $null
+          $tagExists = $LASTEXITCODE -eq 0
+
+          & gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          $releaseExists = $LASTEXITCODE -eq 0
+
+          if (-not $tagExists -and -not $releaseExists) {
+            break
+          }
+
+          $tag = "${baseTag}_$suffix"
+          $suffix++
+        }
+
+        "RELEASE_TAG=$tag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        Write-Host "Requested version: $baseTag"
+        Write-Host "Resolved release version: $tag"
+        "### Package Release version" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+        "- Requested: `$baseTag`" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+        "- Using: `$tag`" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
     - name: Apply DLSS-NR Auto Exposure patch in runner only
       shell: powershell
       run: |
@@ -271,11 +308,9 @@ jobs:
 
     - name: Run package_release.ps1
       shell: powershell
-      env:
-        PACKAGE_VERSION: ${{ inputs.version }}
       run: |
         $params = @{
-            Version = $env:PACKAGE_VERSION
+            Version = $env:RELEASE_TAG
             HybridAssetsDirectory = "$env:RUNNER_TEMP\hybrid-assets"
         }
         if ("${{ inputs.include_ampere_mfg }}" -eq "true") {
@@ -303,7 +338,6 @@ jobs:
       shell: powershell
       env:
         GH_TOKEN: ${{ github.token }}
-        RELEASE_TAG: ${{ inputs.version }}
       run: |
         $assets = @(Get-ChildItem -Path ".\release" -Filter "*.zip" -File | Select-Object -ExpandProperty FullName)
         if ($assets.Count -eq 0) {
