@@ -85,8 +85,8 @@ jobs:
         Write-Host "Requested version: $baseTag"
         Write-Host "Resolved release version: $tag"
         "### Package Release version" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-        "- Requested: `$baseTag`" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
-        "- Using: `$tag`" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+        "- Requested: $baseTag" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+        "- Using: $tag" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
     - name: Apply DLSS-NR Auto Exposure patch in runner only
       shell: powershell
