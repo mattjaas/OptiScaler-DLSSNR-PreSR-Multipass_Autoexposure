@@ -1394,6 +1394,21 @@ s = rep(
     "    DestroyMeterReadback();\n",
     "Vulkan auto exposure shutdown",
 )
+s = rep(
+    s,
+    "        const bool meterReady =\n"
+    "            (state.meter.Valid() || CreateImage(state.meter, kMeterSide, kMeterSide, VK_FORMAT_R32_SFLOAT, true)) &&\n"
+    "            CreateMeterReadback();\n\n"
+    "        if (!meterReady)\n"
+    "            LOG_WARN(\"DLSS-NR Vulkan: no exposure meter; the white point stays on the slider\");\n",
+    "        const bool meterReady =\n"
+    "            (state.meter.Valid() || CreateImage(state.meter, kMeterSide, kMeterSide, VK_FORMAT_R32_SFLOAT, true)) &&\n"
+    "            (state.autoExposure.Valid() || CreateImage(state.autoExposure, 1, 1, VK_FORMAT_R32_SFLOAT, false)) &&\n"
+    "            CreateMeterReadback();\n\n"
+    "        if (!meterReady)\n"
+    "            LOG_WARN(\"DLSS-NR Vulkan: no exposure meter; automatic exposure is unavailable\");\n",
+    "Vulkan auto exposure allocation",
+)
 write(rel, s)
 
 rel = "OptiScaler/dlssnr/DlssNrFeature_Vk_Resources.cpp"
@@ -1521,22 +1536,6 @@ s = rep(
     "                }\n"
     "            }\n",
     "Vulkan consume exposure kind",
-)
-# Allocation: meter + 1x1 automatic exposure.
-s = rep(
-    s,
-    "        const bool meterReady =\n"
-    "            (state.meter.Valid() || CreateImage(state.meter, kMeterSide, kMeterSide, VK_FORMAT_R32_SFLOAT, true)) &&\n"
-    "            CreateMeterReadback();\n\n"
-    "        if (!meterReady)\n"
-    "            LOG_WARN(\"DLSS-NR Vulkan: no exposure meter; the white point stays on the slider\");\n",
-    "        const bool meterReady =\n"
-    "            (state.meter.Valid() || CreateImage(state.meter, kMeterSide, kMeterSide, VK_FORMAT_R32_SFLOAT, true)) &&\n"
-    "            (state.autoExposure.Valid() || CreateImage(state.autoExposure, 1, 1, VK_FORMAT_R32_SFLOAT, false)) &&\n"
-    "            CreateMeterReadback();\n\n"
-    "        if (!meterReady)\n"
-    "            LOG_WARN(\"DLSS-NR Vulkan: no exposure meter; automatic exposure is unavailable\");\n",
-    "Vulkan auto exposure allocation",
 )
 # White point CPU fallback / anchors.
 s = rep(
