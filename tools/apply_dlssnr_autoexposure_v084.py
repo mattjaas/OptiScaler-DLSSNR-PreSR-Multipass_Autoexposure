@@ -1651,19 +1651,19 @@ s = rep(
     "    FillVkTrimConstants(encode, cfg, requestedWhitePointSource);\n",
     "Vulkan encode auto constants",
 )
-s = sub(
-    s,
-    r"if \(!state\.pass->Dispatch\(cmdBuffer, encode, width, height, colour->Resource\.ImageViewInfo\.ImageView,\s*"
-    r"VK_NULL_HANDLE,\s*VK_NULL_HANDLE,\s*VK_NULL_HANDLE,\s*VK_NULL_HANDLE,\s*"
-    r"state\.proxy\.view,\s*state\.keep\.view,\s*inputLayout\)\)",
-    "if (!state.pass->Dispatch(cmdBuffer, encode, width, height, colour->Resource.ImageViewInfo.ImageView,\n"
+encode_call_start = s.find("    if (!state.pass->Dispatch(cmdBuffer, encode,")
+encode_call_end = s.find("))\n    {", encode_call_start)
+if encode_call_start < 0 or encode_call_end < 0:
+    raise RuntimeError("Vulkan encode exposure binding: encode dispatch call was not found")
+encode_call = (
+    "    if (!state.pass->Dispatch(cmdBuffer, encode, width, height, colour->Resource.ImageViewInfo.ImageView,\n"
     "                              VK_NULL_HANDLE, VK_NULL_HANDLE,\n"
     "                              state.autoExposureActive ? state.autoExposure.view : VK_NULL_HANDLE,\n"
     "                              state.proxy.view, state.keep.view, inputLayout,\n"
     "                              state.autoExposureActive ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL\n"
-    "                                                       : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))",
-    "Vulkan encode exposure binding",
+    "                                                       : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))"
 )
+s = s[:encode_call_start] + encode_call + s[encode_call_end + 2:]
 # Game meter flag and kind.
 s = rep(
     s,
@@ -1716,17 +1716,20 @@ s = rep(
     "    FillVkTrimConstants(resolve, cfg, requestedWhitePointSource);\n",
     "Vulkan resolve auto constants",
 )
-s = sub(
-    s,
-    r"\s+state\.keep\.view, VK_NULL_HANDLE, target\.ImageView, VK_NULL_HANDLE,\n\s+VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL\)\)",
+resolve_call_start = s.find("    if (!state.pass->Dispatch(cmdBuffer, resolve,")
+resolve_call_end = s.find("))\n    {", resolve_call_start)
+if resolve_call_start < 0 or resolve_call_end < 0:
+    raise RuntimeError("Vulkan resolve exposure binding: resolve dispatch call was not found")
+resolve_call = (
+    "    if (!state.pass->Dispatch(cmdBuffer, resolve, width, height, resolveProxy->view, resolveAnswer->view,\n"
     "                              state.keep.view,\n"
     "                              state.autoExposureActive ? state.autoExposure.view : VK_NULL_HANDLE,\n"
     "                              target.ImageView, VK_NULL_HANDLE,\n"
     "                              VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,\n"
     "                              state.autoExposureActive ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL\n"
-    "                                                       : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))",
-    "Vulkan resolve exposure binding",
+    "                                                       : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))"
 )
+s = s[:resolve_call_start] + resolve_call + s[resolve_call_end + 2:]
 write(rel, s)
 
 print("OptiScaler v0.8.4 Automatic Exposure port applied")
