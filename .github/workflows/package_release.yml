@@ -32,6 +32,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: package-release
+  cancel-in-progress: false
+
 jobs:
   package:
     runs-on: windows-latest
@@ -67,13 +71,11 @@ jobs:
         $suffix = 1
 
         while ($true) {
-          & git ls-remote --exit-code --tags origin "refs/tags/$tag" *> $null
-          $tagExists = $LASTEXITCODE -eq 0
+          # actions/checkout fetched all repository tags. git tag --list always exits successfully,
+          # so a missing candidate is data rather than a PowerShell NativeCommandError.
+          $tagExists = @(& git tag --list -- "$tag").Count -gt 0
 
-          & gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
-          $releaseExists = $LASTEXITCODE -eq 0
-
-          if (-not $tagExists -and -not $releaseExists) {
+          if (-not $tagExists) {
             break
           }
 
