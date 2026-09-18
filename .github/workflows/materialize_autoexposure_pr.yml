@@ -1,0 +1,55 @@
+name: Materialize Auto Exposure PR branch
+
+on:
+  push:
+    branches:
+      - v0.8.4-autoexposure
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.repository == 'mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout patch branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Materialize source-only PR branch
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          git config --global core.longpaths true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          $patch = Join-Path $env:RUNNER_TEMP "apply_dlssnr_autoexposure_v084.py"
+          Copy-Item ".\tools\apply_dlssnr_autoexposure_v084.py" $patch -Force
+
+          git fetch origin v0.8.4-autoexposure-source
+          git checkout -B v0.8.4-autoexposure-source origin/v0.8.4-autoexposure-source
+
+          New-Item -ItemType Directory -Path ".\tools" -Force | Out-Null
+          Copy-Item $patch ".\tools\apply_dlssnr_autoexposure_v084.py" -Force
+
+          python ".\tools\apply_dlssnr_autoexposure_v084.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Remove-Item ".\tools\apply_dlssnr_autoexposure_v084.py" -Force
+          if ((Test-Path ".\tools") -and -not (Get-ChildItem ".\tools" -Force | Select-Object -First 1)) {
+            Remove-Item ".\tools" -Force
+          }
+
+          git add OptiScaler
+          if (-not (git diff --cached --quiet)) {
+            git commit -m "Add automatic exposure and exposure-dependent Trim"
+            git push origin HEAD:v0.8.4-autoexposure-source
+          } else {
+            Write-Host "No source changes to commit."
+          }
+
+          Write-Host "Committed files:"
+          git diff --name-status 8802b2b470db0462fa1ed03a125e793a7c06d735..HEAD
