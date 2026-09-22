@@ -50,13 +50,7 @@ jobs:
             exit 1
           }
 
-          $notes = @"
-This build is made from commit `6398c05878221d9b071a53adc0dac272c0b22bc0`, the exact source used by PR #94 to wilsjo2.
-
-Highlight Guard now limits excessive brightening only. Model-driven darkening is left uncapped.
-
-The PR branch itself is not modified by this release process.
-"@
+          $notes = "Built from exact source commit 6398c05878221d9b071a53adc0dac272c0b22bc0 used by PR #94 to wilsjo2. Highlight Guard limits excessive brightening only; model-driven darkening is left uncapped. The PR branch was not modified by this release process."
 
           gh release create $tag $asset.FullName --target 6398c05878221d9b071a53adc0dac272c0b22bc0 --title "Highlight Guard - brightening only" --notes $notes
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
