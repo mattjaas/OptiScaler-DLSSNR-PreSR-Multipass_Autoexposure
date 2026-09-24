@@ -1,14 +1,16 @@
-# v0.8.92 (fork) - matched guides below 100% Model resolution
+# v0.8.92 (fork) - matched guides and motion scale for the NR model
 
-This is a fork release by [jlrouzies-fr](https://github.com/jlrouzies-fr/OptiScaler-DLSSNR-PreSR-Multipass), built from v0.8.91 plus one fix. It is offered to upstream as a pull request.
+This is a fork release by [jlrouzies-fr](https://github.com/jlrouzies-fr/OptiScaler-DLSSNR-PreSR-Multipass), built from v0.8.91 plus two fixes to what the neural model is given. It is offered to upstream as a pull request.
 
-## The problem
+## Fix 1: guides at the model's working size
+
+### The problem
 
 Every Model resolution below 100% flickered and kept "settling" for several frames after the camera stopped, while 100% was steady. The same model at 100% of a frame the game had already shrunk (DLSS5-Feeder's own work resolution: same pixel count, guides made at that size) was steady too, which put the difference inside this fork's reduced path.
 
 Below 100% the model was given a colour at the working size and depth and motion vectors at the frame's size, with only the vector magnitudes rescaled (`DLSSNR.Width` = working size, `DLSSNR.DepthSubrectWidth` / `MVecSubrectWidth` = frame size). Nothing documents that the model resamples a guide larger than its colour, and the picture says it does not: each pixel's depth and motion belonged to a different place in the frame, the history never lined up, and the model re-decided every frame.
 
-## The fix
+### The fix
 
 Depth and motion are resampled to the working size with the point resample the DLSS-enlargement path already builds for its private upscaler (`DlssNrMode_ResizePrivateGuides`), and handed to the model as a full zero-origin region. The vectors keep the game's units; the working-size scale still applies. Two work-size scratch textures, parked with the other per-size resources. Peripheral spatial compression is untouched: it packs its own guides already.
 
@@ -18,12 +20,29 @@ Depth and motion are resampled to the working size with the point resample the D
 DLSS-NR guides matched to the working size: depth and motion 2150x1210 for a 2150x1210 model (the frame's guides are 3072x1728)
 ```
 
+## Fix 2: motion scale measured against the right size
+
+### The problem
+
+The model path turned the game's motion-vector scale into model pixels with `working width / output width`. But the game's scale turns its vectors into pixels of the size they are measured in, which for low-resolution vectors is the render size. So in any game upscaling with low-resolution vectors, every vector reached the model scaled down by render/output, at every Model resolution including 100%. Onimusha: Way of the Sword at DLSS Performance, 4K: the game's scale is 1920 for a 3840-wide frame, and at 70% the model got 1344 where the motion was 2688 -- every moving pixel reprojected halfway, which is flicker in motion and a settle after the camera stops. Fix 1 alone did not help there. The DLSS-enlargement path already used the render size as the reference (`DlssNr_Dx12_Enlarge.cpp`); the model path did not.
+
+Games fed at their output size (DLAA, or DLSS5-Feeder, whose frame and vectors are the same size) were never affected, which is why Fable only needed fix 1.
+
+### The fix
+
+The model's scale is `game scale x working size / reference`, where the reference is the render size for low-resolution vectors and the output size otherwise -- the enlargement path's formula. `[DlssNr] RenderMotionScale=true` (default); `false` restores the old reference. `OptiScaler.log` prints the scale once per change:
+
+```
+DLSS-NR model motion scale 2688.0 x 1512.0: game scale 1920 x 1080 measured against 1920x1080 (render size, low-resolution vectors), model 2688x1512
+```
+
 ## Verified
 
 - Fable Anniversary (DirectX 9 through dgVoodoo2, 4K, DLSS5-Feeder 32-bit helper, RTX 5090, driver 617.14): 70% Model resolution is as steady as 100% with `MatchGuides=true`, and flickers with `false`, on the same build.
+- Onimusha: Way of the Sword (native D3D12 DLSS, Performance, 4K, 70% Model resolution, 2 passes, Finished Picture, Transfer=2): very flickery with fix 1 alone; steady with both.
 - The helper's 300-evaluate self-test at 640x360 with `WorkingScale=0.7`: 300/300 both ways, no measurable cost.
 
-Not run: native 64-bit games, Vulkan (the fix is DirectX 12 only; the Vulkan path has the same shape and is untouched), RTX40 MFG.
+Not run: Vulkan (both fixes are DirectX 12 only; the native Vulkan path has the same shape and is untouched), RTX40 MFG.
 
 ## Package
 
