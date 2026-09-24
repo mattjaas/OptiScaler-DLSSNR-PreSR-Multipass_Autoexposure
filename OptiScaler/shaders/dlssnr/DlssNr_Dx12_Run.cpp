@@ -333,9 +333,90 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         motionIn = nr.spatialMotion;
     }
 
-    // The vectors were scaled to full-frame pixels; the image the model reprojects is the working size.
-    const float mvToWorkX = width != 0 ? (float) workWidth / (float) width : 1.0f;
-    const float mvToWorkY = height != 0 ? (float) workHeight / (float) height : 1.0f;
+    // The game's scale turns its vectors into pixels of the size they are measured in: the render size
+    // for low-resolution vectors, the output size otherwise. The model reprojects an image of the
+    // working size, so convert against that reference -- the DLSS-enlargement path always did. Using
+    // the frame's (output) width here instead halved every vector in a game rendering at half its
+    // output with low-resolution vectors (Onimusha: scale 1920 for a 3840-wide frame gave the model
+    // 1344 where the motion was 2688), at every Model resolution including 100%.
+    const bool renderMotionScale = cfg.DlssNrRenderMotionScale.value_or_default();
+    const unsigned int mvRefW = renderMotionScale && frame.MotionVectorsLowResolution && frame.RenderSubrectWidth
+                                    ? frame.RenderSubrectWidth : width;
+    const unsigned int mvRefH = renderMotionScale && frame.MotionVectorsLowResolution && frame.RenderSubrectHeight
+                                    ? frame.RenderSubrectHeight : height;
+    const float mvToWorkX = mvRefW != 0 ? (float) workWidth / (float) mvRefW : 1.0f;
+    const float mvToWorkY = mvRefH != 0 ? (float) workHeight / (float) mvRefH : 1.0f;
+    {
+        static unsigned int loggedRefW = 0, loggedWorkW = 0;
+        if (loggedRefW != mvRefW || loggedWorkW != workWidth)
+        {
+            loggedRefW = mvRefW;
+            loggedWorkW = workWidth;
+            LOG_INFO("DLSS-NR model motion scale {:.1f} x {:.1f}: game scale {} x {} measured against {}x{} ({}), "
+                     "model {}x{}",
+                     frame.MvScaleX * mvToWorkX, frame.MvScaleY * mvToWorkY, frame.MvScaleX, frame.MvScaleY, mvRefW,
+                     mvRefH, mvRefW != width ? "render size, low-resolution vectors" : "frame size", workWidth,
+                     workHeight);
+        }
+    }
+
+    // Below native (and not packed by spatial compression, which brings its own guides), the model
+    // was handed a colour at the working size and depth and motion at the frame's size, with only
+    // the vector magnitudes rescaled. Nothing says the model resamples a guide that is larger than
+    // its colour, and the picture said it does not: every scale below 100% flickered and settled for
+    // frames after the camera stopped, while the same model at 100% of a frame the game had already
+    // shrunk was steady. So give it guides at its own size -- the same point resample the DLSS
+    // enlargement path already builds for its private upscaler -- and describe them as a full,
+    // zero-origin region. The vectors keep the game's units; the working-size scale below still
+    // applies.
+    bool matchedGuides = false;
+    if (reduced && !spatial && workWidth < width && cfg.DlssNrMatchGuides.value_or_default())
+    {
+        if (nr.depthSmall == nullptr)
+            nr.depthSmall = CreateScratch(device, DXGI_FORMAT_R32_FLOAT, workWidth, workHeight);
+        if (nr.motionSmall == nullptr)
+            nr.motionSmall = CreateScratch(device, DXGI_FORMAT_R32G32_FLOAT, workWidth, workHeight);
+        if (nr.depthSmall != nullptr && nr.motionSmall != nullptr)
+        {
+            DlssNrConstants resize {};
+            resize.Mode = DlssNrMode_ResizePrivateGuides;
+            resize.Width = workWidth;
+            resize.Height = workHeight;
+            resize.GuideWidth = guides.depth.width;
+            resize.GuideHeight = guides.depth.height;
+            resize.DebugView = guides.depth.x;
+            resize.CompareMode = guides.depth.y;
+            resize.TransferStrength = float(guides.motion.width);
+            resize.ColourStrength = float(guides.motion.height);
+            resize.CompareSwap = guides.motion.x;
+            resize.Transfer = guides.motion.y;
+            resize.MvScaleX = resize.MvScaleY = 1.0f;
+            if (shader.DispatchPass(cmdList, resize, depthIn, motionIn, nullptr, nullptr, nullptr, nr.depthSmall,
+                                    nr.motionSmall))
+            {
+                Barrier(cmdList, nr.depthSmall, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                Barrier(cmdList, nr.motionSmall, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                depthIn = nr.depthSmall;
+                motionIn = nr.motionSmall;
+                matchedGuides = true;
+            }
+        }
+        static bool loggedMatch = false;
+        if (!loggedMatch)
+        {
+            loggedMatch = true;
+            if (matchedGuides)
+                LOG_INFO("DLSS-NR guides matched to the working size: depth and motion {}x{} for a {}x{} model "
+                         "(the frame's guides are {}x{})",
+                         workWidth, workHeight, workWidth, workHeight, guides.depth.width, guides.depth.height);
+            else
+                LOG_WARN("DLSS-NR guides could not be matched to the working size; the model keeps the frame's "
+                         "{}x{} guides for its {}x{} colour",
+                         guides.depth.width, guides.depth.height, workWidth, workHeight);
+        }
+    }
 
     ngxTime->Start(cmdList);
 
@@ -404,9 +485,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     modelFrame.depth = depthIn;
     modelFrame.motion = motionIn;
     modelFrame.size = { modelWidth, modelHeight };
-    modelFrame.guides =
-        spatial ? DlssNr::GuideRegions { { 0, 0, modelWidth, modelHeight }, { 0, 0, modelWidth, modelHeight } }
-                : guides;
+    modelFrame.guides = (spatial || matchedGuides)
+                            ? DlssNr::GuideRegions { { 0, 0, modelWidth, modelHeight }, { 0, 0, modelWidth, modelHeight } }
+                            : guides;
     modelFrame.depthInverted = frame.DepthInverted;
     modelFrame.reset = nr.reset;
     modelFrame.mvScaleX = spatial ? 1.0f : frame.MvScaleX * mvToWorkX;
@@ -696,6 +777,15 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             for (auto* unpacked : { nr.spatialProxy, nr.spatialAnswer })
                 Barrier(cmdList, unpacked, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                         D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    }
+
+    // The matched guides were written this frame and read by the model; back to UAV for the next.
+    if (matchedGuides)
+    {
+        Barrier(cmdList, nr.depthSmall, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        Barrier(cmdList, nr.motionSmall, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     }
 
     // Failed evaluations leave the game's original image intact. A successful copy-back writes
