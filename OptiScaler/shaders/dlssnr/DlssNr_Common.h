@@ -28,8 +28,17 @@ enum DlssNrMode : uint32_t
     DlssNrMode_EncodeProxyResidual = 9,
     DlssNrMode_Meter = 3,
     DlssNrMode_AutoExposure = 11,
-    DlssNrMode_ResizePrivateGuides = 10
+    DlssNrMode_ResizePrivateGuides = 10,
+    DlssNrMode_EncodeResizeField = 12
 };
+
+inline bool DlssNrUsesDlssEnlargement(uint32_t transfer) { return transfer == 2 || transfer == 4; }
+
+// The spatial mode is used until the caller has supplied an enlarged DLSS carrier.
+inline uint32_t DlssNrSpatialTransfer(uint32_t transfer)
+{
+    return DlssNrUsesDlssEnlargement(transfer) ? transfer - 1 : std::min(transfer, 3u);
+}
 
 // Finished-colour shader's exposure-normalised brightness response, -12..12 stops.
 constexpr uint32_t kDlssNrHdrCurveBins = 48;
@@ -264,7 +273,7 @@ class DlssNr_Common
         constants.DebugView = config.DlssNrDebugView.value_or_default();
         constants.MaxRatio = config.DlssNrMaxRatio.value_or_default();
         constants.MaxDarkening = std::clamp(config.DlssNrMaxDarkening.value_or_default(), 0.0f, 100.0f);
-        constants.Transfer = std::min(config.DlssNrTransfer.value_or_default(), 1u);
+        constants.Transfer = DlssNrSpatialTransfer(config.DlssNrTransfer.value_or_default());
         constants.DebugScale = config.DlssNrWhitePointScale.value_or_default();
         constants.CompareMode = config.DlssNrCompare.value_or_default();
         constants.CompareSplit = config.DlssNrCompareSplit.value_or_default();
