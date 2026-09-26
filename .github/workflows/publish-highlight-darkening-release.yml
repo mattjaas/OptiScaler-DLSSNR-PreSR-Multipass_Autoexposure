@@ -1,0 +1,75 @@
+name: Publish highlight darkening guard release
+
+on:
+  push:
+    branches:
+      - test/highlight-darkening-guard
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    if: ${{ !contains(github.event.head_commit.message, '[release-published]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: test/highlight-darkening-guard
+          fetch-depth: 0
+
+      - name: Download validated Release artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/${{ github.repository }}/actions/artifacts/10905064990/zip > artifact.zip
+          mkdir artifact
+          unzip -q artifact.zip -d artifact
+          find artifact -maxdepth 2 -type f -print
+
+      - name: Create GitHub Release and upload package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: highlight-darkening-guard
+          TARGET: ae28448429cb380de4cbbab2bbbe19b8c1d93c28
+        run: |
+          set -euo pipefail
+          ASSET="$(find artifact -type f -name '*.7z' | head -n 1)"
+          test -n "$ASSET"
+
+          NOTES=$(cat <<'EOF'
+Validated build for independent NR luminance guards.
+
+- Highlight guard limits brightening only.
+- Darkening guard independently limits maximum luminance reduction.
+- 100% Darkening guard = uncapped darkening (default).
+- FXC/DX12 shader build: passed.
+- Vulkan/SPIR-V shader build: passed.
+- Full MSBuild Release: passed.
+- Release packaging: passed.
+
+Source commit: ae28448429cb380de4cbbab2bbbe19b8c1d93c28
+PR: https://github.com/wilsjo2/OptiScaler-DLSSNR-PreSR-Multipass/pull/94
+EOF
+          )
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --target "$TARGET" --title "Highlight + Darkening Guard" --notes "$NOTES"
+          else
+            gh release create "$TAG" --target "$TARGET" --title "Highlight + Darkening Guard" --notes "$NOTES"
+          fi
+          gh release upload "$TAG" "$ASSET" --clobber
+
+      - name: Remove one-shot publishing workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PATH_IN_REPO=".github/workflows/publish-highlight-darkening-release.yml"
+          SHA="$(gh api repos/${{ github.repository }}/contents/$PATH_IN_REPO?ref=test/highlight-darkening-guard --jq .sha)"
+          gh api -X DELETE repos/${{ github.repository }}/contents/$PATH_IN_REPO \
+            -f message='Remove one-shot release workflow [release-published]' \
+            -f sha="$SHA" \
+            -f branch='test/highlight-darkening-guard'
