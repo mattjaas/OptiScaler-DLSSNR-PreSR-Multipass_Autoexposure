@@ -7,6 +7,9 @@
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
 #include "precompile/dlssnr_finished_color_simple_Shader.h"
+#include "precompile/dlssnr_finished_apply_sdr_Shader.h"
+#include "precompile/dlssnr_finished_apply_scrgb_Shader.h"
+#include "precompile/dlssnr_finished_apply_pq_Shader.h"
 #include "precompile/dlssnr_spatial_Shader.h"
 #include "precompile/dlssnr_spatial_guides_Shader.h"
 
@@ -311,6 +314,12 @@ DlssNr_Dx12::~DlssNr_Dx12()
         _finishedColorPipelineState->Release();
     if (_finishedColorSimplePipelineState)
         _finishedColorSimplePipelineState->Release();
+    if (_finishedApplySdrPipelineState)
+        _finishedApplySdrPipelineState->Release();
+    if (_finishedApplyScRgbPipelineState)
+        _finishedApplyScRgbPipelineState->Release();
+    if (_finishedApplyPqPipelineState)
+        _finishedApplyPqPipelineState->Release();
     for (auto& buffer : _constantBuffers)
     {
         if (buffer != nullptr)
@@ -371,18 +380,48 @@ bool DlssNr_Dx12::DispatchResidualPass(ID3D12GraphicsCommandList* InCmdList, con
 {
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
-    // Modes 0..5 do not use HDR response fitting/matching. Route them through the compact shader
-    // that contains the exact same conversion/residual/apply equations but none of modes 6..9.
-    // This is a pure PSO specialization: resource bindings, constants and output maths stay the same.
-    const bool simpleFinished = finishedColor && InConstants.Mode <= 5;
+    // Final apply is the hot full-screen path. Modes 2/3/4 have identical resource bindings but
+    // mutually exclusive SDR/scRGB/PQ colour math, so give each one its own PSO. The equations are
+    // copied verbatim from dlssnr_finished_color.hlsl; only unreachable branches are removed.
+    ID3D12PipelineState* specializedFinished = nullptr;
+    if (finishedColor && _init)
+    {
+        if (InConstants.Mode == 2)
+        {
+            if (!_finishedApplySdrPipelineState)
+                CreateComputePipeline(_device, &_finishedApplySdrPipelineState, dlssnr_finished_apply_sdr_cso,
+                                      sizeof(dlssnr_finished_apply_sdr_cso), nullptr);
+            specializedFinished = _finishedApplySdrPipelineState;
+        }
+        else if (InConstants.Mode == 3)
+        {
+            if (!_finishedApplyScRgbPipelineState)
+                CreateComputePipeline(_device, &_finishedApplyScRgbPipelineState, dlssnr_finished_apply_scrgb_cso,
+                                      sizeof(dlssnr_finished_apply_scrgb_cso), nullptr);
+            specializedFinished = _finishedApplyScRgbPipelineState;
+        }
+        else if (InConstants.Mode == 4)
+        {
+            if (!_finishedApplyPqPipelineState)
+                CreateComputePipeline(_device, &_finishedApplyPqPipelineState, dlssnr_finished_apply_pq_cso,
+                                      sizeof(dlssnr_finished_apply_pq_cso), nullptr);
+            specializedFinished = _finishedApplyPqPipelineState;
+        }
+    }
+
+    // Modes 0/1/5 still use the compact common shader. Modes 6..9 need response fitting/matching.
+    const bool simpleFinished = finishedColor && InConstants.Mode <= 5 && !specializedFinished;
     if (simpleFinished && !_finishedColorSimplePipelineState && _init)
         CreateComputePipeline(_device, &_finishedColorSimplePipelineState, dlssnr_finished_color_simple_cso,
                               sizeof(dlssnr_finished_color_simple_cso), nullptr);
-    if (finishedColor && !simpleFinished && !_finishedColorPipelineState && _init)
+    if (finishedColor && InConstants.Mode >= 6 && !_finishedColorPipelineState && _init)
         CreateComputePipeline(_device, &_finishedColorPipelineState, dlssnr_finished_color_cso,
                               sizeof(dlssnr_finished_color_cso), nullptr);
+
     auto* pipeline = finishedColor
-                         ? (simpleFinished ? _finishedColorSimplePipelineState : _finishedColorPipelineState)
+                         ? (specializedFinished ? specializedFinished
+                                                : (simpleFinished ? _finishedColorSimplePipelineState
+                                                                  : _finishedColorPipelineState))
                          : _residualPipelineState;
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion, nullptr,
                            OutTarget, nullptr, nullptr);
