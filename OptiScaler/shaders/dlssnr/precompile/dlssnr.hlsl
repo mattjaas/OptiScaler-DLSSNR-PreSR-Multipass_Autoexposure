@@ -27,7 +27,7 @@ cbuffer Params : register(b0)
     float gDebugScale;   // what the debug views are scaled by, held still while the meter moves
     uint  gReversibleMode; // 0 knee, 1 Neutwo+composed, 2 Neutwo+replace, 3 hybrid+composed, 4 hybrid+replace
     uint  gApplyModel;     // 0 output the clean frame (pass still runs), 1 apply the model's edit
-    uint  gReserved;
+    float gMaxDarkening;    // percent: 100 = uncapped, 0 = no darkening
     float gResidualScale;
     uint  gSkinProtection;
     uint  gShowSkinMask;
@@ -924,13 +924,14 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     const float kRatioFloor = 1.0 / 512.0;
     float lumaRatio = (upgradedLuma + kRatioFloor) / (originalLuma + kRatioFloor);
 
-    // Amplify detail through a luminance-ratio power, preserving neutral edits and two-sided bounds.
+    // Amplify detail through a luminance-ratio power while preserving neutral edits.
     const float amplified = pow(max(lumaRatio, 1e-6), 1.0 + max(gTransferStrength - 1.0, 0.0));
 
-    // Bound brightening only. Darkening remains entirely model-driven; a single luminance-derived
-    // scale preserves hue while preventing excessive highlight amplification.
-    const float guard = max(gMaxRatio, 1.0);
-    float boundedRatio = min(amplified, guard);
+    // Independent one-sided guards. Highlight guard only limits brightening. Darkening guard only
+    // raises the lower luminance-ratio bound; at 100% its floor is zero, so darkening is uncapped.
+    const float highlightGuard = max(gMaxRatio, 1.0);
+    const float darkeningFloor = 1.0 - saturate(gMaxDarkening / 100.0);
+    float boundedRatio = clamp(amplified, darkeningFloor, highlightGuard);
 
     // Exactly one while the ratio is already inside the guard, so a frame that never needed bounding
     // is untouched rather than rounded, and strength zero stays bit-identical.
