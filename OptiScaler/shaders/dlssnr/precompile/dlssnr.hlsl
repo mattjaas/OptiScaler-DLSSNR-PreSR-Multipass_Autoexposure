@@ -1005,6 +1005,26 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             result = mask.xxx * normScale;
     }
 
+    // The stabilized ratio above deliberately adds kRatioFloor, which is useful for model composition
+    // but can hide large *real* percentage losses in very dark pixels. Enforce the darkening control
+    // once more on the final edited luminance, without that stabilization term. This makes 0% mean
+    // exactly "no luminance darkening" and N% cap the final reduction to N%, including deep shadows,
+    // replace modes and colour/skin composition. 100% remains a no-op.
+    const float finalDarkeningFloor = 1.0 - saturate(gMaxDarkening / 100.0);
+    if (finalDarkeningFloor > 0.0 && gShowSkinMask == 0)
+    {
+        const float baseY = dot(max(originalSample.rgb, 0.0), kLuma);
+        const float editedY = dot(max(result, 0.0), kLuma);
+        const float minimumY = baseY * finalDarkeningFloor;
+        if (editedY < minimumY)
+        {
+            if (editedY > 1e-6)
+                result *= minimumY / editedY;
+            else if (baseY > 1e-6)
+                result = max(originalSample.rgb, 0.0) * finalDarkeningFloor;
+        }
+    }
+
     // The side being shown untouched takes the frame as it arrived, past every step above.
     if (showOriginal)
         result = originalSample.rgb;
