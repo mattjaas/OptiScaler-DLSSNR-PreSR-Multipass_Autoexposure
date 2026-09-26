@@ -264,8 +264,8 @@ auto DlssNr_Dx12::State::ApplyFinishedColor(ID3D12Resource* color, ID3D12Command
             if (colorReady)
             {
                 Barrier(cmd, color, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                colorReady = shader.DispatchResidualPass(cmd, conversion, color, nullptr, nullptr, nullptr,
-                                                         slot.linear.Get(), true);
+                colorReady =
+                    shader.DispatchFinishedPqConversion(cmd, conversion, color, nullptr, slot.linear.Get(), false);
                 Barrier(cmd, color, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PRESENT);
                 // Dispatch reads the converted colour; its transition out of UAV orders the conversion.
                 nrColor = slot.linear.Get();
@@ -281,8 +281,8 @@ auto DlssNr_Dx12::State::ApplyFinishedColor(ID3D12Resource* color, ID3D12Command
             Barrier(cmd, slot.linear.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                     D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             Barrier(cmd, color, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-            if (shader.DispatchResidualPass(cmd, conversion, slot.linear.Get(), nullptr, color, nullptr,
-                                            slot.encoded.Get(), true))
+            if (shader.DispatchFinishedPqConversion(cmd, conversion, slot.linear.Get(), color, slot.encoded.Get(),
+                                                       true))
             {
                 Barrier(cmd, slot.encoded.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                         D3D12_RESOURCE_STATE_COPY_SOURCE);

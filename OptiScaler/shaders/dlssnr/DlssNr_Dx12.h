@@ -67,6 +67,10 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     // fitting/matching (modes 6..9); keeping that code out of the common path lowers shader pressure
     // without changing the maths used for ordinary finished-picture composition.
     ID3D12PipelineState* _finishedColorSimplePipelineState = nullptr;
+    // Direct Finished Picture HDR10/PQ conversion PSOs. These are intentionally isolated from
+    // scRGB/SDR and from the deferred/Pre-SR paths; they contain only mode 0 or mode 1 colour math.
+    ID3D12PipelineState* _finishedDecodePqPipelineState = nullptr;
+    ID3D12PipelineState* _finishedEncodePqPipelineState = nullptr;
     ID3D12PipelineState* _finishedApplySdrPipelineState = nullptr;
     ID3D12PipelineState* _finishedApplyScRgbPipelineState = nullptr;
     ID3D12PipelineState* _finishedApplyPqPipelineState = nullptr;
@@ -139,6 +143,12 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool DispatchResidualPass(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,
                               ID3D12Resource* InSource, ID3D12Resource* InModel, ID3D12Resource* InOriginal,
                               ID3D12Resource* InMotion, ID3D12Resource* OutTarget, bool finishedColor = false);
+
+    // Specialized direct HDR10/PQ conversion used only by the non-deferred Finished Picture path.
+    // Falls back to the existing compact finished-colour shader if a specialized PSO cannot be created.
+    bool DispatchFinishedPqConversion(ID3D12GraphicsCommandList* cmd, const DlssNrConstants& constants,
+                                      ID3D12Resource* source, ID3D12Resource* original, ID3D12Resource* target,
+                                      bool encode);
 
     bool SpatialReady();
     bool DispatchSpatial(ID3D12GraphicsCommandList* cmd, const DlssNr::Spatial::Constants& constants,

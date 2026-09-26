@@ -1,0 +1,44 @@
+name: Temporary build specialized Finished Picture PQ shaders
+
+on:
+  push:
+    branches:
+      - codex/finished-picture-fast-compose
+
+permissions:
+  contents: write
+
+jobs:
+  build-shaders-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+
+      - name: Build specialized direct PQ shaders
+        shell: cmd
+        run: OptiScaler\shaders\dlssnr\precompile\build_finished_direct_pq.bat
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Verify Release build
+        shell: pwsh
+        run: msbuild /m /p:Configuration=Release . /verbosity:minimal
+
+      - name: Commit generated shader headers
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add OptiScaler/shaders/dlssnr/precompile/dlssnr_finished_decode_pq_Shader.h
+          git add OptiScaler/shaders/dlssnr/precompile/dlssnr_finished_encode_pq_Shader.h
+          if (git diff --cached --quiet) {
+            Write-Host "Generated headers are already up to date."
+            exit 0
+          }
+          git commit -m "Build specialized direct HDR10 finished-picture shaders"
+          git push origin HEAD:codex/finished-picture-fast-compose

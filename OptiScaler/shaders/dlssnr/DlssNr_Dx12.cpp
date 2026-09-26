@@ -7,6 +7,8 @@
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
 #include "precompile/dlssnr_finished_color_simple_Shader.h"
+#include "precompile/dlssnr_finished_decode_pq_Shader.h"
+#include "precompile/dlssnr_finished_encode_pq_Shader.h"
 #include "precompile/dlssnr_finished_apply_sdr_Shader.h"
 #include "precompile/dlssnr_finished_apply_scrgb_Shader.h"
 #include "precompile/dlssnr_finished_apply_pq_Shader.h"
@@ -314,6 +316,10 @@ DlssNr_Dx12::~DlssNr_Dx12()
         _finishedColorPipelineState->Release();
     if (_finishedColorSimplePipelineState)
         _finishedColorSimplePipelineState->Release();
+    if (_finishedDecodePqPipelineState)
+        _finishedDecodePqPipelineState->Release();
+    if (_finishedEncodePqPipelineState)
+        _finishedEncodePqPipelineState->Release();
     if (_finishedApplySdrPipelineState)
         _finishedApplySdrPipelineState->Release();
     if (_finishedApplyScRgbPipelineState)
@@ -374,6 +380,37 @@ bool DlssNr_Dx12::DispatchSpatial(ID3D12GraphicsCommandList* cmd, const DlssNr::
                            nullptr);
 }
 
+
+bool DlssNr_Dx12::DispatchFinishedPqConversion(ID3D12GraphicsCommandList* cmd, const DlssNrConstants& constants,
+                                               ID3D12Resource* source, ID3D12Resource* original,
+                                               ID3D12Resource* target, bool encode)
+{
+    std::lock_guard ownersLock(nrOwnersMutex);
+    std::lock_guard stateLock(_state->mutex);
+
+    ID3D12PipelineState*& specialized =
+        encode ? _finishedEncodePqPipelineState : _finishedDecodePqPipelineState;
+    if (!specialized && _init)
+    {
+        if (encode)
+            CreateComputePipeline(_device, &specialized, dlssnr_finished_encode_pq_cso,
+                                  sizeof(dlssnr_finished_encode_pq_cso), nullptr);
+        else
+            CreateComputePipeline(_device, &specialized, dlssnr_finished_decode_pq_cso,
+                                  sizeof(dlssnr_finished_decode_pq_cso), nullptr);
+    }
+
+    // Preserve the old path as a safety fallback. The constants keep mode 0/1, so this executes
+    // exactly the same branch of the compact finished-colour shader if the dedicated PSO is unavailable.
+    if (!specialized && _init && !_finishedColorSimplePipelineState)
+        CreateComputePipeline(_device, &_finishedColorSimplePipelineState, dlssnr_finished_color_simple_cso,
+                              sizeof(dlssnr_finished_color_simple_cso), nullptr);
+
+    auto* pipeline = specialized ? specialized : _finishedColorSimplePipelineState;
+    return DispatchCompute(cmd, constants, pipeline, source, nullptr, original, nullptr, nullptr, target, nullptr,
+                           nullptr);
+}
+
 bool DlssNr_Dx12::DispatchResidualPass(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,
                                        ID3D12Resource* InSource, ID3D12Resource* InModel, ID3D12Resource* InOriginal,
                                        ID3D12Resource* InMotion, ID3D12Resource* OutTarget, bool finishedColor)
@@ -409,7 +446,8 @@ bool DlssNr_Dx12::DispatchResidualPass(ID3D12GraphicsCommandList* InCmdList, con
         }
     }
 
-    // Modes 0/1/5 still use the compact common shader. Modes 6..9 need response fitting/matching.
+    // Modes 0/1/5 still use the compact common shader for generic callers. The direct HDR10 Finished
+    // Picture path explicitly uses DispatchFinishedPqConversion for modes 0/1. Modes 6..9 need response fitting/matching.
     const bool simpleFinished = finishedColor && InConstants.Mode <= 5 && !specializedFinished;
     if (simpleFinished && !_finishedColorSimplePipelineState && _init)
         CreateComputePipeline(_device, &_finishedColorSimplePipelineState, dlssnr_finished_color_simple_cso,
