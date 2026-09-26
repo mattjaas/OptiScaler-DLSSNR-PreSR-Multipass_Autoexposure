@@ -63,6 +63,10 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     // from the committed one). Null on backends/builds where the residual shader is absent.
     ID3D12PipelineState* _residualPipelineState = nullptr;
     ID3D12PipelineState* _finishedColorPipelineState = nullptr;
+    // Lightweight modes 0..5 PSO. The full finished-colour shader also contains HDR response
+    // fitting/matching (modes 6..9); keeping that code out of the common path lowers shader pressure
+    // without changing the maths used for ordinary finished-picture composition.
+    ID3D12PipelineState* _finishedColorSimplePipelineState = nullptr;
     ID3D12PipelineState* _spatialPipelineState = nullptr;
     ID3D12PipelineState* _spatialGuidesPipelineState = nullptr;
 
