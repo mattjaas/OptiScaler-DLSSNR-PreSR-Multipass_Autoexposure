@@ -44,7 +44,7 @@ The first v0.8.92 build measured against the working size in both cases. That is
 - Onimusha: Way of the Sword (native D3D12 DLSS, Performance, 4K, 70% Model resolution, 2 passes, Finished Picture, Transfer=2): very flickery with fix 1 alone; steady with both.
 - The helper's 300-evaluate self-test at 640x360 with `WorkingScale=0.7`: 300/300 both ways, no measurable cost.
 
-Not run: Vulkan (both fixes are DirectX 12 only; the native Vulkan path has the same shape and is untouched), RTX40 MFG.
+Not run: RTX40 MFG. The native Vulkan path (`DlssNrFeature_Vk.cpp`) had the same shape as the D3D12 path before either fix -- full-size guides for a smaller colour, and a `working / frame` scale -- and both fixes are ported to it in the build after v0.8.92 with the same two switches and the same shader mode (two work-size images, RGBA32F for motion as the packed guides already are). That port compiles and is otherwise untested: there is no Vulkan NR rig here. A Vulkan game below 100% is the test; `OptiScaler.log` prints `DLSS-NR Vulkan model motion scale ...` with the texture the scale is for.
 
 ## Package
 
