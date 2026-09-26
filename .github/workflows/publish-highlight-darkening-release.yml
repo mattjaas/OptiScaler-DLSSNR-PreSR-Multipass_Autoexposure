@@ -17,19 +17,19 @@ jobs:
         with:
           ref: test/highlight-darkening-guard
 
-      - name: Download validated artifact
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api repos/${{ github.repository }}/actions/artifacts/10905064990/zip > artifact.zip
-          mkdir artifact
-          unzip -q artifact.zip -d artifact
-          find artifact -type f -maxdepth 2
+      - name: Download validated Release artifact
+        uses: actions/download-artifact@v5
+        with:
+          artifact-ids: 10905064990
+          path: artifact
+          github-token: ${{ github.token }}
+          run-id: 36239797658
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          find artifact -type f -maxdepth 3 -print
           ASSET=$(find artifact -type f -name "*.7z" | head -n 1)
           test -n "$ASSET"
           TAG="highlight-darkening-guard"
