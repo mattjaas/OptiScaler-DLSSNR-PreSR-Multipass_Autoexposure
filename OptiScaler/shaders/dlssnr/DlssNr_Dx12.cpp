@@ -6,6 +6,7 @@
 #include "precompile/DlssNr_Shader.h"
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
+#include "precompile/dlssnr_finished_color_simple_Shader.h"
 #include "precompile/dlssnr_spatial_Shader.h"
 #include "precompile/dlssnr_spatial_guides_Shader.h"
 
@@ -308,6 +309,8 @@ DlssNr_Dx12::~DlssNr_Dx12()
         heap.ReleaseHeaps();
     if (_finishedColorPipelineState)
         _finishedColorPipelineState->Release();
+    if (_finishedColorSimplePipelineState)
+        _finishedColorSimplePipelineState->Release();
     for (auto& buffer : _constantBuffers)
     {
         if (buffer != nullptr)
@@ -368,10 +371,19 @@ bool DlssNr_Dx12::DispatchResidualPass(ID3D12GraphicsCommandList* InCmdList, con
 {
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
-    if (finishedColor && !_finishedColorPipelineState && _init)
+    // Modes 0..5 do not use HDR response fitting/matching. Route them through the compact shader
+    // that contains the exact same conversion/residual/apply equations but none of modes 6..9.
+    // This is a pure PSO specialization: resource bindings, constants and output maths stay the same.
+    const bool simpleFinished = finishedColor && InConstants.Mode <= 5;
+    if (simpleFinished && !_finishedColorSimplePipelineState && _init)
+        CreateComputePipeline(_device, &_finishedColorSimplePipelineState, dlssnr_finished_color_simple_cso,
+                              sizeof(dlssnr_finished_color_simple_cso), nullptr);
+    if (finishedColor && !simpleFinished && !_finishedColorPipelineState && _init)
         CreateComputePipeline(_device, &_finishedColorPipelineState, dlssnr_finished_color_cso,
                               sizeof(dlssnr_finished_color_cso), nullptr);
-    auto* pipeline = finishedColor ? _finishedColorPipelineState : _residualPipelineState;
+    auto* pipeline = finishedColor
+                         ? (simpleFinished ? _finishedColorSimplePipelineState : _finishedColorPipelineState)
+                         : _residualPipelineState;
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion, nullptr,
                            OutTarget, nullptr, nullptr);
 }
