@@ -1,0 +1,69 @@
+name: Republish Finished Picture Darkening Guard Fix
+
+on:
+  push:
+    branches:
+      - codex/finished-picture-fast-compose
+    paths:
+      - tools/republish_darkening_guard_fix.trigger
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: finished-picture-fast-compose-darkening-fix
+      RELEASE_TITLE: Finished Picture fast compose + Darkening Guard fix
+      RELEASE_TARGET: 0c04548f0daeede8a349cc0b4d895e8d11f2ea22
+      SOURCE_RUN: "36253579959"
+      SOURCE_ARTIFACT: OptiScaler-NR-finished-picture-fast-compose
+
+    steps:
+      - name: Download corrected package artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release_artifact
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name "$SOURCE_ARTIFACT" --dir release_artifact
+          find release_artifact -maxdepth 3 -type f -print
+
+      - name: Replace release asset and notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSET="$(find release_artifact -type f -name '*.zip' | head -n 1)"
+          if [ -z "$ASSET" ]; then
+            echo "No ZIP found in downloaded artifact."
+            exit 1
+          fi
+
+          cat > release-notes.md <<'EOF'
+          Corrected Darkening Guard build for Finished Picture fast compose.
+
+          - Fixes the DX12 resolve path not copying the Darkening Guard UI value into the shader constant buffer.
+          - Previously the shader always received 0%, which disabled all model-driven darkening regardless of the slider.
+          - 0% now prevents luminance darkening.
+          - 10% allows at most 10% luminance reduction.
+          - 100% leaves model-driven darkening uncapped.
+          - Highlight Guard behavior is unchanged.
+          - Includes the deep-shadow percentage fix and the existing Finished Picture HDR10/PQ fast-compose optimizations.
+          - Built from commit 0c04548f0daeede8a349cc0b4d895e8d11f2ea22.
+          EOF
+
+          gh release upload "$RELEASE_TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "$RELEASE_TAG"             --repo "$GITHUB_REPOSITORY"             --target "$RELEASE_TARGET"             --title "$RELEASE_TITLE"             --notes-file release-notes.md
+
+      - name: Remove one-shot republisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/republish_darkening_guard_fix.yml
+          git rm tools/republish_darkening_guard_fix.trigger
+          git commit -m "Remove Darkening Guard republisher"
+          git push origin HEAD:codex/finished-picture-fast-compose
