@@ -317,8 +317,12 @@ class Config
     // Freeze NR input for tuning. See dlssnr/design/frame-hold.md.
     CustomOptional<bool> DlssNrHoldFrame { false };
 
-    // Maximum pixel brightening ratio. Darkening is intentionally left uncapped.
+    // Maximum pixel brightening ratio.
     CustomOptional<float> DlssNrMaxRatio { 2.0f };
+
+    // Maximum luminance reduction allowed from the NR result, in percent.
+    // 100 means darkening is uncapped; 0 prevents any darkening.
+    CustomOptional<float> DlssNrMaxDarkening { 100.0f };
 
     // Reduced output: 0 classic, 1/2 matched residual spatial/DLSS, 3/4 lighting + colour spatial/DLSS.
     CustomOptional<uint32_t> DlssNrTransfer { 1 };
