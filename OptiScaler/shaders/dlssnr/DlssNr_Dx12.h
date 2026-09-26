@@ -67,6 +67,9 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     // fitting/matching (modes 6..9); keeping that code out of the common path lowers shader pressure
     // without changing the maths used for ordinary finished-picture composition.
     ID3D12PipelineState* _finishedColorSimplePipelineState = nullptr;
+    ID3D12PipelineState* _finishedApplySdrPipelineState = nullptr;
+    ID3D12PipelineState* _finishedApplyScRgbPipelineState = nullptr;
+    ID3D12PipelineState* _finishedApplyPqPipelineState = nullptr;
     ID3D12PipelineState* _spatialPipelineState = nullptr;
     ID3D12PipelineState* _spatialGuidesPipelineState = nullptr;
 
