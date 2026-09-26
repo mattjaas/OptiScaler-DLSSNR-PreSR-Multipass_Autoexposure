@@ -11,6 +11,9 @@ if errorlevel 1 exit /b 1
 call :build FINISHED_APPLY_PQ dlssnr_finished_apply_pq dlssnr_finished_apply_pq_cso
 if errorlevel 1 exit /b 1
 
+call "%~dp0build_finished_direct_pq.bat"
+if errorlevel 1 exit /b 1
+
 echo Specialized finished-picture shaders rebuilt.
 exit /b 0
 
