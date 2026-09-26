@@ -1,0 +1,90 @@
+name: Publish Finished Picture Darkening Guard Fix
+
+on:
+  push:
+    branches:
+      - codex/finished-picture-fast-compose
+    paths:
+      - tools/publish_finished_picture_darkening_fix.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    env:
+      RELEASE_TAG: finished-picture-fast-compose-darkening-fix
+      RELEASE_TITLE: Finished Picture fast compose + Darkening Guard fix
+      PACKAGE_VERSION: finished-picture-fast-compose-darkening-fix
+
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v6
+        with:
+          ref: codex/finished-picture-fast-compose
+          fetch-depth: 0
+          submodules: false
+
+      - name: Enable Windows long paths and fetch submodules
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          git config --system core.longpaths true
+          git submodule sync
+          git submodule update --init --force
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build specialized Finished Picture shaders
+        shell: cmd
+        run: call OptiScaler\shaders\dlssnr\precompile\build_finished_apply.bat
+
+      - name: Build and package release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          ./package_release.ps1 -Version $env:PACKAGE_VERSION
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $asset = Get-ChildItem release -Filter "OptiScaler-NR-$env:PACKAGE_VERSION.zip" | Select-Object -First 1
+          if (-not $asset) { throw "Release ZIP was not created." }
+
+          @"
+          Darkening Guard fix for Finished Picture fast compose.
+
+          - Fixes Darkening Guard being ineffective in deep shadows because the stabilized luminance ratio used a 1/512 floor.
+          - 0% now prevents luminance darkening.
+          - 10% limits darkening to 10% (minimum 90% of the original luminance).
+          - 100% remains uncapped.
+          - Highlight Guard behavior is unchanged.
+          - Includes regenerated main DLSS-NR DX12 and Vulkan shaders.
+          - Includes the existing Finished Picture HDR10/PQ fast-compose optimizations.
+          - Built from $env:GITHUB_SHA.
+          "@ | Set-Content release-notes.md
+
+          if (gh release view "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" *> $null) {
+            gh release upload "$env:RELEASE_TAG" "$($asset.FullName)" --repo "$env:GITHUB_REPOSITORY" --clobber
+            gh release edit "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" --title "$env:RELEASE_TITLE" --notes-file release-notes.md --target "$env:GITHUB_SHA"
+          } else {
+            gh release create "$env:RELEASE_TAG" "$($asset.FullName)" --repo "$env:GITHUB_REPOSITORY" --target "$env:GITHUB_SHA" --title "$env:RELEASE_TITLE" --notes-file release-notes.md
+          }
+
+      - name: Remove one-shot publisher
+        if: success()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/publish_finished_picture_darkening_fix.yml
+          git rm tools/publish_finished_picture_darkening_fix.trigger
+          git commit -m "Remove Darkening Guard fix release publisher"
+          git push origin HEAD:codex/finished-picture-fast-compose
