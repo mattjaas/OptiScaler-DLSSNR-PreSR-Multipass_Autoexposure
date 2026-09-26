@@ -22,7 +22,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          submodules: true
+          submodules: false
+      - name: Enable long paths and fetch submodules
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --force --depth=1 --recursive
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
       - name: Build specialized finished-picture shaders
