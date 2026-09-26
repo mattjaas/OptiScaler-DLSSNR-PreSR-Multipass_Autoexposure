@@ -943,9 +943,10 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     // Amplify detail through a luminance-ratio power, preserving neutral edits and two-sided bounds.
     const float amplified = pow(max(lumaRatio, 1e-6), 1.0 + max(gTransferStrength - 1.0, 0.0));
 
-    // Bound both brightening and darkening. A single luminance-derived scale preserves hue.
+    // Bound brightening only. Darkening remains entirely model-driven; a single luminance-derived
+    // scale preserves hue while preventing excessive highlight amplification.
     const float guard = max(gMaxRatio, 1.0);
-    float boundedRatio = clamp(amplified, 1.0 / guard, guard);
+    float boundedRatio = min(amplified, guard);
 
     // Exactly one while the ratio is already inside the guard, so a frame that never needed bounding
     // is untouched rather than rounded, and strength zero stays bit-identical.
