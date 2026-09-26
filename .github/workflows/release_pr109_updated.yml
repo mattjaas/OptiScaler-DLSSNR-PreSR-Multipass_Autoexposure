@@ -43,3 +43,5 @@ jobs:
             Includes MatchGuides, corrected RenderMotionScale behavior at 100% model resolution, Vulkan parity, and the existing Highlight/Darkening Guard changes from this branch.
           files: release/OptiScaler-NR-highlight-guard-pr109-updated-20260926.zip
           fail_on_unmatched_files: true
+
+# retry-after-pr109-deps
