@@ -1,0 +1,62 @@
+name: Publish Finished Picture HDR10 Release
+
+on:
+  push:
+    branches:
+      - codex/finished-picture-fast-compose
+    paths:
+      - tools/publish_finished_picture_release.trigger
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: finished-picture-fast-compose-hdr10
+      RELEASE_TITLE: Finished Picture HDR10 fast compose
+      RELEASE_TARGET: e6009ad568ff726e044e637a5e1216100b6fe347
+      SOURCE_RUN: "36248624813"
+      SOURCE_ARTIFACT: OptiScaler-NR-finished-picture-fast-compose
+    steps:
+      - name: Download verified package artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release_artifact
+          gh run download "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --name "$SOURCE_ARTIFACT" --dir release_artifact
+          find release_artifact -maxdepth 3 -type f -print
+
+      - name: Publish GitHub Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSET="$(find release_artifact -type f -name '*.zip' | head -n 1)"
+          if [ -z "$ASSET" ]; then
+            echo "No ZIP found in downloaded artifact."
+            exit 1
+          fi
+
+          cat > release-notes.md <<'EOF'
+          Optimized direct Finished Picture path for HDR10/PQ.
+
+          - Specialized PQ -> linear shader for direct Finished Picture.
+          - Specialized linear -> PQ shader for direct Finished Picture.
+          - Keeps the same PQ equations and FP16 linear buffer path.
+          - Does not change SDR, scRGB, Pre-SR, deferred, or Vulkan paths.
+          - Final CopyResource path remains unchanged.
+          - Built from commit e6009ad568ff726e044e637a5e1216100b6fe347.
+          EOF
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$ASSET" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$RELEASE_TARGET" \
+              --title "$RELEASE_TITLE" \
+              --notes-file release-notes.md
+          fi
