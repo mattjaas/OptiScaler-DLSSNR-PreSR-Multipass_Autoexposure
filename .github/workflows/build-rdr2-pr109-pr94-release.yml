@@ -19,7 +19,14 @@ jobs:
         with:
           ref: codex/rdr2-finished-picture-credit-pr109
           fetch-depth: 0
-          submodules: true
+          submodules: false
+
+      - name: Enable Windows long paths and fetch submodules
+        shell: pwsh
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
