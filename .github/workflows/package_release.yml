@@ -1,6 +1,9 @@
 name: Package NR Build
 
 on:
+  push:
+    branches:
+      - codex/finished-picture-fast-compose
   workflow_dispatch:
     inputs:
       version:
@@ -22,14 +25,17 @@ jobs:
           submodules: true
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
+      - name: Build specialized finished-picture shaders
+        shell: cmd
+        run: call OptiScaler\shaders\dlssnr\precompile\build_finished_apply.bat
       - name: Package
         shell: powershell
         env:
-          PACKAGE_VERSION: ${{ inputs.version }}
+          PACKAGE_VERSION: ${{ inputs.version || 'finished-picture-fast-compose' }}
         run: ./package_release.ps1 -Version $env:PACKAGE_VERSION
       - name: Upload archive
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-${{ inputs.version }}
+          name: OptiScaler-NR-${{ inputs.version || 'finished-picture-fast-compose' }}
           path: release/*.zip
           if-no-files-found: error
