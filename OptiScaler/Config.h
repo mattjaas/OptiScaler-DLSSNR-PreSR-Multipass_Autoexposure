@@ -346,6 +346,10 @@ class Config
     // 0 = do not suppress restored detail, 100 = full NR-derived suppression mask.
     CustomOptional<float> DlssNrDirectDetailMaskStrength { 100.0f };
 
+    // GPU-time display smoothing window in milliseconds. 0 keeps the latest raw sample.
+    // Four decimal digits are exposed in the UI: 0..9999 ms.
+    CustomOptional<uint32_t> DlssNrGpuTimeAverageWindowMs { 0 };
+
     // 0 normal, 1 model input, 2 model answer, 3 amplified edit.
     CustomOptional<uint32_t> DlssNrDebugView { 0 };
 
