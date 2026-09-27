@@ -1064,6 +1064,27 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                             std::clamp(cfg.DlssNrDirectDetailMaskStrength.value_or_default() / 100.0f, 0.0f, 1.0f);
                     }
                 }
+                else if (transfer == 6)
+                {
+                    // EnlargeMatchedResidual has already reconstructed both P50 and NR50 to P100 with
+                    // the same selected upscaler, then encoded NR100 - P100 into the ordinary matched-
+                    // residual carrier. Transfer 2 now applies that full-resolution difference to the
+                    // untouched original P100; no residual is ever enlarged after subtraction.
+                    resolveProxy = enlarger && enlarger->detailReferenceReadable ? enlarger->detailReference.Get()
+                                                                                : nr.colorCopy;
+                    resolveParams.Transfer = 2;
+
+                    // Keep the existing proxy/model debug views intuitive: show reconstructed P100 and
+                    // NR100 themselves rather than the signed carrier. Difference view still uses the
+                    // carrier and therefore shows the actual full-resolution residual being applied.
+                    if ((resolveParams.DebugView == 1 || resolveParams.DebugView == 2) && enlarger &&
+                        enlarger->detailReferenceReadable && enlarger->readable)
+                    {
+                        resolveProxy = enlarger->detailReference.Get();
+                        resolveAnswer = enlarger->output.Get();
+                        resolveParams.Transfer = 0;
+                    }
+                }
                 else
                 {
                     resolveParams.Transfer = transfer;
