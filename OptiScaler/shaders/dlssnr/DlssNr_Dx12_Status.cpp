@@ -72,13 +72,21 @@ auto DlssNr_Dx12::State::Publish() -> void
 void DlssNr_Dx12::State::EndGpuTiming(ID3D12GraphicsCommandList* cmdList)
 {
     gpuTime->End(cmdList);
-    if (auto ms = gpuTime->ReadGpuTime())
-        lastGpuTime = ms;
-    if (auto ngx = ngxTime->ReadGpuTime())
-        lastNgxTime = ngx;
 
-    if (lastGpuTime && lastNgxTime)
-        vitals.Push(*lastGpuTime, *lastNgxTime);
+    const auto rawGpu = gpuTime->ReadGpuTime();
+    const auto rawNgx = ngxTime->ReadGpuTime();
+    const uint32_t averageWindowMs =
+        std::min(Config::Instance()->DlssNrGpuTimeAverageWindowMs.value_or_default(), 9999u);
+
+    if (rawGpu)
+        lastGpuTime = gpuTime->ReadGpuTime(averageWindowMs);
+    if (rawNgx)
+        lastNgxTime = rawNgx;
+
+    // Keep diagnostics/vitals based on raw per-frame samples. UI smoothing must not turn the
+    // diagnostic rolling window into an average of averages.
+    if (rawGpu && rawNgx)
+        vitals.Push(*rawGpu, *rawNgx);
     if (lastGpuTime && lastNgxTime && frames - lastSplitLog > 600)
     {
         lastSplitLog = frames;
