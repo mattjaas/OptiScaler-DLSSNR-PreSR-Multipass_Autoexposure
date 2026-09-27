@@ -209,6 +209,7 @@ void ModelVk::Impl::Shutdown()
 
     state.timedFrames = 0;
     state.lastGpuTime.reset();
+    state.gpuTimeHistory.clear();
 
     state.device = VK_NULL_HANDLE;
     state.width = 0;
