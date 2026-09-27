@@ -7499,6 +7499,12 @@ void MenuCommon::RenderMainMenuBottomBar(RenderMenuContext& ctx)
         ImGui::SameLine(0.0f, 10.0f);
     }
 
+    bool gamepadPassthrough = config->MenuGamepadPassthrough.value_or_default();
+    if (ImGui::Checkbox("Gamepad passthrough while menu is open", &gamepadPassthrough))
+        config->MenuGamepadPassthrough = gamepadPassthrough;
+    ShowHelpMarker("Keeps controller input active in the game while the OptiScaler menu is open. "
+                   "Keyboard and mouse remain captured by the menu.");
+
     ImGui::PushItemWidth(100.0f * menuResScale);
 
     auto autoText = config->MenuScale.has_value() ? "Auto" : StrFmt("Auto (%3.1f)", menuResScale);
