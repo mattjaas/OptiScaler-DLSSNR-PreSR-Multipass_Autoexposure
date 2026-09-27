@@ -220,6 +220,10 @@ void RenderInput(Config* config)
 
             int detailMode = (int) std::min(config->DlssNrDirectDetailRecovery.value_or_default(), 2u);
             int outputUpscaler = (int) std::min(config->DlssNrDirectOutputUpscaler.value_or_default(), 10u);
+            int residualDownscaler =
+                (int) std::min(config->DlssNrUpscaledResidualDownscaleFilter.value_or_default(), 11u);
+            int residualReferenceUpscaler =
+                (int) std::min(config->DlssNrUpscaledResidualReferenceUpscaler.value_or_default(), 10u);
             int residualUpscaler = (int) std::min(config->DlssNrUpscaledResidualUpscaler.value_or_default(), 10u);
             int referenceUpscaler =
                 (int) std::min(config->DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u);
@@ -275,19 +279,43 @@ void RenderInput(Config* config)
 
             if (transfer == 6)
             {
-                if (ImGui::Combo("P50/NR50 -> P100 upscaler", &residualUpscaler, directUpscalerNames,
+                static const char* residualDownNames[] = { "Area", "Bilinear", "Catmull-Rom", "Lanczos2",
+                                                           "Point / nearest", "FSR1", "Bicubic", "Lanczos3",
+                                                           "Kaiser2", "Kaiser3", "MAGIC",
+                                                           "SSIM Sharp (experimental)" };
+
+                if (ImGui::Combo("P100 -> P50 downscaler", &residualDownscaler, residualDownNames,
+                                 IM_ARRAYSIZE(residualDownNames)))
+                    config->DlssNrUpscaledResidualDownscaleFilter = (uint32_t) residualDownscaler;
+
+                if (ImGui::Combo("P50 -> P100 upscaler", &residualReferenceUpscaler, directUpscalerNames,
+                                 IM_ARRAYSIZE(directUpscalerNames)))
+                    config->DlssNrUpscaledResidualReferenceUpscaler = (uint32_t) residualReferenceUpscaler;
+
+                static const char* residualExecutionNames[] = { "Auto", "Serial", "Async compute" };
+                int residualExecution =
+                    (int) std::min(config->DlssNrUpscaledResidualReferenceExecutionMode.value_or_default(), 2u);
+                ImGui::BeginDisabled(residualReferenceUpscaler == 10);
+                if (ImGui::Combo("P50 -> P100 execution", &residualExecution, residualExecutionNames,
+                                 IM_ARRAYSIZE(residualExecutionNames)))
+                    config->DlssNrUpscaledResidualReferenceExecutionMode = (uint32_t) residualExecution;
+                ImGui::EndDisabled();
+
+                if (ImGui::Combo("NR50 -> NR100 upscaler", &residualUpscaler, directUpscalerNames,
                                  IM_ARRAYSIZE(directUpscalerNames)))
                     config->DlssNrUpscaledResidualUpscaler = (uint32_t) residualUpscaler;
 
-                HelpMarker("The same upscaler is used for P50 -> P100 and NR50 -> NR100 so their difference is "
-                           "formed only after both images reach native resolution. DLSS uses two independent temporal "
-                           "histories, one for the clean P50 reference and one for the NR50 answer.");
+                HelpMarker("All three resize legs are independent. P50 -> P100 can run on the separate async compute "
+                           "queue for non-DLSS scalers, in parallel with NR50 processing, and joins only before the "
+                           "native-resolution residual is created. DLSS reference scaling stays Serial and owns a "
+                           "separate temporal history from NR50 -> NR100.");
             }
 
             const bool directUsesDlss =
                 transfer == 5 &&
                 (outputUpscaler == 10 || (detailMode != 0 && referenceUpscaler == 10));
-            const bool upscaledResidualUsesDlss = transfer == 6 && residualUpscaler == 10;
+            const bool upscaledResidualUsesDlss =
+                transfer == 6 && (residualReferenceUpscaler == 10 || residualUpscaler == 10);
             if (transfer == 2 || transfer == 4 || directUsesDlss || upscaledResidualUsesDlss)
             {
                 static const char* presetNames[] = { "Default", "A", "B", "C", "D", "E", "F", "G", "H",
