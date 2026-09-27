@@ -8,6 +8,8 @@
 #include "PassProfiles.h"
 #include <nvsdk_ngx_vk.h>
 #include <shaders/output_scaling/OS_Vk.h>
+#include <chrono>
+#include <deque>
 #include <mutex>
 
 namespace DlssNr
@@ -109,6 +111,12 @@ struct VkState
     float timestampPeriod = 0.0f;
     unsigned long long timedFrames = 0;
     std::optional<double> lastGpuTime;
+    struct TimedGpuValue
+    {
+        std::chrono::steady_clock::time_point when;
+        double ms = 0.0;
+    };
+    std::deque<TimedGpuValue> gpuTimeHistory;
 };
 
 // Four frames of pairs. Three would do, four keeps the modulo cheap and the slot being written well
