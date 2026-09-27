@@ -1,0 +1,57 @@
+name: Release NR Upscaled residual split async
+
+on:
+  push:
+    branches:
+      - codex/rdr2-finished-picture-credit-pr94-pr109
+    paths:
+      - .github/workflows/release_upscaled_nr_residual_split_async.yml
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v6
+        with:
+          ref: 2f4ea721465cabad803cd61c547fc0eec6561c96
+          submodules: false
+          fetch-depth: 0
+
+      - name: Enable Windows long paths and fetch submodules
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build and package
+        shell: powershell
+        run: ./package_release.ps1 -Version "rdr2-pr94-pr109-upscaled-residual-split-async-20260928"
+
+      - name: Publish GitHub release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "rdr2-pr94-pr109-upscaled-residual-split-async-20260928"
+          $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-upscaled-residual-split-async-20260928.zip"
+          $notes = @"
+          Built from exact source commit 2f4ea721465cabad803cd61c547fc0eec6561c96.
+
+          Changes:
+          - Upscaled NR residual now has independent P100 -> P50 downscaler, P50 -> P100 upscaler and NR50 -> NR100 upscaler selectors.
+          - P100 -> P50 uses the full proxy downscaler set: Area, Bilinear, Catmull-Rom, Lanczos2, Point/Nearest, FSR1, Bicubic, Lanczos3, Kaiser2, Kaiser3, MAGIC and SSIM Sharp.
+          - P50 -> P100 and NR50 -> NR100 each independently expose Bilinear, Bicubic, Catmull-Rom, Lanczos2, Lanczos3, Kaiser2, Kaiser3, Area, MAGIC, FSR1 and DLSS.
+          - P50 -> P100 has its own Auto / Serial / Async compute execution selector.
+          - Non-DLSS P50 -> P100 can run concurrently with NR on the same async mechanism used by Direct NR; the queues join only before the native-resolution residual is formed.
+          - The final NR100 - reconstructed-P100 residual is created after the async join, then applied to untouched original P100.
+          - Existing Direct NR behaviour remains unchanged.
+          "@
+          gh release create $tag $asset --target 2f4ea721465cabad803cd61c547fc0eec6561c96 --title "OptiScaler NR - split residual scalers + async" --notes $notes
