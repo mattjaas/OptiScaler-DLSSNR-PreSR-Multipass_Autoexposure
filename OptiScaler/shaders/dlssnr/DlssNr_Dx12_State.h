@@ -61,13 +61,13 @@ struct DlssNr_Dx12::State
         std::unique_ptr<OS_Dx12> outputSpatialScaler;
         std::unique_ptr<OS_Dx12> detailSpatialScaler;
         DlssNr::GpuLifetime lifetime;
-        ComPtr<ID3D12Resource> input, output, depth, motion, exposure, detailInfo, detailReference;
+        ComPtr<ID3D12Resource> input, output, depth, motion, exposure, detailInfo, detailReference, fullResidual;
         ComPtr<ID3D12CommandQueue> queue;
         ID3D12CommandList* creation = nullptr;
         unsigned w = 0, h = 0, outW = 0, outH = 0;
         uint64_t lastFrame = 0, detailLastFrame = 0;
         bool submitted = false, failed = false, depthInverted = false, readable = false, detailReadable = false,
-             detailReferenceReadable = false, reset = true, detailReset = true;
+             detailReferenceReadable = false, fullResidualReadable = false, reset = true, detailReset = true;
         uint32_t carrierMode = 0;
         uint32_t outputUpscaler = 10;
         uint32_t detailReferenceUpscaler = 0;
