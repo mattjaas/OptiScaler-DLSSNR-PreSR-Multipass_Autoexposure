@@ -90,6 +90,8 @@ struct VkState
     std::unique_ptr<OS_Vk> superDown;
     std::unique_ptr<OS_Vk> spatialDownProxy;
     Scaler nrScaler = Scaler::Count;
+    std::unique_ptr<OS_Vk> proxyDown;
+    Scaler proxyDownScaler = Scaler::Count;
 
     DlssNr_Vk* pass = nullptr;
 
