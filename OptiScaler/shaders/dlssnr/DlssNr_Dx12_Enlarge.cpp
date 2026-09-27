@@ -80,14 +80,18 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
 
     const bool structural = transfer == 4;
     const bool direct = transfer == 5;
+    const bool upscaledResidual = transfer == 6;
     const auto& cfg = *Config::Instance();
     const uint32_t directDetailMode =
         direct ? std::min(cfg.DlssNrDirectDetailRecovery.value_or_default(), 2u) : 0u;
     const uint32_t outputUpscaler =
-        direct ? std::min(cfg.DlssNrDirectOutputUpscaler.value_or_default(), 10u) : 10u;
+        direct ? std::min(cfg.DlssNrDirectOutputUpscaler.value_or_default(), 10u)
+               : upscaledResidual ? std::min(cfg.DlssNrUpscaledResidualUpscaler.value_or_default(), 10u)
+                                  : 10u;
     const uint32_t detailReferenceUpscaler =
-        direct ? std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u) : 0u;
-    const uint32_t carrierMode = direct ? 2u : structural ? 1u : 0u;
+        upscaledResidual ? outputUpscaler
+                         : direct ? std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u) : 0u;
+    const uint32_t carrierMode = upscaledResidual ? 3u : direct ? 2u : structural ? 1u : 0u;
     const int dlssPreset = cfg.DlssNrScalingDlssPreset.value_or_default();
 
     const auto desc = proxy->GetDesc();
@@ -123,8 +127,11 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         g.depth.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, w, h));
         g.motion.Attach(CreateScratch(device, DXGI_FORMAT_R32G32_FLOAT, w, h));
         g.exposure.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, 1, 1));
+        if (upscaledResidual)
+            g.fullResidual.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, g.outW, g.outH));
         g.failed = true;
-        if (!g.input || !g.output || !g.depth || !g.motion || !g.exposure)
+        if (!g.input || !g.output || !g.depth || !g.motion || !g.exposure ||
+            (upscaledResidual && !g.fullResidual))
             return say("enlargement resource allocation failed; use Retry.");
 
         lifetime.Record(cmd);
@@ -154,7 +161,9 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             return say("Private DLSS SR: " + g.dlss->Error());
 
         // P50->P100 via DLSS owns a completely separate temporal feature/history from NR50->NR100.
-        if (direct && detailReferenceUpscaler == 10)
+        // Upscaled NR residual always needs that second history when DLSS is selected because the clean
+        // P50 reconstruction and the NR50 answer must never share temporal state.
+        if ((direct && detailReferenceUpscaler == 10) || (upscaledResidual && outputUpscaler == 10))
         {
             g.detailDlss = std::make_unique<DlssNr::PrivateUpscalerDx12>(DlssNr::PrivateUpscaler::DLSS);
             if (!g.detailDlss->Init(device, cmd, info))
@@ -190,14 +199,20 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     g.lifetime.Record(cmd);
 
     bool detailReady = direct && directDetailMode != 0;
-    if (detailReady && (!g.detailInfo || (!externalDetailReference && !g.detailReference)))
+    bool referenceRequired = detailReady || upscaledResidual;
+    const bool useExternalReference = detailReady && externalDetailReference && !upscaledResidual;
+    if (referenceRequired &&
+        ((detailReady && !g.detailInfo) || (!useExternalReference && !g.detailReference)))
     {
-        if (!g.detailInfo)
+        if (detailReady && !g.detailInfo)
             g.detailInfo.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, w, h));
-        if (!externalDetailReference && !g.detailReference)
+        if (!useExternalReference && !g.detailReference)
             g.detailReference.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, g.outW, g.outH));
-        if (!g.detailInfo || (!externalDetailReference && !g.detailReference))
+        if ((detailReady && !g.detailInfo) || (!useExternalReference && !g.detailReference))
         {
+            if (upscaledResidual)
+                return say("Upscaled NR residual reference allocation failed; use Retry.");
+
             static bool warnedDetailAlloc = false;
             if (!warnedDetailAlloc)
             {
@@ -206,6 +221,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                          "falling back to Direct NR without detail recovery.");
             }
             detailReady = false;
+            referenceRequired = false;
         }
     }
 
@@ -217,9 +233,10 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     }
 
     DlssNrConstants encode {};
-    encode.Mode = direct ? (detailReady ? DlssNrMode_EncodeDirectDetail : DlssNrMode_Downsample)
-                         : structural ? DlssNrMode_EncodeResizeField
-                                      : DlssNrMode_EncodeProxyResidual;
+    encode.Mode = (direct || upscaledResidual)
+                      ? (direct && detailReady ? DlssNrMode_EncodeDirectDetail : DlssNrMode_Downsample)
+                  : structural ? DlssNrMode_EncodeResizeField
+                               : DlssNrMode_EncodeProxyResidual;
     encode.Width = w;
     encode.Height = h;
     encode.Passthrough = resolve.Passthrough;
@@ -228,7 +245,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     if (direct && detailReady)
         ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(),
                                  g.detailInfo.Get());
-    else if (direct)
+    else if (direct || upscaledResidual)
         ok = shader.DispatchPass(cmd, encode, answer, nullptr, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
     else
         ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
@@ -272,7 +289,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     if (g.readable)
         Barrier(cmd, g.output.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    if (detailReady && !externalDetailReference && g.detailReferenceReadable)
+    if (referenceRequired && !useExternalReference && g.detailReferenceReadable)
     {
         Barrier(cmd, g.detailReference.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -347,8 +364,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         g.readable = true;
     }
 
-    bool detailReferenceOk = !detailReady || externalDetailReference;
-    if (detailReady && !externalDetailReference)
+    bool detailReferenceOk = !referenceRequired || useExternalReference;
+    if (referenceRequired && !useExternalReference)
     {
         if (detailReferenceUpscaler == 10)
         {
@@ -389,8 +406,41 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             if (!warnedDetailScale)
             {
                 warnedDetailScale = true;
-                LOG_WARN("NR Direct detail recovery: selected P50 -> P100 reconstruction failed; "
-                         "detail recovery is skipped for that frame.");
+                LOG_WARN("{}: selected P50 -> P100 reconstruction failed.",
+                         upscaledResidual ? "NR Upscaled residual" : "NR Direct detail recovery");
+            }
+        }
+    }
+
+    bool fullResidualOk = true;
+    if (upscaledResidual)
+    {
+        fullResidualOk = outputOk && detailReferenceOk && g.fullResidual;
+        if (fullResidualOk)
+        {
+            if (g.fullResidualReadable)
+            {
+                Barrier(cmd, g.fullResidual.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                g.fullResidualReadable = false;
+            }
+
+            // Difference is intentionally created only after both branches have reached P100.
+            // Mode 9 converts the two encoded model-space pictures back to the same linear proxy space
+            // and stores their signed difference in the carrier expected by matched-residual transfer 2.
+            DlssNrConstants residual {};
+            residual.Mode = DlssNrMode_EncodeProxyResidual;
+            residual.Width = g.outW;
+            residual.Height = g.outH;
+            residual.Passthrough = resolve.Passthrough;
+            fullResidualOk =
+                shader.DispatchPass(cmd, residual, g.detailReference.Get(), g.output.Get(), nullptr, nullptr, nullptr,
+                                    g.fullResidual.Get(), nullptr);
+            if (fullResidualOk)
+            {
+                Barrier(cmd, g.fullResidual.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                g.fullResidualReadable = true;
             }
         }
     }
@@ -410,6 +460,14 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         return say("selected NR50 -> NR100 spatial upscaler failed.");
     }
 
+    if (upscaledResidual)
+    {
+        if (!detailReferenceOk)
+            return say("selected P50 -> P100 reference upscaler failed.");
+        if (!fullResidualOk)
+            return say("P100 NR residual creation failed.");
+    }
+
     enlargementStatus.clear();
-    return g.output.Get();
+    return upscaledResidual ? g.fullResidual.Get() : g.output.Get();
 }
