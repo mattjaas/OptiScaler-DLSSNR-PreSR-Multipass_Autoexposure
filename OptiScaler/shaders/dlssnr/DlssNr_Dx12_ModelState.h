@@ -68,6 +68,8 @@ struct ModelStateDx12
     OS_Dx12* superDown = nullptr;
     OS_Dx12* spatialProxyDown = nullptr;
     Scaler nrScaler = Scaler::Count;
+    OS_Dx12* proxyDown = nullptr;
+    Scaler proxyDownScaler = Scaler::Count;
 
     // Frame hold (design/frame-hold.md): a persistent copy of the output taken on hold-on and restored
     // over the live output before the encode reads it while held, so a setting change re-renders the
