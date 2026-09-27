@@ -219,7 +219,7 @@ auto DlssNr_Dx12::State::GetResource(NVSDK_NGX_Parameter* params, const char* a,
 
 void DlssNr_Dx12::State::ReleaseSupersamplers()
 {
-    for (auto** scaler : { &nr.superUp, &nr.superDown, &nr.spatialProxyDown })
+    for (auto** scaler : { &nr.superUp, &nr.superDown, &nr.spatialProxyDown, &nr.proxyDown })
         if (auto* retired = std::exchange(*scaler, nullptr))
             lifetime.Retire([retired] { delete retired; });
 }
@@ -248,6 +248,7 @@ auto DlssNr_Dx12::State::ReleaseResources() -> void
     nr.passScratchFailed = false;
 
     ReleaseSupersamplers();
+    nr.proxyDownScaler = Scaler::Count;
 
     ParkNrResource(nr.outputNative);
 
