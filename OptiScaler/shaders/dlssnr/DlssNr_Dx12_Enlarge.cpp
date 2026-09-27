@@ -89,7 +89,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                : upscaledResidual ? std::min(cfg.DlssNrUpscaledResidualUpscaler.value_or_default(), 10u)
                                   : 10u;
     const uint32_t detailReferenceUpscaler =
-        upscaledResidual ? outputUpscaler
+        upscaledResidual ? std::min(cfg.DlssNrUpscaledResidualReferenceUpscaler.value_or_default(), 10u)
                          : direct ? std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u) : 0u;
     const uint32_t carrierMode = upscaledResidual ? 3u : direct ? 2u : structural ? 1u : 0u;
     const int dlssPreset = cfg.DlssNrScalingDlssPreset.value_or_default();
@@ -163,7 +163,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         // P50->P100 via DLSS owns a completely separate temporal feature/history from NR50->NR100.
         // Upscaled NR residual always needs that second history when DLSS is selected because the clean
         // P50 reconstruction and the NR50 answer must never share temporal state.
-        if ((direct && detailReferenceUpscaler == 10) || (upscaledResidual && outputUpscaler == 10))
+        if ((direct || upscaledResidual) && detailReferenceUpscaler == 10)
         {
             g.detailDlss = std::make_unique<DlssNr::PrivateUpscalerDx12>(DlssNr::PrivateUpscaler::DLSS);
             if (!g.detailDlss->Init(device, cmd, info))
@@ -200,7 +200,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
 
     bool detailReady = direct && directDetailMode != 0;
     bool referenceRequired = detailReady || upscaledResidual;
-    const bool useExternalReference = detailReady && externalDetailReference && !upscaledResidual;
+    const bool useExternalReference = externalDetailReference && (detailReady || upscaledResidual);
     if (referenceRequired &&
         ((detailReady && !g.detailInfo) || (!useExternalReference && !g.detailReference)))
     {
@@ -412,39 +412,6 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         }
     }
 
-    bool fullResidualOk = true;
-    if (upscaledResidual)
-    {
-        fullResidualOk = outputOk && detailReferenceOk && g.fullResidual;
-        if (fullResidualOk)
-        {
-            if (g.fullResidualReadable)
-            {
-                Barrier(cmd, g.fullResidual.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-                g.fullResidualReadable = false;
-            }
-
-            // Difference is intentionally created only after both branches have reached P100.
-            // Mode 9 converts the two encoded model-space pictures back to the same linear proxy space
-            // and stores their signed difference in the carrier expected by matched-residual transfer 2.
-            DlssNrConstants residual {};
-            residual.Mode = DlssNrMode_EncodeProxyResidual;
-            residual.Width = g.outW;
-            residual.Height = g.outH;
-            residual.Passthrough = resolve.Passthrough;
-            fullResidualOk =
-                shader.DispatchPass(cmd, residual, g.detailReference.Get(), g.output.Get(), nullptr, nullptr, nullptr,
-                                    g.fullResidual.Get(), nullptr);
-            if (fullResidualOk)
-            {
-                Barrier(cmd, g.fullResidual.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                g.fullResidualReadable = true;
-            }
-        }
-    }
-
     for (auto* r : { g.input.Get(), g.depth.Get(), g.motion.Get() })
         Barrier(cmd, r, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
@@ -460,14 +427,9 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         return say("selected NR50 -> NR100 spatial upscaler failed.");
     }
 
-    if (upscaledResidual)
-    {
-        if (!detailReferenceOk)
-            return say("selected P50 -> P100 reference upscaler failed.");
-        if (!fullResidualOk)
-            return say("P100 NR residual creation failed.");
-    }
+    if (upscaledResidual && !detailReferenceOk)
+        return say("selected P50 -> P100 reference upscaler failed.");
 
     enlargementStatus.clear();
-    return upscaledResidual ? g.fullResidual.Get() : g.output.Get();
+    return g.output.Get();
 }
