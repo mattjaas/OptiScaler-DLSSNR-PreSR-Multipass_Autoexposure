@@ -13,8 +13,8 @@ Scaler DirectSpatialScaler(uint32_t index)
     case 4: return Scaler::Lanczos3;
     case 5: return Scaler::Kaiser2;
     case 6: return Scaler::Kaiser3;
-    case 7: return Scaler::Magic;
-    case 8: return Scaler::FSR1;
+    case 8: return Scaler::Magic;
+    case 9: return Scaler::FSR1;
     default: return Scaler::Count;
     }
 }
@@ -84,9 +84,9 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     const uint32_t directDetailMode =
         direct ? std::min(cfg.DlssNrDirectDetailRecovery.value_or_default(), 2u) : 0u;
     const uint32_t outputUpscaler =
-        direct ? std::min(cfg.DlssNrDirectOutputUpscaler.value_or_default(), 9u) : 9u;
+        direct ? std::min(cfg.DlssNrDirectOutputUpscaler.value_or_default(), 10u) : 10u;
     const uint32_t detailReferenceUpscaler =
-        direct ? std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u) : 0u;
+        direct ? std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u) : 0u;
     const uint32_t carrierMode = direct ? 2u : structural ? 1u : 0u;
     const int dlssPreset = cfg.DlssNrScalingDlssPreset.value_or_default();
 
@@ -154,7 +154,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             return say("Private DLSS SR: " + g.dlss->Error());
 
         // P50->P100 via DLSS owns a completely separate temporal feature/history from NR50->NR100.
-        if (direct && detailReferenceUpscaler == 9)
+        if (direct && detailReferenceUpscaler == 10)
         {
             g.detailDlss = std::make_unique<DlssNr::PrivateUpscalerDx12>(DlssNr::PrivateUpscaler::DLSS);
             if (!g.detailDlss->Init(device, cmd, info))
@@ -302,6 +302,17 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             up.Height = g.outH;
             return shader.DispatchPass(cmd, up, source, nullptr, nullptr, nullptr, nullptr, target, nullptr);
         }
+        if (selector == 7)
+        {
+            // The existing proxy Area path computes exact source-pixel coverage and is valid for
+            // enlargement too. P50 -> P100 duplicates source pixels; fractional ratios blend by area.
+            DlssNrConstants area {};
+            area.Mode = DlssNrMode_Downsample;
+            area.Width = g.outW;
+            area.Height = g.outH;
+            area.Transfer = 0;
+            return shader.DispatchPass(cmd, area, source, nullptr, nullptr, nullptr, nullptr, target, nullptr);
+        }
 
         const Scaler kernel = DirectSpatialScaler(selector);
         if (kernel == Scaler::Count)
@@ -312,7 +323,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     };
 
     bool outputOk = false;
-    if (outputUpscaler == 9)
+    if (outputUpscaler == 10)
     {
         auto f = baseFrame;
         f.color.resource = g.input.Get();
@@ -339,7 +350,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     bool detailReferenceOk = !detailReady || externalDetailReference;
     if (detailReady && !externalDetailReference)
     {
-        if (detailReferenceUpscaler == 9)
+        if (detailReferenceUpscaler == 10)
         {
             if (g.detailDlss)
             {
@@ -391,7 +402,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     g.reset = !outputOk;
     if (!outputOk)
     {
-        if (outputUpscaler == 9)
+        if (outputUpscaler == 10)
         {
             g.failed = true;
             return say("Private DLSS SR: " + g.dlss->Error());

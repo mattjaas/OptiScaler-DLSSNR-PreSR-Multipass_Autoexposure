@@ -330,6 +330,14 @@ auto DlssNr_Dx12::State::ApplyFinishedColor(ID3D12Resource* color, ID3D12Command
         late.heldFailed |= holdFinished;
         late.Say("Could not finish the picture. Restart the game to retry.");
         slot.pending = true; // quarantine the slot; do not reuse possibly recorded NR resources
+        if (requestAsyncDetail && !slot.asyncProvisional)
+        {
+            // Successful async frames are normally protected by the one final signal below. If that
+            // final list cannot even be closed, fence the already queued private work only here.
+            slot.done = std::max(slot.done, slot.ready) + 1;
+            if (SUCCEEDED(queue->Signal(slot.fence.Get(), slot.done)))
+                slot.asyncProvisional = true;
+        }
         if (!slot.asyncProvisional)
             slot.submitted = false;
         return false;

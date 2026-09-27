@@ -438,13 +438,13 @@ bool DlssNr_Dx12::State::RunOrdinaryAsync(ID3D12GraphicsCommandList* gameCommand
 {
     const Config& cfg = *Config::Instance();
     const uint32_t execution = std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
-    const uint32_t detailReference = std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u);
+    const uint32_t detailReference = std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u);
     // Auto never submits a caller-owned native DX12 list early: the app may enqueue a queue-level Wait only
     // after recording finishes. Explicit Async compute is the opt-in experimental override for that native path.
     if (execution == 1 || (execution == 0 && !frame.IndependentCommands) || frame.BeforeUpscale ||
         frame.FinishedPicture || !gameCommands || !queue || !output || !depth || !motion ||
         cfg.DlssNrTransfer.value_or_default() != 5 ||
-        cfg.DlssNrDirectDetailRecovery.value_or_default() == 0 || detailReference >= 9 ||
+        cfg.DlssNrDirectDetailRecovery.value_or_default() == 0 || detailReference >= 10 ||
         cfg.DlssNrHoldFrame.value_or_default() || cfg.DlssNrDebugView.value_or_default() != 0 ||
         cfg.DlssNrCompare.value_or_default() != 0 || cfg.DlssNrShowSkinMask.value_or_default() ||
         captureFrames.isActive() || ::State::Instance().isShuttingDown)
@@ -569,6 +569,14 @@ bool DlssNr_Dx12::State::RunOrdinaryAsync(ID3D12GraphicsCommandList* gameCommand
     {
         nr.failed = true;
         nr.reason = "the ordinary async resolve list could not be closed";
+        // The successful path deliberately has no pre-resolve direct-queue signal. If the final
+        // resolve cannot be submitted, fence the already queued private async work only on this
+        // failure path so its slot resources cannot be recycled while the GPU still uses them.
+        slot->done = std::max(slot->done, slot->ready) + 1;
+        if (SUCCEEDED(queue->Signal(slot->fence.Get(), slot->done)))
+            slot->asyncProvisional = true;
+        else
+            slot->done = UINT64_MAX - 1;
         return true;
     }
 

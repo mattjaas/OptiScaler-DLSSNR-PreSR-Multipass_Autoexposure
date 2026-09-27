@@ -69,7 +69,7 @@ struct DlssNr_Dx12::State
         bool submitted = false, failed = false, depthInverted = false, readable = false, detailReadable = false,
              detailReferenceReadable = false, reset = true, detailReset = true;
         uint32_t carrierMode = 0;
-        uint32_t outputUpscaler = 9;
+        uint32_t outputUpscaler = 10;
         uint32_t detailReferenceUpscaler = 0;
         int dlssPreset = 0;
         ~Enlarger()

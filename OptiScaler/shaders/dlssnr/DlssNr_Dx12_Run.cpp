@@ -13,8 +13,8 @@ Scaler AsyncDetailSpatialScaler(uint32_t index)
     case 4: return Scaler::Lanczos3;
     case 5: return Scaler::Kaiser2;
     case 6: return Scaler::Kaiser3;
-    case 7: return Scaler::Magic;
-    case 8: return Scaler::FSR1;
+    case 8: return Scaler::Magic;
+    case 9: return Scaler::FSR1;
     default: return Scaler::Count;
     }
 }
@@ -199,7 +199,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     const uint32_t detailExecution =
         std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
     const uint32_t detailReferenceSelector =
-        std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u);
+        std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u);
 
     // Async detail reconstruction and NR are both read-only consumers of the same P50 image. Give only
     // that P50 scratch simultaneous-access semantics while async is requested, so the two queues can share
@@ -208,7 +208,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     const bool wantSharedP50 =
         ownsPrivateAsyncLists && detailExecution != 1 && frame.IndependentCommands && !spatial && workScale < 0.999f &&
         cfg.DlssNrTransfer.value_or_default() == 5 && cfg.DlssNrDirectDetailRecovery.value_or_default() != 0 &&
-        detailReferenceSelector < 9 && timingQueue && timingQueue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT &&
+        detailReferenceSelector < 10 && timingQueue && timingQueue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT &&
         !late.asyncDetailQueueFailed;
 
     if (reduced && !spatial)
@@ -515,6 +515,20 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             detailRecorded = shader.DispatchPass(detailCmd, up, sharedDetailInput, nullptr, nullptr, nullptr, nullptr,
                                                  asyncSlot->asyncDetailReference.Get(), nullptr);
         }
+        else if (detailReferenceSelector == 7)
+        {
+            // Reuse the exact area-weighted resize already used by proxy downsampling. Its footprint
+            // math is direction-agnostic: P50 -> P100 becomes point-like, while non-integer ratios
+            // blend source pixels according to covered area.
+            DlssNrConstants area {};
+            area.Mode = DlssNrMode_Downsample;
+            area.Width = width;
+            area.Height = height;
+            area.Transfer = 0;
+            detailRecorded =
+                shader.DispatchPass(detailCmd, area, sharedDetailInput, nullptr, nullptr, nullptr, nullptr,
+                                    asyncSlot->asyncDetailReference.Get(), nullptr);
+        }
         else
         {
             const Scaler kernel = AsyncDetailSpatialScaler(detailReferenceSelector);
@@ -603,15 +617,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             nr.reason = "the direct queue could not wait for the async P50 detail reference";
             return false;
         }
-        asyncSlot->done = std::max(asyncSlot->done, asyncSlot->ready) + 1;
-        if (FAILED(timingQueue->Signal(asyncSlot->fence.Get(), asyncSlot->done)))
-        {
-            cmdList = resolveCmd;
-            nr.failed = true;
-            nr.reason = "the direct queue could not protect async P50 detail work";
-            return false;
-        }
-        asyncSlot->asyncProvisional = true;
+        // Do not signal the direct queue here on a successful frame. The final resolve/compose
+        // submission signals this slot once, and that later signal covers the NR list, the compute
+        // detail wait, and the resolve itself. Failure paths above still issue provisional protection.
         cmdList = resolveCmd;
         return true;
     };

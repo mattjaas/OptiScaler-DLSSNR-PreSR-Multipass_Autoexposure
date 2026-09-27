@@ -334,9 +334,9 @@ class Config
     CustomOptional<int> DlssNrScalingDlssPreset { 1 };
 
     // Direct native-output upscalers. 0 bilinear, 1 bicubic, 2 Catmull-Rom, 3 Lanczos2,
-    // 4 Lanczos3, 5 Kaiser2, 6 Kaiser3, 7 MAGIC, 8 FSR1, 9 DLSS.
+    // 4 Lanczos3, 5 Kaiser2, 6 Kaiser3, 7 Area, 8 MAGIC, 9 FSR1, 10 DLSS.
     // Output defaults to DLSS to preserve the previous Direct-DLSS path.
-    CustomOptional<uint32_t> DlssNrDirectOutputUpscaler { 9 };
+    CustomOptional<uint32_t> DlssNrDirectOutputUpscaler { 10 };
     // Reference used to reconstruct P50 to P100 for lost-detail detection. Bilinear preserves
     // the previous implicit SampleLevel behaviour.
     CustomOptional<uint32_t> DlssNrDirectDetailReferenceUpscaler { 0 };

@@ -212,13 +212,13 @@ void RenderInput(Config* config)
         if (reduced && (transfer == 2 || transfer == 4 || transfer == 5))
         {
             static const char* directUpscalerNames[] = { "Bilinear", "Bicubic", "Catmull-Rom", "Lanczos2",
-                                                         "Lanczos3", "Kaiser2", "Kaiser3", "MAGIC", "FSR1",
-                                                         "DLSS" };
+                                                         "Lanczos3", "Kaiser2", "Kaiser3", "Area", "MAGIC",
+                                                         "FSR1", "DLSS" };
 
             int detailMode = (int) std::min(config->DlssNrDirectDetailRecovery.value_or_default(), 2u);
-            int outputUpscaler = (int) std::min(config->DlssNrDirectOutputUpscaler.value_or_default(), 9u);
+            int outputUpscaler = (int) std::min(config->DlssNrDirectOutputUpscaler.value_or_default(), 10u);
             int referenceUpscaler =
-                (int) std::min(config->DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u);
+                (int) std::min(config->DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u);
 
             if (transfer == 5)
             {
@@ -227,7 +227,9 @@ void RenderInput(Config* config)
                     config->DlssNrDirectOutputUpscaler = (uint32_t) outputUpscaler;
 
                 HelpMarker("Upscaler used on the complete NR50 answer in Direct NR mode. DLSS preserves the current "
-                           "temporal Direct-DLSS path; the other entries are spatial A/B test paths.");
+                           "temporal Direct-DLSS path; the other entries are spatial A/B test paths. Area is effectively "
+                           "Point/Nearest for exact P50 -> P100 and uses area-weighted blending for non-integer ratios "
+                           "such as P60 -> P100.");
 
                 static const char* detailNames[] = { "Off", "Full lost detail", "NR-gated" };
                 if (ImGui::Combo("Direct detail recovery", &detailMode, detailNames, IM_ARRAYSIZE(detailNames)))
@@ -249,7 +251,7 @@ void RenderInput(Config* config)
                     static const char* detailExecutionNames[] = { "Auto", "Serial", "Async compute" };
                     int detailExecution =
                         (int) std::min(config->DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
-                    ImGui::BeginDisabled(referenceUpscaler == 9);
+                    ImGui::BeginDisabled(referenceUpscaler == 10);
                     if (ImGui::Combo("P50 detail reference execution", &detailExecution, detailExecutionNames,
                                      IM_ARRAYSIZE(detailExecutionNames)))
                         config->DlssNrDirectDetailReferenceExecutionMode = (uint32_t) detailExecution;
@@ -269,7 +271,7 @@ void RenderInput(Config* config)
 
             const bool directUsesDlss =
                 transfer == 5 &&
-                (outputUpscaler == 9 || (detailMode != 0 && referenceUpscaler == 9));
+                (outputUpscaler == 10 || (detailMode != 0 && referenceUpscaler == 10));
             if (transfer == 2 || transfer == 4 || directUsesDlss)
             {
                 static const char* presetNames[] = { "Default", "A", "B", "C", "D", "E", "F", "G", "H",
