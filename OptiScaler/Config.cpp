@@ -352,6 +352,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrDirectOutputUpscaler.set_from_config(readUInt("DlssNr", "DirectOutputUpscaler"));
             DlssNrDirectDetailReferenceUpscaler.set_from_config(
                 readUInt("DlssNr", "DirectDetailReferenceUpscaler"));
+            DlssNrDirectDetailReferenceExecutionMode.set_from_config(
+                readUInt("DlssNr", "DirectDetailReferenceExecutionMode"));
             DlssNrDirectDetailRecovery.set_from_config(readUInt("DlssNr", "DirectDetailRecovery"));
             DlssNrDirectDetailMaskStrength.set_from_config(readFloat("DlssNr", "DirectDetailMaskStrength"));
             DlssNrGpuTimeAverageWindowMs.set_from_config(readUInt("DlssNr", "GpuTimeAverageWindowMs"));
@@ -1313,6 +1315,8 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetIntValue(Instance()->DlssNrDirectOutputUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailReferenceUpscaler",
                      GetIntValue(Instance()->DlssNrDirectDetailReferenceUpscaler.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "DirectDetailReferenceExecutionMode",
+                     GetIntValue(Instance()->DlssNrDirectDetailReferenceExecutionMode.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailRecovery",
                      GetIntValue(Instance()->DlssNrDirectDetailRecovery.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailMaskStrength",
