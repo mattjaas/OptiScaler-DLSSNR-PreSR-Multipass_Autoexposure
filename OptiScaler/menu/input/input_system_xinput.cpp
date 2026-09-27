@@ -32,6 +32,9 @@ HMODULE FindLoadedXInputModule()
 
 bool ShouldBlockXInputLocked()
 {
+    if (ShouldPassthroughGamepadLocked())
+        return false;
+
     return _state.Initialized && (ShouldBlockKeyboardInputLocked() || ShouldBlockMouseInputLocked());
 }
 
