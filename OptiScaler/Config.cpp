@@ -349,6 +349,9 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrMaxDarkening.set_from_config(readFloat("DlssNr", "MaxDarkening"));
             DlssNrTransfer.set_from_config(readUInt("DlssNr", "Transfer"));
             DlssNrScalingDlssPreset.set_from_config(readInt("DlssNr", "ScalingDlssPreset"));
+            DlssNrDirectOutputUpscaler.set_from_config(readUInt("DlssNr", "DirectOutputUpscaler"));
+            DlssNrDirectDetailReferenceUpscaler.set_from_config(
+                readUInt("DlssNr", "DirectDetailReferenceUpscaler"));
             DlssNrDirectDetailRecovery.set_from_config(readUInt("DlssNr", "DirectDetailRecovery"));
             DlssNrDirectDetailMaskStrength.set_from_config(readFloat("DlssNr", "DirectDetailMaskStrength"));
 
@@ -1304,6 +1307,10 @@ bool Config::SaveIni(std::filesystem::path destination)
         ini.SetValue("DlssNr", "Transfer", GetIntValue(Instance()->DlssNrTransfer.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ScalingDlssPreset",
                      GetIntValue(Instance()->DlssNrScalingDlssPreset.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "DirectOutputUpscaler",
+                     GetIntValue(Instance()->DlssNrDirectOutputUpscaler.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "DirectDetailReferenceUpscaler",
+                     GetIntValue(Instance()->DlssNrDirectDetailReferenceUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailRecovery",
                      GetIntValue(Instance()->DlssNrDirectDetailRecovery.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailMaskStrength",
