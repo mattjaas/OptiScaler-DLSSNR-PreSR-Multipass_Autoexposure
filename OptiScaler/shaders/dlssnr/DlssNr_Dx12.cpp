@@ -145,13 +145,26 @@ bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssN
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
     return DispatchCompute(InCmdList, InConstants, _pipelineState, InSource, InModel, InOriginal, InMotion, InPrevEdit,
-                           OutTarget, OutKeep, immutableSlot);
+                           nullptr, OutTarget, OutKeep, immutableSlot);
+}
+
+bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,
+                                   ID3D12Resource* InSource, ID3D12Resource* InModel,
+                                   ID3D12Resource* InOriginal, ID3D12Resource* InMotion,
+                                   ID3D12Resource* InPrevEdit, ID3D12Resource* InAux2,
+                                   ID3D12Resource* OutTarget, ID3D12Resource* OutKeep, uint32_t* immutableSlot)
+{
+    std::lock_guard ownersLock(nrOwnersMutex);
+    std::lock_guard stateLock(_state->mutex);
+    return DispatchCompute(InCmdList, InConstants, _pipelineState, InSource, InModel, InOriginal, InMotion,
+                           InPrevEdit, InAux2, OutTarget, OutKeep, immutableSlot);
 }
 
 bool DlssNr_Dx12::DispatchCompute(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,
                                   ID3D12PipelineState* pipeline, ID3D12Resource* InSource, ID3D12Resource* InModel,
                                   ID3D12Resource* InOriginal, ID3D12Resource* InMotion, ID3D12Resource* InPrevEdit,
-                                  ID3D12Resource* OutTarget, ID3D12Resource* OutKeep, uint32_t* immutableSlot)
+                                  ID3D12Resource* InAux2, ID3D12Resource* OutTarget, ID3D12Resource* OutKeep,
+                                  uint32_t* immutableSlot)
 {
     _state->lifetime.Record(InCmdList);
     if (!_init || !pipeline || !InCmdList || !_device || !InSource || !OutTarget)
@@ -175,6 +188,7 @@ bool DlssNr_Dx12::DispatchCompute(ID3D12GraphicsCommandList* InCmdList, const Dl
             InOriginal != nullptr ? InOriginal : InSource,
             InMotion != nullptr ? InMotion : InSource,
             InPrevEdit != nullptr ? InPrevEdit : InSource,
+            InAux2 != nullptr ? InAux2 : InSource,
         };
 
         for (uint32_t i = 0; i < kSrvCount; ++i)
@@ -358,8 +372,8 @@ bool DlssNr_Dx12::DispatchSpatial(ID3D12GraphicsCommandList* cmd, const DlssNr::
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
     auto* pipeline = constants.mode == 101 ? _spatialGuidesPipelineState : _spatialPipelineState;
-    return DispatchCompute(cmd, bytes, pipeline, source, depthOrAnswer, motion, nullptr, nullptr, target, secondary,
-                           nullptr);
+    return DispatchCompute(cmd, bytes, pipeline, source, depthOrAnswer, motion, nullptr, nullptr, nullptr, target,
+                           secondary, nullptr);
 }
 
 bool DlssNr_Dx12::DispatchResidualPass(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,
@@ -373,7 +387,7 @@ bool DlssNr_Dx12::DispatchResidualPass(ID3D12GraphicsCommandList* InCmdList, con
                               sizeof(dlssnr_finished_color_cso), nullptr);
     auto* pipeline = finishedColor ? _finishedColorPipelineState : _residualPipelineState;
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion, nullptr,
-                           OutTarget, nullptr, nullptr);
+                           nullptr, OutTarget, nullptr, nullptr);
 }
 
 bool DlssNr_Dx12::CreateBufferResource(ID3D12Device* device, ID3D12Resource* source, D3D12_RESOURCE_STATES state)
