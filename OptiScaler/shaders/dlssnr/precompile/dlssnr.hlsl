@@ -42,6 +42,9 @@ cbuffer Params : register(b0)
     float gPreExposure, gExposureTrim, gExposureProtection;
     uint gExposureAnchorCount, gExposureSourceWidth, gExposureSourceHeight, gExposurePadding;
     float4 gExposureAnchors[4];
+    uint gDirectDetailMode;
+    float gDirectDetailMaskStrength;
+    float2 gDirectDetailPadding;
 };
 
 // Hue-preserving gamut compression toward the D65 neutral axis.
@@ -213,6 +216,9 @@ Texture2D<float4>   gOriginal : register(t2);  // resolve: the untouched frame.
 [[vk::binding(4, 0)]]
 #endif
 Texture2D<float4>   gMotion   : register(t3);  // resolve, accumulating: the game's motion vectors.
+#ifndef VK_MODE
+Texture2D<float4>   gAux      : register(t4);  // DX12 Direct-DLSS: packed P50.rgb + NR retention gate.
+#endif
 
 #ifdef VK_MODE
 [[vk::binding(5, 0)]]
@@ -721,6 +727,68 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         gTarget[id.xy] = float4(NrEncodeResizeField(NrPairedResizeField(int2(id.xy), int2(gWidth, gHeight))), 1);
         return;
     }
+#ifndef VK_MODE
+    if (gMode == 13)
+    {
+        // Direct-DLSS preparation. Keep the exact NR50 answer as the private-DLSS carrier, while the
+        // second UAV stores P50 plus a conservative "NR retained this structure" gate in alpha.
+        const int2 p = int2(id.xy);
+        const int2 lo = int2(0, 0);
+        const int2 hi = int2((int) gWidth - 1, (int) gHeight - 1);
+        const int2 px0 = clamp(p + int2(-1, 0), lo, hi);
+        const int2 px1 = clamp(p + int2( 1, 0), lo, hi);
+        const int2 py0 = clamp(p + int2(0, -1), lo, hi);
+        const int2 py1 = clamp(p + int2(0,  1), lo, hi);
+
+        const float4 proxyRaw = gSource.Load(int3(p, 0));
+        const float4 answerRaw = gModel.Load(int3(p, 0));
+
+        float3 pc = proxyRaw.rgb;
+        float3 nc = answerRaw.rgb;
+        float3 pl = gSource.Load(int3(px0, 0)).rgb;
+        float3 pr = gSource.Load(int3(px1, 0)).rgb;
+        float3 pu = gSource.Load(int3(py0, 0)).rgb;
+        float3 pd = gSource.Load(int3(py1, 0)).rgb;
+        float3 nl = gModel.Load(int3(px0, 0)).rgb;
+        float3 nr = gModel.Load(int3(px1, 0)).rgb;
+        float3 nu = gModel.Load(int3(py0, 0)).rgb;
+        float3 nd = gModel.Load(int3(py1, 0)).rgb;
+
+        if (gPassthrough == 0)
+        {
+            pc = SrgbToLinear(pc); nc = SrgbToLinear(nc);
+            pl = SrgbToLinear(pl); pr = SrgbToLinear(pr);
+            pu = SrgbToLinear(pu); pd = SrgbToLinear(pd);
+            nl = SrgbToLinear(nl); nr = SrgbToLinear(nr);
+            nu = SrgbToLinear(nu); nd = SrgbToLinear(nd);
+        }
+
+        const float floorY = 1.0 / 512.0;
+        const float pY = dot(pc, kLuma);
+        const float nY = dot(nc, kLuma);
+        const float pBlur = dot(pc + pl + pr + pu + pd, kLuma) / 5.0;
+        const float nBlur = dot(nc + nl + nr + nu + nd, kLuma) / 5.0;
+        const float pDetail = (pY - pBlur) / (max(pY, pBlur) + floorY);
+        const float nDetail = (nY - nBlur) / (max(nY, nBlur) + floorY);
+
+        // Default to restoring native detail. Suppress only when P50 had a real local structure and
+        // NR50 clearly weakened or reversed it. This avoids requiring NR to "prove" every fine detail.
+        float gate = 1.0;
+        const float pMag = abs(pDetail);
+        const float nMag = abs(nDetail);
+        if (pMag > 0.010)
+        {
+            const float retained = nMag / max(pMag, 1e-5);
+            gate = smoothstep(0.20, 0.70, retained);
+            if (pDetail * nDetail < 0.0 && nMag > 0.20 * pMag)
+                gate = 0.0;
+        }
+
+        gTarget[id.xy] = answerRaw;
+        gKeep[id.xy] = float4(proxyRaw.rgb, saturate(gate));
+        return;
+    }
+#endif
     if (gMode == 9)
     {
         float3 source = gSource.Load(int3(id.xy, 0)).rgb;
@@ -1119,6 +1187,29 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         float contrast = (originalLuma - blur) / (max(originalLuma, blur) + kRatioFloor);
         result *= exp2(clamp(gReplaceDetailStrength, 0.0, 2.0) * clamp(contrast, -1.0, 1.0));
     }
+
+#ifndef VK_MODE
+    // Direct DLSS detail recovery. gSource is the immutable P100 proxy; gAux contains the exact P50
+    // proxy in RGB and the low-resolution NR retention gate in alpha. Reapply only the luminance
+    // ratio lost by P100 -> P50, so NR's colour and low-frequency lighting remain fully authoritative.
+    if (gDirectDetailMode != 0)
+    {
+        const float4 detailInfo = gAux.SampleLevel(gLinear, cmpUv, 0);
+        const float3 p50 = gPassthrough != 0 ? detailInfo.rgb : SrgbToLinear(detailInfo.rgb);
+        const float p100Y = max(dot(proxy, kLuma), 0.0);
+        const float p50Y = max(dot(p50, kLuma), 0.0);
+        float lostStops = log2((p100Y + kRatioFloor) / (p50Y + kRatioFloor));
+        if (!isfinite(lostStops))
+            lostStops = 0.0;
+
+        const float gate = gDirectDetailMode == 1
+                               ? 1.0
+                               : lerp(1.0, saturate(detailInfo.a), saturate(gDirectDetailMaskStrength));
+        const float detailRatio = exp2(lostStops * gate);
+        if (isfinite(detailRatio) && detailRatio > 0.0)
+            result *= detailRatio;
+    }
+#endif
 
     // Back out of the normalised space the composition worked in.
     result *= normScale;
