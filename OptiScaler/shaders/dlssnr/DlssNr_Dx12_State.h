@@ -57,17 +57,26 @@ struct DlssNr_Dx12::State
     {
         template <typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
         std::unique_ptr<DlssNr::PrivateUpscalerDx12> dlss;
+        std::unique_ptr<DlssNr::PrivateUpscalerDx12> detailDlss;
+        std::unique_ptr<OS_Dx12> outputSpatialScaler;
+        std::unique_ptr<OS_Dx12> detailSpatialScaler;
         DlssNr::GpuLifetime lifetime;
-        ComPtr<ID3D12Resource> input, output, depth, motion, exposure, detailInfo;
+        ComPtr<ID3D12Resource> input, output, depth, motion, exposure, detailInfo, detailReference;
         ComPtr<ID3D12CommandQueue> queue;
         ID3D12CommandList* creation = nullptr;
         unsigned w = 0, h = 0, outW = 0, outH = 0;
-        uint64_t lastFrame = 0;
+        uint64_t lastFrame = 0, detailLastFrame = 0;
         bool submitted = false, failed = false, depthInverted = false, readable = false, detailReadable = false,
-             reset = true;
+             detailReferenceReadable = false, reset = true, detailReset = true;
         uint32_t carrierMode = 0;
+        uint32_t outputUpscaler = 9;
+        uint32_t detailReferenceUpscaler = 0;
         int dlssPreset = 0;
-        ~Enlarger() { dlss.reset(); } // Release NGX before its borrowed input/output resources.
+        ~Enlarger()
+        {
+            detailDlss.reset();
+            dlss.reset();
+        } // Release NGX before its borrowed input/output resources.
     };
     std::unique_ptr<Enlarger> enlarger;
     std::vector<std::unique_ptr<Enlarger>> retiredEnlargers;
