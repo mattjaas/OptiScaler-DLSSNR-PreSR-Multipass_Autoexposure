@@ -1,5 +1,8 @@
 #pragma once
 
+#include <chrono>
+#include <deque>
+
 // NR calls are serialized by g_nrMutex, including submission/reset notifications.
 // Associate every query pair with its actual submitting queue and GPU completion.
 class DlssNrGpuTime
@@ -20,6 +23,23 @@ class DlssNrGpuTime
     UINT64 sequence = 0, lastSequence = 0;
     std::optional<double> last;
 
+    using Clock = std::chrono::steady_clock;
+    struct TimedValue
+    {
+        Clock::time_point when;
+        double ms = 0.0;
+    };
+    std::deque<TimedValue> history;
+
+    void PruneHistory(Clock::time_point now)
+    {
+        // UI accepts at most 9999 ms. Keep a little extra slack so changing the field upward
+        // can immediately reuse recent samples instead of starting from an empty window.
+        const auto keep = std::chrono::milliseconds(12000);
+        while (!history.empty() && now - history.front().when > keep)
+            history.pop_front();
+    }
+
     void Collect()
     {
         for (unsigned i = 0; i < Count; ++i)
@@ -39,6 +59,9 @@ class DlssNrGpuTime
                 {
                     last = double(end - begin) * 1000.0 / double(s.frequency);
                     lastSequence = s.sequence;
+                    const auto now = Clock::now();
+                    history.push_back({ now, *last });
+                    PruneHistory(now);
                 }
                 D3D12_RANGE written { 0, 0 };
                 readback->Unmap(0, &written);
@@ -134,12 +157,36 @@ class DlssNrGpuTime
     void ClearLast()
     {
         last.reset();
+        history.clear();
         lastSequence = sequence; // older, in-flight samples must not repopulate the display
     }
 
-    std::optional<double> ReadGpuTime()
+    std::optional<double> ReadGpuTime(uint32_t averageWindowMs = 0)
     {
         Collect();
-        return last;
+        if (!last)
+            return std::nullopt;
+
+        averageWindowMs = std::min(averageWindowMs, 9999u);
+        if (averageWindowMs == 0)
+            return last;
+
+        const auto now = Clock::now();
+        PruneHistory(now);
+        const auto cutoff = now - std::chrono::milliseconds(averageWindowMs);
+
+        double sum = 0.0;
+        size_t count = 0;
+        for (auto it = history.rbegin(); it != history.rend(); ++it)
+        {
+            if (it->when < cutoff)
+                break;
+            sum += it->ms;
+            ++count;
+        }
+
+        // If the user just increased the window or the game paused, retain a useful value
+        // instead of blanking the status line.
+        return count ? std::optional<double>(sum / double(count)) : last;
     }
 };
