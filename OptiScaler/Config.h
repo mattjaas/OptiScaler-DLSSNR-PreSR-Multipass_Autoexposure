@@ -327,7 +327,8 @@ class Config
     CustomOptional<float> DlssNrMaxDarkening { 100.0f };
 
     // Reduced output: 0 classic, 1/2 matched residual spatial/DLSS, 3/4 lighting + colour spatial/DLSS,
-    // 5 direct NR output enlarged by DLSS and composed like a native-resolution model answer.
+    // 5 direct NR output enlarged and composed like a native-resolution model answer,
+    // 6 upscale P50 and NR50 separately, create their residual at P100, then apply it to the untouched P100.
     CustomOptional<uint32_t> DlssNrTransfer { 1 };
     // NGX render preset for private DLSS SR used by NR enlargement: 0 default, 1..15 A..O,
     // NV_PRESET_LATEST for the latest model supported by the loaded DLSS DLL.
@@ -337,6 +338,8 @@ class Config
     // 4 Lanczos3, 5 Kaiser2, 6 Kaiser3, 7 Area, 8 MAGIC, 9 FSR1, 10 DLSS.
     // Output defaults to DLSS to preserve the previous Direct-DLSS path.
     CustomOptional<uint32_t> DlssNrDirectOutputUpscaler { 10 };
+    // Upscaled NR residual uses the same selected method for both P50 -> P100 and NR50 -> NR100.
+    CustomOptional<uint32_t> DlssNrUpscaledResidualUpscaler { 10 };
     // Reference used to reconstruct P50 to P100 for lost-detail detection. Bilinear preserves
     // the previous implicit SampleLevel behaviour.
     CustomOptional<uint32_t> DlssNrDirectDetailReferenceUpscaler { 0 };
