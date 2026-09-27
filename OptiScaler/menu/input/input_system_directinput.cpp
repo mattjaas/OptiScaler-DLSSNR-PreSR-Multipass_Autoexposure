@@ -733,6 +733,9 @@ void DrainDirectInputBufferedDataLocked()
         if (!deviceSlot.InUse || deviceSlot.Device == nullptr)
             continue;
 
+        if (ShouldPassthroughGamepadLocked() && deviceSlot.Kind == DirectInputDeviceKind::Other)
+            continue;
+
         PVOID* vtable = *reinterpret_cast<PVOID**>(deviceSlot.Device);
         auto target = reinterpret_cast<DirectInputGetDeviceData_t>(vtable[10]);
         DirectInputGetDeviceData_t original =
