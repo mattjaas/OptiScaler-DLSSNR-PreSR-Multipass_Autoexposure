@@ -350,6 +350,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrTransfer.set_from_config(readUInt("DlssNr", "Transfer"));
             DlssNrScalingDlssPreset.set_from_config(readInt("DlssNr", "ScalingDlssPreset"));
             DlssNrDirectOutputUpscaler.set_from_config(readUInt("DlssNr", "DirectOutputUpscaler"));
+            DlssNrUpscaledResidualUpscaler.set_from_config(readUInt("DlssNr", "UpscaledResidualUpscaler"));
             DlssNrDirectDetailReferenceUpscaler.set_from_config(
                 readUInt("DlssNr", "DirectDetailReferenceUpscaler"));
             DlssNrDirectDetailReferenceExecutionMode.set_from_config(
@@ -1313,6 +1314,8 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetIntValue(Instance()->DlssNrScalingDlssPreset.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectOutputUpscaler",
                      GetIntValue(Instance()->DlssNrDirectOutputUpscaler.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "UpscaledResidualUpscaler",
+                     GetIntValue(Instance()->DlssNrUpscaledResidualUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailReferenceUpscaler",
                      GetIntValue(Instance()->DlssNrDirectDetailReferenceUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailReferenceExecutionMode",
