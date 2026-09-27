@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "input_system_internal.h"
 
+#include <Config.h>
 #include <include/imgui/imgui.h>
 
 namespace OptiInput
@@ -70,6 +71,11 @@ bool ShouldBlockKeyboardInputLocked() { return ShouldApplyBlockingPolicyLocked()
 bool ShouldBlockMouseInputLocked() { return ShouldApplyBlockingPolicyLocked() && _state.BlockMouse; }
 
 bool ShouldBlockCursorInputLocked() { return ShouldApplyBlockingPolicyLocked() && _state.BlockCursor; }
+
+bool ShouldPassthroughGamepadLocked()
+{
+    return Config::Instance()->MenuGamepadPassthrough.value_or_default();
+}
 
 void HandleBlockingFocusGainLocked()
 {
