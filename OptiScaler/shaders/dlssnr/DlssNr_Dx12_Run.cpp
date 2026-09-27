@@ -196,20 +196,28 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                           requestedPasses, spatial))
         return;
 
+    const uint32_t transferMode = cfg.DlssNrTransfer.value_or_default();
+    const bool upscaledResidualMode = transferMode == 6;
     const uint32_t detailExecution =
-        std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
+        std::min(upscaledResidualMode ? cfg.DlssNrUpscaledResidualReferenceExecutionMode.value_or_default()
+                                     : cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(),
+                 2u);
     const uint32_t detailReferenceSelector =
-        std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u);
+        std::min(upscaledResidualMode ? cfg.DlssNrUpscaledResidualReferenceUpscaler.value_or_default()
+                                     : cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(),
+                 10u);
+    const bool needsP50Reference =
+        upscaledResidualMode ||
+        (transferMode == 5 && cfg.DlssNrDirectDetailRecovery.value_or_default() != 0);
 
-    // Async detail reconstruction and NR are both read-only consumers of the same P50 image. Give only
+    // Async P50 reconstruction and NR are both read-only consumers of the same reduced image. Give only
     // that P50 scratch simultaneous-access semantics while async is requested, so the two queues can share
     // it directly instead of copying the whole P50 raster every frame. Serial recreates the ordinary
     // non-simultaneous texture, preserving the previous resource policy and its compression/cache behaviour.
     const bool wantSharedP50 =
         ownsPrivateAsyncLists && detailExecution != 1 && frame.IndependentCommands && !spatial && workScale < 0.999f &&
-        cfg.DlssNrTransfer.value_or_default() == 5 && cfg.DlssNrDirectDetailRecovery.value_or_default() != 0 &&
-        detailReferenceSelector < 10 && timingQueue && timingQueue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT &&
-        !late.asyncDetailQueueFailed;
+        needsP50Reference && detailReferenceSelector < 10 && timingQueue &&
+        timingQueue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT && !late.asyncDetailQueueFailed;
 
     if (reduced && !spatial)
     {
