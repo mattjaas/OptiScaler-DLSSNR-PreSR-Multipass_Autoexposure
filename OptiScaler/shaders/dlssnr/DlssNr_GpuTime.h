@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <deque>
 
 // NR calls are serialized by g_nrMutex, including submission/reset notifications.
