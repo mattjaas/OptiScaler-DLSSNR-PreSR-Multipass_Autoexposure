@@ -328,10 +328,8 @@ struct DlssNr_Dx12::State
             ComPtr<ID3D12CommandQueue> producerQueue;
             ComPtr<ID3D12CommandAllocator> allocator;
             ComPtr<ID3D12GraphicsCommandList> commands;
-            ComPtr<ID3D12CommandAllocator> asyncPrefixAllocator, asyncCopyAllocator, asyncDetailAllocator,
-                asyncNrAllocator;
-            ComPtr<ID3D12GraphicsCommandList> asyncPrefixCommands, asyncCopyCommands, asyncDetailCommands,
-                asyncNrCommands;
+            ComPtr<ID3D12CommandAllocator> asyncPrefixAllocator, asyncDetailAllocator, asyncNrAllocator;
+            ComPtr<ID3D12GraphicsCommandList> asyncPrefixCommands, asyncDetailCommands, asyncNrCommands;
             ComPtr<ID3D12Resource> asyncDetailInput, asyncDetailReference;
             std::unique_ptr<OS_Dx12> asyncDetailScaler;
             uint32_t asyncDetailScalerSelector = UINT32_MAX;
@@ -345,8 +343,8 @@ struct DlssNr_Dx12::State
         ComPtr<ID3D12Device> device;
         ComPtr<ID3D12CommandQueue> producerQueue;
         ComPtr<ID3D12CommandQueue> asyncDetailQueue, asyncDirectQueue;
-        ComPtr<ID3D12Fence> asyncP50Fence, asyncCopyFence, asyncDetailFence;
-        uint64_t asyncP50Serial = 0, asyncCopySerial = 0, asyncDetailSerial = 0;
+        ComPtr<ID3D12Fence> asyncP50Fence, asyncDetailFence;
+        uint64_t asyncP50Serial = 0, asyncDetailSerial = 0;
         bool asyncDetailQueueFailed = false;
         Dx11FinishedPictureBridge dx11;
         // One clean presentation snapshot for the owner, never one per rotating backbuffer/slot.
