@@ -38,15 +38,15 @@ enum DlssNrMode : uint32_t
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
 {
-    return transfer == 2 || transfer == 4 || transfer == 5;
+    return transfer == 2 || transfer == 4 || transfer == 5 || transfer == 6;
 }
 
 // The spatial mode is used until the caller has supplied an enlarged DLSS carrier.
 inline uint32_t DlssNrSpatialTransfer(uint32_t transfer)
 {
-    // Direct DLSS has no spatial transfer equivalent. Until its full-resolution answer exists,
-    // use ordinary classic composition.
-    if (transfer == 5)
+    // Direct NR and the native-resolution residual path have no spatial transfer equivalent.
+    // Until their full-resolution products exist, use ordinary classic composition.
+    if (transfer == 5 || transfer == 6)
         return 0;
     return DlssNrUsesDlssEnlargement(transfer) ? transfer - 1 : std::min(transfer, 3u);
 }
