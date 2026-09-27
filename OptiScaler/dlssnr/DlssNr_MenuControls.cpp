@@ -196,7 +196,7 @@ void RenderInput(Config* config)
         ImGui::BeginDisabled(!reduced);
 
         static const char* enlargeNames[] = { "Classic", "Matched residual", "Matched residual + DLSS",
-                                              "Lighting + colour", "Lighting + colour + DLSS", "DLSS" };
+                                              "Lighting + colour", "Lighting + colour + DLSS", "Direct NR" };
         int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 5u);
 
         if (ImGui::Combo("Enlargement", &enlarge, enlargeNames, IM_ARRAYSIZE(enlargeNames)))
@@ -204,65 +204,95 @@ void RenderInput(Config* config)
 
         ImGui::EndDisabled();
 
-        HelpMarker("Below 100%: Lighting + colour resizes lighting gain and colour changes separately, then applies "
-                   "them at full resolution. The DLSS mode enlarges the NR answer itself and composes it like a "
-                   "native 100% model result. This can reduce resize halos; fully black pixels remain black. "
-                   "DLSS modes require post-upscale DX12 processing.");
+        HelpMarker("Below 100%: Lighting + colour resizes lighting gain and colour changes separately. Direct NR "
+                   "enlarges the NR answer itself and composes it like a native 100% model result; its output "
+                   "upscaler is selectable. DLSS-based enlargement requires post-upscale DX12 processing.");
 
         const auto transfer = config->DlssNrTransfer.value_or_default();
         if (reduced && (transfer == 2 || transfer == 4 || transfer == 5))
         {
-            static const char* presetNames[] = { "Default", "A", "B", "C", "D", "E", "F", "G", "H",
-                                                 "I", "J", "K", "L", "M", "N", "O", "Latest" };
-            static constexpr int presetValues[] = {
-                NVSDK_NGX_DLSS_Hint_Render_Preset_Default,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_A,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_B,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_C,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_D,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_E,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_F,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_G,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_H_Reserved,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_I_Reserved,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_J,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_K,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_L,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_M,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_N,
-                NVSDK_NGX_DLSS_Hint_Render_Preset_O,
-                static_cast<int>(NV_PRESET_LATEST)
-            };
-            int presetIndex = 1;
-            const int configuredPreset = config->DlssNrScalingDlssPreset.value_or_default();
-            for (int i = 0; i < IM_ARRAYSIZE(presetValues); ++i)
-                if (presetValues[i] == configuredPreset)
-                    presetIndex = i;
+            static const char* directUpscalerNames[] = { "Bilinear", "Bicubic", "Catmull-Rom", "Lanczos2",
+                                                         "Lanczos3", "Kaiser2", "Kaiser3", "MAGIC", "FSR1",
+                                                         "DLSS" };
 
-            if (ImGui::Combo("DLSS preset", &presetIndex, presetNames, IM_ARRAYSIZE(presetNames)))
-                config->DlssNrScalingDlssPreset = presetValues[presetIndex];
-
-            HelpMarker("NGX render preset for the private DLSS SR feature used by NR enlargement. "
-                       "K/L/M and Latest are supported like the ordinary OptiScaler DLSS preset override. "
-                       "A preserves the previous enlargement behavior.");
+            int detailMode = (int) std::min(config->DlssNrDirectDetailRecovery.value_or_default(), 2u);
+            int outputUpscaler = (int) std::min(config->DlssNrDirectOutputUpscaler.value_or_default(), 9u);
+            int referenceUpscaler =
+                (int) std::min(config->DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u);
 
             if (transfer == 5)
             {
+                if (ImGui::Combo("NR50 -> NR100 upscaler", &outputUpscaler, directUpscalerNames,
+                                 IM_ARRAYSIZE(directUpscalerNames)))
+                    config->DlssNrDirectOutputUpscaler = (uint32_t) outputUpscaler;
+
+                HelpMarker("Upscaler used on the complete NR50 answer in Direct NR mode. DLSS preserves the current "
+                           "temporal Direct-DLSS path; the other entries are spatial A/B test paths.");
+
                 static const char* detailNames[] = { "Off", "Full lost detail", "NR-gated" };
-                int detailMode = (int) std::min(config->DlssNrDirectDetailRecovery.value_or_default(), 2u);
                 if (ImGui::Combo("Direct detail recovery", &detailMode, detailNames, IM_ARRAYSIZE(detailNames)))
                     config->DlssNrDirectDetailRecovery = (uint32_t) detailMode;
 
-                HelpMarker("Direct DLSS only. Full lost detail restores the luminance micro-detail removed by "
-                           "P100 -> reduced proxy before NR. NR-gated restores the same detail except where NR50 "
-                           "clearly suppresses or reverses the corresponding reduced-resolution structure.");
+                HelpMarker("Full lost detail compares P100 against a reconstructed P50 at P100 resolution. NR-gated "
+                           "starts from that same restore and suppresses it only where NR50 clearly removed or "
+                           "reversed the corresponding P50 local structure.");
 
-                if (detailMode == 2)
-                    Slider("NR gate strength", config->DlssNrDirectDetailMaskStrength, 0.0f, 100.0f, "%.0f%%",
-                           100.0f);
+                if (detailMode != 0)
+                {
+                    if (ImGui::Combo("P50 -> P100 detail reference", &referenceUpscaler, directUpscalerNames,
+                                     IM_ARRAYSIZE(directUpscalerNames)))
+                        config->DlssNrDirectDetailReferenceUpscaler = (uint32_t) referenceUpscaler;
+
+                    HelpMarker("Only affects detection of detail lost by P100 -> P50. Bilinear matches the previous "
+                               "implementation. DLSS uses a separate private temporal history from the NR output.");
+
+                    if (detailMode == 2)
+                        Slider("NR gate strength", config->DlssNrDirectDetailMaskStrength, 0.0f, 100.0f, "%.0f%%",
+                               100.0f);
+                }
+            }
+
+            const bool directUsesDlss =
+                transfer == 5 &&
+                (outputUpscaler == 9 || (detailMode != 0 && referenceUpscaler == 9));
+            if (transfer == 2 || transfer == 4 || directUsesDlss)
+            {
+                static const char* presetNames[] = { "Default", "A", "B", "C", "D", "E", "F", "G", "H",
+                                                     "I", "J", "K", "L", "M", "N", "O", "Latest" };
+                static constexpr int presetValues[] = {
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_Default,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_A,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_B,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_C,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_D,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_E,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_F,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_G,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_H_Reserved,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_I_Reserved,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_J,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_K,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_L,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_M,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_N,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_O,
+                    static_cast<int>(NV_PRESET_LATEST)
+                };
+                int presetIndex = 1;
+                const int configuredPreset = config->DlssNrScalingDlssPreset.value_or_default();
+                for (int i = 0; i < IM_ARRAYSIZE(presetValues); ++i)
+                    if (presetValues[i] == configuredPreset)
+                        presetIndex = i;
+
+                if (ImGui::Combo("DLSS preset", &presetIndex, presetNames, IM_ARRAYSIZE(presetNames)))
+                    config->DlssNrScalingDlssPreset = presetValues[presetIndex];
+
+                HelpMarker("NGX render preset for any private DLSS SR feature used by NR enlargement or P50 "
+                           "detail-reference reconstruction.");
             }
         }
     }
+    static const char* reversibleNames[]    }
     static const char* reversibleNames[] = { "Off (soft knee)", "Neutwo proxy + composed", "Neutwo proxy + replace",
                                              "Hybrid proxy + composed", "Hybrid proxy + replace" };
     int reversible = (int) config->DlssNrReversibleMode.value_or_default();
