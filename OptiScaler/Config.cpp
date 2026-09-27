@@ -349,6 +349,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrMaxDarkening.set_from_config(readFloat("DlssNr", "MaxDarkening"));
             DlssNrTransfer.set_from_config(readUInt("DlssNr", "Transfer"));
             DlssNrScalingDlssPreset.set_from_config(readInt("DlssNr", "ScalingDlssPreset"));
+            DlssNrDirectDetailRecovery.set_from_config(readUInt("DlssNr", "DirectDetailRecovery"));
+            DlssNrDirectDetailMaskStrength.set_from_config(readFloat("DlssNr", "DirectDetailMaskStrength"));
 
             DlssNrDebugView.set_from_config(readUInt("DlssNr", "DebugView"));
             DlssNrCompare.set_from_config(readUInt("DlssNr", "Compare"));
@@ -1302,6 +1304,10 @@ bool Config::SaveIni(std::filesystem::path destination)
         ini.SetValue("DlssNr", "Transfer", GetIntValue(Instance()->DlssNrTransfer.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ScalingDlssPreset",
                      GetIntValue(Instance()->DlssNrScalingDlssPreset.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "DirectDetailRecovery",
+                     GetIntValue(Instance()->DlssNrDirectDetailRecovery.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "DirectDetailMaskStrength",
+                     GetFloatValue(Instance()->DlssNrDirectDetailMaskStrength.value_for_config()).c_str());
 
         ini.SetValue("DlssNr", "DebugView", GetIntValue(Instance()->DlssNrDebugView.value_for_config()).c_str());
         ini.SetValue("DlssNr", "Compare", GetIntValue(Instance()->DlssNrCompare.value_for_config()).c_str());
