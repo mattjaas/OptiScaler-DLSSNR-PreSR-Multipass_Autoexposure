@@ -431,6 +431,164 @@ void DlssNr_Dx12::SetBufferState(ID3D12GraphicsCommandList* cmdList, D3D12_RESOU
 ID3D12Resource* DlssNr_Dx12::Buffer() { return _state->buffer; }
 bool DlssNr_Dx12::CanRender() const { return _init && _state->buffer != nullptr; }
 
+bool DlssNr_Dx12::State::RunOrdinaryAsync(ID3D12GraphicsCommandList* gameCommands, ID3D12Resource* colour,
+                                                   ID3D12Resource* depth, ID3D12Resource* motion,
+                                                   ID3D12Resource* output, const DlssNrFrameInfo& frame,
+                                                   ID3D12CommandQueue* queue)
+{
+    const Config& cfg = *Config::Instance();
+    const uint32_t execution = std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
+    const uint32_t detailReference = std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u);
+    if (execution == 1 || frame.BeforeUpscale || frame.FinishedPicture || !gameCommands || !queue || !output ||
+        !depth || !motion || cfg.DlssNrTransfer.value_or_default() != 5 ||
+        cfg.DlssNrDirectDetailRecovery.value_or_default() == 0 || detailReference >= 9 ||
+        cfg.DlssNrHoldFrame.value_or_default() || cfg.DlssNrDebugView.value_or_default() != 0 ||
+        cfg.DlssNrCompare.value_or_default() != 0 || cfg.DlssNrShowSkinMask.value_or_default() ||
+        captureFrames.isActive() || ::State::Instance().isShuttingDown)
+        return false;
+
+    float workScale = cfg.DlssNrWorkingScale.value_or_default();
+    if (!std::isfinite(workScale))
+        workScale = 1.0f;
+    workScale = std::clamp(workScale, 0.25f, 2.0f);
+    if (workScale >= 0.999f)
+        return false;
+
+    if (gameCommands->GetType() != D3D12_COMMAND_LIST_TYPE_DIRECT ||
+        queue->GetDesc().Type != D3D12_COMMAND_LIST_TYPE_DIRECT)
+        return false;
+
+    Microsoft::WRL::ComPtr<ID3D12Device> device;
+    Microsoft::WRL::ComPtr<ID3D12Device> queueDevice;
+    if (FAILED(output->GetDevice(IID_PPV_ARGS(&device))) ||
+        FAILED(queue->GetDevice(IID_PPV_ARGS(&queueDevice))) || device.Get() != queueDevice.Get())
+        return false;
+
+    const auto outDesc = output->GetDesc();
+    const auto spatialSettings = DlssNr::Spatial::ReadSettings(cfg);
+    if (DlssNr::Spatial::Build(spatialSettings, (unsigned) outDesc.Width, outDesc.Height, workScale).active)
+        return false;
+
+    // Resetting a caller-owned list is only allowed when we can at least put its tracked root signature back.
+    // Extended state snapshots (descriptor heaps/root arguments/PSO) are restored too when they were enabled.
+    if (!D3D12Hooks::CanRestoreRootSignature(gameCommands))
+    {
+        static bool warnedNoState = false;
+        if (execution == 2 && !warnedNoState)
+        {
+            warnedNoState = true;
+            LOG_WARN("DLSS-NR ordinary async detail: caller command-list state is not tracked; using Serial.");
+        }
+        return false;
+    }
+
+    LateContext::Slot* slot = nullptr;
+    for (size_t offset = 0; offset < ordinaryAsyncSlots.size(); ++offset)
+    {
+        const size_t index = (ordinaryAsyncNext + offset) % ordinaryAsyncSlots.size();
+        auto& candidate = ordinaryAsyncSlots[index];
+        if (candidate.fence && candidate.done != 0)
+        {
+            const auto completed = candidate.fence->GetCompletedValue();
+            if (completed == UINT64_MAX || completed < candidate.done)
+                continue;
+        }
+        slot = &candidate;
+        ordinaryAsyncNext = (index + 1) % ordinaryAsyncSlots.size();
+        break;
+    }
+    if (!slot)
+        return false;
+
+    if (!slot->fence && FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&slot->fence))))
+        return false;
+
+    if (!slot->allocator)
+    {
+        if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&slot->allocator))) ||
+            FAILED(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, slot->allocator.Get(), nullptr,
+                                             IID_PPV_ARGS(&slot->commands))))
+        {
+            slot->allocator.Reset();
+            slot->commands.Reset();
+            return false;
+        }
+    }
+    else if (FAILED(slot->allocator->Reset()) || FAILED(slot->commands->Reset(slot->allocator.Get(), nullptr)))
+    {
+        return false;
+    }
+
+    Microsoft::WRL::ComPtr<ID3D12CommandAllocator> continuationAllocator;
+    if (FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                              IID_PPV_ARGS(&continuationAllocator))))
+    {
+        slot->commands->Close();
+        return false;
+    }
+
+    // Everything recorded so far is exactly the old Serial prefix, including the adapter's guide barriers.
+    // Submit that prefix before any private list can read the DLSS output/P50 source.
+    if (FAILED(gameCommands->Close()))
+    {
+        slot->commands->Close();
+        nr.failed = true;
+        nr.reason = "the game command list could not be split for ordinary async detail";
+        return true;
+    }
+    ID3D12CommandList* prefix[] = { gameCommands };
+    queue->ExecuteCommandLists(1, prefix);
+
+    // Continue the game's recording on the very same command-list object, but on our allocator. The allocator
+    // stays alive until the caller submits and later resets this continuation.
+    if (FAILED(gameCommands->Reset(continuationAllocator.Get(), nullptr)))
+    {
+        nr.failed = true;
+        nr.reason = "the game command list could not resume after ordinary async detail";
+        slot->commands->Close();
+        return true;
+    }
+    D3D12Hooks::RestoreTrackedStateAfterReset(gameCommands);
+    ordinaryContinuationLifetime.BeginGeneration();
+    ordinaryContinuationLifetime.Record(gameCommands);
+    auto keepAllocator = continuationAllocator;
+    ordinaryContinuationLifetime.Retire([keepAllocator]() mutable { keepAllocator.Reset(); });
+
+    DlssNrFrameInfo privateFrame = frame;
+    privateFrame.IndependentCommands = true;
+    privateFrame.PipelineManagedStates = true;
+    privateFrame.PrivateColorCopy = true;
+
+    const auto before = nr.successfulDispatches;
+    Run(slot->commands.Get(), colour, depth, motion, output, privateFrame, queue, slot, nullptr, false);
+
+    if (FAILED(slot->commands->Close()))
+    {
+        nr.failed = true;
+        nr.reason = "the ordinary async resolve list could not be closed";
+        return true;
+    }
+
+    ID3D12CommandList* resolve[] = { slot->commands.Get() };
+    queue->ExecuteCommandLists(1, resolve);
+    slot->done = std::max(slot->done, slot->ready) + 1;
+    if (FAILED(queue->Signal(slot->fence.Get(), slot->done)))
+    {
+        nr.failed = true;
+        nr.reason = "the graphics queue could not protect the ordinary async resolve";
+        slot->done = UINT64_MAX - 1;
+    }
+    slot->asyncProvisional = false;
+
+    static bool logged = false;
+    if (!logged)
+    {
+        logged = true;
+        LOG_INFO("DLSS-NR ordinary post-SR: async P50 detail reference is using a split game command list.");
+    }
+    return true;
+}
+
 bool DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmd, ID3D12Resource* colour, ID3D12Resource* depth,
                            ID3D12Resource* motion, ID3D12Resource* output, const DlssNrFrameInfo& frame,
                            ID3D12CommandQueue* queue)
@@ -465,7 +623,8 @@ bool DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmd, ID3D12Resource* colou
         _state->Barrier(cmd, output, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     }
     const auto before = _state->nr.successfulDispatches;
-    _state->Run(cmd, output, depth, motion, output, info, queue);
+    if (!_state->RunOrdinaryAsync(cmd, output, depth, motion, output, info, queue))
+        _state->Run(cmd, output, depth, motion, output, info, queue);
     return _state->nr.successfulDispatches != before;
 }
 
