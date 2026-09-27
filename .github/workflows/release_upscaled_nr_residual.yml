@@ -1,0 +1,55 @@
+name: Release NR Upscaled residual
+
+on:
+  push:
+    branches:
+      - codex/rdr2-finished-picture-credit-pr94-pr109
+    paths:
+      - .github/workflows/release_upscaled_nr_residual.yml
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v6
+        with:
+          ref: 1bf4db04d3c6a3610c7d989fa30d0d065a0bd57c
+          submodules: false
+          fetch-depth: 0
+
+      - name: Enable Windows long paths and fetch submodules
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build and package
+        shell: powershell
+        run: ./package_release.ps1 -Version "rdr2-pr94-pr109-upscaled-nr-residual-20260928"
+
+      - name: Publish GitHub release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "rdr2-pr94-pr109-upscaled-nr-residual-20260928"
+          $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-upscaled-nr-residual-20260928.zip"
+          $notes = @"
+          Built from exact source commit 1bf4db04d3c6a3610c7d989fa30d0d065a0bd57c.
+
+          Changes:
+          - Added a new Enlargement mode: Upscaled NR residual. Existing Direct NR is unchanged.
+          - At reduced model resolution, the clean proxy P50 and NR answer NR50 are independently enlarged to P100 with the same selected upscaler.
+          - The signed NR100 - reconstructed-P100 residual is created only after both images reach native resolution, then applied to the untouched original P100 through the existing matched-residual carrier/resolve path.
+          - Selectable upscalers match Direct NR: Bilinear, Bicubic, Catmull-Rom, Lanczos2, Lanczos3, Kaiser2, Kaiser3, Area, MAGIC, FSR1 and DLSS.
+          - With DLSS selected, P50 -> P100 and NR50 -> NR100 use separate private temporal histories.
+          "@
+          gh release create $tag $asset --target 1bf4db04d3c6a3610c7d989fa30d0d065a0bd57c --title "OptiScaler NR - Upscaled NR residual" --notes $notes
