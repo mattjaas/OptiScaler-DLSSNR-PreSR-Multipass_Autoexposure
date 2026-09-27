@@ -223,9 +223,6 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
         {
             if (workScale > 1.0f)
             {
-                // Wanted to supersample but the upscaler was not available -- warn once; the box path
-                // below can only enlarge blockily, so the user should know the clean path is off.
-
                 if (!warnedSuper)
                 {
                     warnedSuper = true;
@@ -233,16 +230,58 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
                 }
             }
 
-            // Sub-native (or the upsampler could not be built): box-resample the proxy to the work size.
-            DlssNrConstants down {};
-            down.Mode = DlssNrMode_Downsample;
-            down.Width = workWidth;
-            down.Height = workHeight;
-            // Mode-local selector: Transfer is otherwise unused by the downsample pass.
-            down.Transfer = std::min(cfg.DlssNrProxyDownscaleFilter.value_or_default(), 4u);
-            shader.DispatchPass(cmdList, down, modelInput, nullptr, nullptr, nullptr, nullptr, nr.colorSmall, nullptr);
-            Barrier(cmdList, nr.colorSmall, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            const uint32_t proxyFilter = std::min(cfg.DlssNrProxyDownscaleFilter.value_or_default(), 11u);
+            Scaler exactScaler = Scaler::Count;
+            switch (proxyFilter)
+            {
+            case 2: exactScaler = Scaler::CatmullRom; break;
+            case 3: exactScaler = Scaler::Lanczos2; break;
+            case 5: exactScaler = Scaler::FSR1; break;
+            case 6: exactScaler = Scaler::Bicubic; break;
+            case 7: exactScaler = Scaler::Lanczos3; break;
+            case 8: exactScaler = Scaler::Kaiser2; break;
+            case 9: exactScaler = Scaler::Kaiser3; break;
+            case 10: exactScaler = Scaler::Magic; break;
+            default: break;
+            }
+
+            if (workScale < 1.0f && exactScaler != Scaler::Count)
+            {
+                if (nr.proxyDownScaler != exactScaler)
+                {
+                    if (auto* retired = std::exchange(nr.proxyDown, nullptr))
+                        lifetime.Retire([retired] { delete retired; });
+                    nr.proxyDownScaler = exactScaler;
+                }
+                if (nr.proxyDown == nullptr)
+                    nr.proxyDown = new OS_Dx12("DLSS-NR proxy downsample", device, false, exactScaler);
+
+                if (nr.proxyDown != nullptr && nr.proxyDown->DispatchResources(cmdList, nr.colorCopy, nr.colorSmall))
+                {
+                    Barrier(cmdList, nr.colorSmall, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                    built = true;
+                }
+            }
+            else if (nr.proxyDown != nullptr)
+            {
+                if (auto* retired = std::exchange(nr.proxyDown, nullptr))
+                    lifetime.Retire([retired] { delete retired; });
+                nr.proxyDownScaler = Scaler::Count;
+            }
+
+            if (!built)
+            {
+                DlssNrConstants down {};
+                down.Mode = DlssNrMode_Downsample;
+                down.Width = workWidth;
+                down.Height = workHeight;
+                down.Transfer = exactScaler == Scaler::Count ? proxyFilter : 0u;
+                shader.DispatchPass(cmdList, down, modelInput, nullptr, nullptr, nullptr, nullptr, nr.colorSmall,
+                                    nullptr);
+                Barrier(cmdList, nr.colorSmall, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            }
         }
 
         modelInput = nr.colorSmall;
