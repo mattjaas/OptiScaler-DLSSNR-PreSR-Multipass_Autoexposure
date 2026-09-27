@@ -480,6 +480,8 @@ class Config
     // Menu
     CustomOptional<float, NoDefault> MenuScale;
     CustomOptional<bool> OverlayMenu { true };
+    // Let controller input continue to the game while the OptiScaler menu owns keyboard/mouse input.
+    CustomOptional<bool> MenuGamepadPassthrough { false };
     CustomOptional<bool> ShortcutKeyRequireCtrl { false };
     CustomOptional<bool> ShortcutKeyRequireAlt { false };
     CustomOptional<int> ShortcutKey { VK_INSERT };
