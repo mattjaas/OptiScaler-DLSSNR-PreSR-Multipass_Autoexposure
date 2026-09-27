@@ -184,21 +184,9 @@ struct PrivateUpscalerDx12::Impl
             if (!info.rayReconstruction && info.dlssPreset >= 0)
             {
                 unsigned preset = static_cast<unsigned>(info.dlssPreset);
-                switch (preset)
-                {
-                case NVSDK_NGX_DLSS_Hint_Render_Preset_Default:
-                case NVSDK_NGX_DLSS_Hint_Render_Preset_A:
-                case NVSDK_NGX_DLSS_Hint_Render_Preset_B:
-                case NVSDK_NGX_DLSS_Hint_Render_Preset_C:
-                case NVSDK_NGX_DLSS_Hint_Render_Preset_D:
-                case NVSDK_NGX_DLSS_Hint_Render_Preset_E:
-                case NVSDK_NGX_DLSS_Hint_Render_Preset_F:
-                case NVSDK_NGX_DLSS_Hint_Render_Preset_J:
-                    break;
-                default:
+                if (preset > static_cast<unsigned>(NVSDK_NGX_DLSS_Hint_Render_Preset_O) &&
+                    preset != NV_PRESET_LATEST)
                     preset = NVSDK_NGX_DLSS_Hint_Render_Preset_A;
-                    break;
-                }
                 for (const char* key :
                      { NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA,
                        NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality,

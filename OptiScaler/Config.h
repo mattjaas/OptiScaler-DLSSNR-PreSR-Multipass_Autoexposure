@@ -329,7 +329,8 @@ class Config
     // Reduced output: 0 classic, 1/2 matched residual spatial/DLSS, 3/4 lighting + colour spatial/DLSS,
     // 5 direct NR output enlarged by DLSS and composed like a native-resolution model answer.
     CustomOptional<uint32_t> DlssNrTransfer { 1 };
-    // NGX render preset for private DLSS SR used by NR enlargement: 0 default, 1..6 A..F, 10 J.
+    // NGX render preset for private DLSS SR used by NR enlargement: 0 default, 1..15 A..O,
+    // NV_PRESET_LATEST for the latest model supported by the loaded DLSS DLL.
     CustomOptional<int> DlssNrScalingDlssPreset { 1 };
 
     // 0 normal, 1 model input, 2 model answer, 3 amplified edit.

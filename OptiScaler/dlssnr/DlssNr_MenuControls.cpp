@@ -196,8 +196,27 @@ void RenderInput(Config* config)
         const auto transfer = config->DlssNrTransfer.value_or_default();
         if (reduced && (transfer == 2 || transfer == 4 || transfer == 5))
         {
-            static const char* presetNames[] = { "Default", "A", "B", "C", "D", "E", "F", "J" };
-            static constexpr int presetValues[] = { 0, 1, 2, 3, 4, 5, 6, 10 };
+            static const char* presetNames[] = { "Default", "A", "B", "C", "D", "E", "F", "G", "H",
+                                                 "I", "J", "K", "L", "M", "N", "O", "Latest" };
+            static constexpr int presetValues[] = {
+                NVSDK_NGX_DLSS_Hint_Render_Preset_Default,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_A,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_B,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_C,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_D,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_E,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_F,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_G,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_H_Reserved,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_I_Reserved,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_J,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_K,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_L,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_M,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_N,
+                NVSDK_NGX_DLSS_Hint_Render_Preset_O,
+                static_cast<int>(NV_PRESET_LATEST)
+            };
             int presetIndex = 1;
             const int configuredPreset = config->DlssNrScalingDlssPreset.value_or_default();
             for (int i = 0; i < IM_ARRAYSIZE(presetValues); ++i)
@@ -208,6 +227,7 @@ void RenderInput(Config* config)
                 config->DlssNrScalingDlssPreset = presetValues[presetIndex];
 
             HelpMarker("NGX render preset for the private DLSS SR feature used by NR enlargement. "
+                       "K/L/M and Latest are supported like the ordinary OptiScaler DLSS preset override. "
                        "A preserves the previous enlargement behavior.");
         }
     }
