@@ -1036,6 +1036,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         bool resizeFieldReadable = false;
         ID3D12Resource* directDetailInfo = nullptr;
         ID3D12Resource* directDetailReference = nullptr;
+        ID3D12Resource* upscaledResidualReference = nullptr;
+        ID3D12Resource* upscaledResidualAnswer = nullptr;
         if (resolveParams.DebugView != 4 && !spatialDownFailed && DlssNrUsesDlssEnlargement(transfer) && reduced &&
             (transfer == 2 || workScale < 1.0f))
         {
@@ -1074,24 +1076,17 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 }
                 else if (transfer == 6)
                 {
-                    // EnlargeMatchedResidual has already reconstructed both P50 and NR50 to P100 with
-                    // the same selected upscaler, then encoded NR100 - P100 into the ordinary matched-
-                    // residual carrier. Transfer 2 now applies that full-resolution difference to the
-                    // untouched original P100; no residual is ever enlarged after subtraction.
-                    resolveProxy = enlarger && enlarger->detailReferenceReadable ? enlarger->detailReference.Get()
-                                                                                : nr.colorCopy;
-                    resolveParams.Transfer = 2;
-
-                    // Keep the existing proxy/model debug views intuitive: show reconstructed P100 and
-                    // NR100 themselves rather than the signed carrier. Difference view still uses the
-                    // carrier and therefore shows the actual full-resolution residual being applied.
-                    if ((resolveParams.DebugView == 1 || resolveParams.DebugView == 2) && enlarger &&
-                        enlarger->detailReferenceReadable && enlarger->readable)
-                    {
-                        resolveProxy = enlarger->detailReference.Get();
-                        resolveAnswer = enlarger->output.Get();
-                        resolveParams.Transfer = 0;
-                    }
+                    // Keep the two P100 branches separate until the queue join. P50 -> P100 may be
+                    // running concurrently on the async compute queue, while NR50 -> NR100 stays on
+                    // the NR/direct path (or its own private DLSS feature). Their difference is formed
+                    // only after finishAsyncNr() has joined those producers.
+                    upscaledResidualReference =
+                        asyncExternalDetail && asyncSlot && asyncSlot->asyncDetailReferenceReadable
+                            ? asyncSlot->asyncDetailReference.Get()
+                            : enlarger && enlarger->detailReference && enlarger->detailReferenceReadable
+                                  ? enlarger->detailReference.Get()
+                                  : nullptr;
+                    upscaledResidualAnswer = enlarged;
                 }
                 else
                 {
@@ -1106,7 +1101,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
                 resizeFieldReadable = true;
             }
-            if (enlarged && (resolveParams.DebugView == 2 || (transfer == 4 && resolveParams.DebugView == 1)))
+            if (enlarged && transfer != 6 &&
+                (resolveParams.DebugView == 2 || (transfer == 4 && resolveParams.DebugView == 1)))
             {
                 resolveProxy = ordinaryProxy;
                 resolveAnswer = ordinaryAnswer;
@@ -1127,6 +1123,51 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         }
 
         const bool asyncSubmissionReady = finishAsyncNr();
+
+        // Upscaled NR residual: both resize branches are now complete. Build the signed residual at
+        // native resolution only after the async P50 reference has joined the direct NR path.
+        if (transfer == 6 && enlargementReady && asyncSubmissionReady)
+        {
+            bool residualReady = enlarger && enlarger->fullResidual && upscaledResidualReference &&
+                                 upscaledResidualAnswer && enlarger->readable;
+
+            if (residualReady && resolveParams.DebugView != 1 && resolveParams.DebugView != 2)
+            {
+                if (enlarger->fullResidualReadable)
+                {
+                    Barrier(cmdList, enlarger->fullResidual.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                    enlarger->fullResidualReadable = false;
+                }
+
+                DlssNrConstants residual {};
+                residual.Mode = DlssNrMode_EncodeProxyResidual;
+                residual.Width = width;
+                residual.Height = height;
+                residual.Passthrough = resolveParams.Passthrough;
+                residualReady =
+                    shader.DispatchPass(cmdList, residual, upscaledResidualReference, upscaledResidualAnswer, nullptr,
+                                        nullptr, nullptr, enlarger->fullResidual.Get(), nullptr);
+                if (residualReady)
+                {
+                    Barrier(cmdList, enlarger->fullResidual.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                    enlarger->fullResidualReadable = true;
+                    resolveProxy = upscaledResidualReference;
+                    resolveAnswer = enlarger->fullResidual.Get();
+                    resolveParams.Transfer = 2;
+                }
+            }
+            else if (residualReady)
+            {
+                // Proxy/model debug views display the two independently reconstructed P100 images.
+                resolveProxy = upscaledResidualReference;
+                resolveAnswer = upscaledResidualAnswer;
+                resolveParams.Transfer = 0;
+            }
+
+            enlargementReady = residualReady;
+        }
 
         // Resolve pre-SR inputs without UAV support through an owned scratch and copy-back.
         ID3D12Resource* resolveOriginal = targetSupportsUav ? nr.hdrCopy : target;
