@@ -1,0 +1,55 @@
+name: Release NR GPU time average
+
+on:
+  push:
+    branches:
+      - codex/rdr2-finished-picture-credit-pr94-pr109
+    paths:
+      - .github/workflows/release_nr_gpu_time_average.yml
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v6
+        with:
+          ref: 3609619a07bb066f5d1e8ec1198efc2ac1a332fe
+          submodules: false
+          fetch-depth: 0
+
+      - name: Enable Windows long paths and fetch submodules
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build and package
+        shell: powershell
+        run: ./package_release.ps1 -Version "rdr2-pr94-pr109-gpu-time-average-20260927"
+
+      - name: Publish GitHub release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "rdr2-pr94-pr109-gpu-time-average-20260927"
+          $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-gpu-time-average-20260927.zip"
+          $notes = @"
+          Built from exact source commit 3609619a07bb066f5d1e8ec1198efc2ac1a332fe.
+
+          NR GPU timing display:
+          - Manual 0..9999 ms averaging window in the UI.
+          - 0 ms preserves the previous latest-sample display.
+          - The displayed value is averaged by elapsed time, not a fixed frame count.
+          - DX12 and native Vulkan supported.
+          - Raw diagnostic/vitals samples remain unsmoothed.
+          "@
+          gh release create $tag $asset --target 3609619a07bb066f5d1e8ec1198efc2ac1a332fe --title "OptiScaler NR - GPU time averaging" --notes $notes
