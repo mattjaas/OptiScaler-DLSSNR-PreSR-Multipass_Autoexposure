@@ -416,22 +416,71 @@ bool ModelVk::Impl::Evaluate(VkCommandBuffer cmdBuffer, const VkImageInfo& colou
 
         if (!built)
         {
-            DlssNrConstants down = encode;
-            down.Mode = DlssNrMode_Downsample;
-            down.Width = workWidth;
-            down.Height = workHeight;
-            // Mode-local selector shared with DX12; Transfer is otherwise unused by this pass.
-            down.Transfer = std::min(cfg.DlssNrProxyDownscaleFilter.value_or_default(), 4u);
+            const uint32_t proxyFilter = std::min(cfg.DlssNrProxyDownscaleFilter.value_or_default(), 11u);
+            Scaler exactScaler = Scaler::Count;
+            switch (proxyFilter)
+            {
+            case 2: exactScaler = Scaler::CatmullRom; break;
+            case 3: exactScaler = Scaler::Lanczos2; break;
+            case 5: exactScaler = Scaler::FSR1; break;
+            case 6: exactScaler = Scaler::Bicubic; break;
+            case 7: exactScaler = Scaler::Lanczos3; break;
+            case 8: exactScaler = Scaler::Kaiser2; break;
+            case 9: exactScaler = Scaler::Kaiser3; break;
+            case 10: exactScaler = Scaler::Magic; break;
+            default: break;
+            }
 
             Transition(cmdBuffer, state.proxy, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             Transition(cmdBuffer, state.proxySmall, VK_IMAGE_LAYOUT_GENERAL);
 
-            if (!state.pass->Dispatch(cmdBuffer, down, workWidth, workHeight, state.proxy.info.ImageView,
-                                      VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, state.proxySmall.info.ImageView,
-                                      VK_NULL_HANDLE, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))
+            if (workScale < 1.0f && exactScaler != Scaler::Count)
             {
-                Fail("the downsample dispatch failed");
-                return false;
+                if (state.proxyDownScaler != exactScaler)
+                {
+                    if (state.device != VK_NULL_HANDLE && vkDeviceWaitIdle(state.device) != VK_SUCCESS)
+                    {
+                        Fail("the Vulkan device could not retire the proxy downscale filter");
+                        return false;
+                    }
+                    state.proxyDown.reset();
+                    state.proxyDownScaler = exactScaler;
+                }
+                if (!state.proxyDown)
+                    state.proxyDown = std::make_unique<OS_Vk>("DLSS-NR VK proxy downsample", device, physicalDevice,
+                                                              false, exactScaler);
+
+                if (state.proxyDown && state.proxyDown->IsInit() &&
+                    state.proxyDown->DispatchResources(cmdBuffer, state.proxy.info, state.proxySmall.info))
+                    built = true;
+            }
+            else if (state.proxyDown)
+            {
+                if (state.device != VK_NULL_HANDLE && vkDeviceWaitIdle(state.device) != VK_SUCCESS)
+                {
+                    Fail("the Vulkan device could not retire the proxy downscale filter");
+                    return false;
+                }
+                state.proxyDown.reset();
+                state.proxyDownScaler = Scaler::Count;
+            }
+
+            if (!built)
+            {
+                DlssNrConstants down = encode;
+                down.Mode = DlssNrMode_Downsample;
+                down.Width = workWidth;
+                down.Height = workHeight;
+                down.Transfer = exactScaler == Scaler::Count ? proxyFilter : 0u;
+
+                if (!state.pass->Dispatch(cmdBuffer, down, workWidth, workHeight, state.proxy.info.ImageView,
+                                          VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE,
+                                          state.proxySmall.info.ImageView, VK_NULL_HANDLE,
+                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL))
+                {
+                    Fail("the downsample dispatch failed");
+                    return false;
+                }
             }
         }
 
