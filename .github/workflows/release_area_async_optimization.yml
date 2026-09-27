@@ -1,0 +1,53 @@
+name: Release NR Area + async optimization
+
+on:
+  push:
+    branches:
+      - codex/rdr2-finished-picture-credit-pr94-pr109
+    paths:
+      - .github/workflows/release_area_async_optimization.yml
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v6
+        with:
+          ref: deba55639b5cce1267ad99bd6cbe4de5db5dc79e
+          submodules: false
+          fetch-depth: 0
+
+      - name: Enable Windows long paths and fetch submodules
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build and package
+        shell: powershell
+        run: ./package_release.ps1 -Version "rdr2-pr94-pr109-area-async-opt-20260927"
+
+      - name: Publish GitHub release
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "rdr2-pr94-pr109-area-async-opt-20260927"
+          $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-area-async-opt-20260927.zip"
+          $notes = @"
+          Built from exact source commit deba55639b5cce1267ad99bd6cbe4de5db5dc79e.
+
+          Changes:
+          - Removed the redundant successful-frame direct-queue Signal before the final async resolve. Failure-only fence protection remains.
+          - Added Area to the Direct NR output and P50 -> P100 detail-reference upscaler selectors.
+          - Area reuses the existing exact area-weighted resize path: P50 -> P100 is effectively Point/Nearest, while non-integer ratios such as P60 -> P100 blend by covered pixel area.
+          "@
+          gh release create $tag $asset --target deba55639b5cce1267ad99bd6cbe4de5db5dc79e --title "OptiScaler NR - Area + async optimization" --notes $notes
