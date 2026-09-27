@@ -1,0 +1,45 @@
+name: Publish NR Area async release probe
+
+on:
+  push:
+    branches:
+      - codex/rdr2-finished-picture-credit-pr94-pr109
+    paths:
+      - .github/workflows/release_area_async_publish_probe.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@v6
+        with:
+          ref: b8c6b91227745542fb8c2b009412623a0b25e4f4
+          fetch-depth: 0
+          submodules: false
+
+      - name: Create release tag explicitly
+        shell: powershell
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "rdr2-pr94-pr109-area-async-opt-20260927" b8c6b91227745542fb8c2b009412623a0b25e4f4
+          git push origin "refs/tags/rdr2-pr94-pr109-area-async-opt-20260927"
+
+      - name: Create GitHub release from existing tag
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notes = @"
+          Built source commit: b8c6b91227745542fb8c2b009412623a0b25e4f4.
+
+          Changes:
+          - Removed the redundant successful-frame direct-queue Signal before final async resolve; failure-only protection remains.
+          - Added Area to Direct NR output and P50 -> P100 detail-reference upscalers.
+          - Area is effectively Point/Nearest for exact P50 -> P100 and area-weighted for fractional ratios such as P60 -> P100.
+          "@
+          gh release create "rdr2-pr94-pr109-area-async-opt-20260927" --verify-tag --title "OptiScaler NR - Area + async optimization" --notes $notes
