@@ -136,6 +136,7 @@ auto DlssNr_Dx12::State::ApplyFinishedColor(ID3D12Resource* color, ID3D12Command
     const auto before = nr.successfulDispatches;
     bool appliedResidual = false;
     bool matchedResponse = false;
+    bool requestAsyncDetail = false;
     if (slot.residualOnly)
     {
         if (slot.encoded &&
@@ -244,11 +245,11 @@ auto DlssNr_Dx12::State::ApplyFinishedColor(ID3D12Resource* color, ID3D12Command
         frame.SubmissionEpoch = epoch;
         const uint32_t detailExecution =
             std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
-        const bool requestAsyncDetail =
+        requestAsyncDetail =
             detailExecution != 1 && cfg.DlssNrTransfer.value_or_default() == 5 &&
             cfg.DlssNrWorkingScale.value_or_default() < 0.999f &&
             cfg.DlssNrDirectDetailRecovery.value_or_default() != 0 &&
-            std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u) < 9 &&
+            std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u) < 10 &&
             !cfg.DlssNrHoldFrame.value_or_default() && cfg.DlssNrDebugView.value_or_default() == 0 &&
             cfg.DlssNrCompare.value_or_default() == 0 && !cfg.DlssNrShowSkinMask.value_or_default() &&
             !captureFrames.isActive() && !::State::Instance().isShuttingDown;
