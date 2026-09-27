@@ -29,7 +29,9 @@ enum DlssNrMode : uint32_t
     DlssNrMode_Meter = 3,
     DlssNrMode_AutoExposure = 11,
     DlssNrMode_ResizePrivateGuides = 10,
-    DlssNrMode_EncodeResizeField = 12
+    DlssNrMode_EncodeResizeField = 12,
+    // Direct DLSS: copy NR50 into the private-DLSS carrier and pack P50 + an NR-suppression gate.
+    DlssNrMode_EncodeDirectDetail = 13
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
@@ -250,10 +252,17 @@ struct alignas(256) DlssNrConstants
     uint32_t ExposureSourceHeight;
     uint32_t ExposurePadding;
     float ExposureAnchors[16]; // Eight float2 pairs, packed as four float4s in HLSL.
+
+    // Direct-DLSS detail recovery. These occupy the former alignas padding; sizeof stays 256.
+    uint32_t DirectDetailMode; // 0 off, 1 full lost detail, 2 NR-gated
+    float DirectDetailMaskStrength; // 0..1
+    float DirectDetailPadding0;
+    float DirectDetailPadding1;
 };
 static_assert(sizeof(DlssNrConstants) == 256);
 static_assert(offsetof(DlssNrConstants, ReplaceDetailStrength) == 132);
 static_assert(offsetof(DlssNrConstants, ExposureAnchors) == 176);
+static_assert(offsetof(DlssNrConstants, DirectDetailMode) == 240);
 
 // Local mode numbering for dlssnr_residual.hlsl (a separate blob / PSO from the DlssNrMode shader).
 enum DlssNrResidualMode : uint32_t
