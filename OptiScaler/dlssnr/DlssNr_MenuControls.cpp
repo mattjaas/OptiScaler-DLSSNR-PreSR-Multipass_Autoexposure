@@ -196,8 +196,9 @@ void RenderInput(Config* config)
         ImGui::BeginDisabled(!reduced);
 
         static const char* enlargeNames[] = { "Classic", "Matched residual", "Matched residual + DLSS",
-                                              "Lighting + colour", "Lighting + colour + DLSS", "Direct NR" };
-        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 5u);
+                                              "Lighting + colour", "Lighting + colour + DLSS", "Direct NR",
+                                              "Upscaled NR residual" };
+        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 6u);
 
         if (ImGui::Combo("Enlargement", &enlarge, enlargeNames, IM_ARRAYSIZE(enlargeNames)))
             config->DlssNrTransfer = (uint32_t) enlarge;
@@ -205,11 +206,13 @@ void RenderInput(Config* config)
         ImGui::EndDisabled();
 
         HelpMarker("Below 100%: Lighting + colour resizes lighting gain and colour changes separately. Direct NR "
-                   "enlarges the NR answer itself and composes it like a native 100% model result; its output "
-                   "upscaler is selectable. DLSS-based enlargement requires post-upscale DX12 processing.");
+                   "enlarges the NR answer itself and composes it like a native 100% model result. Upscaled NR "
+                   "residual enlarges P50 and NR50 separately with the same method, creates NR100 - reconstructed "
+                   "P100 at native resolution, then applies that residual to the untouched P100. DLSS-based "
+                   "enlargement requires post-upscale DX12 processing.");
 
         const auto transfer = config->DlssNrTransfer.value_or_default();
-        if (reduced && (transfer == 2 || transfer == 4 || transfer == 5))
+        if (reduced && (transfer == 2 || transfer == 4 || transfer == 5 || transfer == 6))
         {
             static const char* directUpscalerNames[] = { "Bilinear", "Bicubic", "Catmull-Rom", "Lanczos2",
                                                          "Lanczos3", "Kaiser2", "Kaiser3", "Area", "MAGIC",
@@ -217,6 +220,7 @@ void RenderInput(Config* config)
 
             int detailMode = (int) std::min(config->DlssNrDirectDetailRecovery.value_or_default(), 2u);
             int outputUpscaler = (int) std::min(config->DlssNrDirectOutputUpscaler.value_or_default(), 10u);
+            int residualUpscaler = (int) std::min(config->DlssNrUpscaledResidualUpscaler.value_or_default(), 10u);
             int referenceUpscaler =
                 (int) std::min(config->DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u);
 
@@ -269,10 +273,22 @@ void RenderInput(Config* config)
                 }
             }
 
+            if (transfer == 6)
+            {
+                if (ImGui::Combo("P50/NR50 -> P100 upscaler", &residualUpscaler, directUpscalerNames,
+                                 IM_ARRAYSIZE(directUpscalerNames)))
+                    config->DlssNrUpscaledResidualUpscaler = (uint32_t) residualUpscaler;
+
+                HelpMarker("The same upscaler is used for P50 -> P100 and NR50 -> NR100 so their difference is "
+                           "formed only after both images reach native resolution. DLSS uses two independent temporal "
+                           "histories, one for the clean P50 reference and one for the NR50 answer.");
+            }
+
             const bool directUsesDlss =
                 transfer == 5 &&
                 (outputUpscaler == 10 || (detailMode != 0 && referenceUpscaler == 10));
-            if (transfer == 2 || transfer == 4 || directUsesDlss)
+            const bool upscaledResidualUsesDlss = transfer == 6 && residualUpscaler == 10;
+            if (transfer == 2 || transfer == 4 || directUsesDlss || upscaledResidualUsesDlss)
             {
                 static const char* presetNames[] = { "Default", "A", "B", "C", "D", "E", "F", "G", "H",
                                                      "I", "J", "K", "L", "M", "N", "O", "Latest" };
