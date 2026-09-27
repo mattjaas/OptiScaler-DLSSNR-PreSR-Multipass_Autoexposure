@@ -333,6 +333,11 @@ class Config
     // NV_PRESET_LATEST for the latest model supported by the loaded DLSS DLL.
     CustomOptional<int> DlssNrScalingDlssPreset { 1 };
 
+    // Direct-DLSS native detail recovery: 0 off, 1 full lost detail, 2 NR-gated.
+    CustomOptional<uint32_t> DlssNrDirectDetailRecovery { 0 };
+    // 0 = do not suppress restored detail, 100 = full NR-derived suppression mask.
+    CustomOptional<float> DlssNrDirectDetailMaskStrength { 100.0f };
+
     // 0 normal, 1 model input, 2 model answer, 3 amplified edit.
     CustomOptional<uint32_t> DlssNrDebugView { 0 };
 
