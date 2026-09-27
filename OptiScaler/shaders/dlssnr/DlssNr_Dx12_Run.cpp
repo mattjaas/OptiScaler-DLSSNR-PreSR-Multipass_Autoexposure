@@ -215,8 +215,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     {
         if (!asyncSlot)
             return;
-        for (auto* list : { asyncSlot->asyncPrefixCommands.Get(), asyncSlot->asyncCopyCommands.Get(),
-                            asyncSlot->asyncDetailCommands.Get(), asyncSlot->asyncNrCommands.Get() })
+        for (auto* list : { asyncSlot->asyncPrefixCommands.Get(), asyncSlot->asyncDetailCommands.Get(),
+                            asyncSlot->asyncNrCommands.Get() })
             if (list)
                 list->Close();
     };
@@ -242,12 +242,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 q.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
                 if (FAILED(device->CreateCommandQueue(&q, IID_PPV_ARGS(&late.asyncDetailQueue))) ||
                     FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&late.asyncP50Fence))) ||
-                    FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&late.asyncCopyFence))) ||
                     FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&late.asyncDetailFence))))
                 {
                     late.asyncDetailQueue.Reset();
                     late.asyncP50Fence.Reset();
-                    late.asyncCopyFence.Reset();
                     late.asyncDetailFence.Reset();
                     late.asyncDetailQueueFailed = true;
                     asyncDetailActive = false;
@@ -280,8 +278,6 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             if (asyncDetailActive &&
                 (!resetList(D3D12_COMMAND_LIST_TYPE_DIRECT, asyncSlot->asyncPrefixAllocator,
                             asyncSlot->asyncPrefixCommands) ||
-                 !resetList(D3D12_COMMAND_LIST_TYPE_COMPUTE, asyncSlot->asyncCopyAllocator,
-                            asyncSlot->asyncCopyCommands) ||
                  !resetList(D3D12_COMMAND_LIST_TYPE_COMPUTE, asyncSlot->asyncDetailAllocator,
                             asyncSlot->asyncDetailCommands) ||
                  !resetList(D3D12_COMMAND_LIST_TYPE_DIRECT, asyncSlot->asyncNrAllocator, asyncSlot->asyncNrCommands)))
@@ -483,19 +479,21 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
     if (asyncDetailActive)
     {
-        auto* copyCmd = asyncSlot->asyncCopyCommands.Get();
+        // Stage P50 into a per-slot resource at the tail of the same direct prefix that created it.
+        // The compute queue waits for this prefix fence; the direct queue can then continue straight into NR
+        // without a second cross-queue hand-off, while both queues read different P50 resources.
         if (asyncSlot->asyncDetailInputReadable)
-            Barrier(copyCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+            Barrier(encodeCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                     D3D12_RESOURCE_STATE_COPY_DEST);
         else
-            Barrier(copyCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+            Barrier(encodeCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                     D3D12_RESOURCE_STATE_COPY_DEST);
-        Barrier(copyCmd, encoded.modelInput, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+        Barrier(encodeCmd, encoded.modelInput, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_COPY_SOURCE);
-        copyCmd->CopyResource(asyncSlot->asyncDetailInput.Get(), encoded.modelInput);
-        Barrier(copyCmd, encoded.modelInput, D3D12_RESOURCE_STATE_COPY_SOURCE,
+        encodeCmd->CopyResource(asyncSlot->asyncDetailInput.Get(), encoded.modelInput);
+        Barrier(encodeCmd, encoded.modelInput, D3D12_RESOURCE_STATE_COPY_SOURCE,
                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-        Barrier(copyCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+        Barrier(encodeCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         asyncSlot->asyncDetailInputReadable = true;
 
@@ -538,8 +536,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             asyncExternalDetail = true;
         }
 
-        if (FAILED(asyncSlot->asyncPrefixCommands->Close()) || FAILED(asyncSlot->asyncCopyCommands->Close()) ||
-            FAILED(asyncSlot->asyncDetailCommands->Close()))
+        if (FAILED(asyncSlot->asyncPrefixCommands->Close()) || FAILED(asyncSlot->asyncDetailCommands->Close()))
         {
             late.asyncDetailQueueFailed = true;
             nr.failed = true;
@@ -560,22 +557,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             return;
         }
 
-        ID3D12CommandList* copyLists[] = { asyncSlot->asyncCopyCommands.Get() };
-        late.asyncDetailQueue->ExecuteCommandLists(1, copyLists);
-        const uint64_t copyReady = ++late.asyncCopySerial;
-        if (FAILED(late.asyncDetailQueue->Signal(late.asyncCopyFence.Get(), copyReady)))
-        {
-            late.asyncDetailQueueFailed = true;
-            nr.failed = true;
-            nr.reason = "the async P50 copy queue stopped";
-            return;
-        }
-
         ID3D12CommandList* detailLists[] = { asyncSlot->asyncDetailCommands.Get() };
         late.asyncDetailQueue->ExecuteCommandLists(1, detailLists);
         asyncDetailDoneValue = ++late.asyncDetailSerial;
-        if (FAILED(late.asyncDetailQueue->Signal(late.asyncDetailFence.Get(), asyncDetailDoneValue)) ||
-            FAILED(timingQueue->Wait(late.asyncCopyFence.Get(), copyReady)))
+        if (FAILED(late.asyncDetailQueue->Signal(late.asyncDetailFence.Get(), asyncDetailDoneValue)))
         {
             late.asyncDetailQueueFailed = true;
             nr.failed = true;
