@@ -70,6 +70,9 @@ bool ShouldBlockDirectInputMouseLocked()
 
 bool ShouldBlockDirectInputOtherLocked()
 {
+    if (ShouldPassthroughGamepadLocked())
+        return false;
+
     return _state.Initialized && (ShouldBlockKeyboardInputLocked() || ShouldBlockMouseInputLocked());
 }
 
