@@ -58,12 +58,13 @@ struct DlssNr_Dx12::State
         template <typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
         std::unique_ptr<DlssNr::PrivateUpscalerDx12> dlss;
         DlssNr::GpuLifetime lifetime;
-        ComPtr<ID3D12Resource> input, output, depth, motion, exposure;
+        ComPtr<ID3D12Resource> input, output, depth, motion, exposure, detailInfo;
         ComPtr<ID3D12CommandQueue> queue;
         ID3D12CommandList* creation = nullptr;
         unsigned w = 0, h = 0, outW = 0, outH = 0;
         uint64_t lastFrame = 0;
-        bool submitted = false, failed = false, depthInverted = false, readable = false, reset = true;
+        bool submitted = false, failed = false, depthInverted = false, readable = false, detailReadable = false,
+             reset = true;
         uint32_t carrierMode = 0;
         int dlssPreset = 0;
         ~Enlarger() { dlss.reset(); } // Release NGX before its borrowed input/output resources.
