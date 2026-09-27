@@ -215,8 +215,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     {
         if (!asyncSlot)
             return;
-        for (auto* list : { asyncSlot->asyncPrefixCommands.Get(), asyncSlot->asyncDetailCommands.Get(),
-                            asyncSlot->asyncNrCommands.Get() })
+        for (auto* list : { asyncSlot->asyncPrefixCommands.Get(), asyncSlot->asyncCopyCommands.Get(),
+                            asyncSlot->asyncDetailCommands.Get(), asyncSlot->asyncNrCommands.Get() })
             if (list)
                 list->Close();
     };
@@ -224,8 +224,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     if (asyncDetailActive)
     {
         ID3D12CommandQueue* realQueue = nullptr;
-        auto* directIdentity =
-            Util::CheckForRealObject(__FUNCTION__, timingQueue, (IUnknown**) &realQueue) ? realQueue : timingQueue;
+        auto* directIdentity = timingQueue;
+        if (timingQueue && Util::CheckForRealObject(__FUNCTION__, timingQueue, (IUnknown**) &realQueue))
+            directIdentity = realQueue;
         Microsoft::WRL::ComPtr<ID3D12Device> queueDevice;
         if (!timingQueue || timingQueue->GetDesc().Type != D3D12_COMMAND_LIST_TYPE_DIRECT ||
             FAILED(timingQueue->GetDevice(IID_PPV_ARGS(&queueDevice))) || queueDevice.Get() != device ||
@@ -241,10 +242,12 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 q.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
                 if (FAILED(device->CreateCommandQueue(&q, IID_PPV_ARGS(&late.asyncDetailQueue))) ||
                     FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&late.asyncP50Fence))) ||
+                    FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&late.asyncCopyFence))) ||
                     FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&late.asyncDetailFence))))
                 {
                     late.asyncDetailQueue.Reset();
                     late.asyncP50Fence.Reset();
+                    late.asyncCopyFence.Reset();
                     late.asyncDetailFence.Reset();
                     late.asyncDetailQueueFailed = true;
                     asyncDetailActive = false;
@@ -277,6 +280,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             if (asyncDetailActive &&
                 (!resetList(D3D12_COMMAND_LIST_TYPE_DIRECT, asyncSlot->asyncPrefixAllocator,
                             asyncSlot->asyncPrefixCommands) ||
+                 !resetList(D3D12_COMMAND_LIST_TYPE_COMPUTE, asyncSlot->asyncCopyAllocator,
+                            asyncSlot->asyncCopyCommands) ||
                  !resetList(D3D12_COMMAND_LIST_TYPE_COMPUTE, asyncSlot->asyncDetailAllocator,
                             asyncSlot->asyncDetailCommands) ||
                  !resetList(D3D12_COMMAND_LIST_TYPE_DIRECT, asyncSlot->asyncNrAllocator, asyncSlot->asyncNrCommands)))
@@ -287,6 +292,18 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
             if (asyncDetailActive)
             {
+                if (asyncSlot->asyncDetailInput)
+                {
+                    const auto haveInput = asyncSlot->asyncDetailInput->GetDesc();
+                    if (haveInput.Width != workWidth || haveInput.Height != workHeight || haveInput.Format != desc.Format)
+                    {
+                        asyncSlot->asyncDetailInput.Reset();
+                        asyncSlot->asyncDetailInputReadable = false;
+                    }
+                }
+                if (!asyncSlot->asyncDetailInput)
+                    asyncSlot->asyncDetailInput.Attach(CreateScratch(device, desc.Format, workWidth, workHeight));
+
                 if (asyncSlot->asyncDetailReference)
                 {
                     const auto have = asyncSlot->asyncDetailReference->GetDesc();
@@ -302,7 +319,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 if (!asyncSlot->asyncDetailReference)
                     asyncSlot->asyncDetailReference.Attach(
                         CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height));
-                if (!asyncSlot->asyncDetailReference)
+                if (!asyncSlot->asyncDetailInput || !asyncSlot->asyncDetailReference)
                 {
                     closeAsyncLists();
                     asyncDetailActive = false;
@@ -466,6 +483,22 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
     if (asyncDetailActive)
     {
+        auto* copyCmd = asyncSlot->asyncCopyCommands.Get();
+        if (asyncSlot->asyncDetailInputReadable)
+            Barrier(copyCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+        else
+            Barrier(copyCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+        Barrier(copyCmd, encoded.modelInput, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_COPY_SOURCE);
+        copyCmd->CopyResource(asyncSlot->asyncDetailInput.Get(), encoded.modelInput);
+        Barrier(copyCmd, encoded.modelInput, D3D12_RESOURCE_STATE_COPY_SOURCE,
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        Barrier(copyCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        asyncSlot->asyncDetailInputReadable = true;
+
         auto* detailCmd = asyncSlot->asyncDetailCommands.Get();
         if (asyncSlot->asyncDetailReferenceReadable)
         {
@@ -481,8 +514,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             up.Mode = DlssNrMode_UpscaleBilinear;
             up.Width = width;
             up.Height = height;
-            detailRecorded = shader.DispatchPass(detailCmd, up, encoded.modelInput, nullptr, nullptr, nullptr, nullptr,
-                                                 asyncSlot->asyncDetailReference.Get(), nullptr);
+            detailRecorded = shader.DispatchPass(detailCmd, up, asyncSlot->asyncDetailInput.Get(), nullptr, nullptr,
+                                                 nullptr, nullptr, asyncSlot->asyncDetailReference.Get(), nullptr);
         }
         else
         {
@@ -493,7 +526,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                     asyncSlot->asyncDetailScaler =
                         std::make_unique<OS_Dx12>("DLSS-NR async P50 detail-reference upscale", device, false, kernel);
                 detailRecorded = asyncSlot->asyncDetailScaler && asyncSlot->asyncDetailScaler->DispatchResources(
-                                                                  detailCmd, encoded.modelInput,
+                                                                  detailCmd, asyncSlot->asyncDetailInput.Get(),
                                                                   asyncSlot->asyncDetailReference.Get());
             }
         }
@@ -505,7 +538,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             asyncExternalDetail = true;
         }
 
-        if (FAILED(asyncSlot->asyncPrefixCommands->Close()) || FAILED(asyncSlot->asyncDetailCommands->Close()))
+        if (FAILED(asyncSlot->asyncPrefixCommands->Close()) || FAILED(asyncSlot->asyncCopyCommands->Close()) ||
+            FAILED(asyncSlot->asyncDetailCommands->Close()))
         {
             late.asyncDetailQueueFailed = true;
             nr.failed = true;
@@ -526,10 +560,22 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             return;
         }
 
+        ID3D12CommandList* copyLists[] = { asyncSlot->asyncCopyCommands.Get() };
+        late.asyncDetailQueue->ExecuteCommandLists(1, copyLists);
+        const uint64_t copyReady = ++late.asyncCopySerial;
+        if (FAILED(late.asyncDetailQueue->Signal(late.asyncCopyFence.Get(), copyReady)))
+        {
+            late.asyncDetailQueueFailed = true;
+            nr.failed = true;
+            nr.reason = "the async P50 copy queue stopped";
+            return;
+        }
+
         ID3D12CommandList* detailLists[] = { asyncSlot->asyncDetailCommands.Get() };
         late.asyncDetailQueue->ExecuteCommandLists(1, detailLists);
         asyncDetailDoneValue = ++late.asyncDetailSerial;
-        if (FAILED(late.asyncDetailQueue->Signal(late.asyncDetailFence.Get(), asyncDetailDoneValue)))
+        if (FAILED(late.asyncDetailQueue->Signal(late.asyncDetailFence.Get(), asyncDetailDoneValue)) ||
+            FAILED(timingQueue->Wait(late.asyncCopyFence.Get(), copyReady)))
         {
             late.asyncDetailQueueFailed = true;
             nr.failed = true;
