@@ -323,6 +323,10 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
 
     resolveParams.ReplaceDetailStrength = cfg.DlssNrReplaceDetailStrength.value_or_default();
     resolveParams.ModelWorkScale = context.workScale;
+    // Enabled only after Direct DLSS successfully produced the packed P50/gate auxiliary texture.
+    resolveParams.DirectDetailMode = 0;
+    resolveParams.DirectDetailMaskStrength =
+        std::clamp(cfg.DlssNrDirectDetailMaskStrength.value_or_default() / 100.0f, 0.0f, 1.0f);
 
     // Report the effective composition settings when they change.
 
