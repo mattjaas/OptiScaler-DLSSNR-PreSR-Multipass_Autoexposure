@@ -254,11 +254,12 @@ void RenderInput(Config* config)
                                      IM_ARRAYSIZE(detailExecutionNames)))
                         config->DlssNrDirectDetailReferenceExecutionMode = (uint32_t) detailExecution;
                     ImGui::EndDisabled();
-                    HelpMarker("Auto overlaps a non-DLSS P50 -> P100 reference with NR on DX12. Finished Picture "
-                               "uses fully private command lists; ordinary post-SR can split the game command list and "
-                               "restore tracked state. Serial keeps the previous path unchanged. Async compute still "
-                               "falls back to Serial when the queue/state cannot be handled safely. A DLSS detail "
-                               "reference is always Serial.");
+                    HelpMarker("Serial keeps the previous path unchanged. Auto overlaps a non-DLSS P50 -> "
+                               "P100 reference only when OptiScaler owns/controls the DX12 command submission "
+                               "(including Finished Picture and independent bridge paths). Explicit Async compute also "
+                               "allows the native caller-owned DX12 list to be split early; that native override is "
+                               "experimental because a game may enqueue queue-level waits only after recording. "
+                               "Unsupported cases still fall back to Serial. A DLSS detail reference is always Serial.");
 
                     if (detailMode == 2)
                         Slider("NR gate strength", config->DlssNrDirectDetailMaskStrength, 0.0f, 100.0f, "%.0f%%",
