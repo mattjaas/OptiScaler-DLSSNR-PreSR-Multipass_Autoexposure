@@ -87,7 +87,8 @@ struct DlssNr_Dx12::State
     ID3D12Resource* EnlargeMatchedResidual(ID3D12GraphicsCommandList* cmd, ID3D12Device* device, ID3D12Resource* proxy,
                                            ID3D12Resource* answer, ID3D12Resource* depth, ID3D12Resource* motion,
                                            const DlssNrFrameInfo& frame, const DlssNrConstants& resolve,
-                                           uint32_t transfer, bool reset, ID3D12CommandQueue* queue);
+                                           uint32_t transfer, bool reset, ID3D12CommandQueue* queue,
+                                           bool externalDetailReference = false);
 
     // What the pass costs on the GPU, for the breakdown in the overlay.
     std::unique_ptr<DlssNrGpuTime> gpuTime;
@@ -327,6 +328,12 @@ struct DlssNr_Dx12::State
             ComPtr<ID3D12CommandQueue> producerQueue;
             ComPtr<ID3D12CommandAllocator> allocator;
             ComPtr<ID3D12GraphicsCommandList> commands;
+            ComPtr<ID3D12CommandAllocator> asyncPrefixAllocator, asyncDetailAllocator, asyncNrAllocator;
+            ComPtr<ID3D12GraphicsCommandList> asyncPrefixCommands, asyncDetailCommands, asyncNrCommands;
+            ComPtr<ID3D12Resource> asyncDetailReference;
+            std::unique_ptr<OS_Dx12> asyncDetailScaler;
+            uint32_t asyncDetailScalerSelector = UINT32_MAX;
+            bool asyncDetailReferenceReadable = false, asyncProvisional = false;
             ID3D12CommandList* producer = nullptr; // identity only; never dereferenced
             DlssNrFrameInfo frame {};
             uint64_t ready = 0, done = 0, serial = 0;
@@ -335,6 +342,10 @@ struct DlssNr_Dx12::State
         std::array<Slot, 4> slots;
         ComPtr<ID3D12Device> device;
         ComPtr<ID3D12CommandQueue> producerQueue;
+        ComPtr<ID3D12CommandQueue> asyncDetailQueue, asyncDirectQueue;
+        ComPtr<ID3D12Fence> asyncP50Fence, asyncDetailFence;
+        uint64_t asyncP50Serial = 0, asyncDetailSerial = 0;
+        bool asyncDetailQueueFailed = false;
         Dx11FinishedPictureBridge dx11;
         // One clean presentation snapshot for the owner, never one per rotating backbuffer/slot.
         ComPtr<ID3D12Resource> heldFinished;
@@ -411,7 +422,8 @@ struct DlssNr_Dx12::State
     void EndGpuTiming(ID3D12GraphicsCommandList* cmdList);
 
     void Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* colour, ID3D12Resource* depth, ID3D12Resource* motion,
-             ID3D12Resource* output, const DlssNrFrameInfo& frame, ID3D12CommandQueue* timingQueue);
+             ID3D12Resource* output, const DlssNrFrameInfo& frame, ID3D12CommandQueue* timingQueue,
+             LateContext::Slot* asyncSlot = nullptr, ID3D12Resource* finishedEncodedColor = nullptr);
 
     std::string DeferredDlssStatus();
 
