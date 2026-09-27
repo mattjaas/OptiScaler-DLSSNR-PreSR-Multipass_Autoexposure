@@ -352,7 +352,8 @@ class Config
     CustomOptional<float> DlssNrWorkingScale { 1.0f };
 
     // Filter used to reduce the ordinary full-resolution proxy before NR below 100%.
-    // 0 area (legacy), 1 bilinear, 2 Catmull-Rom, 3 Lanczos2, 4 point/nearest.
+    // 0 area, 1 bilinear, 2 Catmull-Rom, 3 Lanczos2, 4 point, 5 FSR1, 6 bicubic,
+    // 7 Lanczos3, 8 Kaiser2, 9 Kaiser3, 10 MAGIC, 11 SSIM Sharp (experimental).
     CustomOptional<uint32_t> DlssNrProxyDownscaleFilter { 0 };
 
     CustomOptional<bool> DlssNrSpatialCompression { false };
