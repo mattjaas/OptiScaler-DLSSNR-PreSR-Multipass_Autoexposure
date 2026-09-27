@@ -100,8 +100,17 @@ static void RenderStatus(Config* config)
         const auto textColor = ImGui::GetStyleColorVec4(ImGuiCol_Text);
         ImGui::PushStyleColor(ImGuiCol_Text,
                               ImVec4(textColor.x * 0.55f, textColor.y * 0.80f, textColor.z * 0.55f, textColor.w));
+        const uint32_t averageWindowMs =
+            std::min(config->DlssNrGpuTimeAverageWindowMs.value_or_default(), 9999u);
         if (ms.has_value())
-            ImGui::Text("Running%s - %.2f ms elapsed%s", vulkan ? " natively on Vulkan" : "", ms.value(), runSuffix);
+        {
+            if (averageWindowMs > 0)
+                ImGui::Text("Running%s - %.2f ms avg (%u ms)%s", vulkan ? " natively on Vulkan" : "", ms.value(),
+                            averageWindowMs, runSuffix);
+            else
+                ImGui::Text("Running%s - %.2f ms elapsed%s", vulkan ? " natively on Vulkan" : "", ms.value(),
+                            runSuffix);
+        }
         else if (vulkan)
             // Measured but not yet read: the first few frames are still in the query ring.
             ImGui::Text("Running natively on Vulkan - %llu frames%s", vk.frames, runSuffix);
@@ -126,6 +135,19 @@ static void RenderStatus(Config* config)
                                                      : state.presentFrameTime;
             PipelineUi::DrawTimingBar(ms.value(), frameMs);
         }
+
+        int averageInput = (int) std::min(config->DlssNrGpuTimeAverageWindowMs.value_or_default(), 9999u);
+        const float inputWidth = ImGui::CalcTextSize("0000").x + ImGui::GetStyle().FramePadding.x * 2.0f + 8.0f;
+        ImGui::SetNextItemWidth(inputWidth);
+        if (ImGui::InputInt("GPU time average window (ms)", &averageInput, 0, 0,
+                            ImGuiInputTextFlags_CharsDecimal))
+        {
+            averageInput = std::clamp(averageInput, 0, 9999);
+            config->DlssNrGpuTimeAverageWindowMs = (uint32_t) averageInput;
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Average the displayed NR GPU time over this many milliseconds.\n"
+                              "0 = latest completed sample. Range: 0-9999 ms.");
     }
 }
 
