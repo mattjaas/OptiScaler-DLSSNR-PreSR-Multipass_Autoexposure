@@ -23,7 +23,7 @@ Scaler AsyncDetailSpatialScaler(uint32_t index)
 auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* colour, ID3D12Resource* depth,
                              ID3D12Resource* motion, ID3D12Resource* output, const DlssNrFrameInfo& frame,
                              ID3D12CommandQueue* timingQueue, LateContext::Slot* asyncSlot,
-                             ID3D12Resource* finishedEncodedColor) -> void
+                             ID3D12Resource* finishedEncodedColor, bool asyncOwnsFinishedPrep) -> void
 {
     std::lock_guard<std::recursive_mutex> nrLock(mutex);
     const Config& cfg = *Config::Instance();
@@ -38,7 +38,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
     ID3D12Resource* target = output;
     ID3D12GraphicsCommandList* const resolveCmd = cmdList;
-    const bool ownsFinishedPrep = asyncSlot != nullptr;
+    const bool ownsFinishedPrep = asyncSlot != nullptr && asyncOwnsFinishedPrep;
+    const bool ownsPrivateAsyncLists = asyncSlot != nullptr;
 
     // Guard creation and dispatch together: either can record GPU work and alter compute bindings.
     const bool restoreRequired =
@@ -200,12 +201,12 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     const uint32_t detailReferenceSelector =
         std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u);
     bool asyncDetailActive =
-        ownsFinishedPrep && detailExecution != 1 && frame.IndependentCommands && frame.FinishedPicture && !spatial &&
-        workScale < 0.999f && cfg.DlssNrTransfer.value_or_default() == 5 &&
-        cfg.DlssNrDirectDetailRecovery.value_or_default() != 0 && detailReferenceSelector < 9 &&
-        !cfg.DlssNrHoldFrame.value_or_default() && cfg.DlssNrDebugView.value_or_default() == 0 &&
-        cfg.DlssNrCompare.value_or_default() == 0 && !cfg.DlssNrShowSkinMask.value_or_default() &&
-        !captureFrames.isActive() && !::State::Instance().isShuttingDown;
+        ownsPrivateAsyncLists && detailExecution != 1 && frame.IndependentCommands && !spatial && workScale < 0.999f &&
+        cfg.DlssNrTransfer.value_or_default() == 5 && cfg.DlssNrDirectDetailRecovery.value_or_default() != 0 &&
+        detailReferenceSelector < 9 && !cfg.DlssNrHoldFrame.value_or_default() &&
+        cfg.DlssNrDebugView.value_or_default() == 0 && cfg.DlssNrCompare.value_or_default() == 0 &&
+        !cfg.DlssNrShowSkinMask.value_or_default() && !captureFrames.isActive() &&
+        !::State::Instance().isShuttingDown;
     bool asyncExternalDetail = false;
     bool asyncNrSubmitted = false;
     uint64_t asyncDetailDoneValue = 0;
@@ -329,7 +330,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         }
     }
 
-    if (ownsFinishedPrep && detailExecution == 2 && !asyncDetailActive)
+    if (ownsPrivateAsyncLists && detailExecution == 2 && !asyncDetailActive)
     {
         static bool warnedForcedAsyncFallback = false;
         if (!warnedForcedAsyncFallback)
