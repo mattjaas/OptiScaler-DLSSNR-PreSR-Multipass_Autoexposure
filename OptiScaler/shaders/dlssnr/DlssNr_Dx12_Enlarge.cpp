@@ -59,6 +59,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         return say("NR DLSS enlargement queue/device mismatch.");
     const bool structural = transfer == 4;
     const bool direct = transfer == 5;
+    const uint32_t directDetailMode =
+        direct ? std::min(Config::Instance()->DlssNrDirectDetailRecovery.value_or_default(), 2u) : 0u;
     const uint32_t carrierMode = direct ? 2u : structural ? 1u : 0u;
     const int dlssPreset = Config::Instance()->DlssNrScalingDlssPreset.value_or_default();
     const auto desc = proxy->GetDesc();
@@ -134,14 +136,45 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         return say("DLSS enlargement needs valid depth and motion.");
     lifetime.Record(cmd);
     g.lifetime.Record(cmd);
+
+    bool detailReady = direct && directDetailMode != 0;
+    if (detailReady && !g.detailInfo)
+    {
+        g.detailInfo.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, w, h));
+        if (!g.detailInfo)
+        {
+            static bool warnedDetailAlloc = false;
+            if (!warnedDetailAlloc)
+            {
+                warnedDetailAlloc = true;
+                LOG_WARN("NR Direct detail recovery: auxiliary P50/gate texture allocation failed; "
+                         "falling back to ordinary Direct DLSS.");
+            }
+            detailReady = false;
+        }
+    }
+    if (detailReady && g.detailReadable)
+    {
+        Barrier(cmd, g.detailInfo.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        g.detailReadable = false;
+    }
+
     DlssNrConstants encode {};
-    encode.Mode =
-        direct ? DlssNrMode_Downsample : structural ? DlssNrMode_EncodeResizeField : DlssNrMode_EncodeProxyResidual;
+    encode.Mode = direct ? (detailReady ? DlssNrMode_EncodeDirectDetail : DlssNrMode_Downsample)
+                         : structural ? DlssNrMode_EncodeResizeField
+                                      : DlssNrMode_EncodeProxyResidual;
     encode.Width = w;
     encode.Height = h;
     encode.Passthrough = resolve.Passthrough;
-    bool ok = direct ? shader.DispatchPass(cmd, encode, answer, nullptr, nullptr, nullptr, nullptr, g.input.Get(), nullptr)
-                     : shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
+    bool ok = false;
+    if (direct && detailReady)
+        ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(),
+                                 g.detailInfo.Get());
+    else if (direct)
+        ok = shader.DispatchPass(cmd, encode, answer, nullptr, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
+    else
+        ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
     DlssNrConstants guides {};
     guides.Mode = DlssNrMode_ResizePrivateGuides;
     guides.Width = w;
@@ -168,6 +201,12 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     }
     for (auto* r : { g.input.Get(), g.depth.Get(), g.motion.Get() })
         Barrier(cmd, r, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    if (detailReady)
+    {
+        Barrier(cmd, g.detailInfo.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        g.detailReadable = true;
+    }
     if (g.readable)
         Barrier(cmd, g.output.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
