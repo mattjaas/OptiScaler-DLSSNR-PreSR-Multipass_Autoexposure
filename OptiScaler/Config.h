@@ -333,6 +333,14 @@ class Config
     // NV_PRESET_LATEST for the latest model supported by the loaded DLSS DLL.
     CustomOptional<int> DlssNrScalingDlssPreset { 1 };
 
+    // Direct native-output upscalers. 0 bilinear, 1 bicubic, 2 Catmull-Rom, 3 Lanczos2,
+    // 4 Lanczos3, 5 Kaiser2, 6 Kaiser3, 7 MAGIC, 8 FSR1, 9 DLSS.
+    // Output defaults to DLSS to preserve the previous Direct-DLSS path.
+    CustomOptional<uint32_t> DlssNrDirectOutputUpscaler { 9 };
+    // Reference used to reconstruct P50 to P100 for lost-detail detection. Bilinear preserves
+    // the previous implicit SampleLevel behaviour.
+    CustomOptional<uint32_t> DlssNrDirectDetailReferenceUpscaler { 0 };
+
     // Direct-DLSS native detail recovery: 0 off, 1 full lost detail, 2 NR-gated.
     CustomOptional<uint32_t> DlssNrDirectDetailRecovery { 0 };
     // 0 = do not suppress restored detail, 100 = full NR-derived suppression mask.
