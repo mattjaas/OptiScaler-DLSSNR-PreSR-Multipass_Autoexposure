@@ -245,6 +245,22 @@ void RenderInput(Config* config)
             HelpMarker("NGX render preset for the private DLSS SR feature used by NR enlargement. "
                        "K/L/M and Latest are supported like the ordinary OptiScaler DLSS preset override. "
                        "A preserves the previous enlargement behavior.");
+
+            if (transfer == 5)
+            {
+                static const char* detailNames[] = { "Off", "Full lost detail", "NR-gated" };
+                int detailMode = (int) std::min(config->DlssNrDirectDetailRecovery.value_or_default(), 2u);
+                if (ImGui::Combo("Direct detail recovery", &detailMode, detailNames, IM_ARRAYSIZE(detailNames)))
+                    config->DlssNrDirectDetailRecovery = (uint32_t) detailMode;
+
+                HelpMarker("Direct DLSS only. Full lost detail restores the luminance micro-detail removed by "
+                           "P100 -> reduced proxy before NR. NR-gated restores the same detail except where NR50 "
+                           "clearly suppresses or reverses the corresponding reduced-resolution structure.");
+
+                if (detailMode == 2)
+                    Slider("NR gate strength", config->DlssNrDirectDetailMaskStrength, 0.0f, 100.0f, "%.0f%%",
+                           100.0f);
+            }
         }
     }
     static const char* reversibleNames[] = { "Off (soft knee)", "Neutwo proxy + composed", "Neutwo proxy + replace",
