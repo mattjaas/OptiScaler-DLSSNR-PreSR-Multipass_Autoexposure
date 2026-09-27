@@ -288,6 +288,59 @@ float4 DownsampleKernel4x4(float2 uv, uint srcW, uint srcH, bool lanczos)
     return filtered;
 }
 
+
+float4 DownsampleSsimSharp(float2 uv, uint srcW, uint srcH, uint dstW, uint dstH)
+{
+    const float2 invDst = 1.0 / float2(dstW, dstH);
+    const float2 srcPos = uv * float2(srcW, srcH) - 0.5;
+    const int2 srcCenter = int2(floor(srcPos + 0.5));
+
+    float3 lowMean = 0.0, lowSq = 0.0;
+    float lowW = 0.0;
+    [unroll] for (int y = -1; y <= 1; ++y)
+    {
+        [unroll] for (int x = -1; x <= 1; ++x)
+        {
+            const float w = pow(0.25, abs((float) x) + abs((float) y));
+            const float2 nuv = saturate(uv + float2(x, y) * invDst);
+            const float3 v = gSource.SampleLevel(gLinear, nuv, 0).rgb;
+            lowMean += v * w;
+            lowSq += v * v * w;
+            lowW += w;
+        }
+    }
+    lowMean /= lowW;
+    lowSq /= lowW;
+
+    float3 srcMean = 0.0, srcSq = 0.0;
+    float srcWeight = 0.0;
+    [unroll] for (int y = -1; y <= 1; ++y)
+    {
+        [unroll] for (int x = -1; x <= 1; ++x)
+        {
+            const float w = pow(0.25, abs((float) x) + abs((float) y));
+            const float3 v = DownsampleLoadClamped(srcCenter + int2(x, y), srcW, srcH).rgb;
+            srcMean += v * w;
+            srcSq += v * v * w;
+            srcWeight += w;
+        }
+    }
+    srcMean /= srcWeight;
+    srcSq /= srcWeight;
+
+    const float3 lowVar = max(lowSq - lowMean * lowMean, 0.0);
+    const float3 srcVar = max(srcSq - srcMean * srcMean, 0.0);
+    float4 base = gSource.SampleLevel(gLinear, uv, 0);
+    const float3 contrastGain = clamp(sqrt((srcVar + 1e-5) / (lowVar + 1e-5)), 0.85, 1.55);
+
+    float3 result = lowMean + (base.rgb - lowMean) * contrastGain;
+    result += 0.20 * (base.rgb - lowMean);
+
+    base.rgb = saturate(result);
+    base.a = DownsampleLoadClamped(srcCenter, srcW, srcH).a;
+    return base;
+}
+
 float2 ExposureAnchor(uint i)
 {
     return (i & 1u) ? gExposureAnchors[min(i / 2u, 3u)].zw : gExposureAnchors[min(i / 2u, 3u)].xy;
@@ -734,9 +787,9 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             return;
         }
 
-        // Test filters for an already anti-aliased full-resolution proxy. gTransfer is mode-local here:
-        // 0 exact area (legacy), 1 bilinear, 2 Catmull-Rom, 3 Lanczos2, 4 point/nearest.
-        const uint filter = min(gTransfer, 4u);
+        // Exact Output Scaling filters are dispatched outside this shader. This local path handles
+        // Area, Bilinear, Point and SSIM Sharp, plus Area fallback when an external filter fails.
+        const uint filter = min(gTransfer, 11u);
         const float2 sampleUv = (float2(id.xy) + 0.5) / float2(gWidth, gHeight);
         if (filter == 1u)
         {
@@ -747,16 +800,16 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             gTarget[id.xy] = sampled;
             return;
         }
-        if (filter == 2u || filter == 3u)
-        {
-            gTarget[id.xy] = DownsampleKernel4x4(sampleUv, srcW, srcH, filter == 3u);
-            return;
-        }
         if (filter == 4u)
         {
             const int2 center = int2(clamp(floor(sampleUv * float2(srcW, srcH)), 0.0,
                                            float2(srcW - 1, srcH - 1)));
             gTarget[id.xy] = DownsampleLoadClamped(center, srcW, srcH);
+            return;
+        }
+        if (filter == 11u)
+        {
+            gTarget[id.xy] = DownsampleSsimSharp(sampleUv, srcW, srcH, gWidth, gHeight);
             return;
         }
 
