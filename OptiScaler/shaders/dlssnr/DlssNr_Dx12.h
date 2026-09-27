@@ -51,7 +51,7 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     // The shader reads five inputs and writes two, and not every mode uses all of them. Unused slots
     // still need a view bound -- an unbound descriptor is not an empty read, it is a read from
     // nothing -- so a stand-in is written into whichever are spare.
-    static constexpr uint32_t kSrvCount = 5;
+    static constexpr uint32_t kSrvCount = 6;
     static constexpr uint32_t kUavCount = 2;
 
     uint32_t _numThreadsX = 8;
@@ -70,7 +70,8 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool DispatchCompute(ID3D12GraphicsCommandList* cmd, const DlssNrConstants& constants,
                          ID3D12PipelineState* pipeline, ID3D12Resource* source, ID3D12Resource* model,
                          ID3D12Resource* original, ID3D12Resource* motion, ID3D12Resource* previousEdit,
-                         ID3D12Resource* target, ID3D12Resource* keep, uint32_t* immutableSlot);
+                         ID3D12Resource* auxiliary2, ID3D12Resource* target, ID3D12Resource* keep,
+                         uint32_t* immutableSlot);
 
   public:
     DlssNr_Dx12(std::string InName, ID3D12Device* InDevice);
@@ -125,6 +126,14 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
                       ID3D12Resource* InPrevEdit, ID3D12Resource* OutTarget, ID3D12Resource* OutKeep,
                       // Initialize to UINT32_MAX. Reuse only with identical bindings/constants in one chain.
                       uint32_t* immutableSlot = nullptr);
+
+    // DX12-only variant with an additional t5 auxiliary SRV. Used by Direct NR detail recovery to
+    // bind the selected full-resolution P50 reconstruction alongside the small P50/gate texture in t4.
+    bool DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,
+                          ID3D12Resource* InSource, ID3D12Resource* InModel, ID3D12Resource* InOriginal,
+                          ID3D12Resource* InMotion, ID3D12Resource* InPrevEdit, ID3D12Resource* InAux2,
+                          ID3D12Resource* OutTarget, ID3D12Resource* OutKeep,
+                          uint32_t* immutableSlot = nullptr);
 
     // One compute pass of the ResidualAcrossRR v2 shader (dlssnr_residual.hlsl). Same descriptor
     // table shape as DispatchPass; binds _residualPipelineState instead of _pipelineState. t4/u1
