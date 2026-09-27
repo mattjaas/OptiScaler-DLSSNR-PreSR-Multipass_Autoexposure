@@ -726,7 +726,36 @@ bool ModelVk::Impl::Evaluate(VkCommandBuffer cmdBuffer, const VkImageInfo& colou
                 // A pass that appears to have taken over a second did not; the queue was reset under
                 // it or the pair straddled a device change.
                 if (ms > 0.0 && ms < 1000.0)
-                    state.lastGpuTime = ms;
+                {
+                    const auto now = std::chrono::steady_clock::now();
+                    state.gpuTimeHistory.push_back({ now, ms });
+
+                    const auto keep = std::chrono::milliseconds(12000);
+                    while (!state.gpuTimeHistory.empty() && now - state.gpuTimeHistory.front().when > keep)
+                        state.gpuTimeHistory.pop_front();
+
+                    const uint32_t averageWindowMs =
+                        std::min(cfg.DlssNrGpuTimeAverageWindowMs.value_or_default(), 9999u);
+                    if (averageWindowMs == 0)
+                    {
+                        state.lastGpuTime = ms;
+                    }
+                    else
+                    {
+                        const auto cutoff = now - std::chrono::milliseconds(averageWindowMs);
+                        double sum = 0.0;
+                        size_t count = 0;
+                        for (auto it = state.gpuTimeHistory.rbegin(); it != state.gpuTimeHistory.rend(); ++it)
+                        {
+                            if (it->when < cutoff)
+                                break;
+                            sum += it->ms;
+                            ++count;
+                        }
+                        state.lastGpuTime = count ? std::optional<double>(sum / double(count))
+                                                  : std::optional<double>(ms);
+                    }
+                }
             }
         }
     }
