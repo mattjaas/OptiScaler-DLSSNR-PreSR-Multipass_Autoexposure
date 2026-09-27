@@ -217,7 +217,8 @@ Texture2D<float4>   gOriginal : register(t2);  // resolve: the untouched frame.
 #endif
 Texture2D<float4>   gMotion   : register(t3);  // resolve, accumulating: the game's motion vectors.
 #ifndef VK_MODE
-Texture2D<float4>   gAux      : register(t4);  // DX12 Direct-DLSS: packed P50.rgb + NR retention gate.
+Texture2D<float4>   gAux      : register(t4);  // DX12 Direct NR: packed P50.rgb + NR retention gate.
+Texture2D<float4>   gAux2     : register(t5);  // DX12 Direct NR: selected full-resolution P50 reconstruction.
 #endif
 
 #ifdef VK_MODE
@@ -718,6 +719,12 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     // Normalised, so the source may be any size relative to this dispatch.
     float2 uv = (float2(id.xy) + 0.5) / float2(gWidth, gHeight);
 
+    if (gMode == 14)
+    {
+        gTarget[id.xy] = gSource.SampleLevel(gLinear, uv, 0);
+        return;
+    }
+
     // Experimental private-DLSS carrier, not an ordinary colour image. Neutral 0.5 encodes zero;
     // values below it carry darkening. A reversible signed compression avoids clipping negative
     // edits at the DLSS input. Scale small linear-light edits up before storing them in FP16;
@@ -1195,7 +1202,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (gDirectDetailMode != 0)
     {
         const float4 detailInfo = gAux.SampleLevel(gLinear, cmpUv, 0);
-        const float3 p50 = gPassthrough != 0 ? detailInfo.rgb : SrgbToLinear(detailInfo.rgb);
+        const float4 p50Reference = gAux2.SampleLevel(gLinear, cmpUv, 0);
+        const float3 p50 = gPassthrough != 0 ? p50Reference.rgb : SrgbToLinear(p50Reference.rgb);
         const float p100Y = max(dot(proxy, kLuma), 0.0);
         const float p50Y = max(dot(p50, kLuma), 0.0);
         float lostStops = log2((p100Y + kRatioFloor) / (p50Y + kRatioFloor));
