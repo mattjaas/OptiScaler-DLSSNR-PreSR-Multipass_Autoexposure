@@ -31,7 +31,9 @@ enum DlssNrMode : uint32_t
     DlssNrMode_ResizePrivateGuides = 10,
     DlssNrMode_EncodeResizeField = 12,
     // Direct DLSS: copy NR50 into the private-DLSS carrier and pack P50 + an NR-suppression gate.
-    DlssNrMode_EncodeDirectDetail = 13
+    DlssNrMode_EncodeDirectDetail = 13,
+    // Generic bilinear source->target resize, used by Direct NR A/B upscaler tests.
+    DlssNrMode_UpscaleBilinear = 14
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
