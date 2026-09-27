@@ -439,8 +439,11 @@ bool DlssNr_Dx12::State::RunOrdinaryAsync(ID3D12GraphicsCommandList* gameCommand
     const Config& cfg = *Config::Instance();
     const uint32_t execution = std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
     const uint32_t detailReference = std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u);
-    if (execution == 1 || frame.BeforeUpscale || frame.FinishedPicture || !gameCommands || !queue || !output ||
-        !depth || !motion || cfg.DlssNrTransfer.value_or_default() != 5 ||
+    // Auto never submits a caller-owned native DX12 list early: the app may enqueue a queue-level Wait only
+    // after recording finishes. Explicit Async compute is the opt-in experimental override for that native path.
+    if (execution == 1 || (execution == 0 && !frame.IndependentCommands) || frame.BeforeUpscale ||
+        frame.FinishedPicture || !gameCommands || !queue || !output || !depth || !motion ||
+        cfg.DlssNrTransfer.value_or_default() != 5 ||
         cfg.DlssNrDirectDetailRecovery.value_or_default() == 0 || detailReference >= 9 ||
         cfg.DlssNrHoldFrame.value_or_default() || cfg.DlssNrDebugView.value_or_default() != 0 ||
         cfg.DlssNrCompare.value_or_default() != 0 || cfg.DlssNrShowSkinMask.value_or_default() ||
@@ -580,11 +583,18 @@ bool DlssNr_Dx12::State::RunOrdinaryAsync(ID3D12GraphicsCommandList* gameCommand
     }
     slot->asyncProvisional = false;
 
-    static bool logged = false;
-    if (!logged)
+    static bool loggedIndependent = false;
+    static bool loggedForcedNative = false;
+    if (frame.IndependentCommands && !loggedIndependent)
     {
-        logged = true;
-        LOG_INFO("DLSS-NR ordinary post-SR: async P50 detail reference is using a split game command list.");
+        loggedIndependent = true;
+        LOG_INFO("DLSS-NR ordinary post-SR: async P50 detail reference is using an owned/independent command split.");
+    }
+    else if (!frame.IndependentCommands && !loggedForcedNative)
+    {
+        loggedForcedNative = true;
+        LOG_WARN("DLSS-NR ordinary native DX12: forced Async compute is splitting and submitting the caller command "
+                 "list early. This is experimental; use Serial if the game has queue-ordering issues.");
     }
     return true;
 }
