@@ -21,6 +21,9 @@ class D3D12Hooks
     static void SetRootSignatureTracking(bool enable);
     static bool IsRootSignatureTrackingEnabled();
     static bool CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList);
+    // Rebind every caller state snapshot that is actually available after an internal command-list Reset.
+    // Root signatures are always tracked; heaps/root arguments/PSO are restored when extended tracking captured them.
+    static bool RestoreTrackedStateAfterReset(ID3D12GraphicsCommandList* cmdList);
     static void HookToCommandListLate(ID3D12GraphicsCommandList* commandList);
     static void RestoreRoot(ID3D12GraphicsCommandList* cmdList);
 };

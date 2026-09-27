@@ -2457,6 +2457,45 @@ bool D3D12Hooks::CanRestoreRootSignature(ID3D12GraphicsCommandList* cmdList)
     return signatures.contains(cmdList);
 }
 
+bool D3D12Hooks::RestoreTrackedStateAfterReset(ID3D12GraphicsCommandList* cmdList)
+{
+    SignatureEntry signature {};
+    {
+        std::shared_lock<std::shared_mutex> lock(rootSignatureMutex);
+        const auto it = signatures.find(cmdList);
+        if (it == signatures.end() || it->second.type == SignatureEntryType::Invalid || it->second.ptr == nullptr)
+            return false;
+        signature = it->second;
+    }
+
+    // Reset invalidates all command-list bindings. Restore the snapshots that the normal OptiScaler
+    // state tracker already has; missing extended snapshots are deliberately tolerated.
+    RestoreDescriptorHeaps(cmdList);
+
+    bool rootRestored = false;
+    if (signature.type == SignatureEntryType::Compute)
+    {
+        if (auto hook = s_SetComputeRootSignature.GetHook())
+        {
+            hook(cmdList, signature.ptr);
+            rootRestored = true;
+        }
+        RestoreComputeRootState(cmdList);
+    }
+    else if (signature.type == SignatureEntryType::Graphics)
+    {
+        if (auto hook = s_SetGraphicsRootSignature.GetHook())
+        {
+            hook(cmdList, signature.ptr);
+            rootRestored = true;
+        }
+        RestoreGraphicsRootState(cmdList);
+    }
+
+    RestorePipelineState(cmdList);
+    return rootRestored;
+}
+
 bool D3D12Hooks::RestoreDescriptorHeaps(ID3D12GraphicsCommandList* cmdList)
 {
     std::unique_lock<std::shared_mutex> lock(descriptorHeapsMutex);
