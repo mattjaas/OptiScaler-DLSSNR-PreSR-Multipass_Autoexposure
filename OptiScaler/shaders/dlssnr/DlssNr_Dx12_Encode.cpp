@@ -230,7 +230,12 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
                 }
             }
 
-            const uint32_t proxyFilter = std::min(cfg.DlssNrProxyDownscaleFilter.value_or_default(), 11u);
+            const bool upscaledResidual =
+                workScale < 1.0f && cfg.DlssNrTransfer.value_or_default() == 6;
+            const uint32_t proxyFilter =
+                std::min(upscaledResidual ? cfg.DlssNrUpscaledResidualDownscaleFilter.value_or_default()
+                                          : cfg.DlssNrProxyDownscaleFilter.value_or_default(),
+                         11u);
             Scaler exactScaler = Scaler::Count;
             switch (proxyFilter)
             {
