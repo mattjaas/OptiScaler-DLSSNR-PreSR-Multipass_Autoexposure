@@ -538,6 +538,7 @@ bool ShouldApplyBlockingPolicyLocked();
 bool ShouldBlockKeyboardInputLocked();
 bool ShouldBlockMouseInputLocked();
 bool ShouldBlockCursorInputLocked();
+bool ShouldPassthroughGamepadLocked();
 void HandleBlockingFocusGainLocked();
 void HandleBlockingFocusLossLocked();
 void LogInputHealthSnapshotLocked(const char* origin);
