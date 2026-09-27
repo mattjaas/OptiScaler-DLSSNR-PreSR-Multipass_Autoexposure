@@ -566,6 +566,7 @@ bool Config::Reload(std::filesystem::path iniPath)
 
             // Don't enable again if set false because of Linux issue
             OverlayMenu.set_from_config(readBool("Menu", "OverlayMenu"));
+            MenuGamepadPassthrough.set_from_config(readBool("Menu", "GamepadPassthrough"));
             ShortcutKeyRequireCtrl.set_from_config(readBool("Menu", "ShortcutKeyRequireCtrl"));
             ShortcutKeyRequireAlt.set_from_config(readBool("Menu", "ShortcutKeyRequireAlt"));
             ShortcutKey.set_from_config(readInt("Menu", "ShortcutKey"));
@@ -1527,6 +1528,8 @@ bool Config::SaveIni(std::filesystem::path destination)
     {
         ini.SetValue("Menu", "Scale", GetFloatValue(Instance()->MenuScale).c_str());
         ini.SetValue("Menu", "OverlayMenu", GetBoolValue(Instance()->OverlayMenu.value_for_config()).c_str());
+        ini.SetValue("Menu", "GamepadPassthrough",
+                     GetBoolValue(Instance()->MenuGamepadPassthrough.value_for_config()).c_str());
 
         auto setting = Instance()->ShortcutKey.value_for_config();
         ini.SetValue("Menu", "ShortcutKey",
