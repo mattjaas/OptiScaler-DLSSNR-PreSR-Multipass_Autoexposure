@@ -655,12 +655,23 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         {
             auto* enlarged =
                 EnlargeMatchedResidual(cmdList, device, ordinaryProxy, ordinaryAnswer, originalDepthIn,
-                                       originalMotionIn, frame, resolveParams, enlargementReset, timingQueue);
+                                       originalMotionIn, frame, resolveParams, transfer, enlargementReset,
+                                       timingQueue);
             enlargementReady = enlarged != nullptr;
             if (enlarged)
             {
                 resolveAnswer = enlarged;
-                resolveParams.Transfer = transfer;
+                // Direct DLSS has already enlarged the model answer itself. Pair it with the immutable
+                // full-resolution proxy and run the ordinary native-resolution composition path.
+                if (transfer == 5)
+                {
+                    resolveProxy = nr.colorCopy;
+                    resolveParams.Transfer = 0;
+                }
+                else
+                {
+                    resolveParams.Transfer = transfer;
+                }
             }
             if (enlarged && transfer == 4)
             {

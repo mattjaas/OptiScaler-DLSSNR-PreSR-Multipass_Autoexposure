@@ -181,6 +181,33 @@ struct PrivateUpscalerDx12::Impl
             p->Set(NVSDK_NGX_Parameter_CreationNodeMask, 1u);
             p->Set(NVSDK_NGX_Parameter_VisibilityNodeMask, 1u);
             p->Set(NVSDK_NGX_Parameter_PerfQualityValue, info.quality);
+            if (!info.rayReconstruction)
+            {
+                unsigned preset = static_cast<unsigned>(info.dlssPreset);
+                switch (preset)
+                {
+                case NVSDK_NGX_DLSS_Hint_Render_Preset_Default:
+                case NVSDK_NGX_DLSS_Hint_Render_Preset_A:
+                case NVSDK_NGX_DLSS_Hint_Render_Preset_B:
+                case NVSDK_NGX_DLSS_Hint_Render_Preset_C:
+                case NVSDK_NGX_DLSS_Hint_Render_Preset_D:
+                case NVSDK_NGX_DLSS_Hint_Render_Preset_E:
+                case NVSDK_NGX_DLSS_Hint_Render_Preset_F:
+                case NVSDK_NGX_DLSS_Hint_Render_Preset_J:
+                    break;
+                default:
+                    preset = NVSDK_NGX_DLSS_Hint_Render_Preset_A;
+                    break;
+                }
+                for (const char* key :
+                     { NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA,
+                       NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality,
+                       NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced,
+                       NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Performance,
+                       NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance,
+                       NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality })
+                    p->Set(key, preset);
+            }
             unsigned flags = (inverted ? NVSDK_NGX_DLSS_Feature_Flags_DepthInverted : 0) |
                              (jittered ? NVSDK_NGX_DLSS_Feature_Flags_MVJittered : 0) |
                              (!highMv ? NVSDK_NGX_DLSS_Feature_Flags_MVLowRes : 0) |

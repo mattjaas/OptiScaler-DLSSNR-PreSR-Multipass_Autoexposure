@@ -32,11 +32,18 @@ enum DlssNrMode : uint32_t
     DlssNrMode_EncodeResizeField = 12
 };
 
-inline bool DlssNrUsesDlssEnlargement(uint32_t transfer) { return transfer == 2 || transfer == 4; }
+inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
+{
+    return transfer == 2 || transfer == 4 || transfer == 5;
+}
 
 // The spatial mode is used until the caller has supplied an enlarged DLSS carrier.
 inline uint32_t DlssNrSpatialTransfer(uint32_t transfer)
 {
+    // Direct DLSS has no spatial transfer equivalent. Until its full-resolution answer exists,
+    // use ordinary classic composition.
+    if (transfer == 5)
+        return 0;
     return DlssNrUsesDlssEnlargement(transfer) ? transfer - 1 : std::min(transfer, 3u);
 }
 

@@ -64,7 +64,8 @@ struct DlssNr_Dx12::State
         unsigned w = 0, h = 0, outW = 0, outH = 0;
         uint64_t lastFrame = 0;
         bool submitted = false, failed = false, depthInverted = false, readable = false, reset = true;
-        bool structural = false;
+        uint32_t carrierMode = 0;
+        int dlssPreset = 0;
         ~Enlarger() { dlss.reset(); } // Release NGX before its borrowed input/output resources.
     };
     std::unique_ptr<Enlarger> enlarger;
@@ -75,8 +76,8 @@ struct DlssNr_Dx12::State
     void CollectEnlargers();
     ID3D12Resource* EnlargeMatchedResidual(ID3D12GraphicsCommandList* cmd, ID3D12Device* device, ID3D12Resource* proxy,
                                            ID3D12Resource* answer, ID3D12Resource* depth, ID3D12Resource* motion,
-                                           const DlssNrFrameInfo& frame, const DlssNrConstants& resolve, bool reset,
-                                           ID3D12CommandQueue* queue);
+                                           const DlssNrFrameInfo& frame, const DlssNrConstants& resolve,
+                                           uint32_t transfer, bool reset, ID3D12CommandQueue* queue);
 
     // What the pass costs on the GPU, for the breakdown in the overlay.
     std::unique_ptr<DlssNrGpuTime> gpuTime;

@@ -348,6 +348,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrMaxRatio.set_from_config(readFloat("DlssNr", "MaxRatio"));
             DlssNrMaxDarkening.set_from_config(readFloat("DlssNr", "MaxDarkening"));
             DlssNrTransfer.set_from_config(readUInt("DlssNr", "Transfer"));
+            DlssNrScalingDlssPreset.set_from_config(readInt("DlssNr", "ScalingDlssPreset"));
 
             DlssNrDebugView.set_from_config(readUInt("DlssNr", "DebugView"));
             DlssNrCompare.set_from_config(readUInt("DlssNr", "Compare"));
@@ -1298,6 +1299,8 @@ bool Config::SaveIni(std::filesystem::path destination)
         ini.SetValue("DlssNr", "MaxDarkening",
                      GetFloatValue(Instance()->DlssNrMaxDarkening.value_for_config()).c_str());
         ini.SetValue("DlssNr", "Transfer", GetIntValue(Instance()->DlssNrTransfer.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ScalingDlssPreset",
+                     GetIntValue(Instance()->DlssNrScalingDlssPreset.value_for_config()).c_str());
 
         ini.SetValue("DlssNr", "DebugView", GetIntValue(Instance()->DlssNrDebugView.value_for_config()).c_str());
         ini.SetValue("DlssNr", "Compare", GetIntValue(Instance()->DlssNrCompare.value_for_config()).c_str());

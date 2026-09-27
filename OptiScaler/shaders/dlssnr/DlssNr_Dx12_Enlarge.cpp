@@ -28,7 +28,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                                                            ID3D12Resource* proxy, ID3D12Resource* answer,
                                                            ID3D12Resource* depth, ID3D12Resource* motion,
                                                            const DlssNrFrameInfo& frame, const DlssNrConstants& resolve,
-                                                           bool reset, ID3D12CommandQueue* timingQueue)
+                                                           uint32_t transfer, bool reset,
+                                                           ID3D12CommandQueue* timingQueue)
 {
     auto say = [&](const std::string& message) -> ID3D12Resource*
     {
@@ -56,12 +57,16 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     Microsoft::WRL::ComPtr<ID3D12Device> queueDevice;
     if (queue && (FAILED(queue->GetDevice(IID_PPV_ARGS(&queueDevice))) || queueDevice.Get() != device))
         return say("NR DLSS enlargement queue/device mismatch.");
-    const bool structural = resolve.Transfer == 3;
+    const bool structural = transfer == 4;
+    const bool direct = transfer == 5;
+    const uint32_t carrierMode = direct ? 2u : structural ? 1u : 0u;
+    const int dlssPreset = Config::Instance()->DlssNrScalingDlssPreset.value_or_default();
     const auto desc = proxy->GetDesc();
     const unsigned w = unsigned(desc.Width), h = desc.Height;
     if (enlarger && (enlarger->w != w || enlarger->h != h || enlarger->outW != resolve.Width ||
                      enlarger->outH != resolve.Height || (queue && enlarger->queue.Get() != queue) ||
-                     enlarger->depthInverted != frame.DepthInverted || enlarger->structural != structural))
+                     enlarger->depthInverted != frame.DepthInverted || enlarger->carrierMode != carrierMode ||
+                     enlarger->dlssPreset != dlssPreset))
         ReleaseEnlarger();
     CollectEnlargers();
     if (!enlarger)
@@ -76,7 +81,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         g.outH = resolve.Height;
         g.depthInverted = frame.DepthInverted;
         g.queue = queue;
-        g.structural = structural;
+        g.carrierMode = carrierMode;
+        g.dlssPreset = dlssPreset;
         g.input.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, w, h));
         g.output.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, g.outW, g.outH));
         g.depth.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, w, h));
@@ -101,11 +107,13 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         info.outputWidth = g.outW;
         info.outputHeight = g.outH;
         info.quality = 2;
+        info.dlssPreset = dlssPreset;
         info.depthInverted = frame.DepthInverted;
         info.rayReconstruction = false; // This carrier comes from an already reconstructed image.
         if (!g.dlss->Init(device, cmd, info))
             return say("Private DLSS SR: " + g.dlss->Error());
-        LOG_INFO("NR enlargement: private DLSS SR created at {}x{} -> {}x{}", w, h, g.outW, g.outH);
+        LOG_INFO("NR enlargement: private DLSS SR created at {}x{} -> {}x{}, preset {}", w, h, g.outW, g.outH,
+                 dlssPreset);
         ID3D12GraphicsCommandList* real = nullptr;
         g.creation = Util::CheckForRealObject(__FUNCTION__, cmd, (IUnknown**) &real) ? real : cmd;
         g.failed = false;
@@ -127,11 +135,13 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     lifetime.Record(cmd);
     g.lifetime.Record(cmd);
     DlssNrConstants encode {};
-    encode.Mode = structural ? DlssNrMode_EncodeResizeField : DlssNrMode_EncodeProxyResidual;
+    encode.Mode =
+        direct ? DlssNrMode_Downsample : structural ? DlssNrMode_EncodeResizeField : DlssNrMode_EncodeProxyResidual;
     encode.Width = w;
     encode.Height = h;
     encode.Passthrough = resolve.Passthrough;
-    bool ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
+    bool ok = direct ? shader.DispatchPass(cmd, encode, answer, nullptr, nullptr, nullptr, nullptr, g.input.Get(), nullptr)
+                     : shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
     DlssNrConstants guides {};
     guides.Mode = DlssNrMode_ResizePrivateGuides;
     guides.Width = w;

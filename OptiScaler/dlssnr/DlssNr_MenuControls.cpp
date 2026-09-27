@@ -180,8 +180,8 @@ void RenderInput(Config* config)
         ImGui::BeginDisabled(!reduced);
 
         static const char* enlargeNames[] = { "Classic", "Matched residual", "Matched residual + DLSS",
-                                              "Lighting + colour", "Lighting + colour + DLSS" };
-        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 4u);
+                                              "Lighting + colour", "Lighting + colour + DLSS", "DLSS" };
+        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 5u);
 
         if (ImGui::Combo("Enlargement", &enlarge, enlargeNames, IM_ARRAYSIZE(enlargeNames)))
             config->DlssNrTransfer = (uint32_t) enlarge;
@@ -189,8 +189,27 @@ void RenderInput(Config* config)
         ImGui::EndDisabled();
 
         HelpMarker("Below 100%: Lighting + colour resizes lighting gain and colour changes separately, then applies "
-                   "them at full resolution. This can reduce resize halos; fully black pixels remain black. "
+                   "them at full resolution. The DLSS mode enlarges the NR answer itself and composes it like a "
+                   "native 100% model result. This can reduce resize halos; fully black pixels remain black. "
                    "DLSS modes require post-upscale DX12 processing.");
+
+        const auto transfer = config->DlssNrTransfer.value_or_default();
+        if (reduced && (transfer == 2 || transfer == 4 || transfer == 5))
+        {
+            static const char* presetNames[] = { "Default", "A", "B", "C", "D", "E", "F", "J" };
+            static constexpr int presetValues[] = { 0, 1, 2, 3, 4, 5, 6, 10 };
+            int presetIndex = 1;
+            const int configuredPreset = config->DlssNrScalingDlssPreset.value_or_default();
+            for (int i = 0; i < IM_ARRAYSIZE(presetValues); ++i)
+                if (presetValues[i] == configuredPreset)
+                    presetIndex = i;
+
+            if (ImGui::Combo("DLSS preset", &presetIndex, presetNames, IM_ARRAYSIZE(presetNames)))
+                config->DlssNrScalingDlssPreset = presetValues[presetIndex];
+
+            HelpMarker("NGX render preset for the private DLSS SR feature used by NR enlargement. "
+                       "A preserves the previous enlargement behavior.");
+        }
     }
     static const char* reversibleNames[] = { "Off (soft knee)", "Neutwo proxy + composed", "Neutwo proxy + replace",
                                              "Hybrid proxy + composed", "Hybrid proxy + replace" };
