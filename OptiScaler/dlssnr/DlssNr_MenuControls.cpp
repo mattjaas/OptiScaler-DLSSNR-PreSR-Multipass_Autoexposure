@@ -292,7 +292,6 @@ void RenderInput(Config* config)
             }
         }
     }
-    static const char* reversibleNames[]    }
     static const char* reversibleNames[] = { "Off (soft knee)", "Neutwo proxy + composed", "Neutwo proxy + replace",
                                              "Hybrid proxy + composed", "Hybrid proxy + replace" };
     int reversible = (int) config->DlssNrReversibleMode.value_or_default();
