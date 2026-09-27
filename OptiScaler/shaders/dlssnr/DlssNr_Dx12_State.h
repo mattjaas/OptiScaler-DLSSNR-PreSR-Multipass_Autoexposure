@@ -382,6 +382,16 @@ struct DlssNr_Dx12::State
     };
     LateContext late { *this };
 
+    // Ordinary post-SR async detail work uses the same private-list payload as Finished Picture,
+    // but its slots are separate so toggling Finished Picture can never recycle an in-flight normal frame.
+    std::array<LateContext::Slot, 4> ordinaryAsyncSlots;
+    size_t ordinaryAsyncNext = 0;
+    DlssNr::GpuLifetime ordinaryContinuationLifetime;
+
+    bool RunOrdinaryAsync(ID3D12GraphicsCommandList* gameCommands, ID3D12Resource* colour, ID3D12Resource* depth,
+                          ID3D12Resource* motion, ID3D12Resource* output, const DlssNrFrameInfo& frame,
+                          ID3D12CommandQueue* queue);
+
     void FinishedPictureResetCommandList(ID3D12CommandList* cmd);
 
     bool WaitForFinishedPicture();
@@ -423,7 +433,8 @@ struct DlssNr_Dx12::State
 
     void Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* colour, ID3D12Resource* depth, ID3D12Resource* motion,
              ID3D12Resource* output, const DlssNrFrameInfo& frame, ID3D12CommandQueue* timingQueue,
-             LateContext::Slot* asyncSlot = nullptr, ID3D12Resource* finishedEncodedColor = nullptr);
+             LateContext::Slot* asyncSlot = nullptr, ID3D12Resource* finishedEncodedColor = nullptr,
+             bool asyncOwnsFinishedPrep = true);
 
     std::string DeferredDlssStatus();
 
