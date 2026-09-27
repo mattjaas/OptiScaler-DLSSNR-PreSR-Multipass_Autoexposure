@@ -246,6 +246,19 @@ void RenderInput(Config* config)
                     HelpMarker("Only affects detection of detail lost by P100 -> P50. Bilinear matches the previous "
                                "implementation. DLSS uses a separate private temporal history from the NR output.");
 
+                    static const char* detailExecutionNames[] = { "Auto", "Serial", "Async compute" };
+                    int detailExecution =
+                        (int) std::min(config->DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
+                    ImGui::BeginDisabled(referenceUpscaler == 9);
+                    if (ImGui::Combo("P50 detail reference execution", &detailExecution, detailExecutionNames,
+                                     IM_ARRAYSIZE(detailExecutionNames)))
+                        config->DlssNrDirectDetailReferenceExecutionMode = (uint32_t) detailExecution;
+                    ImGui::EndDisabled();
+                    HelpMarker("Auto overlaps a non-DLSS P50 -> P100 reference with NR only on an owned private "
+                               "DX12 finished-picture path. Serial keeps the previous ordering. Async compute requests "
+                               "overlap but still falls back to Serial when the path/queue is unavailable. A DLSS "
+                               "detail reference is always Serial.");
+
                     if (detailMode == 2)
                         Slider("NR gate strength", config->DlssNrDirectDetailMaskStrength, 0.0f, 100.0f, "%.0f%%",
                                100.0f);
