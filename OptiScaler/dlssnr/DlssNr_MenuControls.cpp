@@ -161,6 +161,20 @@ void RenderInput(Config* config)
     HelpMarker("50% halves width and height. 100% uses the full input size.");
     RenderSpatial(config);
 
+    if (scalePercent < 100 && !config->DlssNrSpatialCompression.value_or_default())
+    {
+        static const char* proxyDownNames[] = { "Area (current)", "Bilinear", "Catmull-Rom", "Lanczos2",
+                                                "Point / nearest" };
+        int filter = (int) std::min(config->DlssNrProxyDownscaleFilter.value_or_default(), 4u);
+        if (ImGui::Combo("Proxy downscale filter", &filter, proxyDownNames, IM_ARRAYSIZE(proxyDownNames)))
+            config->DlssNrProxyDownscaleFilter = (uint32_t) filter;
+
+        HelpMarker("Filter used only to shrink the full-resolution proxy before NR below 100%. "
+                   "Area is the existing exact area-weighted filter. Bilinear, Catmull-Rom, Lanczos2 and point "
+                   "progressively trade anti-aliasing for preservation of high-frequency structure. "
+                   "Spatial compression uses its own warp and is not affected.");
+    }
+
     if (scalePercent > 100)
     {
         static const char* dsNames[] = { "FSR1",     "Bicubic", "Catmull-Rom", "Lanczos2",

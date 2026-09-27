@@ -420,6 +420,8 @@ bool ModelVk::Impl::Evaluate(VkCommandBuffer cmdBuffer, const VkImageInfo& colou
             down.Mode = DlssNrMode_Downsample;
             down.Width = workWidth;
             down.Height = workHeight;
+            // Mode-local selector shared with DX12; Transfer is otherwise unused by this pass.
+            down.Transfer = std::min(cfg.DlssNrProxyDownscaleFilter.value_or_default(), 4u);
 
             Transition(cmdBuffer, state.proxy, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
             Transition(cmdBuffer, state.proxySmall, VK_IMAGE_LAYOUT_GENERAL);

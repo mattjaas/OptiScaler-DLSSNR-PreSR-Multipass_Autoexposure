@@ -358,6 +358,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrCompareTags.set_from_config(readBool("DlssNr", "CompareTags"));
             DlssNrTagScale.set_from_config(readFloat("DlssNr", "TagScale"));
             DlssNrWorkingScale.set_from_config(readFloat("DlssNr", "WorkingScale"));
+            DlssNrProxyDownscaleFilter.set_from_config(readUInt("DlssNr", "ProxyDownscaleFilter"));
             DlssNrSpatialCompression.set_from_config(readBool("DlssNr", "SpatialCompression"));
             DlssNrSpatialCenterX.set_from_config(readFloat("DlssNr", "SpatialCenterX"));
             DlssNrSpatialCenterY.set_from_config(readFloat("DlssNr", "SpatialCenterY"));
@@ -1312,6 +1313,8 @@ bool Config::SaveIni(std::filesystem::path destination)
         ini.SetValue("DlssNr", "TagScale", GetFloatValue(Instance()->DlssNrTagScale.value_for_config()).c_str());
         ini.SetValue("DlssNr", "WorkingScale",
                      GetFloatValue(Instance()->DlssNrWorkingScale.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ProxyDownscaleFilter",
+                     GetIntValue(Instance()->DlssNrProxyDownscaleFilter.value_for_config()).c_str());
         ini.SetValue("DlssNr", "SpatialCompression",
                      GetBoolValue(Instance()->DlssNrSpatialCompression.value_for_config()).c_str());
         ini.SetValue("DlssNr", "SpatialCenterX",

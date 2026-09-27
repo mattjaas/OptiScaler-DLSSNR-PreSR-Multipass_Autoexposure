@@ -227,6 +227,67 @@ RWTexture2D<float4> gKeep     : register(u1);  // encode: the untouched copy. un
 #endif
 SamplerState        gLinear   : register(s0);  // so the edit can be read at a different size
 
+float4 DownsampleLoadClamped(int2 p, uint srcW, uint srcH)
+{
+    p = clamp(p, int2(0, 0), int2((int) srcW - 1, (int) srcH - 1));
+    return gSource.Load(int3(p, 0));
+}
+
+float CatmullRomWeight(float x)
+{
+    x = abs(x);
+    if (x < 1.0)
+        return ((1.5 * x - 2.5) * x) * x + 1.0;
+    if (x < 2.0)
+        return ((-0.5 * x + 2.5) * x - 4.0) * x + 2.0;
+    return 0.0;
+}
+
+float SincPi(float x)
+{
+    const float ax = abs(x);
+    if (ax < 1e-5)
+        return 1.0;
+    const float p = 3.14159265358979323846 * x;
+    return sin(p) / p;
+}
+
+float Lanczos2Weight(float x)
+{
+    x = abs(x);
+    return x < 2.0 ? SincPi(x) * SincPi(0.5 * x) : 0.0;
+}
+
+float4 DownsampleKernel4x4(float2 uv, uint srcW, uint srcH, bool lanczos)
+{
+    const float2 p = uv * float2(srcW, srcH) - 0.5;
+    const int2 base = int2(floor(p));
+    float4 sum = 0.0;
+    float weightSum = 0.0;
+
+    [unroll] for (int y = -1; y <= 2; ++y)
+    {
+        const float wy = lanczos ? Lanczos2Weight((float) (base.y + y) - p.y)
+                                 : CatmullRomWeight((float) (base.y + y) - p.y);
+        [unroll] for (int x = -1; x <= 2; ++x)
+        {
+            const float wx = lanczos ? Lanczos2Weight((float) (base.x + x) - p.x)
+                                     : CatmullRomWeight((float) (base.x + x) - p.x);
+            const float w = wx * wy;
+            sum += DownsampleLoadClamped(base + int2(x, y), srcW, srcH) * w;
+            weightSum += w;
+        }
+    }
+
+    float4 filtered = sum / (abs(weightSum) > 1e-6 ? weightSum : 1.0);
+    // Cubic/Lanczos negative lobes can overshoot an encoded proxy. Keep RGB in the model's legal range;
+    // alpha follows the nearest source sample, matching the legacy area path's non-filtered alpha.
+    const int2 center = int2(clamp(floor(uv * float2(srcW, srcH)), 0.0, float2(srcW - 1, srcH - 1)));
+    filtered.rgb = saturate(filtered.rgb);
+    filtered.a = DownsampleLoadClamped(center, srcW, srcH).a;
+    return filtered;
+}
+
 float2 ExposureAnchor(uint i)
 {
     return (i & 1u) ? gExposureAnchors[min(i / 2u, 3u)].zw : gExposureAnchors[min(i / 2u, 3u)].xy;
@@ -670,6 +731,32 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         if (srcW == gWidth && srcH == gHeight)
         {
             gTarget[id.xy] = gSource.Load(int3(id.xy, 0));
+            return;
+        }
+
+        // Test filters for an already anti-aliased full-resolution proxy. gTransfer is mode-local here:
+        // 0 exact area (legacy), 1 bilinear, 2 Catmull-Rom, 3 Lanczos2, 4 point/nearest.
+        const uint filter = min(gTransfer, 4u);
+        const float2 sampleUv = (float2(id.xy) + 0.5) / float2(gWidth, gHeight);
+        if (filter == 1u)
+        {
+            float4 sampled = gSource.SampleLevel(gLinear, sampleUv, 0);
+            const int2 center = int2(clamp(floor(sampleUv * float2(srcW, srcH)), 0.0,
+                                           float2(srcW - 1, srcH - 1)));
+            sampled.a = DownsampleLoadClamped(center, srcW, srcH).a;
+            gTarget[id.xy] = sampled;
+            return;
+        }
+        if (filter == 2u || filter == 3u)
+        {
+            gTarget[id.xy] = DownsampleKernel4x4(sampleUv, srcW, srcH, filter == 3u);
+            return;
+        }
+        if (filter == 4u)
+        {
+            const int2 center = int2(clamp(floor(sampleUv * float2(srcW, srcH)), 0.0,
+                                           float2(srcW - 1, srcH - 1)));
+            gTarget[id.xy] = DownsampleLoadClamped(center, srcW, srcH);
             return;
         }
 

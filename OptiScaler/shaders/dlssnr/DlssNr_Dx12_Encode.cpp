@@ -238,6 +238,8 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
             down.Mode = DlssNrMode_Downsample;
             down.Width = workWidth;
             down.Height = workHeight;
+            // Mode-local selector: Transfer is otherwise unused by the downsample pass.
+            down.Transfer = std::min(cfg.DlssNrProxyDownscaleFilter.value_or_default(), 4u);
             shader.DispatchPass(cmdList, down, modelInput, nullptr, nullptr, nullptr, nullptr, nr.colorSmall, nullptr);
             Barrier(cmdList, nr.colorSmall, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                     D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);

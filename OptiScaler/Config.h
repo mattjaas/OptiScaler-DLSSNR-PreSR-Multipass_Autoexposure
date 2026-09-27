@@ -351,6 +351,10 @@ class Config
     // Model width/height scale; composition remains at the input size.
     CustomOptional<float> DlssNrWorkingScale { 1.0f };
 
+    // Filter used to reduce the ordinary full-resolution proxy before NR below 100%.
+    // 0 area (legacy), 1 bilinear, 2 Catmull-Rom, 3 Lanczos2, 4 point/nearest.
+    CustomOptional<uint32_t> DlssNrProxyDownscaleFilter { 0 };
+
     CustomOptional<bool> DlssNrSpatialCompression { false };
     CustomOptional<float> DlssNrSpatialCenterX { 80.0f };
     CustomOptional<float> DlssNrSpatialCenterY { 80.0f };
