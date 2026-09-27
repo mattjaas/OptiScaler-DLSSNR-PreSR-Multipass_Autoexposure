@@ -574,8 +574,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     }
 
     // Close/submit the owned direct NR list and join the async reference only at the resolve seam.
-    // This helper is deliberately available to early-failure paths too, so a submitted compute copy
-    // can never outlive the slot fence that protects its per-frame resources.
+    // This helper is deliberately available to early-failure paths too, so submitted compute detail
+    // work can never outlive the slot fence that protects its per-frame resources.
     const auto finishAsyncNr = [&]() -> bool
     {
         if (!asyncDetailActive || asyncNrSubmitted)
@@ -587,7 +587,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             cmdList = resolveCmd;
             nr.failed = true;
             nr.reason = "the async NR command list could not be closed";
-            // Detail/copy work may already be executing. Put its completion behind the slot fence.
+            // Detail work may already be executing. Put its completion behind the slot fence.
             timingQueue->Wait(late.asyncDetailFence.Get(), asyncDetailDoneValue);
             asyncSlot->done = std::max(asyncSlot->done, asyncSlot->ready) + 1;
             if (SUCCEEDED(timingQueue->Signal(asyncSlot->fence.Get(), asyncSlot->done)))
