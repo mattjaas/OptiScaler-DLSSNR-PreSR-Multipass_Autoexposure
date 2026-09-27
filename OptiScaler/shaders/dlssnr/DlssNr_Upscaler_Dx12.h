@@ -13,7 +13,8 @@ struct PrivateUpscalerCreateDx12
 {
     unsigned width = 0, height = 0, outputWidth = 0, outputHeight = 0;
     int quality = 0;
-    int dlssPreset = 0;
+    // Negative leaves the private DLSS feature's preset hints untouched.
+    int dlssPreset = -1;
     bool depthInverted = false, jitteredMotion = false, lowResolutionMotion = true;
     bool rayReconstruction = false;
     unsigned roughnessMode = 0, hardwareDepth = 1;

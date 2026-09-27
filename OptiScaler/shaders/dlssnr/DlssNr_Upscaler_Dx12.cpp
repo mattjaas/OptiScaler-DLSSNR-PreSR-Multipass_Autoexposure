@@ -181,7 +181,7 @@ struct PrivateUpscalerDx12::Impl
             p->Set(NVSDK_NGX_Parameter_CreationNodeMask, 1u);
             p->Set(NVSDK_NGX_Parameter_VisibilityNodeMask, 1u);
             p->Set(NVSDK_NGX_Parameter_PerfQualityValue, info.quality);
-            if (!info.rayReconstruction)
+            if (!info.rayReconstruction && info.dlssPreset >= 0)
             {
                 unsigned preset = static_cast<unsigned>(info.dlssPreset);
                 switch (preset)
