@@ -164,15 +164,17 @@ void RenderInput(Config* config)
     if (scalePercent < 100 && !config->DlssNrSpatialCompression.value_or_default())
     {
         static const char* proxyDownNames[] = { "Area (current)", "Bilinear", "Catmull-Rom", "Lanczos2",
-                                                "Point / nearest" };
-        int filter = (int) std::min(config->DlssNrProxyDownscaleFilter.value_or_default(), 4u);
+                                                "Point / nearest", "FSR1", "Bicubic", "Lanczos3", "Kaiser2",
+                                                "Kaiser3", "MAGIC", "SSIM Sharp (experimental)" };
+        int filter = (int) std::min(config->DlssNrProxyDownscaleFilter.value_or_default(), 11u);
         if (ImGui::Combo("Proxy downscale filter", &filter, proxyDownNames, IM_ARRAYSIZE(proxyDownNames)))
             config->DlssNrProxyDownscaleFilter = (uint32_t) filter;
 
         HelpMarker("Filter used only to shrink the full-resolution proxy before NR below 100%. "
-                   "Area is the existing exact area-weighted filter. Bilinear, Catmull-Rom, Lanczos2 and point "
-                   "progressively trade anti-aliasing for preservation of high-frequency structure. "
-                   "Spatial compression uses its own warp and is not affected.");
+                   "FSR1, Bicubic, Catmull-Rom, Lanczos2/3, Kaiser2/3 and MAGIC reuse the exact existing "
+                   "Output Scaling downscalers. Area preserves the current behaviour; Bilinear and Point are "
+                   "simple references. SSIM Sharp is an experimental local structural-contrast variant tuned "
+                   "to keep more high-frequency structure. Spatial compression is unaffected.");
     }
 
     if (scalePercent > 100)
