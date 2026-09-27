@@ -587,6 +587,49 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         lifetime.Record(cmdList);
         prepareOwnedGuides(cmdList);
     }
+
+    // Close/submit the owned direct NR list and join the async reference only at the resolve seam.
+    // This helper is deliberately available to early-failure paths too, so a submitted compute copy
+    // can never outlive the slot fence that protects its per-frame resources.
+    const auto finishAsyncNr = [&]() -> bool
+    {
+        if (!asyncDetailActive || asyncNrSubmitted)
+            return true;
+        restoreOwnedGuides(cmdList);
+        asyncNrSubmitted = true;
+        if (FAILED(cmdList->Close()))
+        {
+            cmdList = resolveCmd;
+            nr.failed = true;
+            nr.reason = "the async NR command list could not be closed";
+            // Detail/copy work may already be executing. Put its completion behind the slot fence.
+            timingQueue->Wait(late.asyncDetailFence.Get(), asyncDetailDoneValue);
+            asyncSlot->done = std::max(asyncSlot->done, asyncSlot->ready) + 1;
+            if (SUCCEEDED(timingQueue->Signal(asyncSlot->fence.Get(), asyncSlot->done)))
+                asyncSlot->asyncProvisional = true;
+            return false;
+        }
+        ID3D12CommandList* nrLists[] = { asyncSlot->asyncNrCommands.Get() };
+        timingQueue->ExecuteCommandLists(1, nrLists);
+        if (FAILED(timingQueue->Wait(late.asyncDetailFence.Get(), asyncDetailDoneValue)))
+        {
+            cmdList = resolveCmd;
+            nr.failed = true;
+            nr.reason = "the direct queue could not wait for the async P50 detail reference";
+            return false;
+        }
+        asyncSlot->done = std::max(asyncSlot->done, asyncSlot->ready) + 1;
+        if (FAILED(timingQueue->Signal(asyncSlot->fence.Get(), asyncSlot->done)))
+        {
+            cmdList = resolveCmd;
+            nr.failed = true;
+            nr.reason = "the direct queue could not protect async P50 detail work";
+            return false;
+        }
+        asyncSlot->asyncProvisional = true;
+        cmdList = resolveCmd;
+        return true;
+    };
     if (spatial && !encoded.encodeSucceeded)
     {
         nr.spatialFallback = true;
@@ -617,7 +660,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         FinishColor(false);
         EndGpuTiming(cmdList);
-        restoreOwnedGuides(cmdList);
+        if (asyncDetailActive)
+            finishAsyncNr();
+        else
+            restoreOwnedGuides(cmdList);
         if (depthIn == nr.depthClone)
             Barrier(cmdList, nr.depthClone, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                     D3D12_RESOURCE_STATE_COPY_DEST);
@@ -652,6 +698,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
             FinishColor(false);
             EndGpuTiming(cmdList);
+            if (ownsFinishedPrep)
+                restoreOwnedGuides(cmdList);
             if (originalDepthIn == nr.depthClone)
                 Barrier(cmdList, nr.depthClone, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                         D3D12_RESOURCE_STATE_COPY_DEST);
@@ -799,47 +847,6 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     bool clampReadable = false;
     bool clampFailed = false;
     uint32_t clampSlots[2] = { UINT32_MAX, UINT32_MAX };
-
-    const auto finishAsyncNr = [&]() -> bool
-    {
-        if (!asyncDetailActive || asyncNrSubmitted)
-            return true;
-        restoreOwnedGuides(cmdList);
-        asyncNrSubmitted = true;
-        if (FAILED(cmdList->Close()))
-        {
-            outputReadable = scratchReadable = clampReadable = false;
-            cmdList = resolveCmd;
-            nr.failed = true;
-            nr.reason = "the async NR command list could not be closed";
-            // The compute list is already in flight. Order its completion before the slot lifetime fence.
-            timingQueue->Wait(late.asyncDetailFence.Get(), asyncDetailDoneValue);
-            asyncSlot->done = std::max(asyncSlot->done, asyncSlot->ready) + 1;
-            if (SUCCEEDED(timingQueue->Signal(asyncSlot->fence.Get(), asyncSlot->done)))
-                asyncSlot->asyncProvisional = true;
-            return false;
-        }
-        ID3D12CommandList* nrLists[] = { asyncSlot->asyncNrCommands.Get() };
-        timingQueue->ExecuteCommandLists(1, nrLists);
-        if (FAILED(timingQueue->Wait(late.asyncDetailFence.Get(), asyncDetailDoneValue)))
-        {
-            cmdList = resolveCmd;
-            nr.failed = true;
-            nr.reason = "the direct queue could not wait for the async P50 detail reference";
-            return false;
-        }
-        asyncSlot->done = std::max(asyncSlot->done, asyncSlot->ready) + 1;
-        if (FAILED(timingQueue->Signal(asyncSlot->fence.Get(), asyncSlot->done)))
-        {
-            cmdList = resolveCmd;
-            nr.failed = true;
-            nr.reason = "the direct queue could not protect async P50 detail work";
-            return false;
-        }
-        asyncSlot->asyncProvisional = true;
-        cmdList = resolveCmd;
-        return true;
-    };
 
     const auto MakeModelReadable = [&](ID3D12Resource* resource)
     {
