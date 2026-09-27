@@ -48,7 +48,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                                                            ID3D12Resource* depth, ID3D12Resource* motion,
                                                            const DlssNrFrameInfo& frame, const DlssNrConstants& resolve,
                                                            uint32_t transfer, bool reset,
-                                                           ID3D12CommandQueue* timingQueue)
+                                                           ID3D12CommandQueue* timingQueue,
+                                                           bool externalDetailReference)
 {
     auto say = [&](const std::string& message) -> ID3D12Resource*
     {
@@ -189,13 +190,13 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     g.lifetime.Record(cmd);
 
     bool detailReady = direct && directDetailMode != 0;
-    if (detailReady && (!g.detailInfo || !g.detailReference))
+    if (detailReady && (!g.detailInfo || (!externalDetailReference && !g.detailReference)))
     {
         if (!g.detailInfo)
             g.detailInfo.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, w, h));
-        if (!g.detailReference)
+        if (!externalDetailReference && !g.detailReference)
             g.detailReference.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, g.outW, g.outH));
-        if (!g.detailInfo || !g.detailReference)
+        if (!g.detailInfo || (!externalDetailReference && !g.detailReference))
         {
             static bool warnedDetailAlloc = false;
             if (!warnedDetailAlloc)
@@ -271,7 +272,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     if (g.readable)
         Barrier(cmd, g.output.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    if (detailReady && g.detailReferenceReadable)
+    if (detailReady && !externalDetailReference && g.detailReferenceReadable)
     {
         Barrier(cmd, g.detailReference.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -335,8 +336,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         g.readable = true;
     }
 
-    bool detailReferenceOk = !detailReady;
-    if (detailReady)
+    bool detailReferenceOk = !detailReady || externalDetailReference;
+    if (detailReady && !externalDetailReference)
     {
         if (detailReferenceUpscaler == 9)
         {
