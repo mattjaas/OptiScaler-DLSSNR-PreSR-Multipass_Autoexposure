@@ -17,7 +17,7 @@ jobs:
       - name: Checkout release source
         uses: actions/checkout@v6
         with:
-          ref: deba55639b5cce1267ad99bd6cbe4de5db5dc79e
+          ref: b8c6b91227745542fb8c2b009412623a0b25e4f4
           submodules: false
           fetch-depth: 0
 
@@ -43,11 +43,11 @@ jobs:
           $tag = "rdr2-pr94-pr109-area-async-opt-20260927"
           $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-area-async-opt-20260927.zip"
           $notes = @"
-          Built from exact source commit deba55639b5cce1267ad99bd6cbe4de5db5dc79e.
+          Built from exact source commit b8c6b91227745542fb8c2b009412623a0b25e4f4.
 
           Changes:
           - Removed the redundant successful-frame direct-queue Signal before the final async resolve. Failure-only fence protection remains.
           - Added Area to the Direct NR output and P50 -> P100 detail-reference upscaler selectors.
           - Area reuses the existing exact area-weighted resize path: P50 -> P100 is effectively Point/Nearest, while non-integer ratios such as P60 -> P100 blend by covered pixel area.
           "@
-          gh release create $tag $asset --target deba55639b5cce1267ad99bd6cbe4de5db5dc79e --title "OptiScaler NR - Area + async optimization" --notes $notes
+          gh release create $tag $asset --target b8c6b91227745542fb8c2b009412623a0b25e4f4 --title "OptiScaler NR - Area + async optimization" --notes $notes
