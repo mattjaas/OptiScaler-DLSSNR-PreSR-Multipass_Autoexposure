@@ -246,6 +246,21 @@ void RenderInput(Config* config)
                     HelpMarker("Only affects detection of detail lost by P100 -> P50. Bilinear matches the previous "
                                "implementation. DLSS uses a separate private temporal history from the NR output.");
 
+                    static const char* detailExecutionNames[] = { "Auto", "Serial", "Async compute" };
+                    int detailExecution =
+                        (int) std::min(config->DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
+                    ImGui::BeginDisabled(referenceUpscaler == 9);
+                    if (ImGui::Combo("P50 detail reference execution", &detailExecution, detailExecutionNames,
+                                     IM_ARRAYSIZE(detailExecutionNames)))
+                        config->DlssNrDirectDetailReferenceExecutionMode = (uint32_t) detailExecution;
+                    ImGui::EndDisabled();
+                    HelpMarker("Serial keeps the previous path unchanged. Auto overlaps a non-DLSS P50 -> "
+                               "P100 reference only when OptiScaler owns/controls the DX12 command submission "
+                               "(including Finished Picture and independent bridge paths). Explicit Async compute also "
+                               "allows the native caller-owned DX12 list to be split early; that native override is "
+                               "experimental because a game may enqueue queue-level waits only after recording. "
+                               "Unsupported cases still fall back to Serial. A DLSS detail reference is always Serial.");
+
                     if (detailMode == 2)
                         Slider("NR gate strength", config->DlssNrDirectDetailMaskStrength, 0.0f, 100.0f, "%.0f%%",
                                100.0f);

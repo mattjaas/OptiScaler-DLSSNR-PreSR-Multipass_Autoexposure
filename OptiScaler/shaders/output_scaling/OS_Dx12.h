@@ -22,7 +22,8 @@ class OS_Dx12 : public Shader_Dx12
     Scaler _scalerOverride;
     Scaler ActiveScaler() const;
     bool DispatchWithSize(ID3D12GraphicsCommandList* commandList, ID3D12Resource* source, ID3D12Resource* output,
-                          uint32_t sourceWidth, uint32_t sourceHeight, uint32_t outputWidth, uint32_t outputHeight);
+                          uint32_t sourceWidth, uint32_t sourceHeight, uint32_t outputWidth, uint32_t outputHeight,
+                          bool measureGpuTime = true);
 
     FrameDescriptorHeap _frameHeaps[OS_NUM_OF_HEAPS];
 
@@ -38,7 +39,8 @@ class OS_Dx12 : public Shader_Dx12
     void SetBufferState(ID3D12GraphicsCommandList* InCommandList, D3D12_RESOURCE_STATES InState);
     bool Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource, ID3D12Resource* OutResource);
     // Resample complete, independently sized resources without consulting the game's active feature.
-    bool DispatchResources(ID3D12GraphicsCommandList* commandList, ID3D12Resource* source, ID3D12Resource* output);
+    bool DispatchResources(ID3D12GraphicsCommandList* commandList, ID3D12Resource* source, ID3D12Resource* output,
+                           bool measureGpuTime = true);
 
     ID3D12Resource* Buffer() { return _buffer; }
     bool IsUpsampling() const { return _upsample; }

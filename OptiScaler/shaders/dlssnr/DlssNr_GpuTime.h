@@ -13,7 +13,8 @@ class DlssNrGpuTime
     struct Sample
     {
         Microsoft::WRL::ComPtr<ID3D12Fence> fence;
-        ID3D12CommandList* commands = nullptr; // identity only
+        ID3D12CommandList* beginCommands = nullptr; // identity only
+        ID3D12CommandList* endCommands = nullptr;   // identity only
         UINT64 value = 0, frequency = 0, sequence = 0;
         bool occupied = false, ended = false, submitted = false;
     };
@@ -102,10 +103,11 @@ class DlssNrGpuTime
             auto& s = samples[i];
             if (s.occupied)
                 continue;
-            s.commands = cmd;
+            s.beginCommands = cmd;
+            s.endCommands = nullptr;
             ID3D12GraphicsCommandList* real = nullptr;
             if (Util::CheckForRealObject(__FUNCTION__, cmd, (IUnknown**) &real))
-                s.commands = real;
+                s.beginCommands = real;
             s.occupied = true;
             s.ended = s.submitted = false;
             s.sequence = ++sequence;
@@ -124,6 +126,10 @@ class DlssNrGpuTime
         cmd->EndQuery(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, i * 2 + 1);
         cmd->ResolveQueryData(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, i * 2, 2, readback.Get(),
                               i * 2 * sizeof(UINT64));
+        samples[i].endCommands = cmd;
+        ID3D12GraphicsCommandList* real = nullptr;
+        if (Util::CheckForRealObject(__FUNCTION__, cmd, (IUnknown**) &real))
+            samples[i].endCommands = real;
         samples[i].ended = true;
         recording = -1;
     }
@@ -135,7 +141,7 @@ class DlssNrGpuTime
             if (!s.occupied || !s.ended || s.submitted)
                 continue;
             for (UINT i = 0; i < count; ++i)
-                if (lists[i] == s.commands)
+                if (lists[i] == s.endCommands)
                 {
                     if (FAILED(queue->GetTimestampFrequency(&s.frequency)))
                         s.frequency = 0;
@@ -152,7 +158,7 @@ class DlssNrGpuTime
     void ResetRecording(ID3D12CommandList* cmd)
     {
         for (auto& s : samples)
-            if (s.occupied && !s.submitted && s.commands == cmd)
+            if (s.occupied && !s.submitted && (s.beginCommands == cmd || s.endCommands == cmd))
                 s.occupied = false;
     }
 

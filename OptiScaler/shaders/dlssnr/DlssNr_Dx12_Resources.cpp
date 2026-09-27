@@ -81,7 +81,7 @@ bool DlssNr_Dx12::State::PrepareSpatialResources(ID3D12Device* device, const Dls
 }
 
 auto DlssNr_Dx12::State::CreateScratch(ID3D12Device* device, DXGI_FORMAT format, unsigned int width,
-                                       unsigned int height) -> ID3D12Resource*
+                                       unsigned int height, D3D12_RESOURCE_FLAGS flags) -> ID3D12Resource*
 {
     D3D12_HEAP_PROPERTIES heap {};
     heap.Type = D3D12_HEAP_TYPE_DEFAULT;
@@ -95,8 +95,7 @@ auto DlssNr_Dx12::State::CreateScratch(ID3D12Device* device, DXGI_FORMAT format,
     desc.Format = format;
     desc.SampleDesc.Count = 1;
     desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    // The model writes its result, so the destination has to be a UAV.
-    desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+    desc.Flags = flags;
 
     ID3D12Resource* res = nullptr;
     device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr,

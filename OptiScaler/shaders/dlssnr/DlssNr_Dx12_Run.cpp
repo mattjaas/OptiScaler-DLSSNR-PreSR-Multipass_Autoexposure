@@ -1,9 +1,29 @@
 #include "pch.h"
 #include "DlssNr_Dx12_State.h"
 
+namespace
+{
+Scaler AsyncDetailSpatialScaler(uint32_t index)
+{
+    switch (index)
+    {
+    case 1: return Scaler::Bicubic;
+    case 2: return Scaler::CatmullRom;
+    case 3: return Scaler::Lanczos2;
+    case 4: return Scaler::Lanczos3;
+    case 5: return Scaler::Kaiser2;
+    case 6: return Scaler::Kaiser3;
+    case 7: return Scaler::Magic;
+    case 8: return Scaler::FSR1;
+    default: return Scaler::Count;
+    }
+}
+} // namespace
+
 auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* colour, ID3D12Resource* depth,
                              ID3D12Resource* motion, ID3D12Resource* output, const DlssNrFrameInfo& frame,
-                             ID3D12CommandQueue* timingQueue) -> void
+                             ID3D12CommandQueue* timingQueue, LateContext::Slot* asyncSlot,
+                             ID3D12Resource* finishedEncodedColor, bool asyncOwnsFinishedPrep) -> void
 {
     std::lock_guard<std::recursive_mutex> nrLock(mutex);
     const Config& cfg = *Config::Instance();
@@ -17,6 +37,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     }
 
     ID3D12Resource* target = output;
+    ID3D12GraphicsCommandList* const resolveCmd = cmdList;
+    const bool ownsFinishedPrep = asyncSlot != nullptr && asyncOwnsFinishedPrep;
+    const bool ownsPrivateAsyncLists = asyncSlot != nullptr;
 
     // Guard creation and dispatch together: either can record GPU work and alter compute bindings.
     const bool restoreRequired =
@@ -172,6 +195,196 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     if (!PrepareRunModels(cmdList, device, frame, desc, { width, height }, { modelWidth, modelHeight }, workScale,
                           requestedPasses, spatial))
         return;
+
+    const uint32_t detailExecution =
+        std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
+    const uint32_t detailReferenceSelector =
+        std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u);
+
+    // Async detail reconstruction and NR are both read-only consumers of the same P50 image. Give only
+    // that P50 scratch simultaneous-access semantics while async is requested, so the two queues can share
+    // it directly instead of copying the whole P50 raster every frame. Serial recreates the ordinary
+    // non-simultaneous texture, preserving the previous resource policy and its compression/cache behaviour.
+    const bool wantSharedP50 =
+        ownsPrivateAsyncLists && detailExecution != 1 && frame.IndependentCommands && !spatial && workScale < 0.999f &&
+        cfg.DlssNrTransfer.value_or_default() == 5 && cfg.DlssNrDirectDetailRecovery.value_or_default() != 0 &&
+        detailReferenceSelector < 9 && timingQueue && timingQueue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT &&
+        !late.asyncDetailQueueFailed;
+
+    if (reduced && !spatial)
+    {
+        const bool hasSharedP50 =
+            nr.colorSmall &&
+            (nr.colorSmall->GetDesc().Flags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS) != 0;
+        if (!nr.colorSmall || hasSharedP50 != wantSharedP50)
+        {
+            if (nr.colorSmall)
+                ParkNrResource(nr.colorSmall);
+            auto flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+            if (wantSharedP50)
+                flags |= D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
+            nr.colorSmall = CreateScratch(device, desc.Format, workWidth, workHeight, flags);
+        }
+    }
+
+    bool asyncDetailActive =
+        wantSharedP50 && nr.colorSmall != nullptr && !cfg.DlssNrHoldFrame.value_or_default() &&
+        cfg.DlssNrDebugView.value_or_default() == 0 && cfg.DlssNrCompare.value_or_default() == 0 &&
+        !cfg.DlssNrShowSkinMask.value_or_default() && !captureFrames.isActive() &&
+        !::State::Instance().isShuttingDown;
+    bool asyncExternalDetail = false;
+    bool asyncNrSubmitted = false;
+    uint64_t asyncDetailDoneValue = 0;
+    bool ownedGuidesReadable = false;
+
+    const auto closeAsyncLists = [&]()
+    {
+        if (!asyncSlot)
+            return;
+        for (auto* list : { asyncSlot->asyncPrefixCommands.Get(), asyncSlot->asyncDetailCommands.Get(),
+                            asyncSlot->asyncNrCommands.Get() })
+            if (list)
+                list->Close();
+    };
+
+    if (asyncDetailActive)
+    {
+        ID3D12CommandQueue* realQueue = nullptr;
+        auto* directIdentity = timingQueue;
+        if (timingQueue && Util::CheckForRealObject(__FUNCTION__, timingQueue, (IUnknown**) &realQueue))
+            directIdentity = realQueue;
+        Microsoft::WRL::ComPtr<ID3D12Device> queueDevice;
+        if (!timingQueue || timingQueue->GetDesc().Type != D3D12_COMMAND_LIST_TYPE_DIRECT ||
+            FAILED(timingQueue->GetDevice(IID_PPV_ARGS(&queueDevice))) || queueDevice.Get() != device ||
+            (late.asyncDirectQueue && late.asyncDirectQueue.Get() != directIdentity) || late.asyncDetailQueueFailed)
+        {
+            asyncDetailActive = false;
+        }
+        else
+        {
+            if (!late.asyncDetailQueue)
+            {
+                D3D12_COMMAND_QUEUE_DESC q {};
+                q.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+                if (FAILED(device->CreateCommandQueue(&q, IID_PPV_ARGS(&late.asyncDetailQueue))) ||
+                    FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&late.asyncP50Fence))) ||
+                    FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&late.asyncDetailFence))))
+                {
+                    late.asyncDetailQueue.Reset();
+                    late.asyncP50Fence.Reset();
+                    late.asyncDetailFence.Reset();
+                    late.asyncDetailQueueFailed = true;
+                    asyncDetailActive = false;
+                }
+                else
+                {
+                    late.asyncDirectQueue = directIdentity;
+                    LOG_INFO("DLSS-NR P50 detail reference: separate async compute queue created.");
+                }
+            }
+            else if (!late.asyncDirectQueue)
+                late.asyncDirectQueue = directIdentity;
+
+            const auto resetList = [&](D3D12_COMMAND_LIST_TYPE type,
+                                       Microsoft::WRL::ComPtr<ID3D12CommandAllocator>& allocator,
+                                       Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>& list) -> bool
+            {
+                if (!allocator && FAILED(device->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator))))
+                    return false;
+                if (!list)
+                {
+                    if (FAILED(device->CreateCommandList(0, type, allocator.Get(), nullptr, IID_PPV_ARGS(&list))))
+                        return false;
+                    if (FAILED(list->Close()))
+                        return false;
+                }
+                return SUCCEEDED(allocator->Reset()) && SUCCEEDED(list->Reset(allocator.Get(), nullptr));
+            };
+
+            if (asyncDetailActive &&
+                (!resetList(D3D12_COMMAND_LIST_TYPE_DIRECT, asyncSlot->asyncPrefixAllocator,
+                            asyncSlot->asyncPrefixCommands) ||
+                 !resetList(D3D12_COMMAND_LIST_TYPE_COMPUTE, asyncSlot->asyncDetailAllocator,
+                            asyncSlot->asyncDetailCommands) ||
+                 !resetList(D3D12_COMMAND_LIST_TYPE_DIRECT, asyncSlot->asyncNrAllocator, asyncSlot->asyncNrCommands)))
+            {
+                closeAsyncLists();
+                asyncDetailActive = false;
+            }
+
+            if (asyncDetailActive)
+            {
+                if (asyncSlot->asyncDetailReference)
+                {
+                    const auto have = asyncSlot->asyncDetailReference->GetDesc();
+                    if (have.Width != width || have.Height != height ||
+                        have.Format != DXGI_FORMAT_R16G16B16A16_FLOAT)
+                    {
+                        asyncSlot->asyncDetailReference.Reset();
+                        asyncSlot->asyncDetailScaler.reset();
+                        asyncSlot->asyncDetailScalerSelector = UINT32_MAX;
+                        asyncSlot->asyncDetailReferenceReadable = false;
+                    }
+                }
+                if (!asyncSlot->asyncDetailReference)
+                    asyncSlot->asyncDetailReference.Attach(
+                        CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height));
+                if (!asyncSlot->asyncDetailReference)
+                {
+                    closeAsyncLists();
+                    asyncDetailActive = false;
+                }
+                else if (asyncSlot->asyncDetailScalerSelector != detailReferenceSelector)
+                {
+                    asyncSlot->asyncDetailScaler.reset();
+                    asyncSlot->asyncDetailScalerSelector = detailReferenceSelector;
+                }
+            }
+        }
+    }
+
+    if (ownsPrivateAsyncLists && detailExecution == 2 && !asyncDetailActive)
+    {
+        static bool warnedForcedAsyncFallback = false;
+        if (!warnedForcedAsyncFallback)
+        {
+            warnedForcedAsyncFallback = true;
+            LOG_WARN("DLSS-NR P50 detail reference: Async compute requested but this path cannot be split; using Serial.");
+        }
+    }
+
+    const auto convertFinishedInput = [&](ID3D12GraphicsCommandList* list) -> bool
+    {
+        if (!finishedEncodedColor)
+            return true;
+        DlssNrConstants conversion {};
+        conversion.Width = width;
+        conversion.Height = height;
+        Barrier(list, finishedEncodedColor, D3D12_RESOURCE_STATE_PRESENT,
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        const bool ok =
+            shader.DispatchResidualPass(list, conversion, finishedEncodedColor, nullptr, nullptr, nullptr, target, true);
+        Barrier(list, finishedEncodedColor, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_PRESENT);
+        return ok;
+    };
+
+    const auto prepareOwnedGuides = [&](ID3D12GraphicsCommandList* list)
+    {
+        if (!ownsFinishedPrep || ownedGuidesReadable)
+            return;
+        Barrier(list, depth, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        Barrier(list, motion, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        ownedGuidesReadable = true;
+    };
+    const auto restoreOwnedGuides = [&](ID3D12GraphicsCommandList* list)
+    {
+        if (!ownedGuidesReadable)
+            return;
+        Barrier(list, motion, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+        Barrier(list, depth, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+        ownedGuidesReadable = false;
+    };
     // The parameter adapter already combined the HDR flag with the active color format.
     const bool isHdrBuffer = frame.ColourIsLinearHdr;
 
@@ -214,7 +427,29 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     if (ngxTime == nullptr)
         ngxTime = std::make_unique<DlssNrGpuTime>(device);
 
-    gpuTime->Start(cmdList);
+    if (asyncDetailActive && !convertFinishedInput(asyncSlot->asyncPrefixCommands.Get()))
+    {
+        closeAsyncLists();
+        asyncDetailActive = false;
+    }
+    if (!asyncDetailActive)
+    {
+        if (ownsFinishedPrep)
+        {
+            if (!convertFinishedInput(resolveCmd))
+            {
+                ReportSkipOnce("the finished HDR input could not be decoded for NR");
+                return;
+            }
+            prepareOwnedGuides(resolveCmd);
+        }
+        gpuTime->Start(resolveCmd);
+    }
+    else
+    {
+        // Keep PQ/scRGB conversion outside the reported NR interval, matching the serial finished-picture path.
+        gpuTime->Start(asyncSlot->asyncPrefixCommands.Get());
+    }
 
     // Copy just the live image, not the stale right/bottom margins. Do this only after model
     // creation/pending-submission early returns, and inside the measured GPU interval. The compact
@@ -251,9 +486,135 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         }
     };
 
-    EncodeContext encoded { cmdList, device, target, targetState, frame, workScale, targetSupportsUav, spatial };
+    auto* encodeCmd = asyncDetailActive ? asyncSlot->asyncPrefixCommands.Get() : resolveCmd;
+    EncodeContext encoded { encodeCmd, device, target, targetState, frame, workScale, targetSupportsUav, spatial };
     EncodeInput(encoded);
     targetState = encoded.targetState;
+
+    if (asyncDetailActive)
+    {
+        // The prefix already wrote P50 and transitioned it to SRV. Because the async P50 scratch was created
+        // with ALLOW_SIMULTANEOUS_ACCESS, direct NR and the compute detail pass can now read that same texture
+        // concurrently after the prefix fence -- no per-frame CopyResource or duplicate P50 allocation.
+        auto* const sharedDetailInput = encoded.modelInput;
+        auto* detailCmd = asyncSlot->asyncDetailCommands.Get();
+        if (asyncSlot->asyncDetailReferenceReadable)
+        {
+            Barrier(detailCmd, asyncSlot->asyncDetailReference.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            asyncSlot->asyncDetailReferenceReadable = false;
+        }
+
+        bool detailRecorded = false;
+        if (detailReferenceSelector == 0)
+        {
+            DlssNrConstants up {};
+            up.Mode = DlssNrMode_UpscaleBilinear;
+            up.Width = width;
+            up.Height = height;
+            detailRecorded = shader.DispatchPass(detailCmd, up, sharedDetailInput, nullptr, nullptr, nullptr, nullptr,
+                                                 asyncSlot->asyncDetailReference.Get(), nullptr);
+        }
+        else
+        {
+            const Scaler kernel = AsyncDetailSpatialScaler(detailReferenceSelector);
+            if (kernel != Scaler::Count)
+            {
+                if (!asyncSlot->asyncDetailScaler)
+                    asyncSlot->asyncDetailScaler =
+                        std::make_unique<OS_Dx12>("DLSS-NR async P50 detail-reference upscale", device, false, kernel);
+                detailRecorded = asyncSlot->asyncDetailScaler &&
+                                 asyncSlot->asyncDetailScaler->DispatchResources(
+                                     detailCmd, sharedDetailInput, asyncSlot->asyncDetailReference.Get(), false);
+            }
+        }
+        if (detailRecorded)
+        {
+            Barrier(detailCmd, asyncSlot->asyncDetailReference.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            asyncSlot->asyncDetailReferenceReadable = true;
+            asyncExternalDetail = true;
+        }
+
+        if (FAILED(asyncSlot->asyncPrefixCommands->Close()) || FAILED(asyncSlot->asyncDetailCommands->Close()))
+        {
+            late.asyncDetailQueueFailed = true;
+            nr.failed = true;
+            nr.reason = "the async P50 detail-reference command lists could not be closed";
+            ReportSkipOnce(nr.reason);
+            return;
+        }
+
+        ID3D12CommandList* prefixLists[] = { asyncSlot->asyncPrefixCommands.Get() };
+        timingQueue->ExecuteCommandLists(1, prefixLists);
+        const uint64_t p50Ready = ++late.asyncP50Serial;
+        if (FAILED(timingQueue->Signal(late.asyncP50Fence.Get(), p50Ready)) ||
+            FAILED(late.asyncDetailQueue->Wait(late.asyncP50Fence.Get(), p50Ready)))
+        {
+            late.asyncDetailQueueFailed = true;
+            nr.failed = true;
+            nr.reason = "the async P50 detail-reference queues could not be synchronized";
+            return;
+        }
+
+        ID3D12CommandList* detailLists[] = { asyncSlot->asyncDetailCommands.Get() };
+        late.asyncDetailQueue->ExecuteCommandLists(1, detailLists);
+        asyncDetailDoneValue = ++late.asyncDetailSerial;
+        if (FAILED(late.asyncDetailQueue->Signal(late.asyncDetailFence.Get(), asyncDetailDoneValue)))
+        {
+            late.asyncDetailQueueFailed = true;
+            nr.failed = true;
+            nr.reason = "the async P50 detail-reference queue stopped";
+            return;
+        }
+
+        cmdList = asyncSlot->asyncNrCommands.Get();
+        lifetime.Record(cmdList);
+        prepareOwnedGuides(cmdList);
+    }
+
+    // Close/submit the owned direct NR list and join the async reference only at the resolve seam.
+    // This helper is deliberately available to early-failure paths too, so submitted compute detail
+    // work can never outlive the slot fence that protects its per-frame resources.
+    const auto finishAsyncNr = [&]() -> bool
+    {
+        if (!asyncDetailActive || asyncNrSubmitted)
+            return true;
+        restoreOwnedGuides(cmdList);
+        asyncNrSubmitted = true;
+        if (FAILED(cmdList->Close()))
+        {
+            cmdList = resolveCmd;
+            nr.failed = true;
+            nr.reason = "the async NR command list could not be closed";
+            // Detail work may already be executing. Put its completion behind the slot fence.
+            timingQueue->Wait(late.asyncDetailFence.Get(), asyncDetailDoneValue);
+            asyncSlot->done = std::max(asyncSlot->done, asyncSlot->ready) + 1;
+            if (SUCCEEDED(timingQueue->Signal(asyncSlot->fence.Get(), asyncSlot->done)))
+                asyncSlot->asyncProvisional = true;
+            return false;
+        }
+        ID3D12CommandList* nrLists[] = { asyncSlot->asyncNrCommands.Get() };
+        timingQueue->ExecuteCommandLists(1, nrLists);
+        if (FAILED(timingQueue->Wait(late.asyncDetailFence.Get(), asyncDetailDoneValue)))
+        {
+            cmdList = resolveCmd;
+            nr.failed = true;
+            nr.reason = "the direct queue could not wait for the async P50 detail reference";
+            return false;
+        }
+        asyncSlot->done = std::max(asyncSlot->done, asyncSlot->ready) + 1;
+        if (FAILED(timingQueue->Signal(asyncSlot->fence.Get(), asyncSlot->done)))
+        {
+            cmdList = resolveCmd;
+            nr.failed = true;
+            nr.reason = "the direct queue could not protect async P50 detail work";
+            return false;
+        }
+        asyncSlot->asyncProvisional = true;
+        cmdList = resolveCmd;
+        return true;
+    };
     if (spatial && !encoded.encodeSucceeded)
     {
         nr.spatialFallback = true;
@@ -266,6 +627,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         FinishColor(false);
         EndGpuTiming(cmdList);
+        restoreOwnedGuides(cmdList);
         return;
     }
     auto* modelInput = encoded.modelInput;
@@ -283,6 +645,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         FinishColor(false);
         EndGpuTiming(cmdList);
+        if (asyncDetailActive)
+            finishAsyncNr();
+        else
+            restoreOwnedGuides(cmdList);
         if (depthIn == nr.depthClone)
             Barrier(cmdList, nr.depthClone, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                     D3D12_RESOURCE_STATE_COPY_DEST);
@@ -317,6 +683,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
             FinishColor(false);
             EndGpuTiming(cmdList);
+            if (ownsFinishedPrep)
+                restoreOwnedGuides(cmdList);
             if (originalDepthIn == nr.depthClone)
                 Barrier(cmdList, nr.depthClone, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                         D3D12_RESOURCE_STATE_COPY_DEST);
@@ -658,7 +1026,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             auto* enlarged =
                 EnlargeMatchedResidual(cmdList, device, ordinaryProxy, ordinaryAnswer, originalDepthIn,
                                        originalMotionIn, frame, resolveParams, transfer, enlargementReset,
-                                       timingQueue);
+                                       timingQueue, asyncExternalDetail);
             enlargementReady = enlarged != nullptr;
             if (enlarged)
             {
@@ -672,11 +1040,17 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
                     const uint32_t detailMode =
                         std::min(cfg.DlssNrDirectDetailRecovery.value_or_default(), 2u);
+                    ID3D12Resource* selectedDetailReference =
+                        asyncExternalDetail && asyncSlot && asyncSlot->asyncDetailReferenceReadable
+                            ? asyncSlot->asyncDetailReference.Get()
+                            : enlarger && enlarger->detailReference && enlarger->detailReferenceReadable
+                                  ? enlarger->detailReference.Get()
+                                  : nullptr;
                     if (detailMode != 0 && enlarger && enlarger->detailInfo && enlarger->detailReadable &&
-                        enlarger->detailReference && enlarger->detailReferenceReadable)
+                        selectedDetailReference)
                     {
                         directDetailInfo = enlarger->detailInfo.Get();
-                        directDetailReference = enlarger->detailReference.Get();
+                        directDetailReference = selectedDetailReference;
                         resolveParams.DirectDetailMode = detailMode;
                         resolveParams.DirectDetailMaskStrength =
                             std::clamp(cfg.DlssNrDirectDetailMaskStrength.value_or_default() / 100.0f, 0.0f, 1.0f);
@@ -715,6 +1089,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             resolveParams.DebugView = 1;
         }
 
+        const bool asyncSubmissionReady = finishAsyncNr();
+
         // Resolve pre-SR inputs without UAV support through an owned scratch and copy-back.
         ID3D12Resource* resolveOriginal = targetSupportsUav ? nr.hdrCopy : target;
         ID3D12Resource* resolveTarget = targetSupportsUav ? target : nr.hdrCopy;
@@ -730,7 +1106,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         }
 
         const bool resolved =
-            enlargementReady &&
+            enlargementReady && asyncSubmissionReady &&
             shader.DispatchPassAux2(cmdList, resolveParams, resolveProxy, resolveAnswer, resolveOriginal,
                                     encoded.exposure, directDetailInfo, directDetailReference, resolveTarget, nullptr);
         compositionSucceeded = resolved;
@@ -778,6 +1154,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     }
     else if (result != NVSDK_NGX_Result_Success)
     {
+        finishAsyncNr();
         if (spatial)
         {
             nr.spatialFallback = true;
@@ -797,6 +1174,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                       NgxResultName((unsigned int) result));
         }
     }
+
+    if (asyncDetailActive && !asyncNrSubmitted)
+        finishAsyncNr();
 
     // Restore all intermediate surfaces to the UAV state expected by the next frame.
     MakeModelWritable(nr.output);
@@ -836,6 +1216,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     nr.spatialActive = spatial && compositionSucceeded;
 
     EndGpuTiming(cmdList);
+    if (ownsFinishedPrep && !asyncDetailActive)
+        restoreOwnedGuides(resolveCmd);
 
     // Restore guide clones to COPY_DEST for the next frame's refresh.
     if (originalDepthIn == nr.depthClone)
@@ -845,9 +1227,12 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         Barrier(cmdList, nr.motionClone, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_COPY_DEST);
 
-    if (reduced && !spatial && nr.colorSmall != nullptr)
+    if (reduced && !spatial && nr.colorSmall != nullptr &&
+        (nr.colorSmall->GetDesc().Flags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS) == 0)
+    {
         Barrier(cmdList, nr.colorSmall, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    }
 
     // Leave the staging copy as the next frame expects to find it.
     Barrier(cmdList, nr.colorCopy, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
