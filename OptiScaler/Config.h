@@ -338,8 +338,13 @@ class Config
     // 4 Lanczos3, 5 Kaiser2, 6 Kaiser3, 7 Area, 8 MAGIC, 9 FSR1, 10 DLSS.
     // Output defaults to DLSS to preserve the previous Direct-DLSS path.
     CustomOptional<uint32_t> DlssNrDirectOutputUpscaler { 10 };
-    // Upscaled NR residual uses the same selected method for both P50 -> P100 and NR50 -> NR100.
+    // Upscaled NR residual has independent filters for all three resize legs.
+    // Downscale uses the proxy-filter selector (0..11); both upscalers use the Direct selector (0..10).
+    CustomOptional<uint32_t> DlssNrUpscaledResidualDownscaleFilter { 0 };
+    CustomOptional<uint32_t> DlssNrUpscaledResidualReferenceUpscaler { 10 };
     CustomOptional<uint32_t> DlssNrUpscaledResidualUpscaler { 10 };
+    // P50 -> P100 reference execution: 0 Auto, 1 Serial, 2 Async compute.
+    CustomOptional<uint32_t> DlssNrUpscaledResidualReferenceExecutionMode { 0 };
     // Reference used to reconstruct P50 to P100 for lost-detail detection. Bilinear preserves
     // the previous implicit SampleLevel behaviour.
     CustomOptional<uint32_t> DlssNrDirectDetailReferenceUpscaler { 0 };
