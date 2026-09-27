@@ -57,28 +57,30 @@ bool OS_Dx12::Dispatch(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InR
     if (!feature)
         return false;
     return DispatchWithSize(InCmdList, InResource, OutResource, feature->TargetWidth(), feature->TargetHeight(),
-                            feature->DisplayWidth(), feature->DisplayHeight());
+                            feature->DisplayWidth(), feature->DisplayHeight(), true);
 }
 
-bool OS_Dx12::DispatchResources(ID3D12GraphicsCommandList* commandList, ID3D12Resource* source, ID3D12Resource* output)
+bool OS_Dx12::DispatchResources(ID3D12GraphicsCommandList* commandList, ID3D12Resource* source,
+                                ID3D12Resource* output, bool measureGpuTime)
 {
     if (!source || !output)
         return false;
     const auto inputSize = source->GetDesc();
     const auto outputSize = output->GetDesc();
     return DispatchWithSize(commandList, source, output, (uint32_t) inputSize.Width, inputSize.Height,
-                            (uint32_t) outputSize.Width, outputSize.Height);
+                            (uint32_t) outputSize.Width, outputSize.Height, measureGpuTime);
 }
 
 bool OS_Dx12::DispatchWithSize(ID3D12GraphicsCommandList* InCmdList, ID3D12Resource* InResource,
-                               ID3D12Resource* OutResource, uint32_t srcW, uint32_t srcH, uint32_t dstW, uint32_t dstH)
+                               ID3D12Resource* OutResource, uint32_t srcW, uint32_t srcH, uint32_t dstW, uint32_t dstH,
+                               bool measureGpuTime)
 {
     if (!_init || _device == nullptr || InCmdList == nullptr || InResource == nullptr || OutResource == nullptr)
         return false;
 
     LOG_DEBUG("[{0}] Start!", _name);
 
-    ScopedGpuTime_Dx12 scopedGpuTime(GpuTime.get(), InCmdList);
+    ScopedGpuTime_Dx12 scopedGpuTime(measureGpuTime ? GpuTime.get() : nullptr, InCmdList);
 
     _counter++;
     _counter = _counter % OS_NUM_OF_HEAPS;
