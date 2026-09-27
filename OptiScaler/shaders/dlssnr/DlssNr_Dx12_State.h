@@ -149,7 +149,9 @@ struct DlssNr_Dx12::State
     void ReleaseSpatialResources();
     void ReleaseSupersamplers();
 
-    ID3D12Resource* CreateScratch(ID3D12Device* device, DXGI_FORMAT format, unsigned int width, unsigned int height);
+    ID3D12Resource* CreateScratch(
+        ID3D12Device* device, DXGI_FORMAT format, unsigned int width, unsigned int height,
+        D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
     void Barrier(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* res, D3D12_RESOURCE_STATES from,
                  D3D12_RESOURCE_STATES to);
