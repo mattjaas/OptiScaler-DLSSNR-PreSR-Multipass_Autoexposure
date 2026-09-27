@@ -242,8 +242,23 @@ auto DlssNr_Dx12::State::ApplyFinishedColor(ID3D12Resource* color, ID3D12Command
         frame.WhitePointOverride = (pq || scrgb) ? 203.0f / 80.0f : 0.0f;
         frame.Reset |= late.reset;
         frame.SubmissionEpoch = epoch;
-        Barrier(cmd, slot.depth.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-        Barrier(cmd, slot.motion.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        const uint32_t detailExecution =
+            std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
+        const bool requestAsyncDetail =
+            detailExecution != 1 && cfg.DlssNrTransfer.value_or_default() == 5 &&
+            cfg.DlssNrWorkingScale.value_or_default() < 0.999f &&
+            cfg.DlssNrDirectDetailRecovery.value_or_default() != 0 &&
+            std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u) < 9 &&
+            !cfg.DlssNrHoldFrame.value_or_default() && cfg.DlssNrDebugView.value_or_default() == 0 &&
+            cfg.DlssNrCompare.value_or_default() == 0 && !cfg.DlssNrShowSkinMask.value_or_default() &&
+            !captureFrames.isActive() && !::State::Instance().isShuttingDown;
+        if (!requestAsyncDetail)
+        {
+            Barrier(cmd, slot.depth.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            Barrier(cmd, slot.motion.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
+                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        }
         ID3D12Resource* nrColor = color;
         bool colorReady = true;
         DlssNrConstants conversion {};
@@ -263,17 +278,23 @@ auto DlssNr_Dx12::State::ApplyFinishedColor(ID3D12Resource* color, ID3D12Command
             colorReady = ensure(slot.linear, DXGI_FORMAT_R16G16B16A16_FLOAT) && ensure(slot.encoded, desc.Format);
             if (colorReady)
             {
-                Barrier(cmd, color, D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                colorReady = shader.DispatchResidualPass(cmd, conversion, color, nullptr, nullptr, nullptr,
-                                                         slot.linear.Get(), true);
-                Barrier(cmd, color, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_PRESENT);
-                // Dispatch reads the converted colour; its transition out of UAV orders the conversion.
+                if (!requestAsyncDetail)
+                {
+                    Barrier(cmd, color, D3D12_RESOURCE_STATE_PRESENT,
+                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                    colorReady = shader.DispatchResidualPass(cmd, conversion, color, nullptr, nullptr, nullptr,
+                                                             slot.linear.Get(), true);
+                    Barrier(cmd, color, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                            D3D12_RESOURCE_STATE_PRESENT);
+                }
+                // The async path records this conversion on its owned prefix list so P50 can be submitted early.
                 nrColor = slot.linear.Get();
                 frame.OutputArrivalState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
             }
         }
         if (colorReady)
-            Run(cmd, nrColor, slot.depth.Get(), slot.motion.Get(), nrColor, frame, queue);
+            Run(cmd, nrColor, slot.depth.Get(), slot.motion.Get(), nrColor, frame, queue,
+                requestAsyncDetail ? &slot : nullptr, requestAsyncDetail && pq ? color : nullptr);
         if (pq && colorReady && nr.successfulDispatches > before &&
             Config::Instance()->DlssNrApplyModel.value_or_default())
         {
@@ -296,15 +317,21 @@ auto DlssNr_Dx12::State::ApplyFinishedColor(ID3D12Resource* color, ID3D12Command
             Barrier(cmd, slot.linear.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         }
-        Barrier(cmd, slot.motion.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
-        Barrier(cmd, slot.depth.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST);
+        if (!requestAsyncDetail)
+        {
+            Barrier(cmd, slot.motion.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+            Barrier(cmd, slot.depth.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                    D3D12_RESOURCE_STATE_COPY_DEST);
+        }
     }
     if (FAILED(cmd->Close()))
     {
         late.heldFailed |= holdFinished;
         late.Say("Could not finish the picture. Restart the game to retry.");
         slot.pending = true; // quarantine the slot; do not reuse possibly recorded NR resources
-        slot.submitted = false;
+        if (!slot.asyncProvisional)
+            slot.submitted = false;
         return false;
     }
     ID3D12CommandList* lists[] = { cmd };
@@ -316,6 +343,7 @@ auto DlssNr_Dx12::State::ApplyFinishedColor(ID3D12Resource* color, ID3D12Command
         late.Say("The graphics queue stopped. Restart the game to retry.");
         return false;
     }
+    slot.asyncProvisional = false;
     if (holdFinished)
     {
         late.heldFence = slot.fence;

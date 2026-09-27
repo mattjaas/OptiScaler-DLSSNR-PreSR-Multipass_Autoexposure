@@ -340,6 +340,9 @@ class Config
     // Reference used to reconstruct P50 to P100 for lost-detail detection. Bilinear preserves
     // the previous implicit SampleLevel behaviour.
     CustomOptional<uint32_t> DlssNrDirectDetailReferenceUpscaler { 0 };
+    // 0 Auto, 1 Serial, 2 Async compute. Async is only used for non-DLSS P50 references on
+    // an owned DX12 finished-picture path; unsupported cases fall back to Serial.
+    CustomOptional<uint32_t> DlssNrDirectDetailReferenceExecutionMode { 0 };
 
     // Direct-DLSS native detail recovery: 0 off, 1 full lost detail, 2 NR-gated.
     CustomOptional<uint32_t> DlssNrDirectDetailRecovery { 0 };

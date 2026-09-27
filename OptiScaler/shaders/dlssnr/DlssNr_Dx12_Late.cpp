@@ -121,6 +121,7 @@ auto DlssNr_Dx12::State::LateContext::Arm(Slot& slot, ID3D12GraphicsCommandList*
     slot.ready = slot.done + 1;
     slot.done = slot.ready;
     slot.submitted = false;
+    slot.asyncProvisional = false;
     slot.pending = true;
 }
 
