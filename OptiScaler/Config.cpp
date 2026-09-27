@@ -350,7 +350,13 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrTransfer.set_from_config(readUInt("DlssNr", "Transfer"));
             DlssNrScalingDlssPreset.set_from_config(readInt("DlssNr", "ScalingDlssPreset"));
             DlssNrDirectOutputUpscaler.set_from_config(readUInt("DlssNr", "DirectOutputUpscaler"));
+            DlssNrUpscaledResidualDownscaleFilter.set_from_config(
+                readUInt("DlssNr", "UpscaledResidualDownscaleFilter"));
+            DlssNrUpscaledResidualReferenceUpscaler.set_from_config(
+                readUInt("DlssNr", "UpscaledResidualReferenceUpscaler"));
             DlssNrUpscaledResidualUpscaler.set_from_config(readUInt("DlssNr", "UpscaledResidualUpscaler"));
+            DlssNrUpscaledResidualReferenceExecutionMode.set_from_config(
+                readUInt("DlssNr", "UpscaledResidualReferenceExecutionMode"));
             DlssNrDirectDetailReferenceUpscaler.set_from_config(
                 readUInt("DlssNr", "DirectDetailReferenceUpscaler"));
             DlssNrDirectDetailReferenceExecutionMode.set_from_config(
@@ -1314,8 +1320,14 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetIntValue(Instance()->DlssNrScalingDlssPreset.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectOutputUpscaler",
                      GetIntValue(Instance()->DlssNrDirectOutputUpscaler.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "UpscaledResidualDownscaleFilter",
+                     GetIntValue(Instance()->DlssNrUpscaledResidualDownscaleFilter.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "UpscaledResidualReferenceUpscaler",
+                     GetIntValue(Instance()->DlssNrUpscaledResidualReferenceUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "UpscaledResidualUpscaler",
                      GetIntValue(Instance()->DlssNrUpscaledResidualUpscaler.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "UpscaledResidualReferenceExecutionMode",
+                     GetIntValue(Instance()->DlssNrUpscaledResidualReferenceExecutionMode.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailReferenceUpscaler",
                      GetIntValue(Instance()->DlssNrDirectDetailReferenceUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailReferenceExecutionMode",
