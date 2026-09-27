@@ -200,10 +200,35 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
     const uint32_t detailReferenceSelector =
         std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 9u);
-    bool asyncDetailActive =
+
+    // Async detail reconstruction and NR are both read-only consumers of the same P50 image. Give only
+    // that P50 scratch simultaneous-access semantics while async is requested, so the two queues can share
+    // it directly instead of copying the whole P50 raster every frame. Serial recreates the ordinary
+    // non-simultaneous texture, preserving the previous resource policy and its compression/cache behaviour.
+    const bool wantSharedP50 =
         ownsPrivateAsyncLists && detailExecution != 1 && frame.IndependentCommands && !spatial && workScale < 0.999f &&
         cfg.DlssNrTransfer.value_or_default() == 5 && cfg.DlssNrDirectDetailRecovery.value_or_default() != 0 &&
-        detailReferenceSelector < 9 && !cfg.DlssNrHoldFrame.value_or_default() &&
+        detailReferenceSelector < 9 && timingQueue && timingQueue->GetDesc().Type == D3D12_COMMAND_LIST_TYPE_DIRECT &&
+        !late.asyncDetailQueueFailed;
+
+    if (reduced && !spatial)
+    {
+        const bool hasSharedP50 =
+            nr.colorSmall &&
+            (nr.colorSmall->GetDesc().Flags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS) != 0;
+        if (!nr.colorSmall || hasSharedP50 != wantSharedP50)
+        {
+            if (nr.colorSmall)
+                ParkNrResource(nr.colorSmall);
+            auto flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+            if (wantSharedP50)
+                flags |= D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
+            nr.colorSmall = CreateScratch(device, desc.Format, workWidth, workHeight, flags);
+        }
+    }
+
+    bool asyncDetailActive =
+        wantSharedP50 && nr.colorSmall != nullptr && !cfg.DlssNrHoldFrame.value_or_default() &&
         cfg.DlssNrDebugView.value_or_default() == 0 && cfg.DlssNrCompare.value_or_default() == 0 &&
         !cfg.DlssNrShowSkinMask.value_or_default() && !captureFrames.isActive() &&
         !::State::Instance().isShuttingDown;
@@ -289,18 +314,6 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
             if (asyncDetailActive)
             {
-                if (asyncSlot->asyncDetailInput)
-                {
-                    const auto haveInput = asyncSlot->asyncDetailInput->GetDesc();
-                    if (haveInput.Width != workWidth || haveInput.Height != workHeight || haveInput.Format != desc.Format)
-                    {
-                        asyncSlot->asyncDetailInput.Reset();
-                        asyncSlot->asyncDetailInputReadable = false;
-                    }
-                }
-                if (!asyncSlot->asyncDetailInput)
-                    asyncSlot->asyncDetailInput.Attach(CreateScratch(device, desc.Format, workWidth, workHeight));
-
                 if (asyncSlot->asyncDetailReference)
                 {
                     const auto have = asyncSlot->asyncDetailReference->GetDesc();
@@ -316,7 +329,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 if (!asyncSlot->asyncDetailReference)
                     asyncSlot->asyncDetailReference.Attach(
                         CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, width, height));
-                if (!asyncSlot->asyncDetailInput || !asyncSlot->asyncDetailReference)
+                if (!asyncSlot->asyncDetailReference)
                 {
                     closeAsyncLists();
                     asyncDetailActive = false;
@@ -480,24 +493,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
     if (asyncDetailActive)
     {
-        // Stage P50 into a per-slot resource at the tail of the same direct prefix that created it.
-        // The compute queue waits for this prefix fence; the direct queue can then continue straight into NR
-        // without a second cross-queue hand-off, while both queues read different P50 resources.
-        if (asyncSlot->asyncDetailInputReadable)
-            Barrier(encodeCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                    D3D12_RESOURCE_STATE_COPY_DEST);
-        else
-            Barrier(encodeCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                    D3D12_RESOURCE_STATE_COPY_DEST);
-        Barrier(encodeCmd, encoded.modelInput, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                D3D12_RESOURCE_STATE_COPY_SOURCE);
-        encodeCmd->CopyResource(asyncSlot->asyncDetailInput.Get(), encoded.modelInput);
-        Barrier(encodeCmd, encoded.modelInput, D3D12_RESOURCE_STATE_COPY_SOURCE,
-                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-        Barrier(encodeCmd, asyncSlot->asyncDetailInput.Get(), D3D12_RESOURCE_STATE_COPY_DEST,
-                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-        asyncSlot->asyncDetailInputReadable = true;
-
+        // The prefix already wrote P50 and transitioned it to SRV. Because the async P50 scratch was created
+        // with ALLOW_SIMULTANEOUS_ACCESS, direct NR and the compute detail pass can now read that same texture
+        // concurrently after the prefix fence -- no per-frame CopyResource or duplicate P50 allocation.
+        auto* const sharedDetailInput = encoded.modelInput;
         auto* detailCmd = asyncSlot->asyncDetailCommands.Get();
         if (asyncSlot->asyncDetailReferenceReadable)
         {
@@ -513,8 +512,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             up.Mode = DlssNrMode_UpscaleBilinear;
             up.Width = width;
             up.Height = height;
-            detailRecorded = shader.DispatchPass(detailCmd, up, asyncSlot->asyncDetailInput.Get(), nullptr, nullptr,
-                                                 nullptr, nullptr, asyncSlot->asyncDetailReference.Get(), nullptr);
+            detailRecorded = shader.DispatchPass(detailCmd, up, sharedDetailInput, nullptr, nullptr, nullptr, nullptr,
+                                                 asyncSlot->asyncDetailReference.Get(), nullptr);
         }
         else
         {
@@ -524,9 +523,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 if (!asyncSlot->asyncDetailScaler)
                     asyncSlot->asyncDetailScaler =
                         std::make_unique<OS_Dx12>("DLSS-NR async P50 detail-reference upscale", device, false, kernel);
-                detailRecorded = asyncSlot->asyncDetailScaler && asyncSlot->asyncDetailScaler->DispatchResources(
-                                                                  detailCmd, asyncSlot->asyncDetailInput.Get(),
-                                                                  asyncSlot->asyncDetailReference.Get());
+                detailRecorded = asyncSlot->asyncDetailScaler &&
+                                 asyncSlot->asyncDetailScaler->DispatchResources(
+                                     detailCmd, sharedDetailInput, asyncSlot->asyncDetailReference.Get(), false);
             }
         }
         if (detailRecorded)
@@ -1228,9 +1227,12 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         Barrier(cmdList, nr.motionClone, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_COPY_DEST);
 
-    if (reduced && !spatial && nr.colorSmall != nullptr)
+    if (reduced && !spatial && nr.colorSmall != nullptr &&
+        (nr.colorSmall->GetDesc().Flags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS) == 0)
+    {
         Barrier(cmdList, nr.colorSmall, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    }
 
     // Leave the staging copy as the next frame expects to find it.
     Barrier(cmdList, nr.colorCopy, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
