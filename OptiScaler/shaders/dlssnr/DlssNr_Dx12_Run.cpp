@@ -650,6 +650,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         bool enlargementReady = !spatialDownFailed;
         const auto transfer = cfg.DlssNrTransfer.value_or_default();
         bool resizeFieldReadable = false;
+        ID3D12Resource* directDetailInfo = nullptr;
         if (resolveParams.DebugView != 4 && !spatialDownFailed && DlssNrUsesDlssEnlargement(transfer) && reduced &&
             (transfer == 2 || workScale < 1.0f))
         {
@@ -667,6 +668,16 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 {
                     resolveProxy = nr.colorCopy;
                     resolveParams.Transfer = 0;
+
+                    const uint32_t detailMode =
+                        std::min(cfg.DlssNrDirectDetailRecovery.value_or_default(), 2u);
+                    if (detailMode != 0 && enlarger && enlarger->detailInfo && enlarger->detailReadable)
+                    {
+                        directDetailInfo = enlarger->detailInfo.Get();
+                        resolveParams.DirectDetailMode = detailMode;
+                        resolveParams.DirectDetailMaskStrength =
+                            std::clamp(cfg.DlssNrDirectDetailMaskStrength.value_or_default() / 100.0f, 0.0f, 1.0f);
+                    }
                 }
                 else
                 {
@@ -716,8 +727,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         }
 
         const bool resolved =
-            enlargementReady && shader.DispatchPass(cmdList, resolveParams, resolveProxy, resolveAnswer,
-                                                    resolveOriginal, encoded.exposure, nullptr, resolveTarget, nullptr);
+            enlargementReady &&
+            shader.DispatchPass(cmdList, resolveParams, resolveProxy, resolveAnswer, resolveOriginal,
+                                encoded.exposure, directDetailInfo, resolveTarget, nullptr);
         compositionSucceeded = resolved;
         if (resizeFieldReadable)
             Barrier(cmdList, enlarger->input.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
