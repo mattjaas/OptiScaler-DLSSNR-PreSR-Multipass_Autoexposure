@@ -354,6 +354,7 @@ bool Config::Reload(std::filesystem::path iniPath)
                 readUInt("DlssNr", "DirectDetailReferenceUpscaler"));
             DlssNrDirectDetailRecovery.set_from_config(readUInt("DlssNr", "DirectDetailRecovery"));
             DlssNrDirectDetailMaskStrength.set_from_config(readFloat("DlssNr", "DirectDetailMaskStrength"));
+            DlssNrGpuTimeAverageWindowMs.set_from_config(readUInt("DlssNr", "GpuTimeAverageWindowMs"));
 
             DlssNrDebugView.set_from_config(readUInt("DlssNr", "DebugView"));
             DlssNrCompare.set_from_config(readUInt("DlssNr", "Compare"));
@@ -1315,6 +1316,8 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetIntValue(Instance()->DlssNrDirectDetailRecovery.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailMaskStrength",
                      GetFloatValue(Instance()->DlssNrDirectDetailMaskStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GpuTimeAverageWindowMs",
+                     GetIntValue(Instance()->DlssNrGpuTimeAverageWindowMs.value_for_config()).c_str());
 
         ini.SetValue("DlssNr", "DebugView", GetIntValue(Instance()->DlssNrDebugView.value_for_config()).c_str());
         ini.SetValue("DlssNr", "Compare", GetIntValue(Instance()->DlssNrCompare.value_for_config()).c_str());
