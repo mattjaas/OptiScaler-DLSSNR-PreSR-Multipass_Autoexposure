@@ -18,6 +18,18 @@ Scaler AsyncDetailSpatialScaler(uint32_t index)
     default: return Scaler::Count;
     }
 }
+
+bool DirectFusedResolveUpscaler(uint32_t selector)
+{
+    // 0 = bilinear, 7 = Area, 8 = MAGIC, 9 = the branch's current FSR1 path.
+    // Other spatial kernels keep their materialized NR100 fallback until their exact kernels are embedded.
+    return selector == 0 || selector == 7 || selector == 8 || selector == 9;
+}
+
+bool DirectAnswerCanFeedUpscaler(ID3D12Resource* answer)
+{
+    return answer && answer->GetDesc().Format == DXGI_FORMAT_R16G16B16A16_FLOAT;
+}
 } // namespace
 
 auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* colour, ID3D12Resource* depth,
@@ -1049,12 +1061,20 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             if (enlarged)
             {
                 resolveAnswer = enlarged;
-                // Direct DLSS has already enlarged the model answer itself. Pair it with the immutable
-                // full-resolution proxy and run the ordinary native-resolution composition path.
+                // Direct NR pairs the immutable P100 proxy with either a materialized NR100
+                // (private DLSS / legacy spatial fallback) or, for the exact embedded spatial kernels,
+                // the original NR50 sampled and composed in this same resolve dispatch.
                 if (transfer == 5)
                 {
                     resolveProxy = nr.colorCopy;
-                    resolveParams.Transfer = 0;
+
+                    const uint32_t selectedOutputUpscaler =
+                        std::min(cfg.DlssNrDirectOutputUpscaler.value_or_default(), 10u);
+                    const bool fusedDirect =
+                        DirectAnswerCanFeedUpscaler(ordinaryAnswer) &&
+                        DirectFusedResolveUpscaler(selectedOutputUpscaler) && enlarged == ordinaryAnswer;
+                    resolveParams.Transfer = fusedDirect ? 7u : 0u;
+                    resolveParams.DirectResolveUpscaler = selectedOutputUpscaler;
 
                     const uint32_t detailMode =
                         std::min(cfg.DlssNrDirectDetailRecovery.value_or_default(), 2u);
@@ -1064,10 +1084,15 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                             : enlarger && enlarger->detailReference && enlarger->detailReferenceReadable
                                   ? enlarger->detailReference.Get()
                                   : nullptr;
-                    if (detailMode != 0 && enlarger && enlarger->detailInfo && enlarger->detailReadable &&
-                        selectedDetailReference)
+                    const bool detailMaskReady =
+                        detailMode == 1 ||
+                        (enlarger && enlarger->detailInfo && enlarger->detailReadable);
+                    if (detailMode != 0 && detailMaskReady && selectedDetailReference)
                     {
-                        directDetailInfo = enlarger->detailInfo.Get();
+                        // Full-lost-detail intentionally binds no detailInfo; the resolve never samples t4.
+                        // NR-gated mode binds the alpha-only mask.
+                        directDetailInfo =
+                            detailMode == 2 && enlarger ? enlarger->detailInfo.Get() : nullptr;
                         directDetailReference = selectedDetailReference;
                         resolveParams.DirectDetailMode = detailMode;
                         resolveParams.DirectDetailMaskStrength =
