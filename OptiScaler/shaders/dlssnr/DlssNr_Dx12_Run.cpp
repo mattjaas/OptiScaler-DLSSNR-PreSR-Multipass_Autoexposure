@@ -980,7 +980,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         (!spatial && encoded.referenceInput) ? encoded.referenceInput : ordinaryProxy;
 
     // Optional post-NR edge treatment. One small-raster dispatch is paid only while enabled.
-    const uint32_t nrEdgeFilter = std::min(cfg.DlssNrExperimentNrEdgeFilter.value_or_default(), 3u);
+    const uint32_t nrEdgeFilter = std::min(cfg.DlssNrExperimentNrEdgeFilter.value_or_default(), 4u);
     if (!spatial && workScale < 1.0f && ordinaryAnswer &&
         (transferMode == 5u || transferMode == 6u) && nrEdgeFilter != 0u)
     {
