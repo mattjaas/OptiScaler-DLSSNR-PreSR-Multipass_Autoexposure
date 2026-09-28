@@ -247,7 +247,10 @@ void RenderInput(Config* config)
                            "starts from that same restore and suppresses it only where NR50 clearly removed or "
                            "reversed the corresponding P50 local structure.");
 
-                if (detailMode != 0)
+                const bool experimentNeedsReference =
+                    config->DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
+                    config->DlssNrExperimentStructureTransfer.value_or_default() != 0;
+                if (detailMode != 0 || experimentNeedsReference)
                 {
                     if (ImGui::Combo("P50 -> P100 detail reference", &referenceUpscaler, directUpscalerNames,
                                      IM_ARRAYSIZE(directUpscalerNames)))
@@ -311,9 +314,12 @@ void RenderInput(Config* config)
                            "separate temporal history from NR50 -> NR100.");
             }
 
+            const bool directExperimentNeedsReference =
+                config->DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
+                config->DlssNrExperimentStructureTransfer.value_or_default() != 0;
             const bool directUsesDlss =
                 transfer == 5 &&
-                (outputUpscaler == 10 || (detailMode != 0 && referenceUpscaler == 10));
+                (outputUpscaler == 10 || ((detailMode != 0 || directExperimentNeedsReference) && referenceUpscaler == 10));
             const bool upscaledResidualUsesDlss =
                 transfer == 6 && (residualReferenceUpscaler == 10 || residualUpscaler == 10);
             if (transfer == 2 || transfer == 4 || directUsesDlss || upscaledResidualUsesDlss)
@@ -350,6 +356,98 @@ void RenderInput(Config* config)
 
                 HelpMarker("NGX render preset for any private DLSS SR feature used by NR enlargement or P50 "
                            "detail-reference reconstruction.");
+            }
+
+            if ((transfer == 5 || transfer == 6) && ImGui::TreeNode("Detail quality lab (experimental)"))
+            {
+                static const char* inputFilterNames[] = {
+                    "Off", "Uniform softening", "Edge-selective isotropic", "Edge-selective normal"
+                };
+                int inputFilter =
+                    (int) std::min(config->DlssNrExperimentInputFilter.value_or_default(), 3u);
+                if (ImGui::Combo("P50 input preparation", &inputFilter, inputFilterNames,
+                                 IM_ARRAYSIZE(inputFilterNames)))
+                    config->DlssNrExperimentInputFilter = (uint32_t) inputFilter;
+                HelpMarker("Runs after the selected P100 -> reduced proxy filter and before NVIDIA NR. "
+                           "It never blurs P100. The three active modes use one low-resolution compute dispatch.");
+
+                if (inputFilter != 0)
+                {
+                    Slider("Input soften radius", config->DlssNrExperimentInputRadius, 0.25f, 2.0f,
+                           "%.2f px", 0.75f);
+                    Slider("Input soften strength", config->DlssNrExperimentInputStrength, 0.0f, 1.0f,
+                           "%.2f", 1.0f);
+                    if (inputFilter >= 2)
+                        Slider("Edge threshold", config->DlssNrExperimentEdgeThreshold, 0.005f, 0.20f,
+                               "%.3f", 0.04f);
+
+                    static const char* referenceNames[] = {
+                        "Soft/model input", "Sharp original P50"
+                    };
+                    int reference =
+                        (int) std::min(config->DlssNrExperimentReferenceSource.value_or_default(), 1u);
+                    if (ImGui::Combo("P50 recovery/reference source", &reference, referenceNames,
+                                     IM_ARRAYSIZE(referenceNames)))
+                        config->DlssNrExperimentReferenceSource = (uint32_t) reference;
+                    HelpMarker("Soft/model input reconstructs exactly what NR saw, so Direct NR can restore detail "
+                               "removed by the deliberate softening from untouched P100. Sharp original P50 keeps "
+                               "the old reconstruction reference and isolates only the model-input effect.");
+                }
+
+                static const char* nrFilterNames[] = {
+                    "Off", "NR-edge isotropic", "NR-edge normal", "NR excess-only normal"
+                };
+                int nrFilter =
+                    (int) std::min(config->DlssNrExperimentNrEdgeFilter.value_or_default(), 3u);
+                if (ImGui::Combo("NR50 edge treatment", &nrFilter, nrFilterNames, IM_ARRAYSIZE(nrFilterNames)))
+                    config->DlssNrExperimentNrEdgeFilter = (uint32_t) nrFilter;
+                HelpMarker("Optional single low-resolution pass after NVIDIA NR. Excess-only compares NR50 against "
+                           "the exact model input and softens only edge energy NR added beyond that input.");
+                if (nrFilter != 0)
+                {
+                    Slider("NR edge radius", config->DlssNrExperimentNrEdgeRadius, 0.25f, 2.0f,
+                           "%.2f px", 0.75f);
+                    Slider("NR edge soften strength", config->DlssNrExperimentNrEdgeStrength, 0.0f, 1.0f,
+                           "%.2f", 1.0f);
+                }
+
+                bool scaleAware = config->DlssNrExperimentScaleAwareStructure.value_or_default();
+                if (ImGui::Checkbox("Scale-aware Local structure (Standard/Natural)", &scaleAware))
+                    config->DlssNrExperimentScaleAwareStructure = scaleAware;
+                if (scaleAware)
+                    Slider("Local structure factor at P50", config->DlssNrExperimentStructureP50Factor,
+                           0.25f, 1.0f, "%.2fx", 0.60f);
+                HelpMarker("No shader pass. Multiplies NVIDIA LocalStructureStrength only for Standard/Natural, "
+                           "interpolating from 1.0 at P100 to this factor at P50.");
+
+                static const char* limiterNames[] = { "Off", "P100-supported high-frequency limiter" };
+                int limiter =
+                    (int) std::min(config->DlssNrExperimentP100EdgeLimiter.value_or_default(), 1u);
+                if (ImGui::Combo("P100 edge limiter", &limiter, limiterNames, IM_ARRAYSIZE(limiterNames)))
+                    config->DlssNrExperimentP100EdgeLimiter = (uint32_t) limiter;
+                if (limiter != 0)
+                    Slider("P100 edge limiter strength", config->DlssNrExperimentP100EdgeLimiterStrength,
+                           0.0f, 1.0f, "%.2f", 1.0f);
+                HelpMarker("Runs inside final resolve. It splits the model edit into low/high frequency and "
+                           "attenuates high-frequency edits that are not supported by edge structure in untouched P100.");
+
+                static const char* transferNames[] = {
+                    "Off", "Structure gain - one band", "Structure gain - two band"
+                };
+                int structureTransfer =
+                    (int) std::min(config->DlssNrExperimentStructureTransfer.value_or_default(), 2u);
+                if (ImGui::Combo("P100 structure transfer", &structureTransfer, transferNames,
+                                 IM_ARRAYSIZE(transferNames)))
+                    config->DlssNrExperimentStructureTransfer = (uint32_t) structureTransfer;
+                if (structureTransfer != 0)
+                    Slider("Structure transfer strength", config->DlssNrExperimentStructureTransferStrength,
+                           0.0f, 1.0f, "%.2f", 1.0f);
+                HelpMarker("Runs inside final resolve. Low-frequency NR edits are retained, while high-frequency "
+                           "geometry comes from untouched P100 and NR supplies the local structure gain. Two-band "
+                           "also transfers a second, wider detail band and is intentionally more expensive.");
+
+                ImGui::TextDisabled("All controls are independent; Off restores the normal path.");
+                ImGui::TreePop();
             }
         }
     }
