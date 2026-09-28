@@ -21,7 +21,11 @@ on:
       - .github/workflows/build_nr_detail_quality_experiments.yml
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: nr-detail-quality-experiments
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -50,18 +54,6 @@ jobs:
           python "..\..\shader_tools\create_header.py" "DlssNr_Shader.cso" "DlssNr_Shader.h" "DlssNr_cso"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Pop-Location
-
-      - name: Commit regenerated shader
-        shell: powershell
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "OptiScaler/shaders/dlssnr/precompile/DlssNr_Shader.cso" "OptiScaler/shaders/dlssnr/precompile/DlssNr_Shader.h"
-          git diff --cached --quiet
-          if ($LASTEXITCODE -ne 0) {
-            git commit -m "Regenerate NR detail-quality experiment shader"
-            git push origin "HEAD:${{ github.ref_name }}"
-          }
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
