@@ -358,10 +358,11 @@ class Config
     CustomOptional<float> DlssNrDirectDetailMaskStrength { 100.0f };
 
     // Experimental reduced-resolution detail-quality laboratory. All defaults are neutral/off.
+    // Numeric slider ranges are UI conveniences only; manually typed finite values are intentionally unbounded.
     // Input prefilter: 0 off, 1 uniform 5-tap, 2 edge-selective 5-tap, 3 edge-normal 3-tap.
     CustomOptional<uint32_t> DlssNrExperimentInputFilter { 0 };
     CustomOptional<float> DlssNrExperimentInputRadius { 0.75f };       // P50/P60 pixels
-    CustomOptional<float> DlssNrExperimentInputStrength { 1.0f };     // 0..1
+    CustomOptional<float> DlssNrExperimentInputStrength { 1.0f };     // slider 0..1; typed value unbounded
     CustomOptional<float> DlssNrExperimentEdgeThreshold { 0.04f };    // model-domain luma range
     // Reference source for P50->P100 reconstruction: 0 = the actual (possibly softened) NR input,
     // 1 = the original sharp reduced proxy. This intentionally exposes both hypotheses.
