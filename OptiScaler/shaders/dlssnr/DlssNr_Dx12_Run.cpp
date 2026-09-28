@@ -1162,6 +1162,13 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         resolveParams.ResidualMotionBaseX = 0u;
                     }
 
+                    // Limiter-only Direct mode is intentionally reference-free. Bind the existing P100
+                    // proxy to Aux2 as a harmless valid alias too, so no compiler resource-selection strategy can
+                    // turn a logically dead Aux2 branch into an unbound descriptor read.
+                    if (resolveParams.ResidualHistoryValid != 0u &&
+                        resolveParams.ResidualMotionBaseX == 0u && !directDetailReference)
+                        directDetailReference = resolveProxy;
+
                     if (detailMode != 0 && detailMaskReady && selectedDetailReference)
                     {
                         // Full-lost-detail intentionally binds no detailInfo; the resolve never samples t4.
