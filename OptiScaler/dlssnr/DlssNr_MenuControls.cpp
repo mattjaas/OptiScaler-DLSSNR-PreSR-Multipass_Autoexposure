@@ -393,10 +393,11 @@ void RenderInput(Config* config)
                 }
 
                 static const char* nrFilterNames[] = {
-                    "Off", "NR-edge isotropic", "NR-edge normal", "NR excess-only normal"
+                    "Off", "Uniform NR50 softening", "NR-edge isotropic", "NR-edge normal",
+                    "NR excess-only normal"
                 };
                 int nrFilter =
-                    (int) std::min(config->DlssNrExperimentNrEdgeFilter.value_or_default(), 3u);
+                    (int) std::min(config->DlssNrExperimentNrEdgeFilter.value_or_default(), 4u);
                 if (ImGui::Combo("NR50 edge treatment", &nrFilter, nrFilterNames, IM_ARRAYSIZE(nrFilterNames)))
                     config->DlssNrExperimentNrEdgeFilter = (uint32_t) nrFilter;
                 HelpMarker("Optional single low-resolution pass after NVIDIA NR. Excess-only compares NR50 against "
