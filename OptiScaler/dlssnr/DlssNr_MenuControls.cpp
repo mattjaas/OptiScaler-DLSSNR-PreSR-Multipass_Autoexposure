@@ -163,7 +163,7 @@ void RenderInput(Config* config)
 
     if (scalePercent < 100 && !config->DlssNrSpatialCompression.value_or_default())
     {
-        static const char* proxyDownNames[] = { "Area (current)", "Bilinear", "Catmull-Rom", "Lanczos2",
+        static const char* proxyDownNames[] = { "Area (default)", "Bilinear", "Catmull-Rom", "Lanczos2",
                                                 "Point / nearest", "FSR1", "Bicubic", "Lanczos3", "Kaiser2",
                                                 "Kaiser3", "MAGIC", "SSIM Sharp (experimental)" };
         int filter = (int) std::min(config->DlssNrProxyDownscaleFilter.value_or_default(), 11u);
@@ -172,7 +172,7 @@ void RenderInput(Config* config)
 
         HelpMarker("Filter used only to shrink the full-resolution proxy before NR below 100%. "
                    "FSR1, Bicubic, Catmull-Rom, Lanczos2/3, Kaiser2/3 and MAGIC reuse the exact existing "
-                   "Output Scaling downscalers. Area preserves the current behaviour; Bilinear and Point are "
+                   "Output Scaling downscalers. Area is the default; Bilinear and Point are "
                    "simple references. SSIM Sharp is an experimental local structural-contrast variant tuned "
                    "to keep more high-frequency structure. Spatial compression is unaffected.");
     }
@@ -253,8 +253,8 @@ void RenderInput(Config* config)
                                      IM_ARRAYSIZE(directUpscalerNames)))
                         config->DlssNrDirectDetailReferenceUpscaler = (uint32_t) referenceUpscaler;
 
-                    HelpMarker("Only affects detection of detail lost by P100 -> P50. Bilinear matches the previous "
-                               "implementation. DLSS uses a separate private temporal history from the NR output.");
+                    HelpMarker("Only affects detection of detail lost by P100 -> P50. FSR1 is the default reconstruction "
+                               "filter. DLSS uses a separate private temporal history from the NR output.");
 
                     static const char* detailExecutionNames[] = { "Auto", "Serial", "Async compute" };
                     int detailExecution =
