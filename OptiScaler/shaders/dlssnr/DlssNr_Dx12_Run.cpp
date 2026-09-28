@@ -218,9 +218,14 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         std::min(upscaledResidualMode ? cfg.DlssNrUpscaledResidualReferenceUpscaler.value_or_default()
                                      : cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(),
                  10u);
+    const bool directFinalReferenceExperiment =
+        transferMode == 5 &&
+        (cfg.DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
+         cfg.DlssNrExperimentStructureTransfer.value_or_default() != 0);
     const bool needsP50Reference =
         upscaledResidualMode ||
-        (transferMode == 5 && cfg.DlssNrDirectDetailRecovery.value_or_default() != 0);
+        (transferMode == 5 &&
+         (cfg.DlssNrDirectDetailRecovery.value_or_default() != 0 || directFinalReferenceExperiment));
 
     // Async P50 reconstruction and NR are both read-only consumers of the same reduced image. Give only
     // that P50 scratch simultaneous-access semantics while async is requested, so the two queues can share
@@ -516,7 +521,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         // The prefix already wrote P50 and transitioned it to SRV. Because the async P50 scratch was created
         // with ALLOW_SIMULTANEOUS_ACCESS, direct NR and the compute detail pass can now read that same texture
         // concurrently after the prefix fence -- no per-frame CopyResource or duplicate P50 allocation.
-        auto* const sharedDetailInput = encoded.modelInput;
+        auto* const sharedDetailInput =
+            encoded.referenceInput ? encoded.referenceInput : encoded.modelInput;
         auto* detailCmd = asyncSlot->asyncDetailCommands.Get();
         if (asyncSlot->asyncDetailReferenceReadable)
         {
@@ -970,6 +976,61 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         }
     }
 
+    // The model pair and the reconstruction pair may intentionally use different reduced inputs.
+    // Spatial compression owns its own unpacked proxy, so experiments fall back to that common source there.
+    ID3D12Resource* ordinaryReference =
+        (!spatial && encoded.referenceInput) ? encoded.referenceInput : ordinaryProxy;
+
+    // Optional post-NR edge treatment. One small-raster dispatch is paid only while enabled.
+    const uint32_t nrEdgeFilter = std::min(cfg.DlssNrExperimentNrEdgeFilter.value_or_default(), 3u);
+    if (!spatial && workScale < 1.0f && ordinaryAnswer &&
+        (transferMode == 5u || transferMode == 6u) && nrEdgeFilter != 0u)
+    {
+        const auto answerDesc = ordinaryAnswer->GetDesc();
+        const bool filteredMatches =
+            nr.outputFiltered && nr.outputFiltered->GetDesc().Width == answerDesc.Width &&
+            nr.outputFiltered->GetDesc().Height == answerDesc.Height &&
+            nr.outputFiltered->GetDesc().Format == answerDesc.Format;
+        if (!filteredMatches)
+        {
+            ParkNrResource(nr.outputFiltered);
+            nr.outputFilteredReadable = false;
+            nr.outputFiltered =
+                CreateScratch(device, answerDesc.Format, (unsigned) answerDesc.Width, answerDesc.Height);
+        }
+
+        if (nr.outputFiltered)
+        {
+            if (nr.outputFilteredReadable)
+            {
+                Barrier(cmdList, nr.outputFiltered, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                nr.outputFilteredReadable = false;
+            }
+
+            DlssNrConstants filter {};
+            filter.Mode = DlssNrMode_ExperimentNrPostfilter;
+            filter.Width = modelWidth;
+            filter.Height = modelHeight;
+            filter.Transfer = nrEdgeFilter;
+            filter.TransferStrength =
+                std::clamp(cfg.DlssNrExperimentNrEdgeRadius.value_or_default(), 0.25f, 2.0f);
+            filter.ColourStrength =
+                std::clamp(cfg.DlssNrExperimentNrEdgeStrength.value_or_default(), 0.0f, 1.0f);
+            filter.DebugScale =
+                std::clamp(cfg.DlssNrExperimentEdgeThreshold.value_or_default(), 0.001f, 0.5f);
+
+            if (shader.DispatchPass(cmdList, filter, ordinaryAnswer, ordinaryProxy, nullptr, nullptr, nullptr,
+                                    nr.outputFiltered, nullptr))
+            {
+                Barrier(cmdList, nr.outputFiltered, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                nr.outputFilteredReadable = true;
+                ordinaryAnswer = nr.outputFiltered;
+            }
+        }
+    }
+
     // Supersampling probe: report the model working ABOVE native so a test log tells us whether NGX even
     // accepts a super-native evaluate and what it returns. Once per working-size change, or on any error.
     if (modelWidth > width || modelHeight > height)
@@ -1054,8 +1115,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             (transfer == 2 || workScale < 1.0f))
         {
             auto* enlarged =
-                EnlargeMatchedResidual(cmdList, device, ordinaryProxy, ordinaryAnswer, originalDepthIn,
-                                       originalMotionIn, frame, resolveParams, transfer, enlargementReset,
+                EnlargeMatchedResidual(cmdList, device, ordinaryProxy, ordinaryReference, ordinaryAnswer,
+                                       originalDepthIn, originalMotionIn, frame, resolveParams, transfer, enlargementReset,
                                        timingQueue, asyncExternalDetail);
             enlargementReady = enlarged != nullptr;
             if (enlarged)
@@ -1075,9 +1136,12 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         DirectFusedResolveUpscaler(selectedOutputUpscaler) && enlarged == ordinaryAnswer;
                     resolveParams.Transfer = fusedDirect ? 7u : 0u;
                     resolveParams.DirectResolveUpscaler = selectedOutputUpscaler;
+                    resolveParams.DirectResolveFlags |= 1u; // final resolve is the Direct NR family
 
                     const uint32_t detailMode =
                         std::min(cfg.DlssNrDirectDetailRecovery.value_or_default(), 2u);
+                    const bool finalExperimentNeedsReference =
+                        resolveParams.ResidualHistoryValid != 0u || resolveParams.ResidualMotionBaseX != 0u;
                     ID3D12Resource* selectedDetailReference =
                         asyncExternalDetail && asyncSlot && asyncSlot->asyncDetailReferenceReadable
                             ? asyncSlot->asyncDetailReference.Get()
@@ -1087,13 +1151,18 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                     const bool detailMaskReady =
                         detailMode == 1 ||
                         (enlarger && enlarger->detailInfo && enlarger->detailReadable);
+
+                    // Aux2 is also the P50 reconstruction used by the final P100-guided experiments.
+                    // Bind it independently of Direct detail recovery so the experiments can be tested alone.
+                    if (selectedDetailReference && (detailMode != 0 || finalExperimentNeedsReference))
+                        directDetailReference = selectedDetailReference;
+
                     if (detailMode != 0 && detailMaskReady && selectedDetailReference)
                     {
                         // Full-lost-detail intentionally binds no detailInfo; the resolve never samples t4.
                         // NR-gated mode binds the alpha-only mask.
                         directDetailInfo =
                             detailMode == 2 && enlarger ? enlarger->detailInfo.Get() : nullptr;
-                        directDetailReference = selectedDetailReference;
                         resolveParams.DirectDetailMode = detailMode;
                         resolveParams.DirectDetailMaskStrength =
                             std::clamp(cfg.DlssNrDirectDetailMaskStrength.value_or_default() / 100.0f, 0.0f, 1.0f);
