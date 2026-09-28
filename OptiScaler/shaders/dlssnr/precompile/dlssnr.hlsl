@@ -44,7 +44,8 @@ cbuffer Params : register(b0)
     float4 gExposureAnchors[4];
     uint gDirectDetailMode;
     float gDirectDetailMaskStrength;
-    float2 gDirectDetailPadding;
+    uint gDirectResolveUpscaler;
+    uint gDirectResolveFlags;
 };
 
 // Hue-preserving gamut compression toward the D65 neutral axis.
@@ -561,6 +562,179 @@ float3 CubeScaleResidual(float3 P, float3 T)
     return P + saturate(alpha) * d;
 }
 
+#ifndef VK_MODE
+float DirectDetailGateAt(int2 p)
+{
+    const int2 lo = int2(0, 0);
+    const int2 hi = int2((int) gWidth - 1, (int) gHeight - 1);
+    p = clamp(p, lo, hi);
+    const int2 px0 = clamp(p + int2(-1, 0), lo, hi);
+    const int2 px1 = clamp(p + int2( 1, 0), lo, hi);
+    const int2 py0 = clamp(p + int2(0, -1), lo, hi);
+    const int2 py1 = clamp(p + int2(0,  1), lo, hi);
+
+    float3 pc = gSource.Load(int3(p, 0)).rgb;
+    float3 nc = gModel.Load(int3(p, 0)).rgb;
+    float3 pl = gSource.Load(int3(px0, 0)).rgb;
+    float3 pr = gSource.Load(int3(px1, 0)).rgb;
+    float3 pu = gSource.Load(int3(py0, 0)).rgb;
+    float3 pd = gSource.Load(int3(py1, 0)).rgb;
+    float3 nl = gModel.Load(int3(px0, 0)).rgb;
+    float3 nr = gModel.Load(int3(px1, 0)).rgb;
+    float3 nu = gModel.Load(int3(py0, 0)).rgb;
+    float3 nd = gModel.Load(int3(py1, 0)).rgb;
+
+    if (gPassthrough == 0)
+    {
+        pc = SrgbToLinear(pc); nc = SrgbToLinear(nc);
+        pl = SrgbToLinear(pl); pr = SrgbToLinear(pr);
+        pu = SrgbToLinear(pu); pd = SrgbToLinear(pd);
+        nl = SrgbToLinear(nl); nr = SrgbToLinear(nr);
+        nu = SrgbToLinear(nu); nd = SrgbToLinear(nd);
+    }
+
+    const float floorY = 1.0 / 512.0;
+    const float pY = dot(pc, kLuma);
+    const float nY = dot(nc, kLuma);
+    const float pBlur = dot(pc + pl + pr + pu + pd, kLuma) / 5.0;
+    const float nBlur = dot(nc + nl + nr + nu + nd, kLuma) / 5.0;
+    const float pDetail = (pY - pBlur) / (max(pY, pBlur) + floorY);
+    const float nDetail = (nY - nBlur) / (max(nY, nBlur) + floorY);
+
+    float gate = 1.0;
+    const float pMag = abs(pDetail);
+    const float nMag = abs(nDetail);
+    if (pMag > 0.010)
+    {
+        const float retained = nMag / max(pMag, 1e-5);
+        gate = smoothstep(0.20, 0.70, retained);
+        if (pDetail * nDetail < 0.0 && nMag > 0.20 * pMag)
+            gate = 0.0;
+    }
+    return saturate(gate);
+}
+
+float DirectMagicKernel(float x)
+{
+    const float ax = abs(x);
+    if (ax >= 1.5)
+        return 0.0;
+    if (ax <= 0.5)
+        return 0.75 - ax * ax;
+    const float t = ax - 1.5;
+    return 0.5 * t * t;
+}
+
+float3 DirectMagicPixel(int2 outP)
+{
+    uint srcW, srcH;
+    gModel.GetDimensions(srcW, srcH);
+    const float2 k = float2(gWidth, gHeight) / float2(max(srcW, 1u), max(srcH, 1u));
+    const float2 o = float2(outP) + 0.5;
+    const float2 lower = (o - 1.5) / k - 0.5;
+    const float2 upper = (o + 1.5) / k - 0.5;
+
+    int2 p0 = int2(ceil(lower));
+    int2 p1 = int2(floor(upper));
+    p0 = clamp(p0, int2(0, 0), int2((int) srcW - 1, (int) srcH - 1));
+    p1 = clamp(p1, int2(0, 0), int2((int) srcW - 1, (int) srcH - 1));
+
+    const int nx = clamp(p1.x - p0.x + 1, 1, 12);
+    const int ny = clamp(p1.y - p0.y + 1, 1, 12);
+    const float uBase = k.x * ((float) p0.x + 0.5) - o.x;
+    const float vBase = k.y * ((float) p0.y + 0.5) - o.y;
+
+    float wx[12], wy[12];
+    float sumWx = 0.0, sumWy = 0.0;
+    [loop] for (int i = 0; i < nx; ++i)
+    {
+        wx[i] = DirectMagicKernel(uBase + k.x * (float) i);
+        sumWx += wx[i];
+    }
+    [loop] for (int j = 0; j < ny; ++j)
+    {
+        wy[j] = DirectMagicKernel(vBase + k.y * (float) j);
+        sumWy += wy[j];
+    }
+
+    float3 acc = 0.0;
+    [loop] for (int j2 = 0; j2 < ny; ++j2)
+    {
+        [loop] for (int i2 = 0; i2 < nx; ++i2)
+            acc += gModel.Load(int3(p0 + int2(i2, j2), 0)).rgb * (wx[i2] * wy[j2]);
+    }
+    return acc / max(sumWx * sumWy, 1e-12);
+}
+
+float3 DirectAreaPixel(int2 outP)
+{
+    uint srcW, srcH;
+    gModel.GetDimensions(srcW, srcH);
+    const float x0 = ((float) outP.x * (float) srcW) / (float) gWidth;
+    const float x1 = ((float) (outP.x + 1) * (float) srcW) / (float) gWidth;
+    const float y0 = ((float) outP.y * (float) srcH) / (float) gHeight;
+    const float y1 = ((float) (outP.y + 1) * (float) srcH) / (float) gHeight;
+    const float area = (x1 - x0) * (y1 - y0);
+
+    const int i0 = (int) floor(x0);
+    const int i1 = (int) ceil(x1) - 1;
+    const int j0 = (int) floor(y0);
+    const int j1 = (int) ceil(y1) - 1;
+    float3 acc = 0.0;
+
+    [loop] for (int j = j0; j <= j1; ++j)
+    {
+        const int jj = clamp(j, 0, (int) srcH - 1);
+        const float aY = max(y0, (float) j);
+        const float bY = min(y1, (float) j + 1.0);
+        const float wy = max(bY - aY, 0.0);
+        [loop] for (int i = i0; i <= i1; ++i)
+        {
+            const int ii = clamp(i, 0, (int) srcW - 1);
+            const float aX = max(x0, (float) i);
+            const float bX = min(x1, (float) i + 1.0);
+            acc += gModel.Load(int3(ii, jj, 0)).rgb * (max(bX - aX, 0.0) * wy);
+        }
+    }
+    return acc / max(area, 1e-12);
+}
+
+float3 DirectSpatialPixel(int2 outP)
+{
+    outP = clamp(outP, int2(0, 0), int2((int) gWidth - 1, (int) gHeight - 1));
+    if (gDirectResolveUpscaler == 8u)
+        return DirectMagicPixel(outP);
+    if (gDirectResolveUpscaler == 7u)
+        return DirectAreaPixel(outP);
+
+    // Selectors 0 and 9 are exactly bilinear on this branch. FSR1's projCentre/squaredRadius
+    // constants are never initialized, so its EASU shader takes its bilinear branch everywhere.
+    const float2 sampleUv = (float2(outP) + 0.5) / float2(gWidth, gHeight);
+    return gModel.SampleLevel(gLinear, sampleUv, 0).rgb;
+}
+
+float4 DirectSpatialSample(float2 outUv)
+{
+    if (gCompareMode != 1u)
+    {
+        const int2 p = int2(clamp(floor(outUv * float2(gWidth, gHeight)), 0.0,
+                                  float2(gWidth - 1u, gHeight - 1u)));
+        return float4(DirectSpatialPixel(p), 1.0);
+    }
+
+    // Side-by-side normally samples a materialized NR100 linearly. Reproduce that second sampling
+    // stage by evaluating the four surrounding output pixels and blending them here.
+    const float2 pos = outUv * float2(gWidth, gHeight) - 0.5;
+    const int2 base = int2(floor(pos));
+    const float2 f = frac(pos);
+    const float3 c00 = DirectSpatialPixel(base);
+    const float3 c10 = DirectSpatialPixel(base + int2(1, 0));
+    const float3 c01 = DirectSpatialPixel(base + int2(0, 1));
+    const float3 c11 = DirectSpatialPixel(base + int2(1, 1));
+    return float4(lerp(lerp(c00, c10, f.x), lerp(c01, c11, f.x), f.y), 1.0);
+}
+#endif
+
 #include "dlssnr_resize.hlsli"
 
 groupshared float4 gExposureReduce[64];
@@ -737,62 +911,18 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
 #ifndef VK_MODE
     if (gMode == 13)
     {
-        // Direct-DLSS preparation. Keep the exact NR50 answer as the private-DLSS carrier, while the
-        // second UAV stores P50 plus a conservative "NR retained this structure" gate in alpha.
+        // Compatibility fallback for non-FP16 model outputs: preserve the old combined carrier+gate pass.
         const int2 p = int2(id.xy);
-        const int2 lo = int2(0, 0);
-        const int2 hi = int2((int) gWidth - 1, (int) gHeight - 1);
-        const int2 px0 = clamp(p + int2(-1, 0), lo, hi);
-        const int2 px1 = clamp(p + int2( 1, 0), lo, hi);
-        const int2 py0 = clamp(p + int2(0, -1), lo, hi);
-        const int2 py1 = clamp(p + int2(0,  1), lo, hi);
-
         const float4 proxyRaw = gSource.Load(int3(p, 0));
         const float4 answerRaw = gModel.Load(int3(p, 0));
-
-        float3 pc = proxyRaw.rgb;
-        float3 nc = answerRaw.rgb;
-        float3 pl = gSource.Load(int3(px0, 0)).rgb;
-        float3 pr = gSource.Load(int3(px1, 0)).rgb;
-        float3 pu = gSource.Load(int3(py0, 0)).rgb;
-        float3 pd = gSource.Load(int3(py1, 0)).rgb;
-        float3 nl = gModel.Load(int3(px0, 0)).rgb;
-        float3 nr = gModel.Load(int3(px1, 0)).rgb;
-        float3 nu = gModel.Load(int3(py0, 0)).rgb;
-        float3 nd = gModel.Load(int3(py1, 0)).rgb;
-
-        if (gPassthrough == 0)
-        {
-            pc = SrgbToLinear(pc); nc = SrgbToLinear(nc);
-            pl = SrgbToLinear(pl); pr = SrgbToLinear(pr);
-            pu = SrgbToLinear(pu); pd = SrgbToLinear(pd);
-            nl = SrgbToLinear(nl); nr = SrgbToLinear(nr);
-            nu = SrgbToLinear(nu); nd = SrgbToLinear(nd);
-        }
-
-        const float floorY = 1.0 / 512.0;
-        const float pY = dot(pc, kLuma);
-        const float nY = dot(nc, kLuma);
-        const float pBlur = dot(pc + pl + pr + pu + pd, kLuma) / 5.0;
-        const float nBlur = dot(nc + nl + nr + nu + nd, kLuma) / 5.0;
-        const float pDetail = (pY - pBlur) / (max(pY, pBlur) + floorY);
-        const float nDetail = (nY - nBlur) / (max(nY, nBlur) + floorY);
-
-        // Default to restoring native detail. Suppress only when P50 had a real local structure and
-        // NR50 clearly weakened or reversed it. This avoids requiring NR to "prove" every fine detail.
-        float gate = 1.0;
-        const float pMag = abs(pDetail);
-        const float nMag = abs(nDetail);
-        if (pMag > 0.010)
-        {
-            const float retained = nMag / max(pMag, 1e-5);
-            gate = smoothstep(0.20, 0.70, retained);
-            if (pDetail * nDetail < 0.0 && nMag > 0.20 * pMag)
-                gate = 0.0;
-        }
-
         gTarget[id.xy] = answerRaw;
-        gKeep[id.xy] = float4(proxyRaw.rgb, saturate(gate));
+        gKeep[id.xy] = float4(proxyRaw.rgb, DirectDetailGateAt(p));
+        return;
+    }
+    if (gMode == 15)
+    {
+        // Normal Direct NR gated-detail path: alpha-only gate, with no redundant NR50 copy.
+        gTarget[id.xy] = float4(0.0, 0.0, 0.0, DirectDetailGateAt(int2(id.xy)));
         return;
     }
 #endif
@@ -1015,7 +1145,13 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     // Sampled rather than loaded: when the model ran at a reduced resolution these are smaller than the
     // frame, and its edit is enlarged here while the frame underneath stays untouched.
     float4 proxySample = gSource.SampleLevel(gLinear, cmpUv, 0);
-    float4 modelSample = gModel.SampleLevel(gLinear, cmpUv, 0);
+    float4 modelSample;
+#ifndef VK_MODE
+    if (gTransfer == 7u)
+        modelSample = DirectSpatialSample(cmpUv);
+    else
+#endif
+        modelSample = gModel.SampleLevel(gLinear, cmpUv, 0);
 
     // Nothing was encoded on the way in, so nothing is decoded here either.
     float3 proxy = gPassthrough != 0 ? proxySample.rgb : SrgbToLinear(proxySample.rgb);
@@ -1196,12 +1332,10 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     }
 
 #ifndef VK_MODE
-    // Direct DLSS detail recovery. gSource is the immutable P100 proxy; gAux contains the exact P50
-    // proxy in RGB and the low-resolution NR retention gate in alpha. Reapply only the luminance
-    // ratio lost by P100 -> P50, so NR's colour and low-frequency lighting remain fully authoritative.
+    // Direct NR detail recovery. gAux2 is the selected full-resolution reconstruction of P50.
+    // Full-lost-detail needs no gate texture at all. NR-gated mode samples only gAux.a.
     if (gDirectDetailMode != 0)
     {
-        const float4 detailInfo = gAux.SampleLevel(gLinear, cmpUv, 0);
         const float4 p50Reference = gAux2.SampleLevel(gLinear, cmpUv, 0);
         const float3 p50 = gPassthrough != 0 ? p50Reference.rgb : SrgbToLinear(p50Reference.rgb);
         const float p100Y = max(dot(proxy, kLuma), 0.0);
@@ -1210,9 +1344,12 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         if (!isfinite(lostStops))
             lostStops = 0.0;
 
-        const float gate = gDirectDetailMode == 1
-                               ? 1.0
-                               : lerp(1.0, saturate(detailInfo.a), saturate(gDirectDetailMaskStrength));
+        float gate = 1.0;
+        if (gDirectDetailMode == 2u)
+        {
+            const float4 detailInfo = gAux.SampleLevel(gLinear, cmpUv, 0);
+            gate = lerp(1.0, saturate(detailInfo.a), saturate(gDirectDetailMaskStrength));
+        }
         const float detailRatio = exp2(lostStops * gate);
         if (isfinite(detailRatio) && detailRatio > 0.0)
             result *= detailRatio;
