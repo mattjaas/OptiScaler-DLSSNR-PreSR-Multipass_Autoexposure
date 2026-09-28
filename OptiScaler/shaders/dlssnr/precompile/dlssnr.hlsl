@@ -857,7 +857,7 @@ float3 ExperimentLimitedBand(float3 conventionalEdit, float3 nativeBand, float l
     const float editY = abs(dot(conventionalEdit, kLuma));
     const float nativeY = abs(dot(nativeBand, kLuma));
     const float support = saturate((nativeY + 0.002) / (editY + 0.002));
-    return conventionalEdit * lerp(1.0, support, saturate(limiterStrength));
+    return conventionalEdit * lerp(1.0, support, limiterStrength);
 }
 
 float3 ExperimentResolveBand(float3 conventionalEdit, float3 gainReferenceBand, float3 modelBand,
@@ -873,15 +873,15 @@ float3 ExperimentResolveBand(float3 conventionalEdit, float3 gainReferenceBand, 
 
     const float gain = ExperimentStructureGain(gainReferenceBand, modelBand);
     const float3 nativeGainEdit = nativeBand * (gain - 1.0);
-    return lerp(limited, nativeGainEdit, saturate(structureStrength));
+    return lerp(limited, nativeGainEdit, structureStrength);
 }
 
 float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineCenter,
                                 float3 gainCenter, float3 nativeCenter, float normScale)
 {
     const uint structureMode = min(gResidualMotionBaseXUnused, 2u);
-    const float structureStrength = saturate(gResidualConfidenceUnused);
-    const float limiterStrength = saturate(gResidualBlendUnused);
+    const float structureStrength = gResidualConfidenceUnused;
+    const float limiterStrength = gResidualBlendUnused;
 
     float3 modelBlur1, baselineBlur1, gainBlur1, nativeBlur1;
     ExperimentCrossBlur(uvq, 1.0, normScale, modelCenter, baselineCenter, gainCenter, nativeCenter,
@@ -938,9 +938,11 @@ float4 ExperimentLowResolutionFilter(float2 uv, bool postNr)
     uint srcW, srcH;
     gSource.GetDimensions(srcW, srcH);
     const float2 texel = 1.0 / float2(max(srcW, 1u), max(srcH, 1u));
-    const float radius = clamp(gTransferStrength, 0.25, 2.0);
-    const float strength = saturate(gColourStrength);
-    const float threshold = max(gDebugScale, 1e-5);
+    // Detail-lab numeric controls are intentionally unbounded when typed manually.
+    // Slider ranges are UI conveniences only; values arrive here verbatim.
+    const float radius = gTransferStrength;
+    const float strength = gColourStrength;
+    const float threshold = gDebugScale;
 
     const float4 center = gSource.SampleLevel(gLinear, uv, 0);
     const float2 dx = float2(texel.x * radius, 0.0);
