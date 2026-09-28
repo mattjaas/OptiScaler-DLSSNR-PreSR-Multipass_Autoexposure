@@ -1156,6 +1156,13 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                     // Bind it independently of Direct detail recovery so the experiments can be tested alone.
                     if (selectedDetailReference && (detailMode != 0 || finalExperimentNeedsReference))
                         directDetailReference = selectedDetailReference;
+                    else if (finalExperimentNeedsReference)
+                    {
+                        // Never let a failed/lazy reconstruction turn the experiment into an unbound Aux2 read.
+                        // The frame falls back to ordinary Direct NR and the next frame can retry normally.
+                        resolveParams.ResidualHistoryValid = 0u;
+                        resolveParams.ResidualMotionBaseX = 0u;
+                    }
 
                     if (detailMode != 0 && detailMaskReady && selectedDetailReference)
                     {
