@@ -341,13 +341,13 @@ class Config
     // Upscaled NR residual has independent filters for all three resize legs.
     // Downscale uses the proxy-filter selector (0..11); both upscalers use the Direct selector (0..10).
     CustomOptional<uint32_t> DlssNrUpscaledResidualDownscaleFilter { 0 };
-    CustomOptional<uint32_t> DlssNrUpscaledResidualReferenceUpscaler { 10 };
+    CustomOptional<uint32_t> DlssNrUpscaledResidualReferenceUpscaler { 9 };
     CustomOptional<uint32_t> DlssNrUpscaledResidualUpscaler { 10 };
     // P50 -> P100 reference execution: 0 Auto, 1 Serial, 2 Async compute.
     CustomOptional<uint32_t> DlssNrUpscaledResidualReferenceExecutionMode { 0 };
-    // Reference used to reconstruct P50 to P100 for lost-detail detection. Bilinear preserves
-    // the previous implicit SampleLevel behaviour.
-    CustomOptional<uint32_t> DlssNrDirectDetailReferenceUpscaler { 0 };
+    // Reference used to reconstruct P50 to P100 for lost-detail detection.
+    // FSR1 is the default reconstruction filter; Area remains the default P100 -> P50 reduction.
+    CustomOptional<uint32_t> DlssNrDirectDetailReferenceUpscaler { 9 };
     // 0 Auto, 1 Serial, 2 Async compute. Async is only used for non-DLSS P50 references on
     // an owned DX12 finished-picture path; unsupported cases fall back to Serial.
     CustomOptional<uint32_t> DlssNrDirectDetailReferenceExecutionMode { 0 };
