@@ -363,6 +363,22 @@ bool Config::Reload(std::filesystem::path iniPath)
                 readUInt("DlssNr", "DirectDetailReferenceExecutionMode"));
             DlssNrDirectDetailRecovery.set_from_config(readUInt("DlssNr", "DirectDetailRecovery"));
             DlssNrDirectDetailMaskStrength.set_from_config(readFloat("DlssNr", "DirectDetailMaskStrength"));
+            DlssNrExperimentInputFilter.set_from_config(readUInt("DlssNr", "ExperimentInputFilter"));
+            DlssNrExperimentInputRadius.set_from_config(readFloat("DlssNr", "ExperimentInputRadius"));
+            DlssNrExperimentInputStrength.set_from_config(readFloat("DlssNr", "ExperimentInputStrength"));
+            DlssNrExperimentEdgeThreshold.set_from_config(readFloat("DlssNr", "ExperimentEdgeThreshold"));
+            DlssNrExperimentReferenceSource.set_from_config(readUInt("DlssNr", "ExperimentReferenceSource"));
+            DlssNrExperimentNrEdgeFilter.set_from_config(readUInt("DlssNr", "ExperimentNrEdgeFilter"));
+            DlssNrExperimentNrEdgeRadius.set_from_config(readFloat("DlssNr", "ExperimentNrEdgeRadius"));
+            DlssNrExperimentNrEdgeStrength.set_from_config(readFloat("DlssNr", "ExperimentNrEdgeStrength"));
+            DlssNrExperimentScaleAwareStructure.set_from_config(readBool("DlssNr", "ExperimentScaleAwareStructure"));
+            DlssNrExperimentStructureP50Factor.set_from_config(readFloat("DlssNr", "ExperimentStructureP50Factor"));
+            DlssNrExperimentP100EdgeLimiter.set_from_config(readUInt("DlssNr", "ExperimentP100EdgeLimiter"));
+            DlssNrExperimentP100EdgeLimiterStrength.set_from_config(
+                readFloat("DlssNr", "ExperimentP100EdgeLimiterStrength"));
+            DlssNrExperimentStructureTransfer.set_from_config(readUInt("DlssNr", "ExperimentStructureTransfer"));
+            DlssNrExperimentStructureTransferStrength.set_from_config(
+                readFloat("DlssNr", "ExperimentStructureTransferStrength"));
             DlssNrGpuTimeAverageWindowMs.set_from_config(readUInt("DlssNr", "GpuTimeAverageWindowMs"));
 
             DlssNrDebugView.set_from_config(readUInt("DlssNr", "DebugView"));
@@ -1336,6 +1352,34 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetIntValue(Instance()->DlssNrDirectDetailRecovery.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailMaskStrength",
                      GetFloatValue(Instance()->DlssNrDirectDetailMaskStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentInputFilter",
+                     GetIntValue(Instance()->DlssNrExperimentInputFilter.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentInputRadius",
+                     GetFloatValue(Instance()->DlssNrExperimentInputRadius.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentInputStrength",
+                     GetFloatValue(Instance()->DlssNrExperimentInputStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentEdgeThreshold",
+                     GetFloatValue(Instance()->DlssNrExperimentEdgeThreshold.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentReferenceSource",
+                     GetIntValue(Instance()->DlssNrExperimentReferenceSource.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentNrEdgeFilter",
+                     GetIntValue(Instance()->DlssNrExperimentNrEdgeFilter.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentNrEdgeRadius",
+                     GetFloatValue(Instance()->DlssNrExperimentNrEdgeRadius.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentNrEdgeStrength",
+                     GetFloatValue(Instance()->DlssNrExperimentNrEdgeStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentScaleAwareStructure",
+                     GetBoolValue(Instance()->DlssNrExperimentScaleAwareStructure.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructureP50Factor",
+                     GetFloatValue(Instance()->DlssNrExperimentStructureP50Factor.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentP100EdgeLimiter",
+                     GetIntValue(Instance()->DlssNrExperimentP100EdgeLimiter.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentP100EdgeLimiterStrength",
+                     GetFloatValue(Instance()->DlssNrExperimentP100EdgeLimiterStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructureTransfer",
+                     GetIntValue(Instance()->DlssNrExperimentStructureTransfer.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructureTransferStrength",
+                     GetFloatValue(Instance()->DlssNrExperimentStructureTransferStrength.value_for_config()).c_str());
         ini.SetValue("DlssNr", "GpuTimeAverageWindowMs",
                      GetIntValue(Instance()->DlssNrGpuTimeAverageWindowMs.value_for_config()).c_str());
 
