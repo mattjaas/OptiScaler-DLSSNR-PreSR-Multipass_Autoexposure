@@ -18,6 +18,16 @@ Scaler DirectSpatialScaler(uint32_t index)
     default: return Scaler::Count;
     }
 }
+
+bool DirectFusedResolveUpscaler(uint32_t selector)
+{
+    return selector == 0 || selector == 7 || selector == 8 || selector == 9;
+}
+
+bool DirectAnswerCanFeedUpscaler(ID3D12Resource* answer)
+{
+    return answer && answer->GetDesc().Format == DXGI_FORMAT_R16G16B16A16_FLOAT;
+}
 } // namespace
 
 void DlssNr_Dx12::State::ReleaseEnlarger()
@@ -92,6 +102,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         upscaledResidual ? std::min(cfg.DlssNrUpscaledResidualReferenceUpscaler.value_or_default(), 10u)
                          : direct ? std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u) : 0u;
     const uint32_t carrierMode = upscaledResidual ? 3u : direct ? 2u : structural ? 1u : 0u;
+    const bool directAnswerSource = direct && DirectAnswerCanFeedUpscaler(answer);
+    const bool fusedDirectOutput = directAnswerSource && DirectFusedResolveUpscaler(outputUpscaler);
     const int dlssPreset = cfg.DlssNrScalingDlssPreset.value_or_default();
 
     const auto desc = proxy->GetDesc();
@@ -183,29 +195,21 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     if (!g.submitted)
         return say("Waiting for enlargement initialization submission.");
 
-    const auto dd = depth->GetDesc(), md = motion->GetDesc();
-    const auto regions = DlssNr::ResolveGuideRegions(
-        { unsigned(dd.Width), dd.Height }, { unsigned(md.Width), md.Height },
-        { frame.RenderSubrectWidth, frame.RenderSubrectHeight }, { frame.OutputWidth, frame.OutputHeight },
-        frame.MotionVectorsLowResolution, frame.DepthSubrectBaseX, frame.DepthSubrectBaseY, frame.MotionSubrectBaseX,
-        frame.MotionSubrectBaseY);
-    if (!regions.depth.valid() || !regions.motion.valid())
-        return say("enlargement needs valid depth and motion.");
-
     lifetime.Record(cmd);
     g.lifetime.Record(cmd);
 
     bool detailReady = direct && directDetailMode != 0;
+    bool detailMaskRequired = direct && directDetailMode == 2;
     bool referenceRequired = detailReady || upscaledResidual;
-    const bool useExternalReference = externalDetailReference && (detailReady || upscaledResidual);
+    const bool useExternalReference = externalDetailReference && referenceRequired;
     if (referenceRequired &&
-        ((detailReady && !g.detailInfo) || (!useExternalReference && !g.detailReference)))
+        ((detailMaskRequired && !g.detailInfo) || (!useExternalReference && !g.detailReference)))
     {
-        if (detailReady && !g.detailInfo)
+        if (detailMaskRequired && !g.detailInfo)
             g.detailInfo.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, w, h));
         if (!useExternalReference && !g.detailReference)
             g.detailReference.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, g.outW, g.outH));
-        if ((detailReady && !g.detailInfo) || (!useExternalReference && !g.detailReference))
+        if ((detailMaskRequired && !g.detailInfo) || (!useExternalReference && !g.detailReference))
         {
             if (upscaledResidual)
                 return say("Upscaled NR residual reference allocation failed; use Retry.");
@@ -214,58 +218,111 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             if (!warnedDetailAlloc)
             {
                 warnedDetailAlloc = true;
-                LOG_WARN("NR Direct detail recovery: P50/gate or P50-reference allocation failed; "
+                LOG_WARN("NR Direct detail recovery: gate or P50-reference allocation failed; "
                          "falling back to Direct NR without detail recovery.");
             }
             detailReady = false;
+            detailMaskRequired = false;
             referenceRequired = false;
         }
     }
 
-    if (detailReady && g.detailReadable)
+    if (detailMaskRequired && g.detailReadable)
     {
         Barrier(cmd, g.detailInfo.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         g.detailReadable = false;
     }
 
-    DlssNrConstants encode {};
-    encode.Mode = (direct || upscaledResidual)
-                      ? (direct && detailReady ? DlssNrMode_EncodeDirectDetail : DlssNrMode_Downsample)
-                  : structural ? DlssNrMode_EncodeResizeField
-                               : DlssNrMode_EncodeProxyResidual;
-    encode.Width = w;
-    encode.Height = h;
-    encode.Passthrough = resolve.Passthrough;
-
-    bool ok = false;
-    if (direct && detailReady)
-        ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(),
-                                 g.detailInfo.Get());
-    else if (direct || upscaledResidual)
-        ok = shader.DispatchPass(cmd, encode, answer, nullptr, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
+    // NR50 is already a readable FP16 model output. Feed it directly to the output path instead of
+    // round-tripping through g.input; preserve the old FP16 carrier only as a format fallback.
+    const bool stageDirectAnswer = direct && !directAnswerSource;
+    bool ok = true;
+    if (direct)
+    {
+        if (detailMaskRequired && stageDirectAnswer)
+        {
+            // Exact old fallback: one pass both stages NR50 and writes P50 + gate.
+            DlssNrConstants legacy {};
+            legacy.Mode = DlssNrMode_EncodeDirectDetail;
+            legacy.Width = w;
+            legacy.Height = h;
+            legacy.Passthrough = resolve.Passthrough;
+            ok = shader.DispatchPass(cmd, legacy, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(),
+                                     g.detailInfo.Get());
+        }
+        else
+        {
+            if (detailMaskRequired)
+            {
+                DlssNrConstants mask {};
+                mask.Mode = DlssNrMode_EncodeDirectDetailMaskOnly;
+                mask.Width = w;
+                mask.Height = h;
+                mask.Passthrough = resolve.Passthrough;
+                ok = shader.DispatchPass(cmd, mask, proxy, answer, nullptr, nullptr, nullptr, g.detailInfo.Get(),
+                                         nullptr);
+            }
+            if (stageDirectAnswer)
+            {
+                DlssNrConstants copy {};
+                copy.Mode = DlssNrMode_Downsample;
+                copy.Width = w;
+                copy.Height = h;
+                ok &= shader.DispatchPass(cmd, copy, answer, nullptr, nullptr, nullptr, nullptr, g.input.Get(),
+                                          nullptr);
+            }
+        }
+    }
     else
-        ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
+    {
+        DlssNrConstants encode {};
+        encode.Mode = upscaledResidual ? DlssNrMode_Downsample
+                                       : structural ? DlssNrMode_EncodeResizeField
+                                                    : DlssNrMode_EncodeProxyResidual;
+        encode.Width = w;
+        encode.Height = h;
+        encode.Passthrough = resolve.Passthrough;
+        if (upscaledResidual)
+            ok = shader.DispatchPass(cmd, encode, answer, nullptr, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
+        else
+            ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
+    }
 
-    DlssNrConstants guides {};
-    guides.Mode = DlssNrMode_ResizePrivateGuides;
-    guides.Width = w;
-    guides.Height = h;
-    guides.GuideWidth = regions.depth.width;
-    guides.GuideHeight = regions.depth.height;
-    guides.DebugView = regions.depth.x;
-    guides.CompareMode = regions.depth.y;
-    guides.TransferStrength = float(regions.motion.width);
-    guides.ColourStrength = float(regions.motion.height);
-    guides.CompareSwap = regions.motion.x;
-    guides.Transfer = regions.motion.y;
-    const auto referenceW = frame.MotionVectorsLowResolution ? frame.RenderSubrectWidth : frame.OutputWidth;
-    const auto referenceH = frame.MotionVectorsLowResolution ? frame.RenderSubrectHeight : frame.OutputHeight;
-    guides.MvScaleX = frame.MvScaleX * float(w) / std::max(referenceW ? referenceW : regions.motion.width, 1u);
-    guides.MvScaleY = frame.MvScaleY * float(h) / std::max(referenceH ? referenceH : regions.motion.height, 1u);
-    if (cfg.DlssNrHoldFrame.value_or_default())
-        guides.MvScaleX = guides.MvScaleY = 0;
-    ok &= shader.DispatchPass(cmd, guides, depth, motion, nullptr, nullptr, nullptr, g.depth.Get(), g.motion.Get());
+    const bool needsPrivateGuides =
+        outputUpscaler == 10 ||
+        (referenceRequired && !useExternalReference && detailReferenceUpscaler == 10);
+    if (needsPrivateGuides)
+    {
+        const auto dd = depth->GetDesc(), md = motion->GetDesc();
+        const auto regions = DlssNr::ResolveGuideRegions(
+            { unsigned(dd.Width), dd.Height }, { unsigned(md.Width), md.Height },
+            { frame.RenderSubrectWidth, frame.RenderSubrectHeight }, { frame.OutputWidth, frame.OutputHeight },
+            frame.MotionVectorsLowResolution, frame.DepthSubrectBaseX, frame.DepthSubrectBaseY,
+            frame.MotionSubrectBaseX, frame.MotionSubrectBaseY);
+        if (!regions.depth.valid() || !regions.motion.valid())
+            return say("enlargement needs valid depth and motion.");
+
+        DlssNrConstants guides {};
+        guides.Mode = DlssNrMode_ResizePrivateGuides;
+        guides.Width = w;
+        guides.Height = h;
+        guides.GuideWidth = regions.depth.width;
+        guides.GuideHeight = regions.depth.height;
+        guides.DebugView = regions.depth.x;
+        guides.CompareMode = regions.depth.y;
+        guides.TransferStrength = float(regions.motion.width);
+        guides.ColourStrength = float(regions.motion.height);
+        guides.CompareSwap = regions.motion.x;
+        guides.Transfer = regions.motion.y;
+        const auto referenceW = frame.MotionVectorsLowResolution ? frame.RenderSubrectWidth : frame.OutputWidth;
+        const auto referenceH = frame.MotionVectorsLowResolution ? frame.RenderSubrectHeight : frame.OutputHeight;
+        guides.MvScaleX = frame.MvScaleX * float(w) / std::max(referenceW ? referenceW : regions.motion.width, 1u);
+        guides.MvScaleY = frame.MvScaleY * float(h) / std::max(referenceH ? referenceH : regions.motion.height, 1u);
+        if (cfg.DlssNrHoldFrame.value_or_default())
+            guides.MvScaleX = guides.MvScaleY = 0;
+        ok &= shader.DispatchPass(cmd, guides, depth, motion, nullptr, nullptr, nullptr, g.depth.Get(), g.motion.Get());
+    }
 
     if (!ok)
     {
@@ -274,16 +331,23 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         return say("enlargement guide/carrier preparation failed.");
     }
 
-    for (auto* r : { g.input.Get(), g.depth.Get(), g.motion.Get() })
-        Barrier(cmd, r, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-    if (detailReady)
+    if (!direct || stageDirectAnswer)
+        Barrier(cmd, g.input.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    if (needsPrivateGuides)
+    {
+        for (auto* r : { g.depth.Get(), g.motion.Get() })
+            Barrier(cmd, r, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+    }
+    if (detailMaskRequired)
     {
         Barrier(cmd, g.detailInfo.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         g.detailReadable = true;
     }
 
-    if (g.readable)
+    if (!fusedDirectOutput && g.readable)
         Barrier(cmd, g.output.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     if (referenceRequired && !useExternalReference && g.detailReferenceReadable)
@@ -336,11 +400,17 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         return scaler && scaler->DispatchResources(cmd, source, target);
     };
 
+    ID3D12Resource* const outputSource = directAnswerSource ? answer : g.input.Get();
     bool outputOk = false;
-    if (outputUpscaler == 10)
+    if (fusedDirectOutput)
+    {
+        // No NR100 texture is produced. Final resolve samples NR50 with the selected local kernel.
+        outputOk = true;
+    }
+    else if (outputUpscaler == 10)
     {
         auto f = baseFrame;
-        f.color.resource = g.input.Get();
+        f.color.resource = outputSource;
         f.output.resource = g.output.Get();
         f.reset = reset || frame.Reset || g.reset || frames < g.lastFrame || frames > g.lastFrame + 1;
         outputOk = g.dlss->Evaluate(cmd, f);
@@ -350,11 +420,11 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     }
     else
     {
-        outputOk = runSpatial(outputUpscaler, g.input.Get(), g.output.Get(), g.outputSpatialScaler,
+        outputOk = runSpatial(outputUpscaler, outputSource, g.output.Get(), g.outputSpatialScaler,
                               "DLSS-NR Direct output upscale");
     }
 
-    if (outputOk)
+    if (outputOk && !fusedDirectOutput)
     {
         Barrier(cmd, g.output.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -409,8 +479,15 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         }
     }
 
-    for (auto* r : { g.input.Get(), g.depth.Get(), g.motion.Get() })
-        Barrier(cmd, r, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    if (!direct || stageDirectAnswer)
+        Barrier(cmd, g.input.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    if (needsPrivateGuides)
+    {
+        for (auto* r : { g.depth.Get(), g.motion.Get() })
+            Barrier(cmd, r, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    }
 
     g.lastFrame = frames;
     g.reset = !outputOk;
@@ -428,5 +505,5 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         return say("selected P50 -> P100 reference upscaler failed.");
 
     enlargementStatus.clear();
-    return g.output.Get();
+    return fusedDirectOutput ? answer : g.output.Get();
 }
