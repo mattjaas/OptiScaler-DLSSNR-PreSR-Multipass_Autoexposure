@@ -1011,12 +1011,12 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             filter.Width = modelWidth;
             filter.Height = modelHeight;
             filter.Transfer = nrEdgeFilter;
-            filter.TransferStrength =
-                std::clamp(cfg.DlssNrExperimentNrEdgeRadius.value_or_default(), 0.25f, 2.0f);
-            filter.ColourStrength =
-                std::clamp(cfg.DlssNrExperimentNrEdgeStrength.value_or_default(), 0.0f, 1.0f);
-            filter.DebugScale =
-                std::clamp(cfg.DlssNrExperimentEdgeThreshold.value_or_default(), 0.001f, 0.5f);
+            const float nrRadius = cfg.DlssNrExperimentNrEdgeRadius.value_or_default();
+            const float nrStrength = cfg.DlssNrExperimentNrEdgeStrength.value_or_default();
+            const float edgeThreshold = cfg.DlssNrExperimentEdgeThreshold.value_or_default();
+            filter.TransferStrength = std::isfinite(nrRadius) ? nrRadius : 0.75f;
+            filter.ColourStrength = std::isfinite(nrStrength) ? nrStrength : 1.0f;
+            filter.DebugScale = std::isfinite(edgeThreshold) ? edgeThreshold : 0.04f;
 
             if (shader.DispatchPass(cmdList, filter, ordinaryAnswer, ordinaryProxy, nullptr, nullptr, nullptr,
                                     nr.outputFiltered, nullptr))
