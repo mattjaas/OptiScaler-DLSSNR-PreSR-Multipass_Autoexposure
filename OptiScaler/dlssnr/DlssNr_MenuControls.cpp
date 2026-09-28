@@ -358,6 +358,7 @@ void RenderInput(Config* config)
 
             if ((transfer == 5 || transfer == 6) && ImGui::TreeNode("Detail quality lab (experimental)"))
             {
+                ImGui::TextDisabled("Slider ranges are only for dragging. Ctrl+click a slider to type any finite value; typed values are not clamped.");
                 static const char* inputFilterNames[] = {
                     "Off", "Uniform softening", "Edge-selective isotropic", "Edge-selective normal"
                 };
