@@ -917,8 +917,9 @@ float4 ExperimentLowResolutionFilter(float2 uv, bool postNr)
     const float localMax = max(yC, max(max(yL, yR), max(yU, yD)));
     const float edgeRange = localMax - localMin;
 
-    // Mode 1 prefilter is deliberately uniform. Every other mode is edge-selective.
-    float edge = (!postNr && gTransfer == 1u)
+    // Mode 1 is deliberately uniform for both the P50 input and the NR50 baseline.
+    // Every higher selector is edge-selective.
+    float edge = gTransfer == 1u
                      ? 1.0
                      : smoothstep(threshold, threshold * 2.0, edgeRange);
 
@@ -940,7 +941,7 @@ float4 ExperimentLowResolutionFilter(float2 uv, bool postNr)
         const float3 b = gSource.SampleLevel(gLinear, saturate(uv + offset), 0).rgb;
         softened = (a + 2.0 * center.rgb + b) * 0.25;
 
-        if (postNr && gTransfer == 3u)
+        if (postNr && gTransfer == 4u)
         {
             // Excess-only: compare NR50's edge energy with the exact P50 image that NVIDIA received.
             // Only the excess created by NR is softened; an already-strong input edge is left alone.
