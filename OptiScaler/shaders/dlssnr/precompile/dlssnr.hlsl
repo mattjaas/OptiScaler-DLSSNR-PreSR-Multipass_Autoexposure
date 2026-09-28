@@ -793,7 +793,6 @@ void ExperimentCrossBlur(float2 uvq, float radius, float normScale, bool directP
     // exactly the same filter response; the compiler can common-subexpression identical reads.
     const float3 mc = ExperimentFinalModelAt(uvq);
     const float3 rc = ExperimentFinalReferenceAt(uvq, directProxyReference);
-    const float3 nc = ExperimentNativeProxyAt(uvq, normScale);
 
     modelBlur = (4.0 * mc +
                  ExperimentFinalModelAt(uvq - dx) + ExperimentFinalModelAt(uvq + dx) +
@@ -811,6 +810,7 @@ void ExperimentCrossBlur(float2 uvq, float radius, float normScale, bool directP
     }
     else
     {
+        const float3 nc = ExperimentNativeProxyAt(uvq, normScale);
         nativeBlur = (4.0 * nc +
                       ExperimentNativeProxyAt(uvq - dx, normScale) +
                       ExperimentNativeProxyAt(uvq + dx, normScale) +
