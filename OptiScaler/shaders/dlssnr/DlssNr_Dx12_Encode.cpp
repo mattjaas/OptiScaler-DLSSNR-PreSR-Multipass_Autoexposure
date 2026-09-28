@@ -330,12 +330,12 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
                 soften.Width = workWidth;
                 soften.Height = workHeight;
                 soften.Transfer = inputFilter;
-                soften.TransferStrength =
-                    std::clamp(cfg.DlssNrExperimentInputRadius.value_or_default(), 0.25f, 2.0f);
-                soften.ColourStrength =
-                    std::clamp(cfg.DlssNrExperimentInputStrength.value_or_default(), 0.0f, 1.0f);
-                soften.DebugScale =
-                    std::clamp(cfg.DlssNrExperimentEdgeThreshold.value_or_default(), 0.001f, 0.5f);
+                const float inputRadius = cfg.DlssNrExperimentInputRadius.value_or_default();
+                const float inputStrength = cfg.DlssNrExperimentInputStrength.value_or_default();
+                const float edgeThreshold = cfg.DlssNrExperimentEdgeThreshold.value_or_default();
+                soften.TransferStrength = std::isfinite(inputRadius) ? inputRadius : 0.75f;
+                soften.ColourStrength = std::isfinite(inputStrength) ? inputStrength : 1.0f;
+                soften.DebugScale = std::isfinite(edgeThreshold) ? edgeThreshold : 0.04f;
 
                 if (shader.DispatchPass(cmdList, soften, nr.colorSmall, nullptr, nullptr, nullptr, nullptr,
                                         nr.colorSoft, nullptr))
@@ -405,12 +405,13 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
     {
         resolveParams.ResidualHistoryValid =
             std::min(cfg.DlssNrExperimentP100EdgeLimiter.value_or_default(), 1u);
-        resolveParams.ResidualBlend =
-            std::clamp(cfg.DlssNrExperimentP100EdgeLimiterStrength.value_or_default(), 0.0f, 1.0f);
+        const float limiterStrength = cfg.DlssNrExperimentP100EdgeLimiterStrength.value_or_default();
+        resolveParams.ResidualBlend = std::isfinite(limiterStrength) ? limiterStrength : 1.0f;
         resolveParams.ResidualMotionBaseX =
             std::min(cfg.DlssNrExperimentStructureTransfer.value_or_default(), 2u);
+        const float structureStrength = cfg.DlssNrExperimentStructureTransferStrength.value_or_default();
         resolveParams.ResidualConfidenceSensitivity =
-            std::clamp(cfg.DlssNrExperimentStructureTransferStrength.value_or_default(), 0.0f, 1.0f);
+            std::isfinite(structureStrength) ? structureStrength : 1.0f;
     }
 
     // Report the effective composition settings when they change.
