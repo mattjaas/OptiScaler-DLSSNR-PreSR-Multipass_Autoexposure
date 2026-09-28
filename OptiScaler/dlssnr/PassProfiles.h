@@ -42,7 +42,8 @@ inline ModelSettings PassSettings(const Config& cfg, unsigned int pass)
     if (cfg.DlssNrExperimentScaleAwareStructure.value_or_default() && result.style < 2u)
     {
         const float scale = std::clamp(cfg.DlssNrWorkingScale.value_or_default(), 0.25f, 1.0f);
-        const float p50 = std::clamp(cfg.DlssNrExperimentStructureP50Factor.value_or_default(), 0.0f, 1.0f);
+        const float configuredP50 = cfg.DlssNrExperimentStructureP50Factor.value_or_default();
+        const float p50 = std::isfinite(configuredP50) ? configuredP50 : 0.60f;
         const float t = std::clamp((1.0f - scale) / 0.5f, 0.0f, 1.0f);
         const float factor = std::lerp(1.0f, p50, t);
         result.localStructure *= factor;
