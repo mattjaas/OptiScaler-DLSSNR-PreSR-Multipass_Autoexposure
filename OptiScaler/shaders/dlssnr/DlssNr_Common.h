@@ -35,7 +35,11 @@ enum DlssNrMode : uint32_t
     // Generic bilinear source->target resize, used by Direct NR A/B upscaler tests.
     DlssNrMode_UpscaleBilinear = 14,
     // Direct NR detail recovery: write only the NR-retention gate to alpha; no NR50 carrier copy.
-    DlssNrMode_EncodeDirectDetailMaskOnly = 15
+    DlssNrMode_EncodeDirectDetailMaskOnly = 15,
+    // Detail-quality lab: one low-resolution pass between proxy downscale and NVIDIA NR.
+    DlssNrMode_ExperimentPrefilter = 16,
+    // Detail-quality lab: one low-resolution pass after NVIDIA NR, before enlargement/resolve.
+    DlssNrMode_ExperimentNrPostfilter = 17
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
