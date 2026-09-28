@@ -185,6 +185,7 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
     // Below full resolution the model is shown a filtered shrink of the proxy; the edit it returns is
     // enlarged during the resolve while the frame underneath stays full size and untouched.
     modelInput = nr.colorCopy;
+    context.referenceInput = modelInput;
 
     if (reduced && !context.spatial && nr.colorSmall != nullptr)
     {
@@ -290,6 +291,69 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
         }
 
         modelInput = nr.colorSmall;
+        context.referenceInput = modelInput;
+
+        // Detail-quality lab: soften only the reduced model input. This is deliberately a single
+        // low-resolution dispatch after the selected downscaler, so every P100->P50 filter can be
+        // compared with identical preconditioning and the cost scales with the small raster.
+        const uint32_t experimentTransfer = cfg.DlssNrTransfer.value_or_default();
+        const uint32_t inputFilter = std::min(cfg.DlssNrExperimentInputFilter.value_or_default(), 3u);
+        const bool inputExperiment =
+            workScale < 1.0f && (experimentTransfer == 5u || experimentTransfer == 6u) && inputFilter != 0u;
+        if (inputExperiment)
+        {
+            const auto rawDesc = nr.colorSmall->GetDesc();
+            const bool softMatches =
+                nr.colorSoft && nr.colorSoft->GetDesc().Width == rawDesc.Width &&
+                nr.colorSoft->GetDesc().Height == rawDesc.Height &&
+                nr.colorSoft->GetDesc().Format == rawDesc.Format &&
+                nr.colorSoft->GetDesc().Flags == rawDesc.Flags;
+            if (!softMatches)
+            {
+                ParkNrResource(nr.colorSoft);
+                nr.colorSoftReadable = false;
+                nr.colorSoft = CreateScratch(device, rawDesc.Format, (unsigned) rawDesc.Width, rawDesc.Height,
+                                             rawDesc.Flags);
+            }
+
+            if (nr.colorSoft)
+            {
+                if (nr.colorSoftReadable)
+                {
+                    Barrier(cmdList, nr.colorSoft, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                    nr.colorSoftReadable = false;
+                }
+
+                DlssNrConstants soften {};
+                soften.Mode = DlssNrMode_ExperimentPrefilter;
+                soften.Width = workWidth;
+                soften.Height = workHeight;
+                soften.Transfer = inputFilter;
+                soften.TransferStrength =
+                    std::clamp(cfg.DlssNrExperimentInputRadius.value_or_default(), 0.25f, 2.0f);
+                soften.ColourStrength =
+                    std::clamp(cfg.DlssNrExperimentInputStrength.value_or_default(), 0.0f, 1.0f);
+                soften.DebugScale =
+                    std::clamp(cfg.DlssNrExperimentEdgeThreshold.value_or_default(), 0.001f, 0.5f);
+
+                if (shader.DispatchPass(cmdList, soften, nr.colorSmall, nullptr, nullptr, nullptr, nullptr,
+                                        nr.colorSoft, nullptr))
+                {
+                    Barrier(cmdList, nr.colorSoft, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                    nr.colorSoftReadable = true;
+                    modelInput = nr.colorSoft;
+
+                    // 0: reconstruct exactly the softened picture NR saw. 1: keep the original sharp
+                    // reduced proxy as the recovery/reference branch. Both remain independently testable.
+                    context.referenceInput =
+                        std::min(cfg.DlssNrExperimentReferenceSource.value_or_default(), 1u) == 0u
+                            ? nr.colorSoft
+                            : nr.colorSmall;
+                }
+            }
+        }
     }
 }
 
