@@ -33,7 +33,9 @@ enum DlssNrMode : uint32_t
     // Direct DLSS: copy NR50 into the private-DLSS carrier and pack P50 + an NR-suppression gate.
     DlssNrMode_EncodeDirectDetail = 13,
     // Generic bilinear source->target resize, used by Direct NR A/B upscaler tests.
-    DlssNrMode_UpscaleBilinear = 14
+    DlssNrMode_UpscaleBilinear = 14,
+    // Direct NR detail recovery: write only the NR-retention gate to alpha; no NR50 carrier copy.
+    DlssNrMode_EncodeDirectDetailMaskOnly = 15
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
@@ -202,7 +204,7 @@ struct alignas(256) DlssNrConstants
     // thing carried up from small is the edit itself.
     //
     // The idea and the cube-scaled residual are hhkbble's, from the multi-pass PR against this fork.
-    uint32_t Transfer;
+    uint32_t Transfer; // 7 is an internal DX12 Direct-NR fused spatial-upscale resolve.
 
     // What the debug views are multiplied by on their way out.
     //
@@ -258,13 +260,14 @@ struct alignas(256) DlssNrConstants
     // Direct-DLSS detail recovery. These occupy the former alignas padding; sizeof stays 256.
     uint32_t DirectDetailMode; // 0 off, 1 full lost detail, 2 NR-gated
     float DirectDetailMaskStrength; // 0..1
-    float DirectDetailPadding0;
-    float DirectDetailPadding1;
+    uint32_t DirectResolveUpscaler; // selector used by internal Transfer=7 fused Direct NR resolve
+    uint32_t DirectResolveFlags;    // reserved, keeps the shared constant buffer at 256 bytes
 };
 static_assert(sizeof(DlssNrConstants) == 256);
 static_assert(offsetof(DlssNrConstants, ReplaceDetailStrength) == 132);
 static_assert(offsetof(DlssNrConstants, ExposureAnchors) == 176);
 static_assert(offsetof(DlssNrConstants, DirectDetailMode) == 240);
+static_assert(offsetof(DlssNrConstants, DirectResolveUpscaler) == 248);
 
 // Local mode numbering for dlssnr_residual.hlsl (a separate blob / PSO from the DlssNrMode shader).
 enum DlssNrResidualMode : uint32_t
