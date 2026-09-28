@@ -750,16 +750,24 @@ float3 ExperimentFinalModelAt(float2 uvq)
     return ExperimentDecodeProxySample(raw);
 }
 
-float3 ExperimentFinalReferenceAt(float2 uvq, bool directProxyReference)
+float3 ExperimentBaselineReferenceAt(float2 uvq)
 {
     uvq = saturate(uvq);
-    // Direct limiter-only mode compares against its existing P100 proxy and therefore needs no
-    // P50 reconstruction. Structure-transfer mode uses Aux2 to measure what NR changed relative
-    // to the reduced image it was shown. Upscaled residual already has reconstructed P100 in Source.
-    const bool direct = (gDirectResolveFlags & 1u) != 0u;
-    const float3 raw = direct && !directProxyReference
-                           ? gAux2.SampleLevel(gLinear, uvq, 0).rgb
-                           : gSource.SampleLevel(gLinear, uvq, 0).rgb;
+    // Source is the ordinary composition baseline: native P100 proxy for Direct NR and reconstructed
+    // P50->P100 for Upscaled NR residual. Using it here makes strength zero algebraically identical
+    // to each mode's normal edit.
+    return ExperimentDecodeProxySample(gSource.SampleLevel(gLinear, uvq, 0).rgb);
+}
+
+float3 ExperimentGainReferenceAt(float2 uvq)
+{
+    uvq = saturate(uvq);
+    // Only Direct structure transfer needs a second reference: Aux2 is the selected reconstruction
+    // of the reduced image shown to NR. Upscaled residual already has that reconstruction in Source.
+    const bool directStructure =
+        (gDirectResolveFlags & 1u) != 0u && gResidualMotionBaseXUnused != 0u;
+    const float3 raw = directStructure ? gAux2.SampleLevel(gLinear, uvq, 0).rgb
+                                       : gSource.SampleLevel(gLinear, uvq, 0).rgb;
     return ExperimentDecodeProxySample(raw);
 }
 
@@ -767,13 +775,12 @@ float3 ExperimentNativeProxyAt(float2 uvq, float normScale)
 {
     uvq = saturate(uvq);
 
-    // Direct NR already carries the untouched native-resolution model proxy in Source. Reuse it
-    // instead of resampling HDR P100 and re-running the encode curve for every detail tap.
+    // Direct NR already carries untouched native-resolution P100 in Source.
     if ((gDirectResolveFlags & 1u) != 0u)
-        return ExperimentDecodeProxySample(gSource.SampleLevel(gLinear, uvq, 0).rgb);
+        return ExperimentBaselineReferenceAt(uvq);
 
-    // Upscaled NR residual has reconstructed P50 in Source, so derive its true P100 geometry from
-    // Original using exactly the same model-domain mapping as the ordinary fullProxy path.
+    // Upscaled NR residual has reconstructed P50 in Source, so derive true P100 geometry from Original
+    // using the same model-domain mapping as the ordinary fullProxy path.
     const float3 native = gOriginal.SampleLevel(gLinear, uvq, 0).rgb / max(normScale, 1e-6);
     if (gPassthrough != 0)
         return saturate(native);
@@ -782,36 +789,50 @@ float3 ExperimentNativeProxyAt(float2 uvq, float normScale)
     return gReversibleMode >= 3u ? HybridEncode(native) : NeutwoEncode(native);
 }
 
-void ExperimentCrossBlur(float2 uvq, float radius, float normScale, bool directProxyReference,
-                         out float3 modelBlur, out float3 referenceBlur, out float3 nativeBlur)
+void ExperimentCrossBlur(float2 uvq, float radius, float normScale,
+                         float3 modelCenter, float3 baselineCenter, float3 gainCenter, float3 nativeCenter,
+                         out float3 modelBlur, out float3 baselineBlur,
+                         out float3 gainBlur, out float3 nativeBlur)
 {
     const float2 texel = 1.0 / float2(max(gWidth, 1u), max(gHeight, 1u));
     const float2 dx = float2(texel.x * radius, 0.0);
     const float2 dy = float2(0.0, texel.y * radius);
 
-    // A five-tap cross with 4x centre weight. Centre values are sampled here too so each band has
-    // exactly the same filter response; the compiler can common-subexpression identical reads.
-    const float3 mc = ExperimentFinalModelAt(uvq);
-    const float3 rc = ExperimentFinalReferenceAt(uvq, directProxyReference);
+    // Four neighbours plus the already-known centre. This avoids re-reading centre taps in the
+    // one-band path and reuses them again for the second band.
+    const float3 mL = ExperimentFinalModelAt(uvq - dx);
+    const float3 mR = ExperimentFinalModelAt(uvq + dx);
+    const float3 mU = ExperimentFinalModelAt(uvq - dy);
+    const float3 mD = ExperimentFinalModelAt(uvq + dy);
+    modelBlur = (4.0 * modelCenter + mL + mR + mU + mD) * 0.125;
 
-    modelBlur = (4.0 * mc +
-                 ExperimentFinalModelAt(uvq - dx) + ExperimentFinalModelAt(uvq + dx) +
-                 ExperimentFinalModelAt(uvq - dy) + ExperimentFinalModelAt(uvq + dy)) * 0.125;
-    referenceBlur = (4.0 * rc +
-                     ExperimentFinalReferenceAt(uvq - dx, directProxyReference) +
-                     ExperimentFinalReferenceAt(uvq + dx, directProxyReference) +
-                     ExperimentFinalReferenceAt(uvq - dy, directProxyReference) +
-                     ExperimentFinalReferenceAt(uvq + dy, directProxyReference)) * 0.125;
-    if (directProxyReference)
+    const float3 bL = ExperimentBaselineReferenceAt(uvq - dx);
+    const float3 bR = ExperimentBaselineReferenceAt(uvq + dx);
+    const float3 bU = ExperimentBaselineReferenceAt(uvq - dy);
+    const float3 bD = ExperimentBaselineReferenceAt(uvq + dy);
+    baselineBlur = (4.0 * baselineCenter + bL + bR + bU + bD) * 0.125;
+
+    const bool direct = (gDirectResolveFlags & 1u) != 0u;
+    const bool separateGainReference = direct && gResidualMotionBaseXUnused != 0u;
+    if (separateGainReference)
     {
-        // Limiter-only Direct mode uses Source for both the baseline and P100 support geometry.
-        // Reuse the already computed reference blur and eliminate five redundant full-resolution reads.
-        nativeBlur = referenceBlur;
+        gainBlur = (4.0 * gainCenter +
+                    ExperimentGainReferenceAt(uvq - dx) + ExperimentGainReferenceAt(uvq + dx) +
+                    ExperimentGainReferenceAt(uvq - dy) + ExperimentGainReferenceAt(uvq + dy)) * 0.125;
     }
     else
     {
-        const float3 nc = ExperimentNativeProxyAt(uvq, normScale);
-        nativeBlur = (4.0 * nc +
+        gainBlur = baselineBlur;
+    }
+
+    if (direct)
+    {
+        // Direct Source is already the untouched P100 proxy, so baseline and native geometry are identical.
+        nativeBlur = baselineBlur;
+    }
+    else
+    {
+        nativeBlur = (4.0 * nativeCenter +
                       ExperimentNativeProxyAt(uvq - dx, normScale) +
                       ExperimentNativeProxyAt(uvq + dx, normScale) +
                       ExperimentNativeProxyAt(uvq - dy, normScale) +
@@ -839,70 +860,72 @@ float3 ExperimentLimitedBand(float3 conventionalEdit, float3 nativeBand, float l
     return conventionalEdit * lerp(1.0, support, saturate(limiterStrength));
 }
 
-float3 ExperimentStructureBand(float3 conventionalEdit, float3 referenceBand, float3 modelBand,
-                               float3 nativeBand, float limiterStrength, float structureStrength)
+float3 ExperimentResolveBand(float3 conventionalEdit, float3 gainReferenceBand, float3 modelBand,
+                             float3 nativeBand, uint structureMode,
+                             float limiterStrength, float structureStrength)
 {
     float3 limited = conventionalEdit;
     if (gResidualHistoryValidUnused != 0u)
         limited = ExperimentLimitedBand(limited, nativeBand, limiterStrength);
 
-    const float gain = ExperimentStructureGain(referenceBand, modelBand);
+    if (structureMode == 0u)
+        return limited;
+
+    const float gain = ExperimentStructureGain(gainReferenceBand, modelBand);
     const float3 nativeGainEdit = nativeBand * (gain - 1.0);
     return lerp(limited, nativeGainEdit, saturate(structureStrength));
 }
 
-float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 referenceCenter,
-                                float3 nativeCenter, float normScale, bool directProxyReference)
+float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineCenter,
+                                float3 gainCenter, float3 nativeCenter, float normScale)
 {
     const uint structureMode = min(gResidualMotionBaseXUnused, 2u);
     const float structureStrength = saturate(gResidualConfidenceUnused);
     const float limiterStrength = saturate(gResidualBlendUnused);
 
-    float3 modelBlur1, referenceBlur1, nativeBlur1;
-    ExperimentCrossBlur(uvq, 1.0, normScale, directProxyReference,
-                        modelBlur1, referenceBlur1, nativeBlur1);
+    float3 modelBlur1, baselineBlur1, gainBlur1, nativeBlur1;
+    ExperimentCrossBlur(uvq, 1.0, normScale, modelCenter, baselineCenter, gainCenter, nativeCenter,
+                        modelBlur1, baselineBlur1, gainBlur1, nativeBlur1);
 
     if (structureMode < 2u)
     {
-        const float3 lowEdit = modelBlur1 - referenceBlur1;
+        // Low-frequency edit is always the mode's original baseline. Only the high-frequency band
+        // is limited/re-expressed through P100 geometry, so structure strength 0 is exactly neutral.
+        const float3 lowEdit = modelBlur1 - baselineBlur1;
         const float3 modelBand = modelCenter - modelBlur1;
-        const float3 referenceBand = referenceCenter - referenceBlur1;
+        const float3 baselineBand = baselineCenter - baselineBlur1;
+        const float3 gainBand = gainCenter - gainBlur1;
         const float3 nativeBand = nativeCenter - nativeBlur1;
-        const float3 conventionalBandEdit = modelBand - referenceBand;
+        const float3 conventionalBandEdit = modelBand - baselineBand;
 
-        float3 bandEdit = conventionalBandEdit;
-        if (gResidualHistoryValidUnused != 0u)
-            bandEdit = ExperimentLimitedBand(bandEdit, nativeBand, limiterStrength);
-        if (structureMode == 1u)
-        {
-            const float gain = ExperimentStructureGain(referenceBand, modelBand);
-            const float3 nativeGainEdit = nativeBand * (gain - 1.0);
-            bandEdit = lerp(bandEdit, nativeGainEdit, structureStrength);
-        }
-        return lowEdit + bandEdit;
+        return lowEdit +
+               ExperimentResolveBand(conventionalBandEdit, gainBand, modelBand, nativeBand, structureMode,
+                                     limiterStrength, structureStrength);
     }
 
-    // Two-band version: a fine P100 band (0..1 px) and a wider local-structure band (1..2 px).
-    // The low-frequency model edit below radius 2 is carried normally.
-    float3 modelBlur2, referenceBlur2, nativeBlur2;
-    ExperimentCrossBlur(uvq, 2.0, normScale, directProxyReference,
-                        modelBlur2, referenceBlur2, nativeBlur2);
+    // Two-band version: fine 0..1 px and mid 1..2 px. Low frequencies below radius 2 remain the
+    // exact ordinary Direct/Upscaled-residual edit; only the two structure bands change geometry.
+    float3 modelBlur2, baselineBlur2, gainBlur2, nativeBlur2;
+    ExperimentCrossBlur(uvq, 2.0, normScale, modelCenter, baselineCenter, gainCenter, nativeCenter,
+                        modelBlur2, baselineBlur2, gainBlur2, nativeBlur2);
 
-    const float3 lowEdit = modelBlur2 - referenceBlur2;
+    const float3 lowEdit = modelBlur2 - baselineBlur2;
 
     const float3 modelFine = modelCenter - modelBlur1;
-    const float3 referenceFine = referenceCenter - referenceBlur1;
+    const float3 baselineFine = baselineCenter - baselineBlur1;
+    const float3 gainFine = gainCenter - gainBlur1;
     const float3 nativeFine = nativeCenter - nativeBlur1;
     const float3 fineEdit =
-        ExperimentStructureBand(modelFine - referenceFine, referenceFine, modelFine, nativeFine,
-                                limiterStrength, structureStrength);
+        ExperimentResolveBand(modelFine - baselineFine, gainFine, modelFine, nativeFine, structureMode,
+                              limiterStrength, structureStrength);
 
     const float3 modelMid = modelBlur1 - modelBlur2;
-    const float3 referenceMid = referenceBlur1 - referenceBlur2;
+    const float3 baselineMid = baselineBlur1 - baselineBlur2;
+    const float3 gainMid = gainBlur1 - gainBlur2;
     const float3 nativeMid = nativeBlur1 - nativeBlur2;
     const float3 midEdit =
-        ExperimentStructureBand(modelMid - referenceMid, referenceMid, modelMid, nativeMid,
-                                limiterStrength, structureStrength);
+        ExperimentResolveBand(modelMid - baselineMid, gainMid, modelMid, nativeMid, structureMode,
+                              limiterStrength, structureStrength);
 
     return lowEdit + fineEdit + midEdit;
 }
@@ -1469,16 +1492,15 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         (gResidualHistoryValidUnused != 0u || gResidualMotionBaseXUnused != 0u);
     if (finalDetailExperiment)
     {
+        const bool direct = (gDirectResolveFlags & 1u) != 0u;
         const uint structureMode = min(gResidualMotionBaseXUnused, 2u);
-        const bool directProxyReference =
-            (gDirectResolveFlags & 1u) != 0u && structureMode == 0u;
-        const float3 referenceCenter =
-            directProxyReference ? proxy : ExperimentFinalReferenceAt(cmpUv, false);
+        const float3 baselineCenter = proxy;
+        const float3 gainCenter =
+            direct && structureMode != 0u ? ExperimentGainReferenceAt(cmpUv) : baselineCenter;
         const float3 nativeProxyCenter =
-            (gDirectResolveFlags & 1u) != 0u ? proxy : ExperimentNativeProxyAt(cmpUv, normScale);
+            direct ? baselineCenter : ExperimentNativeProxyAt(cmpUv, normScale);
         const float3 guidedEdit =
-            ExperimentP100GuidedEdit(cmpUv, model, referenceCenter, nativeProxyCenter, normScale,
-                                     directProxyReference);
+            ExperimentP100GuidedEdit(cmpUv, model, baselineCenter, gainCenter, nativeProxyCenter, normScale);
         model = proxy + guidedEdit;
         modelDirect = model;
     }
