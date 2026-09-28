@@ -766,6 +766,14 @@ float3 ExperimentFinalReferenceAt(float2 uvq, bool directProxyReference)
 float3 ExperimentNativeProxyAt(float2 uvq, float normScale)
 {
     uvq = saturate(uvq);
+
+    // Direct NR already carries the untouched native-resolution model proxy in Source. Reuse it
+    // instead of resampling HDR P100 and re-running the encode curve for every detail tap.
+    if ((gDirectResolveFlags & 1u) != 0u)
+        return ExperimentDecodeProxySample(gSource.SampleLevel(gLinear, uvq, 0).rgb);
+
+    // Upscaled NR residual has reconstructed P50 in Source, so derive its true P100 geometry from
+    // Original using exactly the same model-domain mapping as the ordinary fullProxy path.
     const float3 native = gOriginal.SampleLevel(gLinear, uvq, 0).rgb / max(normScale, 1e-6);
     if (gPassthrough != 0)
         return saturate(native);
@@ -795,9 +803,20 @@ void ExperimentCrossBlur(float2 uvq, float radius, float normScale, bool directP
                      ExperimentFinalReferenceAt(uvq + dx, directProxyReference) +
                      ExperimentFinalReferenceAt(uvq - dy, directProxyReference) +
                      ExperimentFinalReferenceAt(uvq + dy, directProxyReference)) * 0.125;
-    nativeBlur = (4.0 * nc +
-                  ExperimentNativeProxyAt(uvq - dx, normScale) + ExperimentNativeProxyAt(uvq + dx, normScale) +
-                  ExperimentNativeProxyAt(uvq - dy, normScale) + ExperimentNativeProxyAt(uvq + dy, normScale)) * 0.125;
+    if (directProxyReference)
+    {
+        // Limiter-only Direct mode uses Source for both the baseline and P100 support geometry.
+        // Reuse the already computed reference blur and eliminate five redundant full-resolution reads.
+        nativeBlur = referenceBlur;
+    }
+    else
+    {
+        nativeBlur = (4.0 * nc +
+                      ExperimentNativeProxyAt(uvq - dx, normScale) +
+                      ExperimentNativeProxyAt(uvq + dx, normScale) +
+                      ExperimentNativeProxyAt(uvq - dy, normScale) +
+                      ExperimentNativeProxyAt(uvq + dy, normScale)) * 0.125;
+    }
 }
 
 float ExperimentStructureGain(float3 referenceBand, float3 modelBand)
@@ -1455,7 +1474,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             (gDirectResolveFlags & 1u) != 0u && structureMode == 0u;
         const float3 referenceCenter =
             directProxyReference ? proxy : ExperimentFinalReferenceAt(cmpUv, false);
-        const float3 nativeProxyCenter = ExperimentNativeProxyAt(cmpUv, normScale);
+        const float3 nativeProxyCenter =
+            (gDirectResolveFlags & 1u) != 0u ? proxy : ExperimentNativeProxyAt(cmpUv, normScale);
         const float3 guidedEdit =
             ExperimentP100GuidedEdit(cmpUv, model, referenceCenter, nativeProxyCenter, normScale,
                                      directProxyReference);
