@@ -85,7 +85,8 @@ struct DlssNr_Dx12::State
     void ReleaseEnlarger();
     void CollectEnlargers();
     ID3D12Resource* EnlargeMatchedResidual(ID3D12GraphicsCommandList* cmd, ID3D12Device* device, ID3D12Resource* proxy,
-                                           ID3D12Resource* answer, ID3D12Resource* depth, ID3D12Resource* motion,
+                                           ID3D12Resource* referenceProxy, ID3D12Resource* answer,
+                                           ID3D12Resource* depth, ID3D12Resource* motion,
                                            const DlssNrFrameInfo& frame, const DlssNrConstants& resolve,
                                            uint32_t transfer, bool reset, ID3D12CommandQueue* queue,
                                            bool externalDetailReference = false);
@@ -425,6 +426,9 @@ struct DlssNr_Dx12::State
         bool encodeSucceeded = false;
         float whitePoint = 1.0f;
         ID3D12Resource* modelInput = nullptr;
+        // P50 source used by reconstruction/detail-reference work. It can intentionally differ from
+        // modelInput when the detail-quality lab softens only the NVIDIA NR input.
+        ID3D12Resource* referenceInput = nullptr;
         ID3D12Resource* exposure = nullptr;
         DlssNrConstants exposureConstants {};
     };
