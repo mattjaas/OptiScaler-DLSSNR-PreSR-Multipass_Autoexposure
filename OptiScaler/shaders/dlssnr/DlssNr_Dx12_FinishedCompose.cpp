@@ -243,13 +243,21 @@ auto DlssNr_Dx12::State::ApplyFinishedColor(ID3D12Resource* color, ID3D12Command
         frame.WhitePointOverride = (pq || scrgb) ? 203.0f / 80.0f : 0.0f;
         frame.Reset |= late.reset;
         frame.SubmissionEpoch = epoch;
+        const uint32_t transfer = cfg.DlssNrTransfer.value_or_default();
+        const bool upscaledResidual = transfer == 6;
         const uint32_t detailExecution =
-            std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
+            std::min(upscaledResidual ? cfg.DlssNrUpscaledResidualReferenceExecutionMode.value_or_default()
+                                      : cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(),
+                     2u);
+        const uint32_t detailReference =
+            std::min(upscaledResidual ? cfg.DlssNrUpscaledResidualReferenceUpscaler.value_or_default()
+                                      : cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(),
+                     10u);
+        const bool needsP50Reference =
+            upscaledResidual || (transfer == 5 && cfg.DlssNrDirectDetailRecovery.value_or_default() != 0);
         requestAsyncDetail =
-            detailExecution != 1 && cfg.DlssNrTransfer.value_or_default() == 5 &&
-            cfg.DlssNrWorkingScale.value_or_default() < 0.999f &&
-            cfg.DlssNrDirectDetailRecovery.value_or_default() != 0 &&
-            std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u) < 10 &&
+            detailExecution != 1 && (transfer == 5 || transfer == 6) &&
+            cfg.DlssNrWorkingScale.value_or_default() < 0.999f && needsP50Reference && detailReference < 10 &&
             !cfg.DlssNrHoldFrame.value_or_default() && cfg.DlssNrDebugView.value_or_default() == 0 &&
             cfg.DlssNrCompare.value_or_default() == 0 && !cfg.DlssNrShowSkinMask.value_or_default() &&
             !captureFrames.isActive() && !::State::Instance().isShuttingDown;
