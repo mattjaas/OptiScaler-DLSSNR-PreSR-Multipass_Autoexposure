@@ -35,6 +35,20 @@ inline ModelSettings PassSettings(const Config& cfg, unsigned int pass)
     result.localStructure = bounded(result.localStructure, 1.0f, 0.0f);
     result.localTone = bounded(result.localTone, pass == 0 ? 1.0f : 0.0f, 0.0f);
     result.skinStructure = bounded(result.skinStructure, -1.0f, -1.0f);
+
+    // Experimental scale-aware compensation: Standard/Natural can draw coarse model-space structure
+    // that becomes visually too thick after a strong P50/P60 -> P100 enlargement. Keep P100 exactly
+    // unchanged, interpolate to the user-selected factor at P50, and leave Cinematic untouched.
+    if (cfg.DlssNrExperimentScaleAwareStructure.value_or_default() && result.style < 2u)
+    {
+        const float scale = std::clamp(cfg.DlssNrWorkingScale.value_or_default(), 0.25f, 1.0f);
+        const float p50 = std::clamp(cfg.DlssNrExperimentStructureP50Factor.value_or_default(), 0.0f, 1.0f);
+        const float t = std::clamp((1.0f - scale) / 0.5f, 0.0f, 1.0f);
+        const float factor = std::lerp(1.0f, p50, t);
+        result.localStructure *= factor;
+        if (result.skinStructure >= 0.0f)
+            result.skinStructure *= factor;
+    }
     return result;
 }
 } // namespace DlssNr::Profiles
