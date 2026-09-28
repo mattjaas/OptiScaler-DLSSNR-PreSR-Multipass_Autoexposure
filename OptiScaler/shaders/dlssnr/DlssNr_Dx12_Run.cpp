@@ -1124,46 +1124,16 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
         const bool asyncSubmissionReady = finishAsyncNr();
 
-        // Upscaled NR residual: both resize branches are now complete. Build the signed residual at
-        // native resolution only after the async P50 reference has joined the direct NR path.
+        // Upscaled NR residual: both P100 branches are complete after the async join. Feed them
+        // directly to the final resolve so there is no intermediate full-resolution residual carrier pass.
         if (transfer == 6 && enlargementReady && asyncSubmissionReady)
         {
-            bool residualReady = enlarger && enlarger->fullResidual && upscaledResidualReference &&
-                                 upscaledResidualAnswer && enlarger->readable;
-
-            if (residualReady && resolveParams.DebugView != 1 && resolveParams.DebugView != 2)
+            const bool residualReady = upscaledResidualReference && upscaledResidualAnswer;
+            if (residualReady)
             {
-                if (enlarger->fullResidualReadable)
-                {
-                    Barrier(cmdList, enlarger->fullResidual.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-                    enlarger->fullResidualReadable = false;
-                }
-
-                DlssNrConstants residual {};
-                residual.Mode = DlssNrMode_EncodeProxyResidual;
-                residual.Width = width;
-                residual.Height = height;
-                residual.Passthrough = resolveParams.Passthrough;
-                residualReady =
-                    shader.DispatchPass(cmdList, residual, upscaledResidualReference, upscaledResidualAnswer, nullptr,
-                                        nullptr, nullptr, enlarger->fullResidual.Get(), nullptr);
-                if (residualReady)
-                {
-                    Barrier(cmdList, enlarger->fullResidual.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                    enlarger->fullResidualReadable = true;
-                    resolveProxy = upscaledResidualReference;
-                    resolveAnswer = enlarger->fullResidual.Get();
-                    resolveParams.Transfer = 2;
-                }
-            }
-            else if (residualReady)
-            {
-                // Proxy/model debug views display the two independently reconstructed P100 images.
-                resolveProxy = upscaledResidualReference;
-                resolveAnswer = upscaledResidualAnswer;
-                resolveParams.Transfer = 0;
+                resolveProxy = upscaledResidualReference; // reconstructed P100
+                resolveAnswer = upscaledResidualAnswer;   // NR100
+                resolveParams.Transfer = 6;               // direct full-resolution residual
             }
 
             enlargementReady = residualReady;

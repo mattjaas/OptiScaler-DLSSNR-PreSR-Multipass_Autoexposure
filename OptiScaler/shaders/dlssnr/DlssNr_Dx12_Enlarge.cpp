@@ -127,11 +127,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         g.depth.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, w, h));
         g.motion.Attach(CreateScratch(device, DXGI_FORMAT_R32G32_FLOAT, w, h));
         g.exposure.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, 1, 1));
-        if (upscaledResidual)
-            g.fullResidual.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, g.outW, g.outH));
         g.failed = true;
-        if (!g.input || !g.output || !g.depth || !g.motion || !g.exposure ||
-            (upscaledResidual && !g.fullResidual))
+        if (!g.input || !g.output || !g.depth || !g.motion || !g.exposure)
             return say("enlargement resource allocation failed; use Retry.");
 
         lifetime.Record(cmd);

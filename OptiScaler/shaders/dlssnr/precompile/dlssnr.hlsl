@@ -23,7 +23,7 @@ cbuffer Params : register(b0)
     float gCompareSplit; // where the wipe cuts, 0..1
     float gCompareZoom;  // side by side: 1 fits the frame, 2 fills the half
     uint  gCompareSwap;  // put the edited frame on the other side
-    uint  gTransfer;     // 0 classic, 1/2 residual spatial/DLSS, 3/4 lighting+colour spatial/DLSS
+    uint  gTransfer;     // 0 classic, 1/2 residual spatial/DLSS, 3/4 lighting+colour, 6 direct P100 residual
     float gDebugScale;   // what the debug views are scaled by, held still while the meter moves
     uint  gReversibleMode; // 0 knee, 1 Neutwo+composed, 2 Neutwo+replace, 3 hybrid+composed, 4 hybrid+replace
     uint  gApplyModel;     // 0 output the clean frame (pass still runs), 1 apply the model's edit
@@ -1097,7 +1097,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     // Rebuild the full-resolution proxy and add only the upsampled model difference.
     // Skip ordinary matched residual at native resolution to preserve Classic's exact arithmetic.
     // Residual transfer and cube scaling are adapted from hhkbble's multi-pass contribution.
-    if ((gTransfer == 1 && modelRanSmall) || gTransfer == 2)
+    if ((gTransfer == 1 && modelRanSmall) || gTransfer == 2 || gTransfer == 6)
     {
         // Match the encode's curve, passthrough and saturation before cube-scaling the residual.
         // An out-of-range reconstructed proxy would collapse the residual scale to zero.
@@ -1112,7 +1112,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         // At the same rate there is no residual to carry: the model's own picture is already at the
         // frame's resolution, and P + (m - p) collapses to m exactly.
         model = CubeScaleResidual(fullProxy, fullProxy + edit);
-        if (gTransfer == 2) modelDirect = model;
+        if (gTransfer == 2 || gTransfer == 6) modelDirect = model;
     }
 
     // Rescale the model answer to the original luminance and restore headroom lost by the proxy.
