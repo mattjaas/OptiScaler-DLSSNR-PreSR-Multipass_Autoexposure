@@ -54,8 +54,9 @@ void DlssNr_Dx12::State::CollectEnlargers()
 }
 
 ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommandList* cmd, ID3D12Device* device,
-                                                           ID3D12Resource* proxy, ID3D12Resource* answer,
-                                                           ID3D12Resource* depth, ID3D12Resource* motion,
+                                                           ID3D12Resource* proxy, ID3D12Resource* referenceProxy,
+                                                           ID3D12Resource* answer, ID3D12Resource* depth,
+                                                           ID3D12Resource* motion,
                                                            const DlssNrFrameInfo& frame, const DlssNrConstants& resolve,
                                                            uint32_t transfer, bool reset,
                                                            ID3D12CommandQueue* timingQueue,
@@ -92,8 +93,13 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     const bool direct = transfer == 5;
     const bool upscaledResidual = transfer == 6;
     const auto& cfg = *Config::Instance();
+    if (!referenceProxy)
+        referenceProxy = proxy;
     const uint32_t directDetailMode =
         direct ? std::min(cfg.DlssNrDirectDetailRecovery.value_or_default(), 2u) : 0u;
+    const bool directFinalReferenceExperiment =
+        direct && (cfg.DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
+                   cfg.DlssNrExperimentStructureTransfer.value_or_default() != 0);
     const uint32_t outputUpscaler =
         direct ? std::min(cfg.DlssNrDirectOutputUpscaler.value_or_default(), 10u)
                : upscaledResidual ? std::min(cfg.DlssNrUpscaledResidualUpscaler.value_or_default(), 10u)
@@ -200,7 +206,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
 
     bool detailReady = direct && directDetailMode != 0;
     bool detailMaskRequired = direct && directDetailMode == 2;
-    bool referenceRequired = detailReady || upscaledResidual;
+    bool referenceRequired = detailReady || upscaledResidual || directFinalReferenceExperiment;
     const bool useExternalReference = externalDetailReference && referenceRequired;
     if (referenceRequired &&
         ((detailMaskRequired && !g.detailInfo) || (!useExternalReference && !g.detailReference)))
@@ -439,7 +445,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             if (g.detailDlss)
             {
                 auto f = baseFrame;
-                f.color.resource = proxy;
+                f.color.resource = referenceProxy;
                 f.output.resource = g.detailReference.Get();
                 f.reset = reset || frame.Reset || g.detailReset || frames < g.detailLastFrame ||
                           frames > g.detailLastFrame + 1;
@@ -455,7 +461,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         else
         {
             detailReferenceOk =
-                runSpatial(detailReferenceUpscaler, proxy, g.detailReference.Get(), g.detailSpatialScaler,
+                runSpatial(detailReferenceUpscaler, referenceProxy, g.detailReference.Get(), g.detailSpatialScaler,
                            "DLSS-NR P50 detail-reference upscale");
             g.detailReset = false;
         }
