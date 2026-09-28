@@ -1,0 +1,78 @@
+name: Build NR detail quality experiments
+
+on:
+  push:
+    branches:
+      - codex/nr-detail-quality-experiments
+    paths:
+      - OptiScaler/Config.h
+      - OptiScaler/Config.cpp
+      - OptiScaler.ini
+      - OptiScaler/dlssnr/PassProfiles.h
+      - OptiScaler/dlssnr/DlssNr_MenuControls.cpp
+      - OptiScaler/shaders/dlssnr/DlssNr_Common.h
+      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_ModelState.h
+      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Resources.cpp
+      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_State.h
+      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Encode.cpp
+      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp
+      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Enlarge.cpp
+      - OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl
+      - .github/workflows/build_nr_detail_quality_experiments.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout experiment branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          submodules: false
+          fetch-depth: 0
+
+      - name: Enable Windows long paths and fetch submodules
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
+
+      - name: Rebuild NR detail experiment shader
+        shell: powershell
+        run: |
+          Push-Location "OptiScaler/shaders/dlssnr/precompile"
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect "dlssnr.hlsl" -Fo "DlssNr_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "DlssNr_Shader.cso" "DlssNr_Shader.h" "DlssNr_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+
+      - name: Commit regenerated shader
+        shell: powershell
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "OptiScaler/shaders/dlssnr/precompile/DlssNr_Shader.cso" "OptiScaler/shaders/dlssnr/precompile/DlssNr_Shader.h"
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "Regenerate NR detail-quality experiment shader"
+            git push origin "HEAD:${{ github.ref_name }}"
+          }
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build and package
+        shell: powershell
+        run: ./package_release.ps1 -Version "nr-detail-quality-experiments"
+
+      - name: Upload test package
+        uses: actions/upload-artifact@v4
+        with:
+          name: OptiScaler-NR-detail-quality-experiments
+          path: release/OptiScaler-NR-nr-detail-quality-experiments.zip
+          if-no-files-found: error
