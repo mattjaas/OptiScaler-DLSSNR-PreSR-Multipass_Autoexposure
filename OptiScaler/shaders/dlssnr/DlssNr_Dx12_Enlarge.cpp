@@ -108,7 +108,16 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                          : direct ? std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u) : 0u;
     const uint32_t carrierMode = upscaledResidual ? 3u : direct ? 2u : structural ? 1u : 0u;
     const bool directAnswerSource = direct && DirectAnswerCanFeedUpscaler(answer);
-    const bool fusedDirectOutput = directAnswerSource && DirectFusedResolveUpscaler(outputUpscaler);
+    const bool p100GuidedExperiment =
+        direct && (cfg.DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
+                   cfg.DlssNrExperimentStructureTransfer.value_or_default() != 0);
+    // P100-guided experiments sample several neighbouring NR100 values. Re-evaluating MAGIC's
+    // multi-tap kernel for every neighbour is slower than materializing MAGIC once, while the cheap
+    // bilinear/Area/current-FSR1 paths still benefit from the zero-intermediate fused resolve.
+    const bool materializeExpensiveFused =
+        p100GuidedExperiment && (outputUpscaler == 8u || resolve.CompareMode == 1u);
+    const bool fusedDirectOutput =
+        directAnswerSource && DirectFusedResolveUpscaler(outputUpscaler) && !materializeExpensiveFused;
     const int dlssPreset = cfg.DlssNrScalingDlssPreset.value_or_default();
 
     const auto desc = proxy->GetDesc();
