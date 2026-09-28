@@ -1,4 +1,4 @@
-name: Release NR Upscaled residual async fix
+name: Release NR proxy scaler defaults
 
 on:
   push:
@@ -10,6 +10,9 @@ on:
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_FinishedCompose.cpp
+      - OptiScaler/Config.h
+      - OptiScaler.ini
+      - OptiScaler/dlssnr/DlssNr_MenuControls.cpp
       - OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl
       - .github/workflows/release_upscaled_residual_direct.yml
 
@@ -44,22 +47,22 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "rdr2-pr94-pr109-upscaled-residual-async-fix-20260928"
+        run: ./package_release.ps1 -Version "rdr2-pr94-pr109-proxy-defaults-20260928"
 
       - name: Publish GitHub release
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "rdr2-pr94-pr109-upscaled-residual-async-fix-20260928"
-          $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-upscaled-residual-async-fix-20260928.zip"
+          $tag = "rdr2-pr94-pr109-proxy-defaults-20260928"
+          $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-proxy-defaults-20260928.zip"
           $notes = @"
           Built from source commit $env:TARGET_SHA.
 
           Changes:
-          - Upscaled NR residual now actually starts async P50 -> P100 work in Finished Picture.
-          - Ordinary post-SR async now supports Transfer 6 and uses the UpscaledResidual execution/upscaler settings.
-          - Direct NR keeps its existing async gating and settings.
-          - Transfer 6 still joins before the native-resolution residual compose.
+          - P100 -> reduced proxy defaults to Area for both Direct NR and Upscaled NR residual.
+          - P50/reduced proxy -> P100 reference reconstruction now defaults to FSR1 for both modes.
+          - NR50 -> NR100 output upscaler defaults are unchanged.
+          - Existing explicit user selections remain respected.
           "@
-          gh release create $tag $asset --target $env:TARGET_SHA --title "OptiScaler NR - Upscaled residual async fix" --notes $notes
+          gh release create $tag $asset --target $env:TARGET_SHA --title "OptiScaler NR - proxy scaler defaults" --notes $notes
