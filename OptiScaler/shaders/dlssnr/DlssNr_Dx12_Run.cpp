@@ -219,9 +219,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                                      : cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(),
                  10u);
     const bool directFinalReferenceExperiment =
-        transferMode == 5 &&
-        (cfg.DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
-         cfg.DlssNrExperimentStructureTransfer.value_or_default() != 0);
+        transferMode == 5 && cfg.DlssNrExperimentStructureTransfer.value_or_default() != 0;
     const bool needsP50Reference =
         upscaledResidualMode ||
         (transferMode == 5 &&
@@ -1141,7 +1139,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                     const uint32_t detailMode =
                         std::min(cfg.DlssNrDirectDetailRecovery.value_or_default(), 2u);
                     const bool finalExperimentNeedsReference =
-                        resolveParams.ResidualHistoryValid != 0u || resolveParams.ResidualMotionBaseX != 0u;
+                        resolveParams.ResidualMotionBaseX != 0u;
                     ID3D12Resource* selectedDetailReference =
                         asyncExternalDetail && asyncSlot && asyncSlot->asyncDetailReferenceReadable
                             ? asyncSlot->asyncDetailReference.Get()
