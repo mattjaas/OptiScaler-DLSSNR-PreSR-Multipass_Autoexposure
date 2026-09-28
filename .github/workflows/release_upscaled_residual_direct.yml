@@ -1,4 +1,4 @@
-name: Release NR proxy scaler defaults
+name: Release Direct NR fused resolve
 
 on:
   push:
@@ -37,6 +37,28 @@ jobs:
           git submodule sync --recursive
           git submodule update --init --recursive --force
 
+      - name: Rebuild Direct NR DX12 shader
+        shell: powershell
+        run: |
+          Push-Location "OptiScaler/shaders/dlssnr/precompile"
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect "dlssnr.hlsl" -Fo "DlssNr_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "DlssNr_Shader.cso" "DlssNr_Shader.h" "DlssNr_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Pop-Location
+
+      - name: Commit regenerated shader
+        shell: powershell
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "OptiScaler/shaders/dlssnr/precompile/DlssNr_Shader.cso" "OptiScaler/shaders/dlssnr/precompile/DlssNr_Shader.h"
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "Regenerate Direct NR fused-resolve shader"
+            git push origin "HEAD:${{ github.ref_name }}"
+          }
+
       - name: Record release source
         shell: powershell
         run: |
@@ -47,22 +69,25 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "rdr2-pr94-pr109-proxy-defaults-20260928"
+        run: ./package_release.ps1 -Version "rdr2-pr94-pr109-direct-fused-20260928"
 
       - name: Publish GitHub release
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "rdr2-pr94-pr109-proxy-defaults-20260928"
-          $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-proxy-defaults-20260928.zip"
+          $tag = "rdr2-pr94-pr109-direct-fused-20260928"
+          $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-direct-fused-20260928.zip"
           $notes = @"
           Built from source commit $env:TARGET_SHA.
 
-          Changes:
-          - P100 -> reduced proxy defaults to Area for both Direct NR and Upscaled NR residual.
-          - P50/reduced proxy -> P100 reference reconstruction now defaults to FSR1 for both modes.
-          - NR50 -> NR100 output upscaler defaults are unchanged.
-          - Existing explicit user selections remain respected.
+          Direct NR changes:
+          - Compatible FP16 NR50 feeds the selected output path directly; g.input remains only as a format fallback.
+          - Full lost detail no longer runs EncodeDirectDetail and does not read a detail gate.
+          - NR-gated detail uses an alpha-only gate pass with no redundant NR50 copy.
+          - Private guide resize is skipped when neither active output nor detail-reference work uses private DLSS SR.
+          - Bilinear, Area, MAGIC and the branch's current FSR1 selector are fused into final resolve, eliminating the separate NR100 write/read.
+          - MAGIC and Area preserve the existing kernels. FSR1 preserves this branch's existing bilinear fallback behavior.
+          - Other spatial kernels and incompatible input formats keep the previous materialized fallback.
           "@
-          gh release create $tag $asset --target $env:TARGET_SHA --title "OptiScaler NR - proxy scaler defaults" --notes $notes
+          gh release create $tag $asset --target $env:TARGET_SHA --title "OptiScaler NR - Direct NR fused resolve" --notes $notes
