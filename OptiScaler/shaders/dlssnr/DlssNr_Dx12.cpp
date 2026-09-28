@@ -437,14 +437,23 @@ bool DlssNr_Dx12::State::RunOrdinaryAsync(ID3D12GraphicsCommandList* gameCommand
                                                    ID3D12CommandQueue* queue)
 {
     const Config& cfg = *Config::Instance();
-    const uint32_t execution = std::min(cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(), 2u);
-    const uint32_t detailReference = std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u);
+    const uint32_t transfer = cfg.DlssNrTransfer.value_or_default();
+    const bool upscaledResidual = transfer == 6;
+    const uint32_t execution =
+        std::min(upscaledResidual ? cfg.DlssNrUpscaledResidualReferenceExecutionMode.value_or_default()
+                                  : cfg.DlssNrDirectDetailReferenceExecutionMode.value_or_default(),
+                 2u);
+    const uint32_t detailReference =
+        std::min(upscaledResidual ? cfg.DlssNrUpscaledResidualReferenceUpscaler.value_or_default()
+                                  : cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(),
+                 10u);
+    const bool needsP50Reference =
+        upscaledResidual || (transfer == 5 && cfg.DlssNrDirectDetailRecovery.value_or_default() != 0);
     // Auto never submits a caller-owned native DX12 list early: the app may enqueue a queue-level Wait only
     // after recording finishes. Explicit Async compute is the opt-in experimental override for that native path.
     if (execution == 1 || (execution == 0 && !frame.IndependentCommands) || frame.BeforeUpscale ||
         frame.FinishedPicture || !gameCommands || !queue || !output || !depth || !motion ||
-        cfg.DlssNrTransfer.value_or_default() != 5 ||
-        cfg.DlssNrDirectDetailRecovery.value_or_default() == 0 || detailReference >= 10 ||
+        (transfer != 5 && transfer != 6) || !needsP50Reference || detailReference >= 10 ||
         cfg.DlssNrHoldFrame.value_or_default() || cfg.DlssNrDebugView.value_or_default() != 0 ||
         cfg.DlssNrCompare.value_or_default() != 0 || cfg.DlssNrShowSkinMask.value_or_default() ||
         captureFrames.isActive() || ::State::Instance().isShuttingDown)
