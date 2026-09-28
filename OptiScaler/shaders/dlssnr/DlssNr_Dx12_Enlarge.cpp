@@ -98,8 +98,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     const uint32_t directDetailMode =
         direct ? std::min(cfg.DlssNrDirectDetailRecovery.value_or_default(), 2u) : 0u;
     const bool directFinalReferenceExperiment =
-        direct && (cfg.DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
-                   cfg.DlssNrExperimentStructureTransfer.value_or_default() != 0);
+        direct && cfg.DlssNrExperimentStructureTransfer.value_or_default() != 0;
     const uint32_t outputUpscaler =
         direct ? std::min(cfg.DlssNrDirectOutputUpscaler.value_or_default(), 10u)
                : upscaledResidual ? std::min(cfg.DlssNrUpscaledResidualUpscaler.value_or_default(), 10u)
