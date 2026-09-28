@@ -735,6 +735,76 @@ float4 DirectSpatialSample(float2 outUv)
 }
 #endif
 
+// Detail-quality lab low-resolution filters. These run only at the NR working raster and only when
+// explicitly enabled, so the common Off path has zero texture work. Radius is measured in source pixels.
+float4 ExperimentLowResolutionFilter(float2 uv, bool postNr)
+{
+    uint srcW, srcH;
+    gSource.GetDimensions(srcW, srcH);
+    const float2 texel = 1.0 / float2(max(srcW, 1u), max(srcH, 1u));
+    const float radius = clamp(gTransferStrength, 0.25, 2.0);
+    const float strength = saturate(gColourStrength);
+    const float threshold = max(gDebugScale, 1e-5);
+
+    const float4 center = gSource.SampleLevel(gLinear, uv, 0);
+    const float2 dx = float2(texel.x * radius, 0.0);
+    const float2 dy = float2(0.0, texel.y * radius);
+    const float4 left  = gSource.SampleLevel(gLinear, saturate(uv - dx), 0);
+    const float4 right = gSource.SampleLevel(gLinear, saturate(uv + dx), 0);
+    const float4 up    = gSource.SampleLevel(gLinear, saturate(uv - dy), 0);
+    const float4 down  = gSource.SampleLevel(gLinear, saturate(uv + dy), 0);
+
+    const float yC = dot(center.rgb, kLuma);
+    const float yL = dot(left.rgb, kLuma);
+    const float yR = dot(right.rgb, kLuma);
+    const float yU = dot(up.rgb, kLuma);
+    const float yD = dot(down.rgb, kLuma);
+    const float localMin = min(yC, min(min(yL, yR), min(yU, yD)));
+    const float localMax = max(yC, max(max(yL, yR), max(yU, yD)));
+    const float edgeRange = localMax - localMin;
+
+    // Mode 1 prefilter is deliberately uniform. Every other mode is edge-selective.
+    float edge = (!postNr && gTransfer == 1u)
+                     ? 1.0
+                     : smoothstep(threshold, threshold * 2.0, edgeRange);
+
+    float3 softened;
+    if (gTransfer == 1u || gTransfer == 2u)
+    {
+        // Five-tap cross. The 4x center weight keeps this a gentle anti-structure treatment.
+        softened = (4.0 * center.rgb + left.rgb + right.rgb + up.rgb + down.rgb) * 0.125;
+    }
+    else
+    {
+        // Blur only across the local edge normal. Four taps above are reused to find the direction,
+        // so this mode adds only two filtered samples over the isotropic detector.
+        const float2 gradient = float2(yR - yL, yD - yU);
+        const float gradLen = length(gradient);
+        const float2 normal = gradLen > 1e-6 ? gradient / gradLen : float2(1.0, 0.0);
+        const float2 offset = normal * texel * radius;
+        const float3 a = gSource.SampleLevel(gLinear, saturate(uv - offset), 0).rgb;
+        const float3 b = gSource.SampleLevel(gLinear, saturate(uv + offset), 0).rgb;
+        softened = (a + 2.0 * center.rgb + b) * 0.25;
+
+        if (postNr && gTransfer == 3u)
+        {
+            // Excess-only: compare NR50's edge energy with the exact P50 image that NVIDIA received.
+            // Only the excess created by NR is softened; an already-strong input edge is left alone.
+            const float4 baseL = gModel.SampleLevel(gLinear, saturate(uv - dx), 0);
+            const float4 baseR = gModel.SampleLevel(gLinear, saturate(uv + dx), 0);
+            const float4 baseU = gModel.SampleLevel(gLinear, saturate(uv - dy), 0);
+            const float4 baseD = gModel.SampleLevel(gLinear, saturate(uv + dy), 0);
+            const float baseGrad =
+                length(float2(dot(baseR.rgb - baseL.rgb, kLuma), dot(baseD.rgb - baseU.rgb, kLuma)));
+            const float nrGrad = length(float2(yR - yL, yD - yU));
+            const float excess = saturate((nrGrad - baseGrad) / max(nrGrad + threshold, 1e-5));
+            edge *= excess;
+        }
+    }
+
+    return float4(lerp(center.rgb, softened, strength * edge), center.a);
+}
+
 #include "dlssnr_resize.hlsli"
 
 groupshared float4 gExposureReduce[64];
@@ -896,6 +966,12 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (gMode == 14)
     {
         gTarget[id.xy] = gSource.SampleLevel(gLinear, uv, 0);
+        return;
+    }
+
+    if (gMode == 16 || gMode == 17)
+    {
+        gTarget[id.xy] = ExperimentLowResolutionFilter(uv, gMode == 17);
         return;
     }
 
