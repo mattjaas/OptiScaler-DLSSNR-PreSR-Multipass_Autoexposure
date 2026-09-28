@@ -1,4 +1,4 @@
-name: Release NR Upscaled residual direct compose
+name: Release NR Upscaled residual async fix
 
 on:
   push:
@@ -8,6 +8,8 @@ on:
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_State.h
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Enlarge.cpp
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp
+      - OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp
+      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_FinishedCompose.cpp
       - OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl
       - .github/workflows/release_upscaled_residual_direct.yml
 
@@ -32,25 +34,9 @@ jobs:
           git submodule sync --recursive
           git submodule update --init --recursive --force
 
-      - name: Rebuild main NR DX12 shader and persist generated blob
+      - name: Record release source
         shell: powershell
         run: |
-          $pre = "OptiScaler/shaders/dlssnr/precompile"
-          $tools = "OptiScaler/shaders/shader_tools"
-          & "$tools/dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect "$pre/dlssnr.hlsl" -Fo "$pre/DlssNr_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "$tools/create_header.py" "$pre/DlssNr_Shader.cso" "$pre/DlssNr_Shader.h" DlssNr_cso
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-          git add "$pre/DlssNr_Shader.cso" "$pre/DlssNr_Shader.h"
-          git diff --cached --quiet
-          if ($LASTEXITCODE -ne 0) {
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Rebuild NR shader for direct P100 residual compose"
-            git push origin HEAD:codex/rdr2-finished-picture-credit-pr94-pr109
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
           "TARGET_SHA=$(git rev-parse HEAD)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Set up MSBuild
@@ -58,22 +44,22 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "rdr2-pr94-pr109-upscaled-residual-direct-20260928"
+        run: ./package_release.ps1 -Version "rdr2-pr94-pr109-upscaled-residual-async-fix-20260928"
 
       - name: Publish GitHub release
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "rdr2-pr94-pr109-upscaled-residual-direct-20260928"
-          $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-upscaled-residual-direct-20260928.zip"
+          $tag = "rdr2-pr94-pr109-upscaled-residual-async-fix-20260928"
+          $asset = "release/OptiScaler-NR-rdr2-pr94-pr109-upscaled-residual-async-fix-20260928.zip"
           $notes = @"
           Built from source commit $env:TARGET_SHA.
 
           Changes:
-          - Upscaled NR residual now resolves directly from reconstructed P100 and NR100.
-          - Removed the intermediate fullResidual texture and EncodeProxyResidual P100 pass.
-          - Transfer 6 computes NR100 - reconstructed P100 directly in the final compose while Transfer 2 remains unchanged.
-          - Debug proxy/model views continue to show reconstructed P100 and NR100.
+          - Upscaled NR residual now actually starts async P50 -> P100 work in Finished Picture.
+          - Ordinary post-SR async now supports Transfer 6 and uses the UpscaledResidual execution/upscaler settings.
+          - Direct NR keeps its existing async gating and settings.
+          - Transfer 6 still joins before the native-resolution residual compose.
           "@
-          gh release create $tag $asset --target $env:TARGET_SHA --title "OptiScaler NR - direct Upscaled residual compose" --notes $notes
+          gh release create $tag $asset --target $env:TARGET_SHA --title "OptiScaler NR - Upscaled residual async fix" --notes $notes
