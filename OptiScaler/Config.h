@@ -357,6 +357,31 @@ class Config
     // 0 = do not suppress restored detail, 100 = full NR-derived suppression mask.
     CustomOptional<float> DlssNrDirectDetailMaskStrength { 100.0f };
 
+    // Experimental reduced-resolution detail-quality laboratory. All defaults are neutral/off.
+    // Input prefilter: 0 off, 1 uniform 5-tap, 2 edge-selective 5-tap, 3 edge-normal 3-tap.
+    CustomOptional<uint32_t> DlssNrExperimentInputFilter { 0 };
+    CustomOptional<float> DlssNrExperimentInputRadius { 0.75f };       // P50/P60 pixels
+    CustomOptional<float> DlssNrExperimentInputStrength { 1.0f };     // 0..1
+    CustomOptional<float> DlssNrExperimentEdgeThreshold { 0.04f };    // model-domain luma range
+    // Reference source for P50->P100 reconstruction: 0 = the actual (possibly softened) NR input,
+    // 1 = the original sharp reduced proxy. This intentionally exposes both hypotheses.
+    CustomOptional<uint32_t> DlssNrExperimentReferenceSource { 0 };
+    // NR50 post-filter: 0 off, 1 edge-selective isotropic, 2 edge-normal, 3 excess-only edge-normal.
+    CustomOptional<uint32_t> DlssNrExperimentNrEdgeFilter { 0 };
+    CustomOptional<float> DlssNrExperimentNrEdgeRadius { 0.75f };
+    CustomOptional<float> DlssNrExperimentNrEdgeStrength { 1.0f };
+    // Scale-aware model structure compensation for Standard/Natural only. The factor is reached at P50
+    // and interpolates back to 1.0 at P100.
+    CustomOptional<bool> DlssNrExperimentScaleAwareStructure { false };
+    CustomOptional<float> DlssNrExperimentStructureP50Factor { 0.60f };
+    // Native-P100 guided final resolve: 0 off, 1 suppress unsupported high-frequency NR edits.
+    CustomOptional<uint32_t> DlssNrExperimentP100EdgeLimiter { 0 };
+    CustomOptional<float> DlssNrExperimentP100EdgeLimiterStrength { 1.0f };
+    // Structure-gain transfer: 0 off, 1 one-band (radius 1), 2 two-band (radii 1+2).
+    // It keeps model low-frequency edits but derives high-frequency geometry from untouched P100.
+    CustomOptional<uint32_t> DlssNrExperimentStructureTransfer { 0 };
+    CustomOptional<float> DlssNrExperimentStructureTransferStrength { 1.0f };
+
     // GPU-time display smoothing window in milliseconds. 0 keeps the latest raw sample.
     // Four decimal digits are exposed in the UI: 0..9999 ms.
     CustomOptional<uint32_t> DlssNrGpuTimeAverageWindowMs { 0 };
