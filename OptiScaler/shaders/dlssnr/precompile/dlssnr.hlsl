@@ -733,6 +733,152 @@ float4 DirectSpatialSample(float2 outUv)
     const float3 c11 = DirectSpatialPixel(base + int2(1, 1));
     return float4(lerp(lerp(c00, c10, f.x), lerp(c01, c11, f.x), f.y), 1.0);
 }
+
+// Final P100-guided detail experiments. They intentionally live in the existing resolve dispatch.
+// Direct NR identifies itself with DirectResolveFlags bit 0 because its internal transfer can be 0 or 7;
+// Upscaled NR residual is transfer 6.
+float3 ExperimentDecodeProxySample(float3 raw)
+{
+    return gPassthrough != 0 ? raw : SrgbToLinear(raw);
+}
+
+float3 ExperimentFinalModelAt(float2 uvq)
+{
+    uvq = saturate(uvq);
+    const float3 raw = gTransfer == 7u ? DirectSpatialSample(uvq).rgb
+                                        : gModel.SampleLevel(gLinear, uvq, 0).rgb;
+    return ExperimentDecodeProxySample(raw);
+}
+
+float3 ExperimentFinalReferenceAt(float2 uvq)
+{
+    uvq = saturate(uvq);
+    const float3 raw = (gDirectResolveFlags & 1u) != 0u
+                           ? gAux2.SampleLevel(gLinear, uvq, 0).rgb
+                           : gSource.SampleLevel(gLinear, uvq, 0).rgb;
+    return ExperimentDecodeProxySample(raw);
+}
+
+float3 ExperimentNativeProxyAt(float2 uvq, float normScale)
+{
+    uvq = saturate(uvq);
+    const float3 native = gOriginal.SampleLevel(gLinear, uvq, 0).rgb / max(normScale, 1e-6);
+    if (gPassthrough != 0)
+        return saturate(native);
+    if (gReversibleMode == 0u)
+        return saturate(SoftKnee(native));
+    return gReversibleMode >= 3u ? HybridEncode(native) : NeutwoEncode(native);
+}
+
+void ExperimentCrossBlur(float2 uvq, float radius, float normScale,
+                         out float3 modelBlur, out float3 referenceBlur, out float3 nativeBlur)
+{
+    const float2 texel = 1.0 / float2(max(gWidth, 1u), max(gHeight, 1u));
+    const float2 dx = float2(texel.x * radius, 0.0);
+    const float2 dy = float2(0.0, texel.y * radius);
+
+    // A five-tap cross with 4x centre weight. Centre values are sampled here too so each band has
+    // exactly the same filter response; the compiler can common-subexpression identical reads.
+    const float3 mc = ExperimentFinalModelAt(uvq);
+    const float3 rc = ExperimentFinalReferenceAt(uvq);
+    const float3 nc = ExperimentNativeProxyAt(uvq, normScale);
+
+    modelBlur = (4.0 * mc +
+                 ExperimentFinalModelAt(uvq - dx) + ExperimentFinalModelAt(uvq + dx) +
+                 ExperimentFinalModelAt(uvq - dy) + ExperimentFinalModelAt(uvq + dy)) * 0.125;
+    referenceBlur = (4.0 * rc +
+                     ExperimentFinalReferenceAt(uvq - dx) + ExperimentFinalReferenceAt(uvq + dx) +
+                     ExperimentFinalReferenceAt(uvq - dy) + ExperimentFinalReferenceAt(uvq + dy)) * 0.125;
+    nativeBlur = (4.0 * nc +
+                  ExperimentNativeProxyAt(uvq - dx, normScale) + ExperimentNativeProxyAt(uvq + dx, normScale) +
+                  ExperimentNativeProxyAt(uvq - dy, normScale) + ExperimentNativeProxyAt(uvq + dy, normScale)) * 0.125;
+}
+
+float ExperimentStructureGain(float3 referenceBand, float3 modelBand)
+{
+    const float r = dot(referenceBand, kLuma);
+    const float m = dot(modelBand, kLuma);
+    const float confidence = smoothstep(0.002, 0.020, abs(r));
+    if (confidence <= 0.0 || r * m <= 0.0)
+        return 1.0;
+
+    const float gain = clamp(abs(m) / max(abs(r), 1e-4), 0.25, 4.0);
+    return lerp(1.0, gain, confidence);
+}
+
+float3 ExperimentLimitedBand(float3 conventionalEdit, float3 nativeBand, float limiterStrength)
+{
+    const float editY = abs(dot(conventionalEdit, kLuma));
+    const float nativeY = abs(dot(nativeBand, kLuma));
+    const float support = saturate((nativeY + 0.002) / (editY + 0.002));
+    return conventionalEdit * lerp(1.0, support, saturate(limiterStrength));
+}
+
+float3 ExperimentStructureBand(float3 conventionalEdit, float3 referenceBand, float3 modelBand,
+                               float3 nativeBand, float limiterStrength, float structureStrength)
+{
+    float3 limited = conventionalEdit;
+    if (gResidualHistoryValidUnused != 0u)
+        limited = ExperimentLimitedBand(limited, nativeBand, limiterStrength);
+
+    const float gain = ExperimentStructureGain(referenceBand, modelBand);
+    const float3 nativeGainEdit = nativeBand * (gain - 1.0);
+    return lerp(limited, nativeGainEdit, saturate(structureStrength));
+}
+
+float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 referenceCenter,
+                                float3 nativeCenter, float normScale)
+{
+    const uint structureMode = min(gResidualMotionBaseXUnused, 2u);
+    const float structureStrength = saturate(gResidualConfidenceUnused);
+    const float limiterStrength = saturate(gResidualBlendUnused);
+
+    float3 modelBlur1, referenceBlur1, nativeBlur1;
+    ExperimentCrossBlur(uvq, 1.0, normScale, modelBlur1, referenceBlur1, nativeBlur1);
+
+    if (structureMode < 2u)
+    {
+        const float3 lowEdit = modelBlur1 - referenceBlur1;
+        const float3 modelBand = modelCenter - modelBlur1;
+        const float3 referenceBand = referenceCenter - referenceBlur1;
+        const float3 nativeBand = nativeCenter - nativeBlur1;
+        const float3 conventionalBandEdit = modelBand - referenceBand;
+
+        float3 bandEdit = conventionalBandEdit;
+        if (gResidualHistoryValidUnused != 0u)
+            bandEdit = ExperimentLimitedBand(bandEdit, nativeBand, limiterStrength);
+        if (structureMode == 1u)
+        {
+            const float gain = ExperimentStructureGain(referenceBand, modelBand);
+            const float3 nativeGainEdit = nativeBand * (gain - 1.0);
+            bandEdit = lerp(bandEdit, nativeGainEdit, structureStrength);
+        }
+        return lowEdit + bandEdit;
+    }
+
+    // Two-band version: a fine P100 band (0..1 px) and a wider local-structure band (1..2 px).
+    // The low-frequency model edit below radius 2 is carried normally.
+    float3 modelBlur2, referenceBlur2, nativeBlur2;
+    ExperimentCrossBlur(uvq, 2.0, normScale, modelBlur2, referenceBlur2, nativeBlur2);
+
+    const float3 lowEdit = modelBlur2 - referenceBlur2;
+
+    const float3 modelFine = modelCenter - modelBlur1;
+    const float3 referenceFine = referenceCenter - referenceBlur1;
+    const float3 nativeFine = nativeCenter - nativeBlur1;
+    const float3 fineEdit =
+        ExperimentStructureBand(modelFine - referenceFine, referenceFine, modelFine, nativeFine,
+                                limiterStrength, structureStrength);
+
+    const float3 modelMid = modelBlur1 - modelBlur2;
+    const float3 referenceMid = referenceBlur1 - referenceBlur2;
+    const float3 nativeMid = nativeBlur1 - nativeBlur2;
+    const float3 midEdit =
+        ExperimentStructureBand(modelMid - referenceMid, referenceMid, modelMid, nativeMid,
+                                limiterStrength, structureStrength);
+
+    return lowEdit + fineEdit + midEdit;
+}
 #endif
 
 // Detail-quality lab low-resolution filters. These run only at the NR working raster and only when
@@ -1285,6 +1431,24 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         modelDirect = model;
         proxyLuma = dot(proxy, kLuma);
     }
+
+#ifndef VK_MODE
+    // Optional native-P100-guided detail remapping. The entire operation is folded into this resolve:
+    // no NR100/P100-detail intermediate is written. Direct uses Aux2 as its selected reconstructed
+    // P50 reference; Upscaled NR residual uses Source, which already is reconstructed P100.
+    const bool finalDetailExperiment =
+        ((gDirectResolveFlags & 1u) != 0u || gTransfer == 6u) &&
+        (gResidualHistoryValidUnused != 0u || gResidualMotionBaseXUnused != 0u);
+    if (finalDetailExperiment)
+    {
+        const float3 referenceCenter = ExperimentFinalReferenceAt(cmpUv);
+        const float3 nativeProxyCenter = ExperimentNativeProxyAt(cmpUv, normScale);
+        const float3 guidedEdit =
+            ExperimentP100GuidedEdit(cmpUv, model, referenceCenter, nativeProxyCenter, normScale);
+        model = proxy + guidedEdit;
+        modelDirect = model;
+    }
+#endif
 
     float3 edit = model - proxy;
     if (gTransfer == 2)
