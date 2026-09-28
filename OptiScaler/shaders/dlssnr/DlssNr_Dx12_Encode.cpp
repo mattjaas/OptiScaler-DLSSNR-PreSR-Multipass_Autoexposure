@@ -397,6 +397,22 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
     resolveParams.DirectDetailMaskStrength =
         std::clamp(cfg.DlssNrDirectDetailMaskStrength.value_or_default() / 100.0f, 0.0f, 1.0f);
 
+    // The main shader intentionally leaves these legacy residual slots unused; the separate temporal
+    // residual shader has its own constant buffer. Reuse them here so the experimental final-resolve
+    // controls add no bytes and keep DlssNrConstants exactly 256 bytes.
+    if (context.workScale < 1.0f &&
+        (cfg.DlssNrTransfer.value_or_default() == 5u || cfg.DlssNrTransfer.value_or_default() == 6u))
+    {
+        resolveParams.ResidualHistoryValid =
+            std::min(cfg.DlssNrExperimentP100EdgeLimiter.value_or_default(), 1u);
+        resolveParams.ResidualBlend =
+            std::clamp(cfg.DlssNrExperimentP100EdgeLimiterStrength.value_or_default(), 0.0f, 1.0f);
+        resolveParams.ResidualMotionBaseX =
+            std::min(cfg.DlssNrExperimentStructureTransfer.value_or_default(), 2u);
+        resolveParams.ResidualConfidenceSensitivity =
+            std::clamp(cfg.DlssNrExperimentStructureTransferStrength.value_or_default(), 0.0f, 1.0f);
+    }
+
     // Report the effective composition settings when they change.
 
     // Quantised to the precision it is printed at. Comparing raw floats logged 2376 lines in one
