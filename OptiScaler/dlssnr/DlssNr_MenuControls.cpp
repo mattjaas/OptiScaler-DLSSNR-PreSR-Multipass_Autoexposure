@@ -248,7 +248,6 @@ void RenderInput(Config* config)
                            "reversed the corresponding P50 local structure.");
 
                 const bool experimentNeedsReference =
-                    config->DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
                     config->DlssNrExperimentStructureTransfer.value_or_default() != 0;
                 if (detailMode != 0 || experimentNeedsReference)
                 {
@@ -315,7 +314,6 @@ void RenderInput(Config* config)
             }
 
             const bool directExperimentNeedsReference =
-                config->DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
                 config->DlssNrExperimentStructureTransfer.value_or_default() != 0;
             const bool directUsesDlss =
                 transfer == 5 &&
