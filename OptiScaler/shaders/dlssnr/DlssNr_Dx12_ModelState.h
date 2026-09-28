@@ -40,6 +40,12 @@ struct ModelStateDx12
 
     // The frame shrunk for the model, when it is working below full resolution.
     ID3D12Resource* colorSmall = nullptr;
+    // Detail-quality lab scratch. Allocated only while the corresponding experiment is enabled.
+    // colorSoft is the prepared model input; outputFiltered is the optional post-NR NR50 treatment.
+    ID3D12Resource* colorSoft = nullptr;
+    ID3D12Resource* outputFiltered = nullptr;
+    bool colorSoftReadable = false;
+    bool outputFilteredReadable = false;
 
     // Peripheral compression keeps a packed model pair and packed guides separate from the
     // ordinary uniform-scale pair consumed by composition and optional DLSS enlargement.
