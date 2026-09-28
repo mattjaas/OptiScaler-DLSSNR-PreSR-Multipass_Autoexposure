@@ -750,10 +750,14 @@ float3 ExperimentFinalModelAt(float2 uvq)
     return ExperimentDecodeProxySample(raw);
 }
 
-float3 ExperimentFinalReferenceAt(float2 uvq)
+float3 ExperimentFinalReferenceAt(float2 uvq, bool directProxyReference)
 {
     uvq = saturate(uvq);
-    const float3 raw = (gDirectResolveFlags & 1u) != 0u
+    // Direct limiter-only mode compares against its existing P100 proxy and therefore needs no
+    // P50 reconstruction. Structure-transfer mode uses Aux2 to measure what NR changed relative
+    // to the reduced image it was shown. Upscaled residual already has reconstructed P100 in Source.
+    const bool direct = (gDirectResolveFlags & 1u) != 0u;
+    const float3 raw = direct && !directProxyReference
                            ? gAux2.SampleLevel(gLinear, uvq, 0).rgb
                            : gSource.SampleLevel(gLinear, uvq, 0).rgb;
     return ExperimentDecodeProxySample(raw);
@@ -770,7 +774,7 @@ float3 ExperimentNativeProxyAt(float2 uvq, float normScale)
     return gReversibleMode >= 3u ? HybridEncode(native) : NeutwoEncode(native);
 }
 
-void ExperimentCrossBlur(float2 uvq, float radius, float normScale,
+void ExperimentCrossBlur(float2 uvq, float radius, float normScale, bool directProxyReference,
                          out float3 modelBlur, out float3 referenceBlur, out float3 nativeBlur)
 {
     const float2 texel = 1.0 / float2(max(gWidth, 1u), max(gHeight, 1u));
@@ -780,15 +784,17 @@ void ExperimentCrossBlur(float2 uvq, float radius, float normScale,
     // A five-tap cross with 4x centre weight. Centre values are sampled here too so each band has
     // exactly the same filter response; the compiler can common-subexpression identical reads.
     const float3 mc = ExperimentFinalModelAt(uvq);
-    const float3 rc = ExperimentFinalReferenceAt(uvq);
+    const float3 rc = ExperimentFinalReferenceAt(uvq, directProxyReference);
     const float3 nc = ExperimentNativeProxyAt(uvq, normScale);
 
     modelBlur = (4.0 * mc +
                  ExperimentFinalModelAt(uvq - dx) + ExperimentFinalModelAt(uvq + dx) +
                  ExperimentFinalModelAt(uvq - dy) + ExperimentFinalModelAt(uvq + dy)) * 0.125;
     referenceBlur = (4.0 * rc +
-                     ExperimentFinalReferenceAt(uvq - dx) + ExperimentFinalReferenceAt(uvq + dx) +
-                     ExperimentFinalReferenceAt(uvq - dy) + ExperimentFinalReferenceAt(uvq + dy)) * 0.125;
+                     ExperimentFinalReferenceAt(uvq - dx, directProxyReference) +
+                     ExperimentFinalReferenceAt(uvq + dx, directProxyReference) +
+                     ExperimentFinalReferenceAt(uvq - dy, directProxyReference) +
+                     ExperimentFinalReferenceAt(uvq + dy, directProxyReference)) * 0.125;
     nativeBlur = (4.0 * nc +
                   ExperimentNativeProxyAt(uvq - dx, normScale) + ExperimentNativeProxyAt(uvq + dx, normScale) +
                   ExperimentNativeProxyAt(uvq - dy, normScale) + ExperimentNativeProxyAt(uvq + dy, normScale)) * 0.125;
@@ -827,14 +833,15 @@ float3 ExperimentStructureBand(float3 conventionalEdit, float3 referenceBand, fl
 }
 
 float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 referenceCenter,
-                                float3 nativeCenter, float normScale)
+                                float3 nativeCenter, float normScale, bool directProxyReference)
 {
     const uint structureMode = min(gResidualMotionBaseXUnused, 2u);
     const float structureStrength = saturate(gResidualConfidenceUnused);
     const float limiterStrength = saturate(gResidualBlendUnused);
 
     float3 modelBlur1, referenceBlur1, nativeBlur1;
-    ExperimentCrossBlur(uvq, 1.0, normScale, modelBlur1, referenceBlur1, nativeBlur1);
+    ExperimentCrossBlur(uvq, 1.0, normScale, directProxyReference,
+                        modelBlur1, referenceBlur1, nativeBlur1);
 
     if (structureMode < 2u)
     {
@@ -859,7 +866,8 @@ float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 reference
     // Two-band version: a fine P100 band (0..1 px) and a wider local-structure band (1..2 px).
     // The low-frequency model edit below radius 2 is carried normally.
     float3 modelBlur2, referenceBlur2, nativeBlur2;
-    ExperimentCrossBlur(uvq, 2.0, normScale, modelBlur2, referenceBlur2, nativeBlur2);
+    ExperimentCrossBlur(uvq, 2.0, normScale, directProxyReference,
+                        modelBlur2, referenceBlur2, nativeBlur2);
 
     const float3 lowEdit = modelBlur2 - referenceBlur2;
 
@@ -1441,10 +1449,15 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         (gResidualHistoryValidUnused != 0u || gResidualMotionBaseXUnused != 0u);
     if (finalDetailExperiment)
     {
-        const float3 referenceCenter = ExperimentFinalReferenceAt(cmpUv);
+        const uint structureMode = min(gResidualMotionBaseXUnused, 2u);
+        const bool directProxyReference =
+            (gDirectResolveFlags & 1u) != 0u && structureMode == 0u;
+        const float3 referenceCenter =
+            directProxyReference ? proxy : ExperimentFinalReferenceAt(cmpUv, false);
         const float3 nativeProxyCenter = ExperimentNativeProxyAt(cmpUv, normScale);
         const float3 guidedEdit =
-            ExperimentP100GuidedEdit(cmpUv, model, referenceCenter, nativeProxyCenter, normScale);
+            ExperimentP100GuidedEdit(cmpUv, model, referenceCenter, nativeProxyCenter, normScale,
+                                     directProxyReference);
         model = proxy + guidedEdit;
         modelDirect = model;
     }
