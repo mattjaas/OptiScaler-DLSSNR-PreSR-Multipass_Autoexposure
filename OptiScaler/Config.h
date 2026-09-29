@@ -409,6 +409,16 @@ class Config
     // It keeps model low-frequency edits but derives high-frequency geometry from untouched P100.
     CustomOptional<uint32_t> DlssNrExperimentStructureTransfer { 0 };
     CustomOptional<float> DlssNrExperimentStructureTransferStrength { 1.0f };
+    // Optional safeguards for ringing / shadow sparkles. Defaults preserve A/B availability.
+    CustomOptional<bool> DlssNrExperimentStructurePolarityGuard { false };
+    // 0 off, 1 hard local P100 envelope, 2 soft-knee local P100 envelope.
+    CustomOptional<uint32_t> DlssNrExperimentStructureEnvelope { 0 };
+    CustomOptional<float> DlssNrExperimentStructureEnvelopeMargin { 0.0f }; // percent of local P100 RGB span
+    CustomOptional<float> DlssNrExperimentStructureMaxGain { 4.0f };
+    CustomOptional<float> DlssNrExperimentStructureConfidenceThreshold { 0.020f };
+    CustomOptional<bool> DlssNrExperimentStructureShadowProtection { false };
+    CustomOptional<float> DlssNrExperimentStructureShadowThreshold { 0.08f };
+    CustomOptional<float> DlssNrExperimentStructureShadowStrength { 1.0f };
 
     // GPU-time display smoothing window in milliseconds. 0 keeps the latest raw sample.
     // Four decimal digits are exposed in the UI: 0..9999 ms.
