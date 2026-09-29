@@ -61,11 +61,17 @@ auto DlssNr_Dx12::State::ConsumeControls() -> void
         captureFrames.request(requested.captureFrames);
     if (requested.styleAnalysisCaptureGeneration != controls.styleAnalysisCaptureGeneration)
     {
-        ReleaseStyleAnalysisCapture();
-        styleAnalysisCapture.requestGeneration = requested.styleAnalysisCaptureGeneration;
-        styleAnalysisCapture.active = true;
-        styleAnalysisCapture.status = "Armed";
-        LOG_INFO("NR style analysis capture armed: Standard/Natural/Cinematic will use one identical reduced frame.");
+        if (styleAnalysisCapture.active)
+        {
+            LOG_WARN("NR style analysis capture request ignored: a capture is already in progress.");
+        }
+        else
+        {
+            styleAnalysisCapture.requestGeneration = requested.styleAnalysisCaptureGeneration;
+            styleAnalysisCapture.active = true;
+            styleAnalysisCapture.status = "Armed";
+            LOG_INFO("NR style analysis capture armed: Standard/Natural/Cinematic will use one identical reduced frame.");
+        }
     }
     controls = requested;
 }
