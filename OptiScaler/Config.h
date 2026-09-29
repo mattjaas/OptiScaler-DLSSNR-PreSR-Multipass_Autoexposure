@@ -398,9 +398,13 @@ class Config
     // and interpolates back to 1.0 at P100.
     CustomOptional<bool> DlssNrExperimentScaleAwareStructure { false };
     CustomOptional<float> DlssNrExperimentStructureP50Factor { 0.60f };
-    // Native-P100 guided final resolve: 0 off, 1 suppress unsupported high-frequency NR edits.
+    // Native-P100 resulting-edge gain limiter: 0 off, 1 fine band, 2 fine + mid bands.
+    // Strength blends toward the capped result; MaxGain=1 prevents NR from increasing band energy
+    // above untouched P100, while values >1 allow proportional amplification.
     CustomOptional<uint32_t> DlssNrExperimentP100EdgeLimiter { 0 };
     CustomOptional<float> DlssNrExperimentP100EdgeLimiterStrength { 1.0f };
+    CustomOptional<float> DlssNrExperimentP100EdgeLimiterMaxGain { 1.0f };
+    CustomOptional<bool> DlssNrExperimentP100EdgeLimiterDebug { false };
     // Structure-gain transfer: 0 off, 1 one-band (radius 1), 2 two-band (radii 1+2).
     // It keeps model low-frequency edits but derives high-frequency geometry from untouched P100.
     CustomOptional<uint32_t> DlssNrExperimentStructureTransfer { 0 };
