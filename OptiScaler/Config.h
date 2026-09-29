@@ -328,7 +328,8 @@ class Config
 
     // Reduced output: 0 classic, 1/2 matched residual spatial/DLSS, 3/4 lighting + colour spatial/DLSS,
     // 5 direct NR output enlarged and composed like a native-resolution model answer,
-    // 6 upscale P50 and NR50 separately, create their residual at P100, then apply it to the untouched P100.
+    // 6 upscale P50 and NR50 separately, create their residual at P100, then apply it to untouched P100,
+    // 7 P100-guided residual: jointly upscale NR50-P50 while native P100 guides edge-aware positive weights.
     CustomOptional<uint32_t> DlssNrTransfer { 1 };
     // NGX render preset for private DLSS SR used by NR enlargement: 0 default, 1..15 A..O,
     // NV_PRESET_LATEST for the latest model supported by the loaded DLSS DLL.
@@ -345,6 +346,13 @@ class Config
     CustomOptional<uint32_t> DlssNrUpscaledResidualUpscaler { 10 };
     // P50 -> P100 reference execution: 0 Auto, 1 Serial, 2 Async compute.
     CustomOptional<uint32_t> DlssNrUpscaledResidualReferenceExecutionMode { 0 };
+
+    // P100-guided residual enlargement (Transfer=7). The final resolve directly upsamples NR50-P50
+    // using positive joint-bilateral weights guided by the untouched native P100 proxy.
+    CustomOptional<uint32_t> DlssNrGuidedResidualRadius { 1 };       // P50 texels; 1 => 3x3, 2 => 5x5
+    CustomOptional<float> DlssNrGuidedResidualRangeSigma { 0.040f }; // encoded proxy-domain RGB distance
+    CustomOptional<float> DlssNrGuidedResidualSpatialSigma { 0.85f };
+    CustomOptional<float> DlssNrGuidedResidualGuideStrength { 1.0f }; // 0 bilinear residual, 1 fully guided
     // Reference used to reconstruct P50 to P100 for lost-detail detection.
     // FSR1 is the default reconstruction filter; Area remains the default P100 -> P50 reduction.
     CustomOptional<uint32_t> DlssNrDirectDetailReferenceUpscaler { 9 };
