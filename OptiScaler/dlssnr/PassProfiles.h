@@ -6,7 +6,7 @@
 
 namespace DlssNr::Profiles
 {
-inline ModelSettings PassSettings(const Config& cfg, unsigned int pass)
+inline ModelSettings BasePassSettings(const Config& cfg, unsigned int pass)
 {
     ModelSettings result { cfg.DlssNrPreset.value_or_default(),
                            cfg.DlssNrStyle.value_or_default(),
@@ -35,6 +35,12 @@ inline ModelSettings PassSettings(const Config& cfg, unsigned int pass)
     result.localStructure = bounded(result.localStructure, 1.0f, 0.0f);
     result.localTone = bounded(result.localTone, pass == 0 ? 1.0f : 0.0f, 0.0f);
     result.skinStructure = bounded(result.skinStructure, -1.0f, -1.0f);
+    return result;
+}
+
+inline ModelSettings PassSettings(const Config& cfg, unsigned int pass)
+{
+    ModelSettings result = BasePassSettings(cfg, pass);
 
     // Experimental scale-aware compensation: Standard/Natural can draw coarse model-space structure
     // that becomes visually too thick after a strong P50/P60 -> P100 enlargement. Keep P100 exactly
