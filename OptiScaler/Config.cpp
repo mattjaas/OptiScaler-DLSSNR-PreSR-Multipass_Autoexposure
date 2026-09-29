@@ -408,6 +408,22 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrExperimentStructureTransfer.set_from_config(readUInt("DlssNr", "ExperimentStructureTransfer"));
             DlssNrExperimentStructureTransferStrength.set_from_config(
                 readFloat("DlssNr", "ExperimentStructureTransferStrength"));
+            DlssNrExperimentStructurePolarityGuard.set_from_config(
+                readBool("DlssNr", "ExperimentStructurePolarityGuard"));
+            DlssNrExperimentStructureEnvelope.set_from_config(
+                readUInt("DlssNr", "ExperimentStructureEnvelope"));
+            DlssNrExperimentStructureEnvelopeMargin.set_from_config(
+                readFloat("DlssNr", "ExperimentStructureEnvelopeMargin"));
+            DlssNrExperimentStructureMaxGain.set_from_config(
+                readFloat("DlssNr", "ExperimentStructureMaxGain"));
+            DlssNrExperimentStructureConfidenceThreshold.set_from_config(
+                readFloat("DlssNr", "ExperimentStructureConfidenceThreshold"));
+            DlssNrExperimentStructureShadowProtection.set_from_config(
+                readBool("DlssNr", "ExperimentStructureShadowProtection"));
+            DlssNrExperimentStructureShadowThreshold.set_from_config(
+                readFloat("DlssNr", "ExperimentStructureShadowThreshold"));
+            DlssNrExperimentStructureShadowStrength.set_from_config(
+                readFloat("DlssNr", "ExperimentStructureShadowStrength"));
             DlssNrGpuTimeAverageWindowMs.set_from_config(readUInt("DlssNr", "GpuTimeAverageWindowMs"));
 
             DlssNrDebugView.set_from_config(readUInt("DlssNr", "DebugView"));
@@ -1445,6 +1461,22 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetIntValue(Instance()->DlssNrExperimentStructureTransfer.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentStructureTransferStrength",
                      GetFloatValue(Instance()->DlssNrExperimentStructureTransferStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructurePolarityGuard",
+                     GetBoolValue(Instance()->DlssNrExperimentStructurePolarityGuard.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructureEnvelope",
+                     GetIntValue(Instance()->DlssNrExperimentStructureEnvelope.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructureEnvelopeMargin",
+                     GetFloatValue(Instance()->DlssNrExperimentStructureEnvelopeMargin.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructureMaxGain",
+                     GetFloatValue(Instance()->DlssNrExperimentStructureMaxGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructureConfidenceThreshold",
+                     GetFloatValue(Instance()->DlssNrExperimentStructureConfidenceThreshold.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructureShadowProtection",
+                     GetBoolValue(Instance()->DlssNrExperimentStructureShadowProtection.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructureShadowThreshold",
+                     GetFloatValue(Instance()->DlssNrExperimentStructureShadowThreshold.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentStructureShadowStrength",
+                     GetFloatValue(Instance()->DlssNrExperimentStructureShadowStrength.value_for_config()).c_str());
         ini.SetValue("DlssNr", "GpuTimeAverageWindowMs",
                      GetIntValue(Instance()->DlssNrGpuTimeAverageWindowMs.value_for_config()).c_str());
 
