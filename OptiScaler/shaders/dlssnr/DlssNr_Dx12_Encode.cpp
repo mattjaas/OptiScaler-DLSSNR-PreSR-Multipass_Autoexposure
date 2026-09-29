@@ -446,11 +446,46 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         if (resolveParams.ResidualHistoryValid != 0u &&
             cfg.DlssNrExperimentP100EdgeLimiterDebug.value_or_default())
             resolveParams.DirectResolveFlags |= 2u;
+        const float structureStrengthRaw = cfg.DlssNrExperimentStructureTransferStrength.value_or_default();
+        const float structureStrength = std::isfinite(structureStrengthRaw) ? structureStrengthRaw : 1.0f;
         resolveParams.ResidualMotionBaseX =
-            std::min(cfg.DlssNrExperimentStructureTransfer.value_or_default(), 2u);
-        const float structureStrength = cfg.DlssNrExperimentStructureTransferStrength.value_or_default();
-        resolveParams.ResidualConfidenceSensitivity =
-            std::isfinite(structureStrength) ? structureStrength : 1.0f;
+            structureStrength != 0.0f
+                ? std::min(cfg.DlssNrExperimentStructureTransfer.value_or_default(), 2u)
+                : 0u;
+        resolveParams.ResidualConfidenceSensitivity = structureStrength;
+
+        // Additional mode-local packing used only by DlssNrMode_Resolve for Direct/Upscaled residual:
+        // ResidualScale = structure max gain
+        // MvScaleX = structure confidence threshold
+        // MvScaleY = envelope margin in percent
+        // GuideWidth = envelope mode (0 off, 1 hard, 2 soft)
+        // GuideHeight bits: 0 polarity guard, 1 shadow protection
+        // ExposureSourceWidth/Height = raw float bits of shadow threshold / shadow strength.
+        float structureMaxGain = cfg.DlssNrExperimentStructureMaxGain.value_or_default();
+        if (!std::isfinite(structureMaxGain))
+            structureMaxGain = 4.0f;
+        resolveParams.ResidualScale = structureMaxGain;
+
+        float structureConfidence = cfg.DlssNrExperimentStructureConfidenceThreshold.value_or_default();
+        resolveParams.MvScaleX = std::isfinite(structureConfidence) ? structureConfidence : 0.020f;
+
+        float envelopeMargin = cfg.DlssNrExperimentStructureEnvelopeMargin.value_or_default();
+        resolveParams.MvScaleY = std::isfinite(envelopeMargin) ? envelopeMargin : 0.0f;
+        resolveParams.GuideWidth = std::min(cfg.DlssNrExperimentStructureEnvelope.value_or_default(), 2u);
+        resolveParams.GuideHeight =
+            (cfg.DlssNrExperimentStructurePolarityGuard.value_or_default() ? 1u : 0u) |
+            (cfg.DlssNrExperimentStructureShadowProtection.value_or_default() ? 2u : 0u);
+
+        float shadowThreshold = cfg.DlssNrExperimentStructureShadowThreshold.value_or_default();
+        if (!std::isfinite(shadowThreshold))
+            shadowThreshold = 0.08f;
+        float shadowStrength = cfg.DlssNrExperimentStructureShadowStrength.value_or_default();
+        if (!std::isfinite(shadowStrength))
+            shadowStrength = 1.0f;
+        static_assert(sizeof(shadowThreshold) == sizeof(resolveParams.ExposureSourceWidth));
+        static_assert(sizeof(shadowStrength) == sizeof(resolveParams.ExposureSourceHeight));
+        std::memcpy(&resolveParams.ExposureSourceWidth, &shadowThreshold, sizeof(shadowThreshold));
+        std::memcpy(&resolveParams.ExposureSourceHeight, &shadowStrength, sizeof(shadowStrength));
     }
 
     // Report the effective composition settings when they change.
