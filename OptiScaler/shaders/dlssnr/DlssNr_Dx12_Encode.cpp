@@ -420,10 +420,26 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         std::clamp(cfg.DlssNrDirectDetailMaskStrength.value_or_default() / 100.0f, 0.0f, 1.0f);
 
     // The main shader intentionally leaves these legacy residual slots unused; the separate temporal
-    // residual shader has its own constant buffer. Reuse them here so the experimental final-resolve
-    // controls add no bytes and keep DlssNrConstants exactly 256 bytes.
-    if (context.workScale < 1.0f &&
-        (cfg.DlssNrTransfer.value_or_default() == 5u || cfg.DlssNrTransfer.value_or_default() == 6u))
+    // residual shader has its own constant buffer. Reuse them here so experimental final-resolve controls
+    // add no bytes and keep DlssNrConstants exactly 256 bytes.
+    if (context.workScale < 1.0f && cfg.DlssNrTransfer.value_or_default() == 7u)
+    {
+        // P100-guided residual, internal final-resolve Transfer=8:
+        // ResidualHistoryValid = source-space radius (1..3)
+        // ResidualBlend = range sigma in encoded proxy RGB space
+        // ResidualScale = spatial sigma in reduced-resolution texels
+        // ResidualConfidenceSensitivity = blend: 0 bilinear residual, 1 fully guided.
+        resolveParams.ResidualHistoryValid =
+            std::clamp(cfg.DlssNrGuidedResidualRadius.value_or_default(), 1u, 3u);
+        const float rangeSigma = cfg.DlssNrGuidedResidualRangeSigma.value_or_default();
+        resolveParams.ResidualBlend = std::isfinite(rangeSigma) ? rangeSigma : 0.040f;
+        const float spatialSigma = cfg.DlssNrGuidedResidualSpatialSigma.value_or_default();
+        resolveParams.ResidualScale = std::isfinite(spatialSigma) ? spatialSigma : 0.85f;
+        const float guideStrength = cfg.DlssNrGuidedResidualGuideStrength.value_or_default();
+        resolveParams.ResidualConfidenceSensitivity = std::isfinite(guideStrength) ? guideStrength : 1.0f;
+    }
+    else if (context.workScale < 1.0f &&
+             (cfg.DlssNrTransfer.value_or_default() == 5u || cfg.DlssNrTransfer.value_or_default() == 6u))
     {
         // Mode-local packing for the final P100-guided resolve:
         // ResidualHistoryValid = limiter mode (0 off, 1 fine, 2 fine+mid)
