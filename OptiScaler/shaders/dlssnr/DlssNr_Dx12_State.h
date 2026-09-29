@@ -17,6 +17,7 @@
 
 #include <dlssnr/DlssNr_Capture.h>
 #include <dlssnr/DlssNr_PipelineCapture.h>
+#include <dlssnr/DlssNr_AnalysisCapture.h>
 #include <dlssnr/DlssNr_Proxy.h>
 #include <dlssnr/DlssNr_GpuLifetime.h>
 
@@ -104,6 +105,20 @@ struct DlssNr_Dx12::State
     DlssNr::PipelineCaptureFrame* pipelineCapture = nullptr; // Owned by lifetime retirement after End.
     std::filesystem::path pipelineCaptureDirectory;
     unsigned pipelineCaptureRemaining = 0;
+
+    struct StyleAnalysisCapture
+    {
+        std::array<DlssNr::Proxy::Context, 3> models;
+        std::array<ID3D12Resource*, 3> outputs { nullptr, nullptr, nullptr };
+        DlssNr::AnalysisCapture::Set readback;
+        uint64_t requestGeneration = 0;
+        bool active = false;
+        bool modelsPrepared = false;
+        bool copiesRecorded = false;
+        std::string status;
+    } styleAnalysisCapture;
+
+    void ReleaseStyleAnalysisCapture();
 
     unsigned long long frames = 0;
 
