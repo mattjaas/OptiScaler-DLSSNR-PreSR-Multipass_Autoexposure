@@ -360,6 +360,20 @@ void RenderInput(Config* config)
             {
                 ImGui::TextDisabled("Slider ranges are only for dragging. Ctrl+click a slider to type any finite value; typed values are not clamped.");
 
+                const bool styleCaptureSupported =
+                    config->DlssNrWorkingScale.value_or_default() < 0.999f &&
+                    !config->DlssNrSpatialCompression.value_or_default();
+                ImGui::BeginDisabled(!styleCaptureSupported);
+                if (ImGui::Button("Capture P100/P50 + Standard/Natural/Cinematic"))
+                    DlssNr::RequestStyleAnalysisCapture();
+                ImGui::EndDisabled();
+                HelpMarker("One-shot diagnostic capture for scaling analysis. It creates three separate NVIDIA NR "
+                           "features and evaluates Standard, Natural and Cinematic on the exact same sharp reduced "
+                           "proxy, depth and motion in one frame, before P50->P100 enlargement and before Detail "
+                           "Quality Lab post-processing. Saves native P100 proxy, sharp P50 proxy and raw NR50 outputs "
+                           "as shared-range 16-bit PNG plus exact RAW files under nr-style-analysis-captures. "
+                           "Requires a below-100% non-spatial working resolution.");
+
                 ImGui::TextUnformatted("Input preparation");
                 static const char* inputFilterNames[] = {
                     "Off", "Uniform softening", "Edge-selective isotropic", "Edge-selective normal",
