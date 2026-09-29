@@ -525,7 +525,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         // Upscaled NR residual must subtract a reconstruction of the same sharp base S used by the
         // rebased NR50 answer. Otherwise C100 - B100 would add -(B-S) back after cancellation.
         auto* const sharedDetailInput =
-            upscaledResidualMode && cancelInputPreparationFootprint && nr.colorSmall
+            cancelInputPreparationFootprint && nr.colorSmall
                 ? nr.colorSmall
                 : encoded.referenceInput ? encoded.referenceInput : encoded.modelInput;
         auto* detailCmd = asyncSlot->asyncDetailCommands.Get();
@@ -985,10 +985,12 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     // Spatial compression owns its own unpacked proxy, so experiments fall back to that common source there.
     ID3D12Resource* ordinaryReference =
         (!spatial && encoded.referenceInput) ? encoded.referenceInput : ordinaryProxy;
-    if (!spatial && upscaledResidualMode && cancelInputPreparationFootprint && nr.colorSmall)
+    if (!spatial && cancelInputPreparationFootprint && nr.colorSmall)
     {
-        // C = S + processed(N-B), therefore the full-resolution residual must be C100 - S100.
-        // Keeping B as the reference here would reintroduce the cancelled preparation footprint.
+        // After rebasing, the logical reduced pair is S -> C, where C = S + processed(N-B).
+        // Every later P50-derived reference must therefore reconstruct S. Using B here would either
+        // reintroduce B-S (Upscaled NR residual / Direct detail recovery) or measure structure gain
+        // against the wrong baseline (Direct structure transfer).
         ordinaryReference = nr.colorSmall;
     }
 
@@ -1008,14 +1010,16 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     const float bandStrength = std::isfinite(bandStrengthRaw) ? bandStrengthRaw : 1.0f;
 
     const bool nrFilterActive = nrEdgeFilter != 0u && nrStrength != 0.0f;
-    const bool preparationDependentGhostActive =
+    const bool ghostGuardActive =
         encoded.inputPreparationActive &&
-        ((ghostGuard != 0u && ghostStrength != 0.0f && ghostMax != 0.0f) ||
-         (ghostBands != 0u && bandStrength != 0.0f));
+        ghostGuard != 0u && ghostStrength != 0.0f && ghostMax != 0.0f;
+    const bool ghostBandsActive =
+        encoded.inputPreparationActive &&
+        ghostBands != 0u && bandStrength != 0.0f;
     const bool preparationRebaseActive =
         encoded.inputPreparationActive && cancelInputPreparationFootprint;
     const bool artifactControlActive =
-        nrFilterActive || preparationDependentGhostActive || preparationRebaseActive;
+        nrFilterActive || ghostGuardActive || ghostBandsActive || preparationRebaseActive;
 
     if (!spatial && workScale < 1.0f && ordinaryAnswer && nr.colorSmall &&
         (transferMode == 5u || transferMode == 6u) && artifactControlActive)
@@ -1062,8 +1066,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             filter.ColourStrength = nrFilterActive ? nrStrength : 0.0f;
             filter.DebugScale = std::isfinite(edgeThreshold) ? edgeThreshold : 0.04f;
 
-            filter.CompareMode = preparationDependentGhostActive ? ghostGuard : 0u;
-            filter.DebugView = preparationDependentGhostActive ? ghostBands : 0u;
+            filter.CompareMode = ghostGuardActive ? ghostGuard : 0u;
+            filter.DebugView = ghostBandsActive ? ghostBands : 0u;
             filter.CompareSwap = preparationRebaseActive ? 1u : 0u;
             filter.MaxRatio = ghostStrength;
             const float ghostDetection = cfg.DlssNrExperimentGhostDetectionThreshold.value_or_default();
