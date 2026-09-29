@@ -526,6 +526,7 @@ struct DlssNr_Dx12::State
     ~State()
     {
         WaitForFinishedPicture();
+        ReleaseStyleAnalysisCapture();
         ReleaseInputHold();
         ReleaseResources();
         SAFE_RELEASE(buffer);
