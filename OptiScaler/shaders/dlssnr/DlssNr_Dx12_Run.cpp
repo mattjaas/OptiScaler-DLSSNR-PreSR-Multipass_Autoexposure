@@ -1373,8 +1373,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         ID3D12Resource* directDetailReference = nullptr;
         ID3D12Resource* upscaledResidualReference = nullptr;
         ID3D12Resource* upscaledResidualAnswer = nullptr;
-        if (resolveParams.DebugView != 4 && !spatialDownFailed && DlssNrUsesDlssEnlargement(transfer) && reduced &&
-            (transfer == 2 || workScale < 1.0f))
+        if (transfer != 7u && resolveParams.DebugView != 4 && !spatialDownFailed &&
+            DlssNrUsesDlssEnlargement(transfer) && reduced && (transfer == 2 || workScale < 1.0f))
         {
             // With input-footprint cancellation, Direct NR's logical small-raster pair is S -> corrected NR.
             // Feed S to Direct's NR-gated detail mask too; the separately selected referenceProxy remains unchanged
@@ -1490,6 +1490,26 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         {
             ReleaseEnlarger();
             enlargementStatus.clear();
+        }
+
+        // P100-guided residual is deliberately not an "enlarger": no NR100/P100 reconstruction
+        // texture is created. Source=P50 and Model=NR50 stay reduced, while Original is untouched
+        // P100. Internal Transfer=8 tells final resolve to joint-bilateral-upsample only NR50-P50.
+        if (transfer == 7u && !spatialDownFailed)
+        {
+            if (!spatial && reduced && workScale < 1.0f && ordinaryProxy && ordinaryAnswer)
+            {
+                resolveProxy = ordinaryProxy;
+                resolveAnswer = ordinaryAnswer;
+                resolveParams.Transfer = 8u;
+                enlargementReady = true;
+                enlargementStatus.clear();
+            }
+            else
+            {
+                enlargementReady = false;
+                enlargementStatus = "P100-guided residual requires below-100% ordinary non-spatial NR.";
+            }
         }
 
         // Reuse proxy display with the immutable input actually passed to NR, before unpacking.
