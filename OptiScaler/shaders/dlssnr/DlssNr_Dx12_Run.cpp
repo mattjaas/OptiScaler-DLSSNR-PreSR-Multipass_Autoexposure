@@ -1174,8 +1174,15 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         if (resolveParams.DebugView != 4 && !spatialDownFailed && DlssNrUsesDlssEnlargement(transfer) && reduced &&
             (transfer == 2 || workScale < 1.0f))
         {
+            // With input-footprint cancellation, Direct NR's logical small-raster pair is S -> corrected NR.
+            // Feed S to Direct's NR-gated detail mask too; the separately selected referenceProxy remains unchanged
+            // for full-resolution detail recovery / structure-transfer experiments.
+            ID3D12Resource* const enlargementProxy =
+                transfer == 5u && cancelInputPreparationFootprint && nr.colorSmall
+                    ? nr.colorSmall
+                    : ordinaryProxy;
             auto* enlarged =
-                EnlargeMatchedResidual(cmdList, device, ordinaryProxy, ordinaryReference, ordinaryAnswer,
+                EnlargeMatchedResidual(cmdList, device, enlargementProxy, ordinaryReference, ordinaryAnswer,
                                        originalDepthIn, originalMotionIn, frame, resolveParams, transfer, enlargementReset,
                                        timingQueue, asyncExternalDetail);
             enlargementReady = enlarged != nullptr;

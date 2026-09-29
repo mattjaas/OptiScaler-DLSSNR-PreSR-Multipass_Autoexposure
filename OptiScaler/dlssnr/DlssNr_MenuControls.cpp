@@ -374,7 +374,6 @@ void RenderInput(Config* config)
                            "The legacy soften modes and Edge-core attenuation each use one low-resolution dispatch. "
                            "Edge-core attenuation reduces only a detected thin edge core instead of spreading it into the background.");
 
-                bool inputPreparationActive = false;
                 if (inputFilter >= 1 && inputFilter <= 3)
                 {
                     Slider("Input soften radius", config->DlssNrExperimentInputRadius, 0.25f, 2.0f,
@@ -384,7 +383,6 @@ void RenderInput(Config* config)
                     if (inputFilter >= 2)
                         Slider("Edge threshold", config->DlssNrExperimentEdgeThreshold, 0.005f, 0.20f,
                                "%.3f", 0.04f);
-                    inputPreparationActive = config->DlssNrExperimentInputStrength.value_or_default() != 0.0f;
                 }
                 else if (inputFilter == 4)
                 {
@@ -407,8 +405,6 @@ void RenderInput(Config* config)
                     HelpMarker("Luma-only moves the detected core only along the neutral/luma axis; RGB moves it "
                                "toward the two samples across the thin feature. Halo protection rejects asymmetric "
                                "step edges so the operation does not create a broad translucent band.");
-                    inputPreparationActive =
-                        coreMode != 0 && config->DlssNrExperimentCoreAttenuationStrength.value_or_default() != 0.0f;
                 }
 
                 if (inputFilter != 0)
