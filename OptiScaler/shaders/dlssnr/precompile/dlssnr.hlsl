@@ -23,7 +23,7 @@ cbuffer Params : register(b0)
     float gCompareSplit; // where the wipe cuts, 0..1
     float gCompareZoom;  // side by side: 1 fits the frame, 2 fills the half
     uint  gCompareSwap;  // put the edited frame on the other side
-    uint  gTransfer;     // 0 classic, 1/2 residual spatial/DLSS, 3/4 lighting+colour, 6 direct P100 residual
+    uint  gTransfer;     // 0 classic, 1/2 residual, 3/4 lighting+colour, 6 P100 residual, 7 Direct fused, 8 P100-guided residual
     float gDebugScale;   // what the debug views are scaled by, held still while the meter moves
     uint  gReversibleMode; // 0 knee, 1 Neutwo+composed, 2 Neutwo+replace, 3 hybrid+composed, 4 hybrid+replace
     uint  gApplyModel;     // 0 output the clean frame (pass still runs), 1 apply the model's edit
@@ -740,6 +740,75 @@ float4 DirectSpatialSample(float2 outUv)
 float3 ExperimentDecodeProxySample(float3 raw)
 {
     return gPassthrough != 0 ? raw : SrgbToLinear(raw);
+}
+
+// Joint-bilateral P50 residual upsampling guided by the untouched native P100 proxy.
+// All weights are positive. This deliberately avoids negative-lobe reconstruction kernels:
+// the operation can redistribute/attenuate NR50-P50 across a native edge, but cannot invent ringing
+// from a signed resampling kernel.
+float3 GuidedResidualBilinear(float2 uvq)
+{
+    const float3 p = ExperimentDecodeProxySample(gSource.SampleLevel(gLinear, saturate(uvq), 0).rgb);
+    const float3 n = ExperimentDecodeProxySample(gModel.SampleLevel(gLinear, saturate(uvq), 0).rgb);
+    return n - p;
+}
+
+float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
+{
+    uint srcW, srcH;
+    gSource.GetDimensions(srcW, srcH);
+    if (srcW == 0u || srcH == 0u)
+        return 0.0;
+
+    const float3 bilinearResidual = GuidedResidualBilinear(uvq);
+    const int radius = (int) clamp(gResidualHistoryValidUnused, 1u, 3u);
+    const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
+    const float spatialSigma = max(abs(gResidualScale), 1e-4);
+    const float invRange2 = 1.0 / (rangeSigma * rangeSigma);
+    const float invSpatial2 = 1.0 / (spatialSigma * spatialSigma);
+    const float gaussianExp2 = 0.7213475204444817; // 0.5 / ln(2)
+
+    // Source texel centres are integer coordinates in this space.
+    const float2 sourcePos = uvq * float2(srcW, srcH) - 0.5;
+    const int2 base = int2(floor(sourcePos));
+
+    float3 weighted = 0.0;
+    float weightSum = 0.0;
+    [loop] for (int oy = -3; oy <= 3; ++oy)
+    {
+        if (abs(oy) > radius)
+            continue;
+        [loop] for (int ox = -3; ox <= 3; ++ox)
+        {
+            if (abs(ox) > radius)
+                continue;
+
+            const int2 p = clamp(base + int2(ox, oy), int2(0, 0), int2((int) srcW - 1, (int) srcH - 1));
+            const float3 proxyCandidate = ExperimentDecodeProxySample(gSource.Load(int3(p, 0)).rgb);
+            const float3 modelCandidate = ExperimentDecodeProxySample(gModel.Load(int3(p, 0)).rgb);
+            const float3 residual = modelCandidate - proxyCandidate;
+
+            // The luma term dominates structural boundaries, while a smaller chroma term lets strong
+            // coloured edges guide the residual even when their luminance is similar.
+            const float3 colourDelta = proxyCandidate - nativeGuide;
+            const float lumaDelta = dot(colourDelta, kLuma);
+            const float3 chromaDelta = colourDelta - lumaDelta.xxx;
+            const float rangeDistance2 =
+                lumaDelta * lumaDelta + 0.35 * dot(chromaDelta, chromaDelta);
+
+            const float2 spatialDelta = float2(p) - sourcePos;
+            const float spatialDistance2 = dot(spatialDelta, spatialDelta);
+
+            const float wRange = exp2(-gaussianExp2 * rangeDistance2 * invRange2);
+            const float wSpatial = exp2(-gaussianExp2 * spatialDistance2 * invSpatial2);
+            const float w = wRange * wSpatial;
+            weighted += residual * w;
+            weightSum += w;
+        }
+    }
+
+    const float3 guided = weightSum > 1e-8 ? weighted / weightSum : bilinearResidual;
+    return lerp(bilinearResidual, guided, saturate(gResidualConfidenceUnused));
 }
 
 float3 ExperimentFinalModelAt(float2 uvq)
@@ -1951,6 +2020,23 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     }
 
 #ifndef VK_MODE
+    if (gTransfer == 8u && modelRanSmall)
+    {
+        // Build the exact native proxy the encoder would have shown at P100. It is only a guide/base;
+        // the NVIDIA model still ran exclusively at the reduced size.
+        const float3 nativeProxy =
+            gPassthrough != 0 ? saturate(original)
+            : (gReversibleMode == 0u ? saturate(SoftKnee(original))
+               : gReversibleMode >= 3u ? HybridEncode(original) : NeutwoEncode(original));
+
+        const float3 guidedEdit = P100GuidedResidualAt(cmpUv, nativeProxy);
+        proxy = nativeProxy;
+        model = nativeProxy + guidedEdit;
+        modelDirect = model;
+        proxyLuma = dot(proxy, kLuma);
+    }
+
+
     // Optional native-P100-guided detail remapping. The entire operation is folded into this resolve:
     // no NR100/P100-detail intermediate is written. Direct uses Aux2 as its selected reconstructed
     // P50 reference; Upscaled NR residual uses Source, which already is reconstructed P100.
@@ -2008,7 +2094,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     // Rebuild the full-resolution proxy and add only the upsampled model difference.
     // Skip ordinary matched residual at native resolution to preserve Classic's exact arithmetic.
     // Residual transfer and cube scaling are adapted from hhkbble's multi-pass contribution.
-    if ((gTransfer == 1 && modelRanSmall) || gTransfer == 2 || gTransfer == 6)
+    if ((gTransfer == 1 && modelRanSmall) || gTransfer == 2 || gTransfer == 6 || gTransfer == 8)
     {
         // Match the encode's curve, passthrough and saturation before cube-scaling the residual.
         // An out-of-range reconstructed proxy would collapse the residual scale to zero.
@@ -2023,7 +2109,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         // At the same rate there is no residual to carry: the model's own picture is already at the
         // frame's resolution, and P + (m - p) collapses to m exactly.
         model = CubeScaleResidual(fullProxy, fullProxy + edit);
-        if (gTransfer == 2 || gTransfer == 6) modelDirect = model;
+        if (gTransfer == 2 || gTransfer == 6 || gTransfer == 8) modelDirect = model;
     }
 
     // Rescale the model answer to the original luminance and restore headroom lost by the proxy.
