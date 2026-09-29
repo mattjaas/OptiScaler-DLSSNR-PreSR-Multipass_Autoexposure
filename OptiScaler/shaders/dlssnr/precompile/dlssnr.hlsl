@@ -960,6 +960,18 @@ float ExperimentThinCoreScore(float yC, float yA, float yB)
     return max(abs(yC - ySide) - 0.5 * abs(yA - yB), 0.0);
 }
 
+float ExperimentRgbDistance(float3 a, float3 b)
+{
+    // Mean absolute channel distance keeps the threshold in roughly the same 0..1 scale as luma.
+    return dot(abs(a - b), float3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0));
+}
+
+float ExperimentThinCoreScoreRgb(float3 c, float3 a, float3 b)
+{
+    const float3 side = 0.5 * (a + b);
+    return max(ExperimentRgbDistance(c, side) - 0.5 * ExperimentRgbDistance(a, b), 0.0);
+}
+
 float4 ExperimentEdgeCoreAttenuation(float2 uv)
 {
     uint srcW, srcH;
@@ -986,8 +998,14 @@ float4 ExperimentEdgeCoreAttenuation(float2 uv)
 
     const float2 gradient = float2(yR - yL, yD - yU);
     const float gradLen = length(gradient);
-    const float curveX = abs(2.0 * yC - yL - yR);
-    const float curveY = abs(2.0 * yC - yU - yD);
+    const float curveXLuma = abs(2.0 * yC - yL - yR);
+    const float curveYLuma = abs(2.0 * yC - yU - yD);
+    // RGB mode also sees isoluminant coloured wires. The same four L/R/U/D taps provide chromatic
+    // second-derivative magnitudes, so this adds arithmetic but no fixed texture samples.
+    const float curveXRgb = ExperimentRgbDistance(2.0 * center.rgb, left1.rgb + right1.rgb);
+    const float curveYRgb = ExperimentRgbDistance(2.0 * center.rgb, up1.rgb + down1.rgb);
+    const float curveX = mode == 2u ? max(curveXLuma, curveXRgb) : curveXLuma;
+    const float curveY = mode == 2u ? max(curveYLuma, curveYRgb) : curveYLuma;
     const float curvatureLen = sqrt(curveX * curveX + curveY * curveY);
 
     float2 normal;
@@ -1012,7 +1030,10 @@ float4 ExperimentEdgeCoreAttenuation(float2 uv)
     float3 b = gSource.SampleLevel(gLinear, saturate(uv + offset), 0).rgb;
     float yA = dot(a, kLuma);
     float yB = dot(b, kLuma);
-    float coreScore = ExperimentThinCoreScore(yC, yA, yB);
+    float coreScore = mode == 2u
+                          ? max(ExperimentThinCoreScore(yC, yA, yB),
+                                ExperimentThinCoreScoreRgb(center.rgb, a, b))
+                          : ExperimentThinCoreScore(yC, yA, yB);
 
     // For a perfectly centred diagonal line gradLen can be nearly zero. Axis second derivatives recover
     // |nx| and |ny| but not the sign of nx*ny, so there are exactly two mirrored normal orientations.
@@ -1025,7 +1046,10 @@ float4 ExperimentEdgeCoreAttenuation(float2 uv)
         const float3 altB = gSource.SampleLevel(gLinear, saturate(uv + altOffset), 0).rgb;
         const float altYA = dot(altA, kLuma);
         const float altYB = dot(altB, kLuma);
-        const float altScore = ExperimentThinCoreScore(yC, altYA, altYB);
+        const float altScore = mode == 2u
+                                   ? max(ExperimentThinCoreScore(yC, altYA, altYB),
+                                         ExperimentThinCoreScoreRgb(center.rgb, altA, altB))
+                                   : ExperimentThinCoreScore(yC, altYA, altYB);
         if (altScore > coreScore)
         {
             normal = alternate;
@@ -1039,8 +1063,13 @@ float4 ExperimentEdgeCoreAttenuation(float2 uv)
 
     const float ySide = 0.5 * (yA + yB);
     const float detected = ExperimentSmoothThreshold(gDebugScale, coreScore);
-    const float centralContrast = max(abs(yC - ySide), max(abs(gDebugScale), 1e-6));
-    const float sideSimilarity = 1.0 - saturate(abs(yA - yB) / centralContrast);
+    const float centralContrast =
+        mode == 2u
+            ? max(ExperimentRgbDistance(center.rgb, 0.5 * (a + b)), max(abs(gDebugScale), 1e-6))
+            : max(abs(yC - ySide), max(abs(gDebugScale), 1e-6));
+    const float sideAsymmetry =
+        mode == 2u ? ExperimentRgbDistance(a, b) : abs(yA - yB);
+    const float sideSimilarity = 1.0 - saturate(sideAsymmetry / centralContrast);
     // 0 = no halo rejection, 1 = linear side-similarity rejection, >1 = increasingly strict.
     // No slider-range clamp is applied: manually entered values (2, 5, 10, ...) retain their meaning.
     const float haloWeight = pow(max(sideSimilarity, 1e-6), gMaxRatio);
