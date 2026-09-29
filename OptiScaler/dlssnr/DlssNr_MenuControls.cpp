@@ -516,16 +516,25 @@ void RenderInput(Config* config)
                 HelpMarker("No shader pass. Multiplies NVIDIA LocalStructureStrength only for Standard/Natural, "
                            "interpolating from 1.0 at P100 to this factor at P50.");
 
-                static const char* limiterNames[] = { "Off", "P100-supported high-frequency limiter" };
+                static const char* limiterNames[] = { "Off", "Fine band", "Fine + mid bands" };
                 int limiter =
-                    (int) std::min(config->DlssNrExperimentP100EdgeLimiter.value_or_default(), 1u);
+                    (int) std::min(config->DlssNrExperimentP100EdgeLimiter.value_or_default(), 2u);
                 if (ImGui::Combo("P100 edge limiter", &limiter, limiterNames, IM_ARRAYSIZE(limiterNames)))
                     config->DlssNrExperimentP100EdgeLimiter = (uint32_t) limiter;
                 if (limiter != 0)
+                {
                     Slider("P100 edge limiter strength", config->DlssNrExperimentP100EdgeLimiterStrength,
                            0.0f, 1.0f, "%.2f", 1.0f);
-                HelpMarker("Runs inside final resolve. It splits the model edit into low/high frequency and "
-                           "attenuates high-frequency edits that are not supported by edge structure in untouched P100.");
+                    Slider("Max edge gain", config->DlssNrExperimentP100EdgeLimiterMaxGain,
+                           1.0f, 4.0f, "%.2fx", 1.0f);
+                    bool limiterDebug = config->DlssNrExperimentP100EdgeLimiterDebug.value_or_default();
+                    if (ImGui::Checkbox("P100 edge limiter debug mask", &limiterDebug))
+                        config->DlssNrExperimentP100EdgeLimiterDebug = limiterDebug;
+                }
+                HelpMarker("Caps the FINAL edge-band energy after NR against untouched P100, rather than comparing "
+                           "the NR edit alone. At Max edge gain 1.00x, NR may reduce an existing edge but may not make "
+                           "that band stronger than native P100. Fine + mid also limits the wider 1-2 px band and is "
+                           "independent of P100 structure transfer. Debug mask shows where the limiter actually acts.");
 
                 static const char* transferNames[] = {
                     "Off", "Structure gain - one band", "Structure gain - two band"
