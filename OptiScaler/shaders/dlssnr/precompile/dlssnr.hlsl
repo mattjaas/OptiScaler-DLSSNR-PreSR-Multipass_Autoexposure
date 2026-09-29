@@ -852,59 +852,95 @@ float ExperimentStructureGain(float3 referenceBand, float3 modelBand)
     return lerp(1.0, gain, confidence);
 }
 
-float3 ExperimentLimitedBand(float3 conventionalEdit, float3 nativeBand, float limiterStrength)
+float ExperimentBandEnergy(float3 band)
 {
-    const float editY = abs(dot(conventionalEdit, kLuma));
-    const float nativeY = abs(dot(nativeBand, kLuma));
-    const float support = saturate((nativeY + 0.002) / (editY + 0.002));
-    return conventionalEdit * lerp(1.0, support, limiterStrength);
+    // Luma catches the dominant drawn/sharpened-edge failure; a small RGB-energy term also catches
+    // isoluminant coloured structure without letting chroma noise dominate the limiter.
+    return max(abs(dot(band, kLuma)), 0.25 * length(band));
+}
+
+float3 ExperimentLimitedBand(float3 conventionalEdit, float3 nativeBand, float limiterStrength,
+                             float maxEdgeGain, out float limiterActivity)
+{
+    limiterActivity = 0.0;
+
+    // Cap the FINAL band, not the edit. This is the key difference from the old limiter:
+    // finalBand = native P100 geometry + the ordinary NR edit.
+    const float3 finalBand = nativeBand + conventionalEdit;
+    const float nativeEnergy = ExperimentBandEnergy(nativeBand);
+    const float finalEnergy = ExperimentBandEnergy(finalBand);
+    const float gainLimit = abs(maxEdgeGain);
+    const float allowedEnergy = nativeEnergy * gainLimit;
+
+    // At gain >= 1, any NR reduction is untouched. Near a flat native region, the floor avoids
+    // unstable divide-by-zero while still suppressing newly invented edge energy strongly.
+    if (!(finalEnergy > allowedEnergy))
+        return conventionalEdit;
+
+    const float edgeFloor = 0.002;
+    const float capScale = min(1.0, (allowedEnergy + edgeFloor) / (finalEnergy + edgeFloor));
+    const float3 cappedEdit = finalBand * capScale - nativeBand;
+
+    limiterActivity = saturate(abs(limiterStrength) * (1.0 - capScale));
+    return lerp(conventionalEdit, cappedEdit, limiterStrength);
 }
 
 float3 ExperimentResolveBand(float3 conventionalEdit, float3 gainReferenceBand, float3 modelBand,
-                             float3 nativeBand, uint structureMode,
-                             float limiterStrength, float structureStrength)
+                             float3 nativeBand, bool limitBand, bool transferBand,
+                             float limiterStrength, float maxEdgeGain, float structureStrength,
+                             out float limiterActivity)
 {
-    float3 limited = conventionalEdit;
-    if (gResidualHistoryValidUnused != 0u)
-        limited = ExperimentLimitedBand(limited, nativeBand, limiterStrength);
+    limiterActivity = 0.0;
+    float3 resolved = conventionalEdit;
+    if (limitBand)
+        resolved = ExperimentLimitedBand(resolved, nativeBand, limiterStrength, maxEdgeGain, limiterActivity);
 
-    if (structureMode == 0u)
-        return limited;
+    if (!transferBand)
+        return resolved;
 
     const float gain = ExperimentStructureGain(gainReferenceBand, modelBand);
     const float3 nativeGainEdit = nativeBand * (gain - 1.0);
-    return lerp(limited, nativeGainEdit, structureStrength);
+    return lerp(resolved, nativeGainEdit, structureStrength);
 }
 
 float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineCenter,
-                                float3 gainCenter, float3 nativeCenter, float normScale)
+                                float3 gainCenter, float3 nativeCenter, float normScale,
+                                out float limiterActivity)
 {
+    const uint limiterMode = min(gResidualHistoryValidUnused, 2u);
     const uint structureMode = min(gResidualMotionBaseXUnused, 2u);
     const float structureStrength = gResidualConfidenceUnused;
     const float limiterStrength = gResidualBlendUnused;
+    float maxEdgeGain = asfloat(gResidualMotionBaseYUnused);
+    if (!isfinite(maxEdgeGain))
+        maxEdgeGain = 1.0;
+
+    limiterActivity = 0.0;
 
     float3 modelBlur1, baselineBlur1, gainBlur1, nativeBlur1;
     ExperimentCrossBlur(uvq, 1.0, normScale, modelCenter, baselineCenter, gainCenter, nativeCenter,
                         modelBlur1, baselineBlur1, gainBlur1, nativeBlur1);
 
-    if (structureMode < 2u)
+    const bool useTwoBands = limiterMode >= 2u || structureMode >= 2u;
+    if (!useTwoBands)
     {
-        // Low-frequency edit is always the mode's original baseline. Only the high-frequency band
-        // is limited/re-expressed through P100 geometry, so structure strength 0 is exactly neutral.
+        // Fine band only (roughly 0..1 px). Structure transfer and limiter are independently enabled.
         const float3 lowEdit = modelBlur1 - baselineBlur1;
-        const float3 modelBand = modelCenter - modelBlur1;
-        const float3 baselineBand = baselineCenter - baselineBlur1;
-        const float3 gainBand = gainCenter - gainBlur1;
-        const float3 nativeBand = nativeCenter - nativeBlur1;
-        const float3 conventionalBandEdit = modelBand - baselineBand;
-
-        return lowEdit +
-               ExperimentResolveBand(conventionalBandEdit, gainBand, modelBand, nativeBand, structureMode,
-                                     limiterStrength, structureStrength);
+        const float3 modelFine = modelCenter - modelBlur1;
+        const float3 baselineFine = baselineCenter - baselineBlur1;
+        const float3 gainFine = gainCenter - gainBlur1;
+        const float3 nativeFine = nativeCenter - nativeBlur1;
+        float fineActivity = 0.0;
+        const float3 fineEdit =
+            ExperimentResolveBand(modelFine - baselineFine, gainFine, modelFine, nativeFine,
+                                  limiterMode >= 1u, structureMode >= 1u,
+                                  limiterStrength, maxEdgeGain, structureStrength, fineActivity);
+        limiterActivity = fineActivity;
+        return lowEdit + fineEdit;
     }
 
-    // Two-band version: fine 0..1 px and mid 1..2 px. Low frequencies below radius 2 remain the
-    // exact ordinary Direct/Upscaled-residual edit; only the two structure bands change geometry.
+    // Fine + mid decomposition. This path is selected by EITHER limiter mode 2 or structure mode 2,
+    // so the two experiments remain genuinely independent.
     float3 modelBlur2, baselineBlur2, gainBlur2, nativeBlur2;
     ExperimentCrossBlur(uvq, 2.0, normScale, modelCenter, baselineCenter, gainCenter, nativeCenter,
                         modelBlur2, baselineBlur2, gainBlur2, nativeBlur2);
@@ -915,18 +951,23 @@ float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineC
     const float3 baselineFine = baselineCenter - baselineBlur1;
     const float3 gainFine = gainCenter - gainBlur1;
     const float3 nativeFine = nativeCenter - nativeBlur1;
+    float fineActivity = 0.0;
     const float3 fineEdit =
-        ExperimentResolveBand(modelFine - baselineFine, gainFine, modelFine, nativeFine, structureMode,
-                              limiterStrength, structureStrength);
+        ExperimentResolveBand(modelFine - baselineFine, gainFine, modelFine, nativeFine,
+                              limiterMode >= 1u, structureMode >= 1u,
+                              limiterStrength, maxEdgeGain, structureStrength, fineActivity);
 
     const float3 modelMid = modelBlur1 - modelBlur2;
     const float3 baselineMid = baselineBlur1 - baselineBlur2;
     const float3 gainMid = gainBlur1 - gainBlur2;
     const float3 nativeMid = nativeBlur1 - nativeBlur2;
+    float midActivity = 0.0;
     const float3 midEdit =
-        ExperimentResolveBand(modelMid - baselineMid, gainMid, modelMid, nativeMid, structureMode,
-                              limiterStrength, structureStrength);
+        ExperimentResolveBand(modelMid - baselineMid, gainMid, modelMid, nativeMid,
+                              limiterMode >= 2u, structureMode >= 2u,
+                              limiterStrength, maxEdgeGain, structureStrength, midActivity);
 
+    limiterActivity = max(fineActivity, midActivity);
     return lowEdit + fineEdit + midEdit;
 }
 #endif
@@ -1778,8 +1819,20 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             direct && structureMode != 0u ? ExperimentGainReferenceAt(cmpUv) : baselineCenter;
         const float3 nativeProxyCenter =
             direct ? baselineCenter : ExperimentNativeProxyAt(cmpUv, normScale);
+        float limiterActivity = 0.0;
         const float3 guidedEdit =
-            ExperimentP100GuidedEdit(cmpUv, model, baselineCenter, gainCenter, nativeProxyCenter, normScale);
+            ExperimentP100GuidedEdit(cmpUv, model, baselineCenter, gainCenter, nativeProxyCenter, normScale,
+                                     limiterActivity);
+
+        // DirectResolveFlags bit 1 requests a literal intervention mask. White means the resulting-edge
+        // cap changed the band strongly; black means the limiter was inactive. Show the mask in the
+        // frame's output units so HDR/SDR presentation does not hide it.
+        if ((gDirectResolveFlags & 2u) != 0u && gResidualHistoryValidUnused != 0u)
+        {
+            gTarget[id.xy] = float4(float3(limiterActivity) * normScale, originalSample.a);
+            return;
+        }
+
         model = proxy + guidedEdit;
         modelDirect = model;
     }
