@@ -1014,12 +1014,12 @@ float4 ExperimentEdgeCoreAttenuation(float2 uv)
     float yB = dot(b, kLuma);
     float coreScore = ExperimentThinCoreScore(yC, yA, yB);
 
-    // For a perfectly centred diagonal line gradLen can be nearly zero and the curvature candidate has
-    // a sign ambiguity. Two extra taps, only on that ambiguous path, decide between the candidate and
-    // its perpendicular by selecting the direction with the stronger thin-core signature.
+    // For a perfectly centred diagonal line gradLen can be nearly zero. Axis second derivatives recover
+    // |nx| and |ny| but not the sign of nx*ny, so there are exactly two mirrored normal orientations.
+    // Two extra taps, only on that ambiguous path, choose the mirror with the stronger thin-core signature.
     if (gradLen <= max(abs(gDebugScale), 1e-6))
     {
-        const float2 alternate = float2(-normal.y, normal.x);
+        const float2 alternate = float2(normal.x, -normal.y);
         const float2 altOffset = alternate * texel * width;
         const float3 altA = gSource.SampleLevel(gLinear, saturate(uv - altOffset), 0).rgb;
         const float3 altB = gSource.SampleLevel(gLinear, saturate(uv + altOffset), 0).rgb;
