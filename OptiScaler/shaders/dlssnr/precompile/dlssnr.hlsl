@@ -857,7 +857,7 @@ float ExperimentStructureGain(float3 referenceBand, float3 modelBand, float3 nat
     // upper threshold tunable. Crucially, confidence now controls the TRANSFER BLEND itself; low
     // confidence therefore falls back to ordinary NR rather than replacing the band with zero.
     const float high = max(abs(confidenceThreshold), 1e-6);
-    const float low = max(high * 0.10, 1e-6);
+    const float low = max(high * 0.10, 1e-7);
     confidence = smoothstep(low, high, abs(r));
 
     if (!(r * m > 0.0))
