@@ -25,6 +25,8 @@ auto DlssNr_Dx12::State::FinishedPictureResetCommandList(ID3D12CommandList* cmd)
         model.ResetRecording(cmd);
     for (auto& model : styleAnalysisCapture.models)
         model.ResetRecording(cmd);
+    for (auto& model : styleAnalysisCapture.nativeModels)
+        model.ResetRecording(cmd);
     if (inputHold.captureCommands == cmd)
     {
         inputHold.active = false; // recording was discarded before submission
@@ -108,6 +110,8 @@ auto DlssNr_Dx12::State::FinishedPictureSubmitted(ID3D12CommandQueue* queue, UIN
     for (auto& model : nr.models)
         model.Submitted(queue, count, lists);
     for (auto& model : styleAnalysisCapture.models)
+        model.Submitted(queue, count, lists);
+    for (auto& model : styleAnalysisCapture.nativeModels)
         model.Submitted(queue, count, lists);
     for (UINT i = 0; i < count; ++i)
         if (lists[i] == inputHold.captureCommands)
