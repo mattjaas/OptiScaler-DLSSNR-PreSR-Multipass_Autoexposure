@@ -30,7 +30,11 @@ void DlssNr_Dx12::State::ReleaseStyleAnalysisCapture()
 {
     for (auto& model : styleAnalysisCapture.models)
         model.Release();
+    for (auto& model : styleAnalysisCapture.nativeModels)
+        model.Release();
     for (auto*& output : styleAnalysisCapture.outputs)
+        ParkNrResource(output);
+    for (auto*& output : styleAnalysisCapture.nativeOutputs)
         ParkNrResource(output);
     styleAnalysisCapture.readback.Reset();
     styleAnalysisCapture.active = false;
@@ -70,7 +74,7 @@ auto DlssNr_Dx12::State::ConsumeControls() -> void
             styleAnalysisCapture.requestGeneration = requested.styleAnalysisCaptureGeneration;
             styleAnalysisCapture.active = true;
             styleAnalysisCapture.status = "Armed";
-            LOG_INFO("NR style analysis capture armed: Standard/Natural/Cinematic will use one identical reduced frame.");
+            LOG_INFO("NR style analysis capture armed: Standard/Natural/Cinematic P50 and P100 will use one identical game frame.");
         }
     }
     controls = requested;
