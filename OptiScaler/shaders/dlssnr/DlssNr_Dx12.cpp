@@ -272,6 +272,9 @@ bool DlssNr_Dx12::ReadyToDestroy()
     for (auto& model : _state->styleAnalysisCapture.models)
         if (!model.Idle())
             return false;
+    for (auto& model : _state->styleAnalysisCapture.nativeModels)
+        if (!model.Idle())
+            return false;
     for (const auto& slot : _state->late.slots)
         if (slot.submitted && !_state->late.Finished(slot))
             return false;
@@ -291,6 +294,8 @@ void DlssNr_Dx12::FinishSubmitted()
     for (auto& model : _state->nr.models)
         model.FinishSubmitted();
     for (auto& model : _state->styleAnalysisCapture.models)
+        model.FinishSubmitted();
+    for (auto& model : _state->styleAnalysisCapture.nativeModels)
         model.FinishSubmitted();
 }
 
