@@ -892,15 +892,20 @@ float3 ExperimentResolveBand(float3 conventionalEdit, float3 gainReferenceBand, 
 {
     limiterActivity = 0.0;
     float3 resolved = conventionalEdit;
+
+    // Structure transfer changes the candidate edit first. The edge limiter is deliberately last:
+    // "Max edge gain" is a cap on the resulting band after every P100-guided transformation.
+    if (transferBand)
+    {
+        const float gain = ExperimentStructureGain(gainReferenceBand, modelBand);
+        const float3 nativeGainEdit = nativeBand * (gain - 1.0);
+        resolved = lerp(resolved, nativeGainEdit, structureStrength);
+    }
+
     if (limitBand)
         resolved = ExperimentLimitedBand(resolved, nativeBand, limiterStrength, maxEdgeGain, limiterActivity);
 
-    if (!transferBand)
-        return resolved;
-
-    const float gain = ExperimentStructureGain(gainReferenceBand, modelBand);
-    const float3 nativeGainEdit = nativeBand * (gain - 1.0);
-    return lerp(resolved, nativeGainEdit, structureStrength);
+    return resolved;
 }
 
 float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineCenter,
