@@ -197,8 +197,8 @@ void RenderInput(Config* config)
 
         static const char* enlargeNames[] = { "Classic", "Matched residual", "Matched residual + DLSS",
                                               "Lighting + colour", "Lighting + colour + DLSS", "Direct NR",
-                                              "Upscaled NR residual" };
-        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 6u);
+                                              "Upscaled NR residual", "P100-guided residual" };
+        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 7u);
 
         if (ImGui::Combo("Enlargement", &enlarge, enlargeNames, IM_ARRAYSIZE(enlargeNames)))
             config->DlssNrTransfer = (uint32_t) enlarge;
@@ -207,11 +207,44 @@ void RenderInput(Config* config)
 
         HelpMarker("Below 100%: Lighting + colour resizes lighting gain and colour changes separately. Direct NR "
                    "enlarges the NR answer itself and composes it like a native 100% model result. Upscaled NR "
-                   "residual enlarges P50 and NR50 separately with the same method, creates NR100 - reconstructed "
-                   "P100 at native resolution, then applies that residual to the untouched P100. DLSS-based "
-                   "enlargement requires post-upscale DX12 processing.");
+                   "residual constructs two P100 images and subtracts them. P100-guided residual instead upsamples "
+                   "NR50-P50 directly inside final resolve: untouched native P100 supplies edge-aware positive weights, "
+                   "so residual should cross real object boundaries less readily and cannot ring from negative kernel lobes. "
+                   "DLSS-based enlargement requires post-upscale DX12 processing.");
 
         const auto transfer = config->DlssNrTransfer.value_or_default();
+
+        if (reduced)
+        {
+            const bool styleCaptureSupported = !config->DlssNrSpatialCompression.value_or_default();
+            ImGui::BeginDisabled(!styleCaptureSupported);
+            if (ImGui::Button("Capture P100/P50 + Standard/Natural/Cinematic at P50 and P100"))
+                DlssNr::RequestStyleAnalysisCapture();
+            ImGui::EndDisabled();
+            HelpMarker("One-shot scaling-analysis capture. Six independent NVIDIA NR features evaluate Standard, "
+                       "Natural and Cinematic at the reduced working size and at native P100 on the same frame. "
+                       "The P50 styles use the exact sharp reduced proxy before Detail Quality Lab processing; the P100 "
+                       "styles use the native proxy. Saves proxy P100/P50 plus NR50 and NR100 outputs as shared-range "
+                       "16-bit PNG and exact RAW files under nr-style-analysis-captures.");
+        }
+
+        if (reduced && transfer == 7)
+        {
+            ImGui::TextUnformatted("P100-guided residual");
+            int radius = (int) std::min(config->DlssNrGuidedResidualRadius.value_or_default(), 3u);
+            if (ImGui::SliderInt("Guided radius", &radius, 1, 3, "%d P50 px"))
+                config->DlssNrGuidedResidualRadius = (uint32_t) radius;
+            Slider("Guided range sigma", config->DlssNrGuidedResidualRangeSigma,
+                   0.005f, 0.200f, "%.3f", 0.040f);
+            Slider("Guided spatial sigma", config->DlssNrGuidedResidualSpatialSigma,
+                   0.25f, 3.0f, "%.2f", 0.85f);
+            Slider("Guided strength", config->DlssNrGuidedResidualGuideStrength,
+                   0.0f, 1.0f, "%.2f", 1.0f);
+            HelpMarker("The shader samples a positive 3x3/5x5/7x7 neighbourhood of NR50-P50. Spatial distance and "
+                       "similarity to the native P100 proxy determine the weights. Range sigma sets how strongly a real "
+                       "P100 boundary rejects a residual sample from the other side; spatial sigma controls distance "
+                       "falloff. Guided strength blends from ordinary bilinear residual (0) to fully guided residual (1).");
+        }
         if (reduced && (transfer == 2 || transfer == 4 || transfer == 5 || transfer == 6))
         {
             static const char* directUpscalerNames[] = { "Bilinear", "Bicubic", "Catmull-Rom", "Lanczos2",
@@ -359,20 +392,6 @@ void RenderInput(Config* config)
             if ((transfer == 5 || transfer == 6) && ImGui::TreeNode("Detail quality lab (experimental)"))
             {
                 ImGui::TextDisabled("Slider ranges are only for dragging. Ctrl+click a slider to type any finite value; typed values are not clamped.");
-
-                const bool styleCaptureSupported =
-                    config->DlssNrWorkingScale.value_or_default() < 0.999f &&
-                    !config->DlssNrSpatialCompression.value_or_default();
-                ImGui::BeginDisabled(!styleCaptureSupported);
-                if (ImGui::Button("Capture P100/P50 + Standard/Natural/Cinematic"))
-                    DlssNr::RequestStyleAnalysisCapture();
-                ImGui::EndDisabled();
-                HelpMarker("One-shot diagnostic capture for scaling analysis. It creates three separate NVIDIA NR "
-                           "features and evaluates Standard, Natural and Cinematic on the exact same sharp reduced "
-                           "proxy, depth and motion in one frame, before P50->P100 enlargement and before Detail "
-                           "Quality Lab post-processing. Saves native P100 proxy, sharp P50 proxy and raw NR50 outputs "
-                           "as shared-range 16-bit PNG plus exact RAW files under nr-style-analysis-captures. "
-                           "Requires a below-100% non-spatial working resolution.");
 
                 ImGui::TextUnformatted("Input preparation");
                 static const char* inputFilterNames[] = {
