@@ -854,7 +854,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     bool styleAnalysisModelsReady = false;
     if (styleAnalysisCapture.active && !styleAnalysisCapture.copiesRecorded)
     {
-        if (!reduced || spatial || workScale >= 1.0f || nr.colorSmall == nullptr)
+        if (!reduced || spatial || workScale >= 1.0f || nr.colorSmall == nullptr || nr.colorCopy == nullptr)
         {
             LOG_WARN("NR style analysis capture cancelled: requires below-100% ordinary (non-spatial) working mode.");
             ReleaseStyleAnalysisCapture();
@@ -864,16 +864,23 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             bool allReady = true;
             bool failed = false;
             const auto p50Desc = nr.colorSmall->GetDesc();
+            const auto p100Desc = nr.colorCopy->GetDesc();
+
             for (unsigned style = 0; style < 3; ++style)
             {
-                auto*& out = styleAnalysisCapture.outputs[style];
-                if (!out || out->GetDesc().Width != p50Desc.Width || out->GetDesc().Height != p50Desc.Height ||
-                    out->GetDesc().Format != p50Desc.Format)
+                auto ensureOutput = [&](ID3D12Resource*& out, const D3D12_RESOURCE_DESC& desc) -> bool
                 {
-                    ParkNrResource(out);
-                    out = CreateScratch(device, p50Desc.Format, (unsigned) p50Desc.Width, p50Desc.Height);
-                }
-                if (!out)
+                    if (!out || out->GetDesc().Width != desc.Width || out->GetDesc().Height != desc.Height ||
+                        out->GetDesc().Format != desc.Format)
+                    {
+                        ParkNrResource(out);
+                        out = CreateScratch(device, desc.Format, (unsigned) desc.Width, desc.Height);
+                    }
+                    return out != nullptr;
+                };
+
+                if (!ensureOutput(styleAnalysisCapture.outputs[style], p50Desc) ||
+                    !ensureOutput(styleAnalysisCapture.nativeOutputs[style], p100Desc))
                 {
                     failed = true;
                     break;
@@ -881,29 +888,36 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
                 auto settings = DlssNr::Profiles::BasePassSettings(cfg, 0);
                 settings.style = style; // 0 Standard, 1 Natural, 2 Cinematic.
-                bool ready = false;
-                const auto prepared =
+
+                bool p50Ready = false;
+                const auto prepared50 =
                     styleAnalysisCapture.models[style].Prepare(cmdList, device, workWidth, workHeight, settings,
-                                                               frame.SubmissionEpoch, &ready);
-                if (prepared != NVSDK_NGX_Result_Success)
+                                                               frame.SubmissionEpoch, &p50Ready);
+                bool p100Ready = false;
+                const auto prepared100 =
+                    styleAnalysisCapture.nativeModels[style].Prepare(cmdList, device, width, height, settings,
+                                                                     frame.SubmissionEpoch, &p100Ready);
+                if (prepared50 != NVSDK_NGX_Result_Success || prepared100 != NVSDK_NGX_Result_Success)
                 {
-                    LOG_WARN("NR style analysis capture: style {} feature preparation failed 0x{:X}.", style, prepared);
+                    LOG_WARN("NR style analysis capture: style {} feature preparation failed P50=0x{:X}, P100=0x{:X}.",
+                             style, prepared50, prepared100);
                     failed = true;
                     break;
                 }
-                allReady &= ready;
+                allReady &= p50Ready && p100Ready;
             }
+
             if (failed)
                 ReleaseStyleAnalysisCapture();
             else
             {
                 styleAnalysisCapture.modelsPrepared = true;
                 styleAnalysisModelsReady = allReady;
-                styleAnalysisCapture.status = allReady ? "Ready to capture" : "Preparing diagnostic NR features";
+                styleAnalysisCapture.status =
+                    allReady ? "Ready to capture P50/P100" : "Preparing six diagnostic NR features";
             }
         }
     }
-
     ngxTime->Start(cmdList);
 
     // Count only a contiguous set of ready, separate feature histories. A failed extra creation never
@@ -1019,25 +1033,59 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
     if (styleAnalysisCapture.active && !styleAnalysisCapture.copiesRecorded && styleAnalysisModelsReady)
     {
-        static constexpr const char* kStyleNames[3] = { "standard_nr50", "natural_nr50", "cinematic_nr50" };
-        DlssNr::Proxy::Frame diagnosticFrame = modelFrame;
-        diagnosticFrame.color = nr.colorSmall; // Always the sharp P50 before Detail Quality Lab input preparation.
-        diagnosticFrame.reset = true;          // Identical clean history for all three independent features.
+        static constexpr const char* kP50StyleNames[3] = {
+            "standard_nr50", "natural_nr50", "cinematic_nr50"
+        };
+        static constexpr const char* kP100StyleNames[3] = {
+            "standard_nr100", "natural_nr100", "cinematic_nr100"
+        };
+
+        // Reduced diagnostics: exact sharp reduced proxy before any Detail Quality Lab input preparation.
+        DlssNr::Proxy::Frame diagnostic50 = modelFrame;
+        diagnostic50.color = nr.colorSmall;
+        diagnostic50.reset = true;
+
+        // Native diagnostics: true model-at-P100 ground truth, not any enlargement of NR50.
+        DlssNr::Proxy::Frame diagnostic100 {};
+        diagnostic100.color = nr.colorCopy;
+        diagnostic100.depth = originalDepthIn;
+        diagnostic100.motion = originalMotionIn;
+        diagnostic100.size = { width, height };
+        diagnostic100.guides = guides;
+        diagnostic100.depthInverted = frame.DepthInverted;
+        diagnostic100.reset = true;
+
+        const unsigned nativeMvGuideW = !renderMotionScale ? width : guides.motion.width;
+        const unsigned nativeMvGuideH = !renderMotionScale ? height : guides.motion.height;
+        diagnostic100.mvScaleX =
+            frame.MvScaleX * (mvRefW != 0 ? (float) nativeMvGuideW / (float) mvRefW : 1.0f);
+        diagnostic100.mvScaleY =
+            frame.MvScaleY * (mvRefH != 0 ? (float) nativeMvGuideH / (float) mvRefH : 1.0f);
 
         bool allEvaluated = true;
         for (unsigned style = 0; style < 3; ++style)
         {
-            diagnosticFrame.output = styleAnalysisCapture.outputs[style];
             auto settings = DlssNr::Profiles::BasePassSettings(cfg, 0);
             settings.style = style;
-            bool evaluated = false;
-            const auto diagnosticResult =
-                styleAnalysisCapture.models[style].Run(cmdList, device, diagnosticFrame, settings,
-                                                       frame.SubmissionEpoch, &evaluated);
-            if (diagnosticResult != NVSDK_NGX_Result_Success || !evaluated)
+
+            diagnostic50.output = styleAnalysisCapture.outputs[style];
+            bool evaluated50 = false;
+            const auto result50 =
+                styleAnalysisCapture.models[style].Run(cmdList, device, diagnostic50, settings,
+                                                       frame.SubmissionEpoch, &evaluated50);
+
+            diagnostic100.output = styleAnalysisCapture.nativeOutputs[style];
+            bool evaluated100 = false;
+            const auto result100 =
+                styleAnalysisCapture.nativeModels[style].Run(cmdList, device, diagnostic100, settings,
+                                                             frame.SubmissionEpoch, &evaluated100);
+
+            if (result50 != NVSDK_NGX_Result_Success || !evaluated50 ||
+                result100 != NVSDK_NGX_Result_Success || !evaluated100)
             {
-                LOG_WARN("NR style analysis capture: {} evaluation failed/not-ready (0x{:X}).",
-                         kStyleNames[style], diagnosticResult);
+                LOG_WARN("NR style analysis capture: style {} evaluation failed/not-ready "
+                         "(P50=0x{:X}/{}, P100=0x{:X}/{}).",
+                         style, result50, evaluated50, result100, evaluated100);
                 allEvaluated = false;
                 break;
             }
@@ -1051,18 +1099,24 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             std::snprintf(folder, sizeof(folder), "%04u%02u%02u-%02u%02u%02u-%03u",
                           time.wYear, time.wMonth, time.wDay, time.wHour, time.wMinute,
                           time.wSecond, time.wMilliseconds);
+
             auto& capture = styleAnalysisCapture.readback;
             capture.Reset();
             capture.directory = Util::DllPath().parent_path() / "nr-style-analysis-captures" / folder;
-            capture.metadata << "purpose compare_raw_NR_styles_before_P50_to_P100_enlargement\n"
-                             << "same_frame 1\n"
-                             << "diagnostic_model_input sharp_reduced_proxy_before_detail_quality_input_preparation\n"
-                             << "working_scale " << workScale << "\n"
-                             << "p100_width " << width << " p100_height " << height << "\n"
-                             << "p50_width " << workWidth << " p50_height " << workHeight << "\n"
-                             << "proxy_downscale_filter " << cfg.DlssNrProxyDownscaleFilter.value_or_default() << "\n"
-                             << "match_guides " << cfg.DlssNrMatchGuides.value_or_default() << "\n"
-                             << "styles standard=0 natural=1 cinematic=2\n";
+            capture.metadata
+                << "purpose compare_true_NR50_and_NR100_styles_for_scaling_analysis\n"
+                << "same_game_frame 1\n"
+                << "nr50_input sharp_reduced_proxy_before_detail_quality_input_preparation\n"
+                << "nr100_input native_proxy_no_enlargement\n"
+                << "working_scale " << workScale << "\n"
+                << "p100_width " << width << " p100_height " << height << "\n"
+                << "p50_width " << workWidth << " p50_height " << workHeight << "\n"
+                << "proxy_downscale_filter " << cfg.DlssNrProxyDownscaleFilter.value_or_default() << "\n"
+                << "match_guides " << cfg.DlssNrMatchGuides.value_or_default() << "\n"
+                << "render_motion_scale " << renderMotionScale << "\n"
+                << "nr50_mv_scale " << diagnostic50.mvScaleX << " " << diagnostic50.mvScaleY << "\n"
+                << "nr100_mv_scale " << diagnostic100.mvScaleX << " " << diagnostic100.mvScaleY << "\n"
+                << "styles standard=0 natural=1 cinematic=2\n";
 
             lifetime.Record(cmdList);
             bool copied = true;
@@ -1070,9 +1124,15 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                                   D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             copied &= capture.Add(cmdList, device, "proxy_p50", nr.colorSmall,
                                   D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
             for (unsigned style = 0; style < 3; ++style)
-                copied &= capture.Add(cmdList, device, kStyleNames[style], styleAnalysisCapture.outputs[style],
+            {
+                copied &= capture.Add(cmdList, device, kP50StyleNames[style], styleAnalysisCapture.outputs[style],
                                       D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                copied &= capture.Add(cmdList, device, kP100StyleNames[style],
+                                      styleAnalysisCapture.nativeOutputs[style],
+                                      D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            }
 
             if (copied)
             {
@@ -1080,17 +1140,16 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 capture.recorded = true;
                 styleAnalysisCapture.copiesRecorded = true;
                 styleAnalysisCapture.status = "GPU readback pending";
-                LOG_INFO("NR style analysis capture recorded; waiting for GPU completion: {}",
+                LOG_INFO("NR P50/P100 style analysis capture recorded; waiting for GPU completion: {}",
                          capture.directory.string());
             }
             else
             {
-                LOG_WARN("NR style analysis capture failed to allocate/record readbacks.");
+                LOG_WARN("NR P50/P100 style analysis capture failed to allocate/record readbacks.");
                 ReleaseStyleAnalysisCapture();
             }
         }
     }
-
     nr.reset = clampFailed || finalAnswer == nullptr;
     bool spatialUnpacked = false;
     ID3D12Resource* ordinaryProxy = modelInput;
