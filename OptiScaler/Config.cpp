@@ -401,6 +401,10 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrExperimentP100EdgeLimiter.set_from_config(readUInt("DlssNr", "ExperimentP100EdgeLimiter"));
             DlssNrExperimentP100EdgeLimiterStrength.set_from_config(
                 readFloat("DlssNr", "ExperimentP100EdgeLimiterStrength"));
+            DlssNrExperimentP100EdgeLimiterMaxGain.set_from_config(
+                readFloat("DlssNr", "ExperimentP100EdgeLimiterMaxGain"));
+            DlssNrExperimentP100EdgeLimiterDebug.set_from_config(
+                readBool("DlssNr", "ExperimentP100EdgeLimiterDebug"));
             DlssNrExperimentStructureTransfer.set_from_config(readUInt("DlssNr", "ExperimentStructureTransfer"));
             DlssNrExperimentStructureTransferStrength.set_from_config(
                 readFloat("DlssNr", "ExperimentStructureTransferStrength"));
@@ -1433,6 +1437,10 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetIntValue(Instance()->DlssNrExperimentP100EdgeLimiter.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentP100EdgeLimiterStrength",
                      GetFloatValue(Instance()->DlssNrExperimentP100EdgeLimiterStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentP100EdgeLimiterMaxGain",
+                     GetFloatValue(Instance()->DlssNrExperimentP100EdgeLimiterMaxGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentP100EdgeLimiterDebug",
+                     GetBoolValue(Instance()->DlssNrExperimentP100EdgeLimiterDebug.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentStructureTransfer",
                      GetIntValue(Instance()->DlssNrExperimentStructureTransfer.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentStructureTransferStrength",
