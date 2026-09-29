@@ -531,10 +531,11 @@ void RenderInput(Config* config)
                     if (ImGui::Checkbox("P100 edge limiter debug mask", &limiterDebug))
                         config->DlssNrExperimentP100EdgeLimiterDebug = limiterDebug;
                 }
-                HelpMarker("Caps the FINAL edge-band energy after NR against untouched P100, rather than comparing "
-                           "the NR edit alone. At Max edge gain 1.00x, NR may reduce an existing edge but may not make "
-                           "that band stronger than native P100. Fine + mid also limits the wider 1-2 px band and is "
-                           "independent of P100 structure transfer. Debug mask shows where the limiter actually acts.");
+                HelpMarker("Caps the FINAL edge-band energy against untouched P100, rather than comparing the "
+                           "NR edit alone. At Max edge gain 1.00x, NR may reduce an existing edge but may not make that "
+                           "band stronger than native P100. Fine + mid also limits the wider 1-2 px band. If Structure "
+                           "Transfer is enabled too, it runs first and this limiter remains the final cap. Debug mask "
+                           "shows where the limiter actually acts.");
 
                 static const char* transferNames[] = {
                     "Off", "Structure gain - one band", "Structure gain - two band"
