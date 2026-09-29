@@ -108,8 +108,12 @@ struct DlssNr_Dx12::State
 
     struct StyleAnalysisCapture
     {
+        // Separate histories at the two resolutions: all six features are evaluated on one identical
+        // game frame once both resolution groups are ready.
         std::array<DlssNr::Proxy::Context, 3> models;
+        std::array<DlssNr::Proxy::Context, 3> nativeModels;
         std::array<ID3D12Resource*, 3> outputs { nullptr, nullptr, nullptr };
+        std::array<ID3D12Resource*, 3> nativeOutputs { nullptr, nullptr, nullptr };
         DlssNr::AnalysisCapture::Set readback;
         uint64_t requestGeneration = 0;
         bool active = false;
