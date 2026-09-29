@@ -546,8 +546,52 @@ void RenderInput(Config* config)
                                  IM_ARRAYSIZE(transferNames)))
                     config->DlssNrExperimentStructureTransfer = (uint32_t) structureTransfer;
                 if (structureTransfer != 0)
+                {
                     Slider("Structure transfer strength", config->DlssNrExperimentStructureTransferStrength,
                            0.0f, 1.0f, "%.2f", 1.0f);
+
+                    bool polarityGuard = config->DlssNrExperimentStructurePolarityGuard.value_or_default();
+                    if (ImGui::Checkbox("Structure polarity guard", &polarityGuard))
+                        config->DlssNrExperimentStructurePolarityGuard = polarityGuard;
+                    HelpMarker("Rejects structure transfer when the P50/NR structure sign disagrees with the native "
+                               "P100 band. This targets opposite-side lobes around thin lines that otherwise become "
+                               "bright/dark ringing.");
+
+                    static const char* envelopeNames[] = { "Off", "Local envelope", "Soft envelope" };
+                    int envelope =
+                        (int) std::min(config->DlssNrExperimentStructureEnvelope.value_or_default(), 2u);
+                    if (ImGui::Combo("Structure anti-ringing", &envelope, envelopeNames, IM_ARRAYSIZE(envelopeNames)))
+                        config->DlssNrExperimentStructureEnvelope = (uint32_t) envelope;
+                    if (envelope != 0)
+                        Slider("Envelope margin", config->DlssNrExperimentStructureEnvelopeMargin,
+                               0.0f, 100.0f, "%.1f%%", 0.0f);
+                    HelpMarker("Constrains only the EXTRA change introduced by Structure Transfer against the local "
+                               "native-P100 neighbourhood. Ordinary NR edits are left untouched. Local envelope is a "
+                               "hard bound; Soft envelope compresses overshoot with a soft knee. Margin adds headroom "
+                               "as a percentage of the local P100 RGB range.");
+
+                    Slider("Structure max gain", config->DlssNrExperimentStructureMaxGain,
+                           1.0f, 8.0f, "%.2fx", 4.0f);
+                    Slider("Structure confidence threshold", config->DlssNrExperimentStructureConfidenceThreshold,
+                           0.001f, 0.100f, "%.3f", 0.020f);
+                    HelpMarker("Max gain limits the model/reference band ratio. Confidence threshold controls how "
+                               "strong the reference band must be before Structure Transfer reaches full weight; below "
+                               "it, the result now blends back toward ordinary NR instead of erasing the band.");
+
+                    bool shadowProtection = config->DlssNrExperimentStructureShadowProtection.value_or_default();
+                    if (ImGui::Checkbox("Structure shadow protection", &shadowProtection))
+                        config->DlssNrExperimentStructureShadowProtection = shadowProtection;
+                    if (shadowProtection)
+                    {
+                        Slider("Shadow threshold", config->DlssNrExperimentStructureShadowThreshold,
+                               0.001f, 0.250f, "%.3f", 0.080f);
+                        Slider("Shadow protection strength", config->DlssNrExperimentStructureShadowStrength,
+                               0.0f, 1.0f, "%.2f", 1.0f);
+                    }
+                    HelpMarker("Progressively reduces Structure Transfer in very dark native-P100 regions. This is "
+                               "intended to suppress isolated bright sparkles inside shadows without globally disabling "
+                               "real P100 detail there.");
+                }
                 HelpMarker("Runs inside final resolve after NR50 artifact control. Low-frequency NR edits are retained, "
                            "while high-frequency geometry comes from untouched P100 and NR supplies the local structure "
                            "gain. Two-band also transfers a second, wider detail band.");
