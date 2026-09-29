@@ -418,9 +418,9 @@ void RenderInput(Config* config)
                                      IM_ARRAYSIZE(referenceNames)))
                         config->DlssNrExperimentReferenceSource = (uint32_t) reference;
                     HelpMarker("Soft/model input reconstructs exactly what NVIDIA NR saw; Sharp original P50 "
-                               "reconstructs S. With Cancel input-preparation footprint enabled, Upscaled NR residual "
-                               "forces sharp S for its subtraction reference so B-S cannot be added back. Direct "
-                               "detail recovery / structure-reference experiments keep this selector.");
+                               "reconstructs S. With Cancel input-preparation footprint enabled, all later P50-derived "
+                               "references are forced to sharp S in both Direct NR and Upscaled NR residual so B-S "
+                               "cannot be reintroduced and structure gain is measured against the rebased baseline.");
 
                     static const char* cancelNames[] = { "Off", "On" };
                     int cancelFootprint =
