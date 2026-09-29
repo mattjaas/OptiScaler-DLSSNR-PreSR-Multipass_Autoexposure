@@ -49,6 +49,19 @@ inline float HalfToFloat(uint16_t h)
     return out;
 }
 
+inline float DecodeUnsignedFloat(uint32_t value, unsigned mantissaBits)
+{
+    const uint32_t mantissaMask = (1u << mantissaBits) - 1u;
+    const uint32_t mantissa = value & mantissaMask;
+    const uint32_t exponent = (value >> mantissaBits) & 0x1fu;
+    if (exponent == 0u)
+        return mantissa == 0u ? 0.0f : std::ldexp(float(mantissa), 1 - 15 - int(mantissaBits));
+    if (exponent == 31u)
+        return mantissa == 0u ? std::numeric_limits<float>::infinity()
+                              : std::numeric_limits<float>::quiet_NaN();
+    return std::ldexp(1.0f + float(mantissa) / float(1u << mantissaBits), int(exponent) - 15);
+}
+
 inline uint32_t Crc32(const uint8_t* data, size_t bytes)
 {
     uint32_t crc = 0xffffffffu;
@@ -211,6 +224,24 @@ struct Image
                     r = p[2] / 255.0f; g = p[1] / 255.0f; b = p[0] / 255.0f;
                     break;
                 }
+                case DXGI_FORMAT_R10G10B10A2_UNORM:
+                {
+                    uint32_t packed = 0;
+                    std::memcpy(&packed, row + size_t(x) * 4, sizeof(packed));
+                    r = float(packed & 0x3ffu) / 1023.0f;
+                    g = float((packed >> 10) & 0x3ffu) / 1023.0f;
+                    b = float((packed >> 20) & 0x3ffu) / 1023.0f;
+                    break;
+                }
+                case DXGI_FORMAT_R11G11B10_FLOAT:
+                {
+                    uint32_t packed = 0;
+                    std::memcpy(&packed, row + size_t(x) * 4, sizeof(packed));
+                    r = DecodeUnsignedFloat(packed & 0x7ffu, 6);
+                    g = DecodeUnsignedFloat((packed >> 11) & 0x7ffu, 6);
+                    b = DecodeUnsignedFloat((packed >> 22) & 0x3ffu, 5);
+                    break;
+                }
                 default:
                     supported = false;
                     break;
@@ -238,7 +269,7 @@ struct Set
     {
         images.clear();
         directory.clear();
-        metadata.str({});
+        metadata.str(std::string {});
         metadata.clear();
         complete = {};
         recorded = false;
