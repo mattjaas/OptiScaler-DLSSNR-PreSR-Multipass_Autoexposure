@@ -979,10 +979,26 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     ID3D12Resource* ordinaryReference =
         (!spatial && encoded.referenceInput) ? encoded.referenceInput : ordinaryProxy;
 
-    // Optional post-NR edge treatment. One small-raster dispatch is paid only while enabled.
+    // Detail-quality lab post-NR artifact control. Existing NR-edge treatment, blur-direction ghost
+    // rejection and optional low/mid-band suppression are fused into one small-raster dispatch.
     const uint32_t nrEdgeFilter = std::min(cfg.DlssNrExperimentNrEdgeFilter.value_or_default(), 4u);
-    if (!spatial && workScale < 1.0f && ordinaryAnswer &&
-        (transferMode == 5u || transferMode == 6u) && nrEdgeFilter != 0u)
+    const float nrStrengthRaw = cfg.DlssNrExperimentNrEdgeStrength.value_or_default();
+    const float nrStrength = std::isfinite(nrStrengthRaw) ? nrStrengthRaw : 1.0f;
+    const uint32_t ghostGuard = std::min(cfg.DlssNrExperimentGhostGuard.value_or_default(), 3u);
+    const float ghostStrengthRaw = cfg.DlssNrExperimentGhostGuardStrength.value_or_default();
+    const float ghostStrength = std::isfinite(ghostStrengthRaw) ? ghostStrengthRaw : 1.0f;
+    const float ghostMaxRaw = cfg.DlssNrExperimentGhostMaxSuppression.value_or_default();
+    const float ghostMax = std::isfinite(ghostMaxRaw) ? ghostMaxRaw : 1.0f;
+    const uint32_t ghostBands = std::min(cfg.DlssNrExperimentGhostBandSuppression.value_or_default(), 2u);
+    const float bandStrengthRaw = cfg.DlssNrExperimentBandSuppressionStrength.value_or_default();
+    const float bandStrength = std::isfinite(bandStrengthRaw) ? bandStrengthRaw : 1.0f;
+    const bool nrFilterActive = nrEdgeFilter != 0u && nrStrength != 0.0f;
+    const bool ghostGuardActive = ghostGuard != 0u && ghostStrength != 0.0f && ghostMax != 0.0f;
+    const bool ghostBandsActive = ghostBands != 0u && bandStrength != 0.0f;
+    const bool artifactControlActive = nrFilterActive || ghostGuardActive || ghostBandsActive;
+
+    if (!spatial && workScale < 1.0f && ordinaryAnswer && nr.colorSmall &&
+        (transferMode == 5u || transferMode == 6u) && artifactControlActive)
     {
         const auto answerDesc = ordinaryAnswer->GetDesc();
         const bool filteredMatches =
@@ -1010,15 +1026,32 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             filter.Mode = DlssNrMode_ExperimentNrPostfilter;
             filter.Width = modelWidth;
             filter.Height = modelHeight;
-            filter.Transfer = nrEdgeFilter;
+            filter.Transfer = nrFilterActive ? nrEdgeFilter : 0u;
             const float nrRadius = cfg.DlssNrExperimentNrEdgeRadius.value_or_default();
-            const float nrStrength = cfg.DlssNrExperimentNrEdgeStrength.value_or_default();
             const float edgeThreshold = cfg.DlssNrExperimentEdgeThreshold.value_or_default();
             filter.TransferStrength = std::isfinite(nrRadius) ? nrRadius : 0.75f;
-            filter.ColourStrength = std::isfinite(nrStrength) ? nrStrength : 1.0f;
+            filter.ColourStrength = nrFilterActive ? nrStrength : 0.0f;
             filter.DebugScale = std::isfinite(edgeThreshold) ? edgeThreshold : 0.04f;
 
-            if (shader.DispatchPass(cmdList, filter, ordinaryAnswer, ordinaryProxy, nullptr, nullptr, nullptr,
+            // Mode-local fields used only by ExperimentNrPostfilter.
+            filter.CompareMode = ghostGuardActive ? ghostGuard : 0u;
+            filter.DebugView = ghostBandsActive ? ghostBands : 0u;
+            filter.MaxRatio = ghostStrength;
+            const float ghostDetection = cfg.DlssNrExperimentGhostDetectionThreshold.value_or_default();
+            const float ghostEdge = cfg.DlssNrExperimentGhostEdgeThreshold.value_or_default();
+            const float ghostRadius = cfg.DlssNrExperimentGhostBandRadius.value_or_default();
+            filter.SkinDetail = std::isfinite(ghostDetection) ? ghostDetection : 0.01f;
+            filter.SkinColour = std::isfinite(ghostEdge) ? ghostEdge : 0.04f;
+            filter.EnvironmentDetail = std::isfinite(ghostRadius) ? ghostRadius : 2.0f;
+            filter.EnvironmentColour = ghostMax;
+            filter.ReplaceDetailStrength = bandStrength;
+            const float lowRadius = cfg.DlssNrExperimentLowBandRadius.value_or_default();
+            const float midRadius = cfg.DlssNrExperimentMidBandRadius.value_or_default();
+            filter.ModelWorkScale = std::isfinite(lowRadius) ? lowRadius : 3.0f;
+            filter.ResidualConfidenceSensitivity = std::isfinite(midRadius) ? midRadius : 1.5f;
+
+            // t0=N (NR50), t1=B (the exact prepared/model P50), t2=S (sharp P50 before preparation).
+            if (shader.DispatchPass(cmdList, filter, ordinaryAnswer, ordinaryProxy, nr.colorSmall, nullptr, nullptr,
                                     nr.outputFiltered, nullptr))
             {
                 Barrier(cmdList, nr.outputFiltered, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,

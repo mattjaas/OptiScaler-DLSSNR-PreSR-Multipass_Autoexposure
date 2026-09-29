@@ -359,18 +359,23 @@ void RenderInput(Config* config)
             if ((transfer == 5 || transfer == 6) && ImGui::TreeNode("Detail quality lab (experimental)"))
             {
                 ImGui::TextDisabled("Slider ranges are only for dragging. Ctrl+click a slider to type any finite value; typed values are not clamped.");
+
+                ImGui::TextUnformatted("Input preparation");
                 static const char* inputFilterNames[] = {
-                    "Off", "Uniform softening", "Edge-selective isotropic", "Edge-selective normal"
+                    "Off", "Uniform softening", "Edge-selective isotropic", "Edge-selective normal",
+                    "Edge-core attenuation"
                 };
                 int inputFilter =
-                    (int) std::min(config->DlssNrExperimentInputFilter.value_or_default(), 3u);
+                    (int) std::min(config->DlssNrExperimentInputFilter.value_or_default(), 4u);
                 if (ImGui::Combo("P50 input preparation", &inputFilter, inputFilterNames,
                                  IM_ARRAYSIZE(inputFilterNames)))
                     config->DlssNrExperimentInputFilter = (uint32_t) inputFilter;
                 HelpMarker("Runs after the selected P100 -> reduced proxy filter and before NVIDIA NR. "
-                           "It never blurs P100. The three active modes use one low-resolution compute dispatch.");
+                           "The legacy soften modes and Edge-core attenuation each use one low-resolution dispatch. "
+                           "Edge-core attenuation reduces only a detected thin edge core instead of spreading it into the background.");
 
-                if (inputFilter != 0)
+                bool inputPreparationActive = false;
+                if (inputFilter >= 1 && inputFilter <= 3)
                 {
                     Slider("Input soften radius", config->DlssNrExperimentInputRadius, 0.25f, 2.0f,
                            "%.2f px", 0.75f);
@@ -379,20 +384,50 @@ void RenderInput(Config* config)
                     if (inputFilter >= 2)
                         Slider("Edge threshold", config->DlssNrExperimentEdgeThreshold, 0.005f, 0.20f,
                                "%.3f", 0.04f);
+                    inputPreparationActive = config->DlssNrExperimentInputStrength.value_or_default() != 0.0f;
+                }
+                else if (inputFilter == 4)
+                {
+                    static const char* coreNames[] = { "Off", "Luma-only", "RGB" };
+                    int coreMode =
+                        (int) std::min(config->DlssNrExperimentCoreAttenuation.value_or_default(), 2u);
+                    if (ImGui::Combo("Edge core attenuation", &coreMode, coreNames, IM_ARRAYSIZE(coreNames)))
+                        config->DlssNrExperimentCoreAttenuation = (uint32_t) coreMode;
+                    if (coreMode != 0)
+                    {
+                        Slider("Core attenuation strength", config->DlssNrExperimentCoreAttenuationStrength,
+                               0.0f, 1.0f, "%.2f", 0.75f);
+                        Slider("Core detection threshold", config->DlssNrExperimentCoreDetectionThreshold,
+                               0.001f, 0.20f, "%.3f", 0.04f);
+                        Slider("Core width", config->DlssNrExperimentCoreWidth,
+                               0.25f, 4.0f, "%.2f px", 1.0f);
+                        Slider("Core halo protection", config->DlssNrExperimentCoreHaloProtection,
+                               0.0f, 1.0f, "%.2f", 1.0f);
+                    }
+                    HelpMarker("Luma-only moves the detected core only along the neutral/luma axis; RGB moves it "
+                               "toward the two samples across the thin feature. Halo protection rejects asymmetric "
+                               "step edges so the operation does not create a broad translucent band.");
+                    inputPreparationActive =
+                        coreMode != 0 && config->DlssNrExperimentCoreAttenuationStrength.value_or_default() != 0.0f;
+                }
 
+                if (inputPreparationActive)
+                {
                     static const char* referenceNames[] = {
                         "Soft/model input", "Sharp original P50"
                     };
                     int reference =
                         (int) std::min(config->DlssNrExperimentReferenceSource.value_or_default(), 1u);
-                    if (ImGui::Combo("P50 recovery/reference source", &reference, referenceNames,
+                    if (ImGui::Combo("P50 detail reference source", &reference, referenceNames,
                                      IM_ARRAYSIZE(referenceNames)))
                         config->DlssNrExperimentReferenceSource = (uint32_t) reference;
                     HelpMarker("Soft/model input reconstructs exactly what NR saw, so Direct NR can restore detail "
-                               "removed by the deliberate softening from untouched P100. Sharp original P50 keeps "
+                               "removed by the deliberate preparation from untouched P100. Sharp original P50 keeps "
                                "the old reconstruction reference and isolates only the model-input effect.");
                 }
 
+                ImGui::Spacing();
+                ImGui::TextUnformatted("NR50 artifact control");
                 static const char* nrFilterNames[] = {
                     "Off", "Uniform NR50 softening", "NR-edge isotropic", "NR-edge normal",
                     "NR excess-only normal"
@@ -401,8 +436,8 @@ void RenderInput(Config* config)
                     (int) std::min(config->DlssNrExperimentNrEdgeFilter.value_or_default(), 4u);
                 if (ImGui::Combo("NR50 edge treatment", &nrFilter, nrFilterNames, IM_ARRAYSIZE(nrFilterNames)))
                     config->DlssNrExperimentNrEdgeFilter = (uint32_t) nrFilter;
-                HelpMarker("Optional single low-resolution pass after NVIDIA NR. Excess-only compares NR50 against "
-                           "the exact model input and softens only edge energy NR added beyond that input.");
+                HelpMarker("Optional treatment inside the same low-resolution post-NR pass. Excess-only compares "
+                           "NR50 against the exact model input and softens only edge energy NR added beyond that input.");
                 if (nrFilter != 0)
                 {
                     Slider("NR edge radius", config->DlssNrExperimentNrEdgeRadius, 0.25f, 2.0f,
@@ -410,6 +445,60 @@ void RenderInput(Config* config)
                     Slider("NR edge soften strength", config->DlssNrExperimentNrEdgeStrength, 0.0f, 1.0f,
                            "%.2f", 1.0f);
                 }
+
+                static const char* ghostGuardNames[] = {
+                    "Off", "Basic", "Edge-only", "Edge-only directional"
+                };
+                int ghostGuard =
+                    (int) std::min(config->DlssNrExperimentGhostGuard.value_or_default(), 3u);
+                if (ImGui::Combo("Ghost guard", &ghostGuard, ghostGuardNames, IM_ARRAYSIZE(ghostGuardNames)))
+                    config->DlssNrExperimentGhostGuard = (uint32_t) ghostGuard;
+
+                static const char* ghostBandNames[] = { "Off", "One-band", "Two-band" };
+                int ghostBands =
+                    (int) std::min(config->DlssNrExperimentGhostBandSuppression.value_or_default(), 2u);
+                if (ImGui::Combo("Ghost band suppression", &ghostBands, ghostBandNames,
+                                 IM_ARRAYSIZE(ghostBandNames)))
+                    config->DlssNrExperimentGhostBandSuppression = (uint32_t) ghostBands;
+
+                const bool anyGhostControl = ghostGuard != 0 || ghostBands != 0;
+                if (anyGhostControl)
+                {
+                    Slider("Ghost detection threshold", config->DlssNrExperimentGhostDetectionThreshold,
+                           0.001f, 0.20f, "%.3f", 0.01f);
+                    if (ghostGuard >= 2 || ghostBands != 0)
+                    {
+                        Slider("Ghost edge threshold", config->DlssNrExperimentGhostEdgeThreshold,
+                               0.001f, 0.20f, "%.3f", 0.04f);
+                        Slider("Ghost band radius", config->DlssNrExperimentGhostBandRadius,
+                               0.25f, 10.0f, "%.2f px", 2.0f);
+                    }
+                }
+                if (ghostGuard != 0)
+                {
+                    Slider("Ghost guard strength", config->DlssNrExperimentGhostGuardStrength,
+                           0.0f, 1.0f, "%.2f", 1.0f);
+                    Slider("Ghost max suppression", config->DlssNrExperimentGhostMaxSuppression,
+                           0.0f, 1.0f, "%.2f", 1.0f);
+                }
+                HelpMarker("Compares S = sharp P50, B = the prepared P50 shown to NR, and N = NR50. "
+                           "When B-S and N-B move in the same luminance direction the matching NR edit can be "
+                           "suppressed. Edge-only gates that test to sharp P50 edges; directional suppresses only "
+                           "RGB components that move in the same direction as the preparation delta.");
+
+                if (ghostBands != 0)
+                {
+                    Slider("Band suppression strength", config->DlssNrExperimentBandSuppressionStrength,
+                           0.0f, 1.0f, "%.2f", 1.0f);
+                    Slider("Low band radius", config->DlssNrExperimentLowBandRadius,
+                           0.50f, 10.0f, "%.2f px", 3.0f);
+                    if (ghostBands >= 2)
+                        Slider("Mid band radius", config->DlssNrExperimentMidBandRadius,
+                               0.25f, 5.0f, "%.2f px", 1.5f);
+                }
+                HelpMarker("Suppresses only low/mid-frequency parts of the NR edit where the blur-direction detector "
+                           "identifies a ghost. High-frequency structure is left in place. One-band uses the low band; "
+                           "Two-band evaluates low and mid bands separately in the same post-NR dispatch.");
 
                 bool scaleAware = config->DlssNrExperimentScaleAwareStructure.value_or_default();
                 if (ImGui::Checkbox("Scale-aware Local structure (Standard/Natural)", &scaleAware))
@@ -442,11 +531,11 @@ void RenderInput(Config* config)
                 if (structureTransfer != 0)
                     Slider("Structure transfer strength", config->DlssNrExperimentStructureTransferStrength,
                            0.0f, 1.0f, "%.2f", 1.0f);
-                HelpMarker("Runs inside final resolve. Low-frequency NR edits are retained, while high-frequency "
-                           "geometry comes from untouched P100 and NR supplies the local structure gain. Two-band "
-                           "also transfers a second, wider detail band and is intentionally more expensive.");
+                HelpMarker("Runs inside final resolve after NR50 artifact control. Low-frequency NR edits are retained, "
+                           "while high-frequency geometry comes from untouched P100 and NR supplies the local structure "
+                           "gain. Two-band also transfers a second, wider detail band.");
 
-                ImGui::TextDisabled("All controls are independent; Off restores the normal path.");
+                ImGui::TextDisabled("All controls are independent; Off or a zero strength is neutral.");
                 ImGui::TreePop();
             }
         }

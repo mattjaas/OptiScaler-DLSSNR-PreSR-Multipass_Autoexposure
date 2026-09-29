@@ -359,11 +359,18 @@ class Config
 
     // Experimental reduced-resolution detail-quality laboratory. All defaults are neutral/off.
     // Numeric slider ranges are UI conveniences only; manually typed finite values are intentionally unbounded.
-    // Input prefilter: 0 off, 1 uniform 5-tap, 2 edge-selective 5-tap, 3 edge-normal 3-tap.
+    // Input prefilter: 0 off, 1 uniform 5-tap, 2 edge-selective 5-tap, 3 edge-normal 3-tap,
+    // 4 thin-edge core attenuation. Core attenuation has its own neutral sub-selector so selecting the
+    // experiment itself never changes the image until Luma-only or RGB is chosen.
     CustomOptional<uint32_t> DlssNrExperimentInputFilter { 0 };
     CustomOptional<float> DlssNrExperimentInputRadius { 0.75f };       // P50/P60 pixels
     CustomOptional<float> DlssNrExperimentInputStrength { 1.0f };     // slider 0..1; typed value unbounded
     CustomOptional<float> DlssNrExperimentEdgeThreshold { 0.04f };    // model-domain luma range
+    CustomOptional<uint32_t> DlssNrExperimentCoreAttenuation { 0 };   // 0 off, 1 luma-only, 2 RGB
+    CustomOptional<float> DlssNrExperimentCoreAttenuationStrength { 0.75f };
+    CustomOptional<float> DlssNrExperimentCoreDetectionThreshold { 0.04f };
+    CustomOptional<float> DlssNrExperimentCoreWidth { 1.0f };         // reduced-resolution pixels
+    CustomOptional<float> DlssNrExperimentCoreHaloProtection { 1.0f };
     // Reference source for P50->P100 reconstruction: 0 = the actual (possibly softened) NR input,
     // 1 = the original sharp reduced proxy. This intentionally exposes both hypotheses.
     CustomOptional<uint32_t> DlssNrExperimentReferenceSource { 0 };
@@ -371,6 +378,19 @@ class Config
     CustomOptional<uint32_t> DlssNrExperimentNrEdgeFilter { 0 };
     CustomOptional<float> DlssNrExperimentNrEdgeRadius { 0.75f };
     CustomOptional<float> DlssNrExperimentNrEdgeStrength { 1.0f };
+    // Blur-direction ghost guard. It compares S=sharp P50, B=prepared P50 and N=NR50 in the existing
+    // post-NR small-raster dispatch. 0 off, 1 basic, 2 edge-only, 3 edge-only directional.
+    CustomOptional<uint32_t> DlssNrExperimentGhostGuard { 0 };
+    CustomOptional<float> DlssNrExperimentGhostGuardStrength { 1.0f };
+    CustomOptional<float> DlssNrExperimentGhostDetectionThreshold { 0.01f };
+    CustomOptional<float> DlssNrExperimentGhostEdgeThreshold { 0.04f };
+    CustomOptional<float> DlssNrExperimentGhostBandRadius { 2.0f };
+    CustomOptional<float> DlssNrExperimentGhostMaxSuppression { 1.0f };
+    // Low/mid-frequency ghost suppression: 0 off, 1 one-band, 2 two-band.
+    CustomOptional<uint32_t> DlssNrExperimentGhostBandSuppression { 0 };
+    CustomOptional<float> DlssNrExperimentBandSuppressionStrength { 1.0f };
+    CustomOptional<float> DlssNrExperimentLowBandRadius { 3.0f };
+    CustomOptional<float> DlssNrExperimentMidBandRadius { 1.5f };
     // Scale-aware model structure compensation for Standard/Natural only. The factor is reached at P50
     // and interpolates back to 1.0 at P100.
     CustomOptional<bool> DlssNrExperimentScaleAwareStructure { false };

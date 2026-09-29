@@ -367,10 +367,33 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrExperimentInputRadius.set_from_config(readFloat("DlssNr", "ExperimentInputRadius"));
             DlssNrExperimentInputStrength.set_from_config(readFloat("DlssNr", "ExperimentInputStrength"));
             DlssNrExperimentEdgeThreshold.set_from_config(readFloat("DlssNr", "ExperimentEdgeThreshold"));
+            DlssNrExperimentCoreAttenuation.set_from_config(readUInt("DlssNr", "ExperimentCoreAttenuation"));
+            DlssNrExperimentCoreAttenuationStrength.set_from_config(
+                readFloat("DlssNr", "ExperimentCoreAttenuationStrength"));
+            DlssNrExperimentCoreDetectionThreshold.set_from_config(
+                readFloat("DlssNr", "ExperimentCoreDetectionThreshold"));
+            DlssNrExperimentCoreWidth.set_from_config(readFloat("DlssNr", "ExperimentCoreWidth"));
+            DlssNrExperimentCoreHaloProtection.set_from_config(
+                readFloat("DlssNr", "ExperimentCoreHaloProtection"));
             DlssNrExperimentReferenceSource.set_from_config(readUInt("DlssNr", "ExperimentReferenceSource"));
             DlssNrExperimentNrEdgeFilter.set_from_config(readUInt("DlssNr", "ExperimentNrEdgeFilter"));
             DlssNrExperimentNrEdgeRadius.set_from_config(readFloat("DlssNr", "ExperimentNrEdgeRadius"));
             DlssNrExperimentNrEdgeStrength.set_from_config(readFloat("DlssNr", "ExperimentNrEdgeStrength"));
+            DlssNrExperimentGhostGuard.set_from_config(readUInt("DlssNr", "ExperimentGhostGuard"));
+            DlssNrExperimentGhostGuardStrength.set_from_config(readFloat("DlssNr", "ExperimentGhostGuardStrength"));
+            DlssNrExperimentGhostDetectionThreshold.set_from_config(
+                readFloat("DlssNr", "ExperimentGhostDetectionThreshold"));
+            DlssNrExperimentGhostEdgeThreshold.set_from_config(
+                readFloat("DlssNr", "ExperimentGhostEdgeThreshold"));
+            DlssNrExperimentGhostBandRadius.set_from_config(readFloat("DlssNr", "ExperimentGhostBandRadius"));
+            DlssNrExperimentGhostMaxSuppression.set_from_config(
+                readFloat("DlssNr", "ExperimentGhostMaxSuppression"));
+            DlssNrExperimentGhostBandSuppression.set_from_config(
+                readUInt("DlssNr", "ExperimentGhostBandSuppression"));
+            DlssNrExperimentBandSuppressionStrength.set_from_config(
+                readFloat("DlssNr", "ExperimentBandSuppressionStrength"));
+            DlssNrExperimentLowBandRadius.set_from_config(readFloat("DlssNr", "ExperimentLowBandRadius"));
+            DlssNrExperimentMidBandRadius.set_from_config(readFloat("DlssNr", "ExperimentMidBandRadius"));
             DlssNrExperimentScaleAwareStructure.set_from_config(readBool("DlssNr", "ExperimentScaleAwareStructure"));
             DlssNrExperimentStructureP50Factor.set_from_config(readFloat("DlssNr", "ExperimentStructureP50Factor"));
             DlssNrExperimentP100EdgeLimiter.set_from_config(readUInt("DlssNr", "ExperimentP100EdgeLimiter"));
@@ -1360,6 +1383,16 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetFloatValue(Instance()->DlssNrExperimentInputStrength.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentEdgeThreshold",
                      GetFloatValue(Instance()->DlssNrExperimentEdgeThreshold.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentCoreAttenuation",
+                     GetIntValue(Instance()->DlssNrExperimentCoreAttenuation.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentCoreAttenuationStrength",
+                     GetFloatValue(Instance()->DlssNrExperimentCoreAttenuationStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentCoreDetectionThreshold",
+                     GetFloatValue(Instance()->DlssNrExperimentCoreDetectionThreshold.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentCoreWidth",
+                     GetFloatValue(Instance()->DlssNrExperimentCoreWidth.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentCoreHaloProtection",
+                     GetFloatValue(Instance()->DlssNrExperimentCoreHaloProtection.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentReferenceSource",
                      GetIntValue(Instance()->DlssNrExperimentReferenceSource.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentNrEdgeFilter",
@@ -1368,6 +1401,26 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetFloatValue(Instance()->DlssNrExperimentNrEdgeRadius.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentNrEdgeStrength",
                      GetFloatValue(Instance()->DlssNrExperimentNrEdgeStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentGhostGuard",
+                     GetIntValue(Instance()->DlssNrExperimentGhostGuard.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentGhostGuardStrength",
+                     GetFloatValue(Instance()->DlssNrExperimentGhostGuardStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentGhostDetectionThreshold",
+                     GetFloatValue(Instance()->DlssNrExperimentGhostDetectionThreshold.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentGhostEdgeThreshold",
+                     GetFloatValue(Instance()->DlssNrExperimentGhostEdgeThreshold.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentGhostBandRadius",
+                     GetFloatValue(Instance()->DlssNrExperimentGhostBandRadius.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentGhostMaxSuppression",
+                     GetFloatValue(Instance()->DlssNrExperimentGhostMaxSuppression.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentGhostBandSuppression",
+                     GetIntValue(Instance()->DlssNrExperimentGhostBandSuppression.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentBandSuppressionStrength",
+                     GetFloatValue(Instance()->DlssNrExperimentBandSuppressionStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentLowBandRadius",
+                     GetFloatValue(Instance()->DlssNrExperimentLowBandRadius.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentMidBandRadius",
+                     GetFloatValue(Instance()->DlssNrExperimentMidBandRadius.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentScaleAwareStructure",
                      GetBoolValue(Instance()->DlssNrExperimentScaleAwareStructure.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentStructureP50Factor",

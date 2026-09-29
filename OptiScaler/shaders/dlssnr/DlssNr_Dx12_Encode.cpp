@@ -297,9 +297,17 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
         // low-resolution dispatch after the selected downscaler, so every P100->P50 filter can be
         // compared with identical preconditioning and the cost scales with the small raster.
         const uint32_t experimentTransfer = cfg.DlssNrTransfer.value_or_default();
-        const uint32_t inputFilter = std::min(cfg.DlssNrExperimentInputFilter.value_or_default(), 3u);
+        const uint32_t inputFilter = std::min(cfg.DlssNrExperimentInputFilter.value_or_default(), 4u);
+        const float inputStrengthRaw = cfg.DlssNrExperimentInputStrength.value_or_default();
+        const float inputStrength = std::isfinite(inputStrengthRaw) ? inputStrengthRaw : 1.0f;
+        const uint32_t coreMode = std::min(cfg.DlssNrExperimentCoreAttenuation.value_or_default(), 2u);
+        const float coreStrengthRaw = cfg.DlssNrExperimentCoreAttenuationStrength.value_or_default();
+        const float coreStrength = std::isfinite(coreStrengthRaw) ? coreStrengthRaw : 0.75f;
+        const bool legacyInputActive = inputFilter >= 1u && inputFilter <= 3u && inputStrength != 0.0f;
+        const bool coreInputActive = inputFilter == 4u && coreMode != 0u && coreStrength != 0.0f;
         const bool inputExperiment =
-            workScale < 1.0f && (experimentTransfer == 5u || experimentTransfer == 6u) && inputFilter != 0u;
+            workScale < 1.0f && (experimentTransfer == 5u || experimentTransfer == 6u) &&
+            (legacyInputActive || coreInputActive);
         if (inputExperiment)
         {
             const auto rawDesc = nr.colorSmall->GetDesc();
@@ -330,12 +338,25 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
                 soften.Width = workWidth;
                 soften.Height = workHeight;
                 soften.Transfer = inputFilter;
-                const float inputRadius = cfg.DlssNrExperimentInputRadius.value_or_default();
-                const float inputStrength = cfg.DlssNrExperimentInputStrength.value_or_default();
-                const float edgeThreshold = cfg.DlssNrExperimentEdgeThreshold.value_or_default();
-                soften.TransferStrength = std::isfinite(inputRadius) ? inputRadius : 0.75f;
-                soften.ColourStrength = std::isfinite(inputStrength) ? inputStrength : 1.0f;
-                soften.DebugScale = std::isfinite(edgeThreshold) ? edgeThreshold : 0.04f;
+                if (inputFilter == 4u)
+                {
+                    const float coreThreshold = cfg.DlssNrExperimentCoreDetectionThreshold.value_or_default();
+                    const float coreWidth = cfg.DlssNrExperimentCoreWidth.value_or_default();
+                    const float haloProtection = cfg.DlssNrExperimentCoreHaloProtection.value_or_default();
+                    soften.CompareMode = coreMode;
+                    soften.TransferStrength = std::isfinite(coreWidth) ? coreWidth : 1.0f;
+                    soften.ColourStrength = coreStrength;
+                    soften.DebugScale = std::isfinite(coreThreshold) ? coreThreshold : 0.04f;
+                    soften.MaxRatio = std::isfinite(haloProtection) ? haloProtection : 1.0f;
+                }
+                else
+                {
+                    const float inputRadius = cfg.DlssNrExperimentInputRadius.value_or_default();
+                    const float edgeThreshold = cfg.DlssNrExperimentEdgeThreshold.value_or_default();
+                    soften.TransferStrength = std::isfinite(inputRadius) ? inputRadius : 0.75f;
+                    soften.ColourStrength = inputStrength;
+                    soften.DebugScale = std::isfinite(edgeThreshold) ? edgeThreshold : 0.04f;
+                }
 
                 if (shader.DispatchPass(cmdList, soften, nr.colorSmall, nullptr, nullptr, nullptr, nullptr,
                                         nr.colorSoft, nullptr))
