@@ -357,6 +357,10 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrUpscaledResidualUpscaler.set_from_config(readUInt("DlssNr", "UpscaledResidualUpscaler"));
             DlssNrUpscaledResidualReferenceExecutionMode.set_from_config(
                 readUInt("DlssNr", "UpscaledResidualReferenceExecutionMode"));
+            DlssNrGuidedResidualRadius.set_from_config(readUInt("DlssNr", "GuidedResidualRadius"));
+            DlssNrGuidedResidualRangeSigma.set_from_config(readFloat("DlssNr", "GuidedResidualRangeSigma"));
+            DlssNrGuidedResidualSpatialSigma.set_from_config(readFloat("DlssNr", "GuidedResidualSpatialSigma"));
+            DlssNrGuidedResidualGuideStrength.set_from_config(readFloat("DlssNr", "GuidedResidualGuideStrength"));
             DlssNrDirectDetailReferenceUpscaler.set_from_config(
                 readUInt("DlssNr", "DirectDetailReferenceUpscaler"));
             DlssNrDirectDetailReferenceExecutionMode.set_from_config(
@@ -1389,6 +1393,14 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetIntValue(Instance()->DlssNrUpscaledResidualUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "UpscaledResidualReferenceExecutionMode",
                      GetIntValue(Instance()->DlssNrUpscaledResidualReferenceExecutionMode.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualRadius",
+                     GetIntValue(Instance()->DlssNrGuidedResidualRadius.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualRangeSigma",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualRangeSigma.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualSpatialSigma",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualSpatialSigma.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualGuideStrength",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualGuideStrength.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailReferenceUpscaler",
                      GetIntValue(Instance()->DlssNrDirectDetailReferenceUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailReferenceExecutionMode",
