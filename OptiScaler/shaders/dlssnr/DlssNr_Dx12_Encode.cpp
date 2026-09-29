@@ -431,16 +431,20 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         // ResidualMotionBaseY = raw float bits of max edge gain
         // ResidualMotionBaseX / ResidualConfidenceSensitivity = structure-transfer mode / strength
         // DirectResolveFlags bit 1 = limiter debug mask (bit 0 is reserved for the Direct-NR family).
+        const float limiterStrengthRaw = cfg.DlssNrExperimentP100EdgeLimiterStrength.value_or_default();
+        const float limiterStrength = std::isfinite(limiterStrengthRaw) ? limiterStrengthRaw : 1.0f;
         resolveParams.ResidualHistoryValid =
-            std::min(cfg.DlssNrExperimentP100EdgeLimiter.value_or_default(), 2u);
-        const float limiterStrength = cfg.DlssNrExperimentP100EdgeLimiterStrength.value_or_default();
-        resolveParams.ResidualBlend = std::isfinite(limiterStrength) ? limiterStrength : 1.0f;
+            limiterStrength != 0.0f
+                ? std::min(cfg.DlssNrExperimentP100EdgeLimiter.value_or_default(), 2u)
+                : 0u;
+        resolveParams.ResidualBlend = limiterStrength;
         float limiterMaxGain = cfg.DlssNrExperimentP100EdgeLimiterMaxGain.value_or_default();
         if (!std::isfinite(limiterMaxGain))
             limiterMaxGain = 1.0f;
         static_assert(sizeof(limiterMaxGain) == sizeof(resolveParams.ResidualMotionBaseY));
         std::memcpy(&resolveParams.ResidualMotionBaseY, &limiterMaxGain, sizeof(limiterMaxGain));
-        if (cfg.DlssNrExperimentP100EdgeLimiterDebug.value_or_default())
+        if (resolveParams.ResidualHistoryValid != 0u &&
+            cfg.DlssNrExperimentP100EdgeLimiterDebug.value_or_default())
             resolveParams.DirectResolveFlags |= 2u;
         resolveParams.ResidualMotionBaseX =
             std::min(cfg.DlssNrExperimentStructureTransfer.value_or_default(), 2u);
