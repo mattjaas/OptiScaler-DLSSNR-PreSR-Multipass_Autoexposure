@@ -374,6 +374,9 @@ class Config
     // Reference source for P50->P100 reconstruction: 0 = the actual (possibly softened) NR input,
     // 1 = the original sharp reduced proxy. This intentionally exposes both hypotheses.
     CustomOptional<uint32_t> DlssNrExperimentReferenceSource { 0 };
+    // Rebase the processed model response from prepared B back onto sharp S: S + (N - B).
+    // Default off preserves exact comparability with the previous detail-quality experiments.
+    CustomOptional<bool> DlssNrExperimentCancelInputPreparationFootprint { false };
     // NR50 post-filter: 0 off, 1 uniform, 2 edge-selective isotropic, 3 edge-normal, 4 excess-only edge-normal.
     CustomOptional<uint32_t> DlssNrExperimentNrEdgeFilter { 0 };
     CustomOptional<float> DlssNrExperimentNrEdgeRadius { 0.75f };

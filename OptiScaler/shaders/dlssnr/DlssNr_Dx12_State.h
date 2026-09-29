@@ -424,6 +424,10 @@ struct DlssNr_Dx12::State
         bool targetSupportsUav;
         bool spatial = false;
         bool encodeSucceeded = false;
+        // True only when Mode 16 actually produced B != the sharp reduced source S and B became modelInput.
+        // Post-NR ghost/cancellation work keys off this instead of the configured selector, so a failed or
+        // neutral prefilter never causes an otherwise useless Mode 17 dispatch.
+        bool inputPreparationActive = false;
         float whitePoint = 1.0f;
         ID3D12Resource* modelInput = nullptr;
         // P50 source used by reconstruction/detail-reference work. It can intentionally differ from

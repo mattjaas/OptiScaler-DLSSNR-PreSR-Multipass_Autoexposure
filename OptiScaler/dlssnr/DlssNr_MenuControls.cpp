@@ -411,7 +411,7 @@ void RenderInput(Config* config)
                         coreMode != 0 && config->DlssNrExperimentCoreAttenuationStrength.value_or_default() != 0.0f;
                 }
 
-                if (inputPreparationActive)
+                if (inputFilter != 0)
                 {
                     static const char* referenceNames[] = {
                         "Soft/model input", "Sharp original P50"
@@ -421,9 +421,20 @@ void RenderInput(Config* config)
                     if (ImGui::Combo("P50 detail reference source", &reference, referenceNames,
                                      IM_ARRAYSIZE(referenceNames)))
                         config->DlssNrExperimentReferenceSource = (uint32_t) reference;
-                    HelpMarker("Soft/model input reconstructs exactly what NR saw, so Direct NR can restore detail "
-                               "removed by the deliberate preparation from untouched P100. Sharp original P50 keeps "
-                               "the old reconstruction reference and isolates only the model-input effect.");
+                    HelpMarker("Soft/model input reconstructs exactly what NVIDIA NR saw; Sharp original P50 "
+                               "reconstructs S. With Cancel input-preparation footprint enabled, Upscaled NR residual "
+                               "forces sharp S for its subtraction reference so B-S cannot be added back. Direct "
+                               "detail recovery / structure-reference experiments keep this selector.");
+
+                    static const char* cancelNames[] = { "Off", "On" };
+                    int cancelFootprint =
+                        config->DlssNrExperimentCancelInputPreparationFootprint.value_or_default() ? 1 : 0;
+                    if (ImGui::Combo("Cancel input-preparation footprint", &cancelFootprint,
+                                     cancelNames, IM_ARRAYSIZE(cancelNames)))
+                        config->DlssNrExperimentCancelInputPreparationFootprint = cancelFootprint != 0;
+                    HelpMarker("When enabled, NR's response is rebased from the prepared P50 back onto the original "
+                               "sharp P50: S + (N - B). This preserves the model response while removing the "
+                               "preparation footprint itself.");
                 }
 
                 ImGui::Spacing();

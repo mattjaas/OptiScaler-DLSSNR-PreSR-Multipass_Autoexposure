@@ -376,6 +376,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrExperimentCoreHaloProtection.set_from_config(
                 readFloat("DlssNr", "ExperimentCoreHaloProtection"));
             DlssNrExperimentReferenceSource.set_from_config(readUInt("DlssNr", "ExperimentReferenceSource"));
+            DlssNrExperimentCancelInputPreparationFootprint.set_from_config(
+                readBool("DlssNr", "ExperimentCancelInputPreparationFootprint"));
             DlssNrExperimentNrEdgeFilter.set_from_config(readUInt("DlssNr", "ExperimentNrEdgeFilter"));
             DlssNrExperimentNrEdgeRadius.set_from_config(readFloat("DlssNr", "ExperimentNrEdgeRadius"));
             DlssNrExperimentNrEdgeStrength.set_from_config(readFloat("DlssNr", "ExperimentNrEdgeStrength"));
@@ -1395,6 +1397,8 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetFloatValue(Instance()->DlssNrExperimentCoreHaloProtection.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentReferenceSource",
                      GetIntValue(Instance()->DlssNrExperimentReferenceSource.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "ExperimentCancelInputPreparationFootprint",
+                     GetBoolValue(Instance()->DlssNrExperimentCancelInputPreparationFootprint.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentNrEdgeFilter",
                      GetIntValue(Instance()->DlssNrExperimentNrEdgeFilter.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ExperimentNrEdgeRadius",

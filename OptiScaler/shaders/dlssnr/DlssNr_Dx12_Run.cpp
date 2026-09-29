@@ -513,14 +513,21 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     EncodeContext encoded { encodeCmd, device, target, targetState, frame, workScale, targetSupportsUav, spatial };
     EncodeInput(encoded);
     targetState = encoded.targetState;
+    const bool cancelInputPreparationFootprint =
+        encoded.inputPreparationActive &&
+        cfg.DlssNrExperimentCancelInputPreparationFootprint.value_or_default();
 
     if (asyncDetailActive)
     {
         // The prefix already wrote P50 and transitioned it to SRV. Because the async P50 scratch was created
         // with ALLOW_SIMULTANEOUS_ACCESS, direct NR and the compute detail pass can now read that same texture
         // concurrently after the prefix fence -- no per-frame CopyResource or duplicate P50 allocation.
+        // Upscaled NR residual must subtract a reconstruction of the same sharp base S used by the
+        // rebased NR50 answer. Otherwise C100 - B100 would add -(B-S) back after cancellation.
         auto* const sharedDetailInput =
-            encoded.referenceInput ? encoded.referenceInput : encoded.modelInput;
+            upscaledResidualMode && cancelInputPreparationFootprint && nr.colorSmall
+                ? nr.colorSmall
+                : encoded.referenceInput ? encoded.referenceInput : encoded.modelInput;
         auto* detailCmd = asyncSlot->asyncDetailCommands.Get();
         if (asyncSlot->asyncDetailReferenceReadable)
         {
@@ -978,9 +985,16 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     // Spatial compression owns its own unpacked proxy, so experiments fall back to that common source there.
     ID3D12Resource* ordinaryReference =
         (!spatial && encoded.referenceInput) ? encoded.referenceInput : ordinaryProxy;
+    if (!spatial && upscaledResidualMode && cancelInputPreparationFootprint && nr.colorSmall)
+    {
+        // C = S + processed(N-B), therefore the full-resolution residual must be C100 - S100.
+        // Keeping B as the reference here would reintroduce the cancelled preparation footprint.
+        ordinaryReference = nr.colorSmall;
+    }
 
-    // Detail-quality lab post-NR artifact control. Existing NR-edge treatment, blur-direction ghost
-    // rejection and optional low/mid-band suppression are fused into one small-raster dispatch.
+    // Detail-quality lab post-NR artifact control. The sequence inside this ONE low-resolution dispatch is:
+    // raw N-B -> optional NR50 edge treatment -> optional ghost-band suppression -> optional Ghost Guard
+    // -> optional rebase onto sharp S. Ghost/cancellation work is skipped unless Mode 16 actually produced B.
     const uint32_t nrEdgeFilter = std::min(cfg.DlssNrExperimentNrEdgeFilter.value_or_default(), 4u);
     const float nrStrengthRaw = cfg.DlssNrExperimentNrEdgeStrength.value_or_default();
     const float nrStrength = std::isfinite(nrStrengthRaw) ? nrStrengthRaw : 1.0f;
@@ -992,10 +1006,16 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     const uint32_t ghostBands = std::min(cfg.DlssNrExperimentGhostBandSuppression.value_or_default(), 2u);
     const float bandStrengthRaw = cfg.DlssNrExperimentBandSuppressionStrength.value_or_default();
     const float bandStrength = std::isfinite(bandStrengthRaw) ? bandStrengthRaw : 1.0f;
+
     const bool nrFilterActive = nrEdgeFilter != 0u && nrStrength != 0.0f;
-    const bool ghostGuardActive = ghostGuard != 0u && ghostStrength != 0.0f && ghostMax != 0.0f;
-    const bool ghostBandsActive = ghostBands != 0u && bandStrength != 0.0f;
-    const bool artifactControlActive = nrFilterActive || ghostGuardActive || ghostBandsActive;
+    const bool preparationDependentGhostActive =
+        encoded.inputPreparationActive &&
+        ((ghostGuard != 0u && ghostStrength != 0.0f && ghostMax != 0.0f) ||
+         (ghostBands != 0u && bandStrength != 0.0f));
+    const bool preparationRebaseActive =
+        encoded.inputPreparationActive && cancelInputPreparationFootprint;
+    const bool artifactControlActive =
+        nrFilterActive || preparationDependentGhostActive || preparationRebaseActive;
 
     if (!spatial && workScale < 1.0f && ordinaryAnswer && nr.colorSmall &&
         (transferMode == 5u || transferMode == 6u) && artifactControlActive)
@@ -1026,6 +1046,15 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             filter.Mode = DlssNrMode_ExperimentNrPostfilter;
             filter.Width = modelWidth;
             filter.Height = modelHeight;
+
+            // Mode 17 mode-local mapping (all numeric settings pass through verbatim after finite checks):
+            // Transfer/TransferStrength/ColourStrength/DebugScale = NR edge mode/radius/strength/threshold
+            // CompareMode/DebugView/CompareSwap = Ghost Guard mode / band mode / cancel B-S
+            // MaxRatio = Ghost Guard strength
+            // SkinDetail/SkinColour/EnvironmentDetail/EnvironmentColour =
+            //   detection threshold / sharp-edge threshold / edge-band radius / max suppression
+            // ReplaceDetailStrength/ModelWorkScale/ResidualConfidenceSensitivity =
+            //   band strength / low radius / mid radius
             filter.Transfer = nrFilterActive ? nrEdgeFilter : 0u;
             const float nrRadius = cfg.DlssNrExperimentNrEdgeRadius.value_or_default();
             const float edgeThreshold = cfg.DlssNrExperimentEdgeThreshold.value_or_default();
@@ -1033,9 +1062,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             filter.ColourStrength = nrFilterActive ? nrStrength : 0.0f;
             filter.DebugScale = std::isfinite(edgeThreshold) ? edgeThreshold : 0.04f;
 
-            // Mode-local fields used only by ExperimentNrPostfilter.
-            filter.CompareMode = ghostGuardActive ? ghostGuard : 0u;
-            filter.DebugView = ghostBandsActive ? ghostBands : 0u;
+            filter.CompareMode = preparationDependentGhostActive ? ghostGuard : 0u;
+            filter.DebugView = preparationDependentGhostActive ? ghostBands : 0u;
+            filter.CompareSwap = preparationRebaseActive ? 1u : 0u;
             filter.MaxRatio = ghostStrength;
             const float ghostDetection = cfg.DlssNrExperimentGhostDetectionThreshold.value_or_default();
             const float ghostEdge = cfg.DlssNrExperimentGhostEdgeThreshold.value_or_default();
@@ -1050,7 +1079,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             filter.ModelWorkScale = std::isfinite(lowRadius) ? lowRadius : 3.0f;
             filter.ResidualConfidenceSensitivity = std::isfinite(midRadius) ? midRadius : 1.5f;
 
-            // t0=N (NR50), t1=B (the exact prepared/model P50), t2=S (sharp P50 before preparation).
+            // t0=N (NR50), t1=B (exact input shown to NR), t2=S (sharp P50 before Mode 16).
             if (shader.DispatchPass(cmdList, filter, ordinaryAnswer, ordinaryProxy, nr.colorSmall, nullptr, nullptr,
                                     nr.outputFiltered, nullptr))
             {

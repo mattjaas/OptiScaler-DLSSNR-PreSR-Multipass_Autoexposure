@@ -365,6 +365,7 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
                             D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
                     nr.colorSoftReadable = true;
                     modelInput = nr.colorSoft;
+                    context.inputPreparationActive = true;
 
                     // 0: reconstruct exactly the softened picture NR saw. 1: keep the original sharp
                     // reduced proxy as the recovery/reference branch. Both remain independently testable.

@@ -932,11 +932,32 @@ float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineC
 #endif
 
 // Detail-quality lab low-resolution filters. These run only at the NR working raster and only when
-// explicitly enabled, so the common Off path has zero texture work. Radius is measured in source pixels.
+// explicitly enabled. Slider ranges are UI-only: numeric settings are never clamped to those ranges here.
+// Only finite-value sanitisation, texture-coordinate bounds and tiny epsilons needed for valid arithmetic remain.
+//
+// Mode 16 mapping:
+//   Transfer = input preparation selector; TransferStrength = radius/core width; ColourStrength = strength;
+//   DebugScale = edge/core detection threshold; CompareMode = core mode (Off/Luma/RGB); MaxRatio = halo protection.
+//
+// Mode 17 mapping:
+//   Transfer/TransferStrength/ColourStrength/DebugScale = NR edge mode/radius/strength/threshold;
+//   CompareMode/DebugView/CompareSwap = Ghost Guard mode / band mode / cancel preparation footprint;
+//   MaxRatio = Ghost Guard strength;
+//   SkinDetail/SkinColour/EnvironmentDetail/EnvironmentColour = ghost detection threshold / sharp-edge threshold /
+//       ghost edge-band radius / max suppression;
+//   ReplaceDetailStrength/ModelWorkScale/ResidualConfidenceUnused = band strength / low-band radius / mid-band radius.
 float ExperimentSmoothThreshold(float threshold, float value)
 {
     const float t = max(abs(threshold), 1e-6);
     return smoothstep(t, t * 2.0, max(value, 0.0));
+}
+
+float ExperimentThinCoreScore(float yC, float yA, float yB)
+{
+    const float ySide = 0.5 * (yA + yB);
+    // A thin centred structure differs from both sides while the two sides resemble each other.
+    // A one-sided step edge has large side asymmetry and is therefore rejected.
+    return max(abs(yC - ySide) - 0.5 * abs(yA - yB), 0.0);
 }
 
 float4 ExperimentEdgeCoreAttenuation(float2 uv)
@@ -949,43 +970,92 @@ float4 ExperimentEdgeCoreAttenuation(float2 uv)
     if (mode == 0u || gColourStrength == 0.0)
         return center;
 
-    // A thin core is a local second-derivative peak: for a wire/branch crossing the pixel the two
-    // samples across the feature are similar, while a normal step edge is asymmetric. Pick the axis
-    // with the stronger curvature, then inspect it at the user-selected core width.
+    // Four cheap axis taps estimate a continuous normal. A strong first derivative is already a good
+    // edge normal. Near the centre of a symmetric thin line the gradient vanishes, so second-derivative
+    // magnitudes provide the candidate direction; the orthogonal candidate is tested only in that
+    // ambiguous case. This handles diagonal wires without a large fixed kernel.
     const float4 left1  = gSource.SampleLevel(gLinear, saturate(uv - float2(texel.x, 0.0)), 0);
     const float4 right1 = gSource.SampleLevel(gLinear, saturate(uv + float2(texel.x, 0.0)), 0);
     const float4 up1    = gSource.SampleLevel(gLinear, saturate(uv - float2(0.0, texel.y)), 0);
     const float4 down1  = gSource.SampleLevel(gLinear, saturate(uv + float2(0.0, texel.y)), 0);
     const float yC = dot(center.rgb, kLuma);
-    const float curveX = abs(2.0 * yC - dot(left1.rgb, kLuma) - dot(right1.rgb, kLuma));
-    const float curveY = abs(2.0 * yC - dot(up1.rgb, kLuma) - dot(down1.rgb, kLuma));
-    const float2 normal = curveX >= curveY ? float2(1.0, 0.0) : float2(0.0, 1.0);
+    const float yL = dot(left1.rgb, kLuma);
+    const float yR = dot(right1.rgb, kLuma);
+    const float yU = dot(up1.rgb, kLuma);
+    const float yD = dot(down1.rgb, kLuma);
+
+    const float2 gradient = float2(yR - yL, yD - yU);
+    const float gradLen = length(gradient);
+    const float curveX = abs(2.0 * yC - yL - yR);
+    const float curveY = abs(2.0 * yC - yU - yD);
+    const float curvatureLen = sqrt(curveX * curveX + curveY * curveY);
+
+    float2 normal;
+    if (gradLen > 1e-6)
+    {
+        normal = gradient / gradLen;
+    }
+    else if (curvatureLen > 1e-6)
+    {
+        // Axis-only second derivatives cannot distinguish the two diagonal signs at an exactly symmetric
+        // centre. Pick one continuous candidate here; the orthogonal candidate below resolves that ambiguity.
+        normal = normalize(float2(sqrt(curveX + 1e-8), sqrt(curveY + 1e-8)));
+    }
+    else
+    {
+        normal = float2(1.0, 0.0);
+    }
 
     const float width = max(abs(gTransferStrength), 1e-4);
-    const float2 offset = normal * texel * width;
-    const float3 a = gSource.SampleLevel(gLinear, saturate(uv - offset), 0).rgb;
-    const float3 b = gSource.SampleLevel(gLinear, saturate(uv + offset), 0).rgb;
-    const float yA = dot(a, kLuma);
-    const float yB = dot(b, kLuma);
-    const float ySide = 0.5 * (yA + yB);
+    float2 offset = normal * texel * width;
+    float3 a = gSource.SampleLevel(gLinear, saturate(uv - offset), 0).rgb;
+    float3 b = gSource.SampleLevel(gLinear, saturate(uv + offset), 0).rgb;
+    float yA = dot(a, kLuma);
+    float yB = dot(b, kLuma);
+    float coreScore = ExperimentThinCoreScore(yC, yA, yB);
 
-    const float prominence = max(abs(yC - ySide) - 0.5 * abs(yA - yB), 0.0);
-    const float detected = ExperimentSmoothThreshold(gDebugScale, prominence);
-    const float contrast = max(abs(yC - ySide), max(abs(gDebugScale), 1e-6));
-    const float symmetry = 1.0 - saturate(abs(yA - yB) / contrast);
-    const float haloProtection = saturate(gMaxRatio);
-    const float amount = gColourStrength * detected * lerp(1.0, symmetry, haloProtection);
+    // For a perfectly centred diagonal line gradLen can be nearly zero and the curvature candidate has
+    // a sign ambiguity. Two extra taps, only on that ambiguous path, decide between the candidate and
+    // its perpendicular by selecting the direction with the stronger thin-core signature.
+    if (gradLen <= max(abs(gDebugScale), 1e-6))
+    {
+        const float2 alternate = float2(-normal.y, normal.x);
+        const float2 altOffset = alternate * texel * width;
+        const float3 altA = gSource.SampleLevel(gLinear, saturate(uv - altOffset), 0).rgb;
+        const float3 altB = gSource.SampleLevel(gLinear, saturate(uv + altOffset), 0).rgb;
+        const float altYA = dot(altA, kLuma);
+        const float altYB = dot(altB, kLuma);
+        const float altScore = ExperimentThinCoreScore(yC, altYA, altYB);
+        if (altScore > coreScore)
+        {
+            normal = alternate;
+            a = altA;
+            b = altB;
+            yA = altYA;
+            yB = altYB;
+            coreScore = altScore;
+        }
+    }
+
+    const float ySide = 0.5 * (yA + yB);
+    const float detected = ExperimentSmoothThreshold(gDebugScale, coreScore);
+    const float centralContrast = max(abs(yC - ySide), max(abs(gDebugScale), 1e-6));
+    const float sideSimilarity = 1.0 - saturate(abs(yA - yB) / centralContrast);
+    // 0 = no halo rejection, 1 = linear side-similarity rejection, >1 = increasingly strict.
+    // No slider-range clamp is applied: manually entered values (2, 5, 10, ...) retain their meaning.
+    const float haloWeight = pow(max(sideSimilarity, 1e-6), gMaxRatio);
+    const float amount = gColourStrength * detected * haloWeight;
 
     float3 result;
     if (mode == 1u)
     {
-        // Move only along the neutral/luma axis: opponent colour differences are left unchanged.
-        const float targetY = lerp(yC, ySide, amount);
-        result = center.rgb + (targetY - yC);
+        // Luma-only changes the current/core pixel along the neutral axis. It never writes a blur footprint
+        // into neighbours; neighbouring pixels are modified only if they independently satisfy thin-core detection.
+        result = center.rgb + (ySide - yC) * amount;
     }
     else
     {
-        // RGB mode moves the core toward the two sides across the feature, never toward a wide blur footprint.
+        // RGB mode also changes only the current/core pixel, moving it toward the two matching sides.
         result = lerp(center.rgb, 0.5 * (a + b), amount);
     }
     return float4(SanitizeFinite3(result, center.rgb), center.a);
@@ -1022,8 +1092,8 @@ float4 ExperimentLegacyLowResolutionFilter(float2 uv, bool postNr)
     const float localMin = min(yC, min(min(yL, yR), min(yU, yD)));
     const float localMax = max(yC, max(max(yL, yR), max(yU, yD)));
     const float edgeRange = localMax - localMin;
-
     float edge = gTransfer == 1u ? 1.0 : ExperimentSmoothThreshold(threshold, edgeRange);
+
     float3 softened;
     if (gTransfer == 1u || gTransfer == 2u)
     {
@@ -1048,6 +1118,7 @@ float4 ExperimentLegacyLowResolutionFilter(float2 uv, bool postNr)
             const float baseGrad =
                 length(float2(dot(baseR.rgb - baseL.rgb, kLuma), dot(baseD.rgb - baseU.rgb, kLuma)));
             const float nrGrad = length(float2(yR - yL, yD - yU));
+            // This saturate limits a derived confidence mask, not a user control.
             const float excess = saturate((nrGrad - baseGrad) / max(nrGrad + abs(threshold), 1e-5));
             edge *= excess;
         }
@@ -1056,21 +1127,30 @@ float4 ExperimentLegacyLowResolutionFilter(float2 uv, bool postNr)
     return float4(lerp(center.rgb, softened, strength * edge), center.a);
 }
 
-float3 ExperimentNrEditAt(float2 uv)
+float4 ExperimentProcessedNrAt(float2 uv)
 {
-    return gSource.SampleLevel(gLinear, saturate(uv), 0).rgb -
-           gModel.SampleLevel(gLinear, saturate(uv), 0).rgb;
+    // This is the first post-NR stage. Every later ghost/band helper samples THIS processed field,
+    // never raw N, so NR50 edge treatment composes sequentially with band suppression.
+    return gTransfer != 0u ? ExperimentLegacyLowResolutionFilter(uv, true)
+                           : gSource.SampleLevel(gLinear, saturate(uv), 0);
 }
 
-float3 ExperimentCrossEditBlur(float2 uv, float2 texel, float radius)
+float3 ExperimentProcessedResponseAt(float2 uv)
 {
-    const float r = abs(radius);
+    const float3 processedNr = ExperimentProcessedNrAt(uv).rgb;
+    const float3 prepared = gModel.SampleLevel(gLinear, saturate(uv), 0).rgb;
+    return processedNr - prepared; // current E after optional NR50 edge treatment
+}
+
+float3 ExperimentCrossProcessedResponseBlur(float2 uv, float2 texel, float radius)
+{
+    const float r = max(abs(radius), 1e-4);
     const float2 dx = float2(texel.x * r, 0.0);
     const float2 dy = float2(0.0, texel.y * r);
-    const float3 c = ExperimentNrEditAt(uv);
+    const float3 c = ExperimentProcessedResponseAt(uv);
     return (4.0 * c +
-            ExperimentNrEditAt(uv - dx) + ExperimentNrEditAt(uv + dx) +
-            ExperimentNrEditAt(uv - dy) + ExperimentNrEditAt(uv + dy)) * 0.125;
+            ExperimentProcessedResponseAt(uv - dx) + ExperimentProcessedResponseAt(uv + dx) +
+            ExperimentProcessedResponseAt(uv - dy) + ExperimentProcessedResponseAt(uv + dy)) * 0.125;
 }
 
 float ExperimentGhostEdgeMask(float2 uv, float2 texel)
@@ -1088,11 +1168,13 @@ float ExperimentGhostEdgeMask(float2 uv, float2 texel)
     return ExperimentSmoothThreshold(gSkinColour, localMax - localMin);
 }
 
-float ExperimentSameDirectionMask(float3 preparationDelta, float3 edit)
+float ExperimentSameDirectionMask(float3 preparationDelta, float3 response)
 {
     const float prepY = dot(preparationDelta, kLuma);
-    const float editY = dot(edit, kLuma);
-    if (prepY * editY <= 0.0)
+    const float responseY = dot(response, kLuma);
+    // Same sign means the model continues the preprocessing change: ghost candidate.
+    // Opposite sign means the model is undoing the preparation (for example restoring the dark wire core).
+    if (prepY * responseY <= 0.0)
         return 0.0;
     return ExperimentSmoothThreshold(gSkinDetail, abs(prepY));
 }
@@ -1103,13 +1185,11 @@ float4 ExperimentNrArtifactControl(float2 uv)
     gSource.GetDimensions(srcW, srcH);
     const float2 texel = 1.0 / float2(max(srcW, 1u), max(srcH, 1u));
 
-    // Preserve the old optional NR50 treatment, but keep it inside this same pass.
-    const float4 rawNr = gSource.SampleLevel(gLinear, uv, 0);
-    const float4 legacyNr = gTransfer != 0u ? ExperimentLegacyLowResolutionFilter(uv, true) : rawNr;
+    const float4 processedNr = ExperimentProcessedNrAt(uv);
     const float3 prepared = gModel.SampleLevel(gLinear, uv, 0).rgb;   // B
     const float3 sharp = gOriginal.SampleLevel(gLinear, uv, 0).rgb;  // S
-    const float3 preparationDelta = prepared - sharp;
-    float3 edit = legacyNr.rgb - prepared;                            // N - B after optional legacy treatment
+    const float3 preparationDelta = prepared - sharp;                 // D = B-S
+    float3 response = processedNr.rgb - prepared;                     // E after optional NR edge treatment
 
     const uint bandMode = min(gDebugView, 2u);
     const uint guardMode = min(gCompareMode, 3u);
@@ -1117,51 +1197,54 @@ float4 ExperimentNrArtifactControl(float2 uv)
     if (bandMode != 0u || guardMode >= 2u)
         edgeMask = ExperimentGhostEdgeMask(uv, texel);
 
-    // Low/mid-frequency ghost suppression is independent of the main guard selector, but uses the same
-    // S/B blur-direction detector. Each band tests direction independently so two-band does not collapse
-    // algebraically into a single blur radius.
+    // Second stage: suppress low/mid-frequency ghost components from the already edge-treated response.
+    // With bandMode=0 there are no neighbourhood response taps at all.
     if (bandMode != 0u && gReplaceDetailStrength != 0.0)
     {
-        const float bandStrength = saturate(max(gReplaceDetailStrength, 0.0));
-        const float3 lowBand = ExperimentCrossEditBlur(uv, texel, gModelWorkScale);
+        const float3 lowBand = ExperimentCrossProcessedResponseBlur(uv, texel, gModelWorkScale);
         const float lowMask = ExperimentSameDirectionMask(preparationDelta, lowBand) * edgeMask;
-        edit -= lowBand * (bandStrength * lowMask);
+        response -= lowBand * (gReplaceDetailStrength * lowMask);
 
         if (bandMode >= 2u)
         {
-            const float3 midBlur = ExperimentCrossEditBlur(uv, texel, gResidualConfidenceUnused);
+            const float3 midBlur = ExperimentCrossProcessedResponseBlur(uv, texel, gResidualConfidenceUnused);
             const float3 midBand = midBlur - lowBand;
             const float midMask = ExperimentSameDirectionMask(preparationDelta, midBand) * edgeMask;
-            edit -= midBand * (bandStrength * midMask);
+            response -= midBand * (gReplaceDetailStrength * midMask);
         }
     }
 
+    // Third stage: Ghost Guard evaluates the response left by all previous stages.
+    // Basic mode has no low/mid taps and no sharp-edge-neighbourhood taps.
     if (guardMode != 0u && gMaxRatio != 0.0 && gEnvironmentColour != 0.0)
     {
-        float guardMask = ExperimentSameDirectionMask(preparationDelta, edit);
+        float guardMask = ExperimentSameDirectionMask(preparationDelta, response);
         if (guardMode >= 2u)
             guardMask *= edgeMask;
 
-        const float cap = saturate(max(gEnvironmentColour, 0.0));
-        const float amount = min(saturate(max(gMaxRatio, 0.0)) * guardMask, cap);
+        // Max suppression is semantically a cap, but neither it nor Guard strength is clamped to 0..1.
+        const float amount = min(gMaxRatio * guardMask, gEnvironmentColour);
         if (guardMode < 3u)
         {
-            edit *= 1.0 - amount;
+            response *= 1.0 - amount;
         }
         else
         {
-            // Directional mode suppresses only channels whose N-B edit continues in the same direction as B-S.
+            // Directional mode suppresses only RGB components whose E continues D in the same direction.
             const float channelThreshold = max(abs(gSkinDetail) * 0.25, 1e-6);
             const float3 threshold3 = float3(channelThreshold, channelThreshold, channelThreshold);
             const float3 zero3 = float3(0.0, 0.0, 0.0);
             const float3 sameChannel =
                 step(threshold3, abs(preparationDelta)) *
-                step(zero3, preparationDelta * edit);
-            edit *= 1.0 - amount * sameChannel;
+                step(zero3, preparationDelta * response);
+            response *= 1.0 - amount * sameChannel;
         }
     }
 
-    return float4(SanitizeFinite3(prepared + edit, legacyNr.rgb), legacyNr.a);
+    // Final stage. Off preserves the previous B + processed(E) behaviour exactly.
+    // On removes the preparation footprint algebraically: S + processed(E) = N_processed - (B-S).
+    const float3 base = gCompareSwap != 0u ? sharp : prepared;
+    return float4(SanitizeFinite3(base + response, processedNr.rgb), processedNr.a);
 }
 
 #include "dlssnr_resize.hlsli"
