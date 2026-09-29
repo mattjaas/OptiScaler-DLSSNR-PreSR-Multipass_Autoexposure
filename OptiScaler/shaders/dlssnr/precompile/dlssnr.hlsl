@@ -792,14 +792,15 @@ float3 ExperimentNativeProxyAt(float2 uvq, float normScale)
 void ExperimentCrossBlur(float2 uvq, float radius, float normScale,
                          float3 modelCenter, float3 baselineCenter, float3 gainCenter, float3 nativeCenter,
                          out float3 modelBlur, out float3 baselineBlur,
-                         out float3 gainBlur, out float3 nativeBlur)
+                         out float3 gainBlur, out float3 nativeBlur,
+                         out float3 nativeMin, out float3 nativeMax)
 {
     const float2 texel = 1.0 / float2(max(gWidth, 1u), max(gHeight, 1u));
     const float2 dx = float2(texel.x * radius, 0.0);
     const float2 dy = float2(0.0, texel.y * radius);
 
-    // Four neighbours plus the already-known centre. This avoids re-reading centre taps in the
-    // one-band path and reuses them again for the second band.
+    // Four neighbours plus the already-known centre. The same native P100 taps also provide the
+    // anti-ringing envelope, so the envelope safeguard adds no texture reads.
     const float3 mL = ExperimentFinalModelAt(uvq - dx);
     const float3 mR = ExperimentFinalModelAt(uvq + dx);
     const float3 mU = ExperimentFinalModelAt(uvq - dy);
@@ -825,31 +826,57 @@ void ExperimentCrossBlur(float2 uvq, float radius, float normScale,
         gainBlur = baselineBlur;
     }
 
+    float3 nL, nR, nU, nD;
     if (direct)
     {
         // Direct Source is already the untouched P100 proxy, so baseline and native geometry are identical.
-        nativeBlur = baselineBlur;
+        nL = bL; nR = bR; nU = bU; nD = bD;
     }
     else
     {
-        nativeBlur = (4.0 * nativeCenter +
-                      ExperimentNativeProxyAt(uvq - dx, normScale) +
-                      ExperimentNativeProxyAt(uvq + dx, normScale) +
-                      ExperimentNativeProxyAt(uvq - dy, normScale) +
-                      ExperimentNativeProxyAt(uvq + dy, normScale)) * 0.125;
+        nL = ExperimentNativeProxyAt(uvq - dx, normScale);
+        nR = ExperimentNativeProxyAt(uvq + dx, normScale);
+        nU = ExperimentNativeProxyAt(uvq - dy, normScale);
+        nD = ExperimentNativeProxyAt(uvq + dy, normScale);
     }
+
+    nativeBlur = (4.0 * nativeCenter + nL + nR + nU + nD) * 0.125;
+    nativeMin = min(nativeCenter, min(min(nL, nR), min(nU, nD)));
+    nativeMax = max(nativeCenter, max(max(nL, nR), max(nU, nD)));
 }
 
-float ExperimentStructureGain(float3 referenceBand, float3 modelBand)
+float ExperimentStructureGain(float3 referenceBand, float3 modelBand, float3 nativeBand,
+                              bool polarityGuard, float maxGain, float confidenceThreshold,
+                              out float confidence)
 {
     const float r = dot(referenceBand, kLuma);
     const float m = dot(modelBand, kLuma);
-    const float confidence = smoothstep(0.002, 0.020, abs(r));
-    if (confidence <= 0.0 || r * m <= 0.0)
-        return 1.0;
+    const float n = dot(nativeBand, kLuma);
 
-    const float gain = clamp(abs(m) / max(abs(r), 1e-4), 0.25, 4.0);
-    return lerp(1.0, gain, confidence);
+    // Preserve the old 0.002..0.020 confidence shape at the default threshold while making the
+    // upper threshold tunable. Crucially, confidence now controls the TRANSFER BLEND itself; low
+    // confidence therefore falls back to ordinary NR rather than replacing the band with zero.
+    const float high = max(abs(confidenceThreshold), 1e-6);
+    const float low = max(high * 0.10, 1e-6);
+    confidence = smoothstep(low, high, abs(r));
+
+    if (!(r * m > 0.0))
+    {
+        confidence = 0.0;
+        return 1.0;
+    }
+
+    // The native P100 band may be the opposite lobe of a thin-line kernel. Do not apply the P50/NR
+    // gain to that lobe: doing so is a direct source of bright/dark ringing around narrow geometry.
+    if (polarityGuard && !(r * n > 0.0))
+    {
+        confidence = 0.0;
+        return 1.0;
+    }
+
+    const float ratio = abs(m) / max(abs(r), 1e-4);
+    const float gainLimit = max(abs(maxGain), 1e-4);
+    return min(max(ratio, 0.25), gainLimit);
 }
 
 float ExperimentBandEnergy(float3 band)
@@ -888,24 +915,85 @@ float3 ExperimentLimitedBand(float3 conventionalEdit, float3 nativeBand, float l
 float3 ExperimentResolveBand(float3 conventionalEdit, float3 gainReferenceBand, float3 modelBand,
                              float3 nativeBand, bool limitBand, bool transferBand,
                              float limiterStrength, float maxEdgeGain, float structureStrength,
-                             out float limiterActivity)
+                             bool polarityGuard, float structureMaxGain, float confidenceThreshold,
+                             float shadowWeight, out float limiterActivity)
 {
     limiterActivity = 0.0;
     float3 resolved = conventionalEdit;
 
-    // Structure transfer changes the candidate edit first. The edge limiter is deliberately last:
-    // "Max edge gain" is a cap on the resulting band after every P100-guided transformation.
     if (transferBand)
     {
-        const float gain = ExperimentStructureGain(gainReferenceBand, modelBand);
+        float transferConfidence = 0.0;
+        const float gain =
+            ExperimentStructureGain(gainReferenceBand, modelBand, nativeBand, polarityGuard,
+                                    structureMaxGain, confidenceThreshold, transferConfidence);
         const float3 nativeGainEdit = nativeBand * (gain - 1.0);
-        resolved = lerp(resolved, nativeGainEdit, structureStrength);
+
+        // A rejected/uncertain transfer now preserves the ordinary NR band exactly. Shadow protection
+        // modulates only the Structure-Transfer contribution, never the baseline NR edit.
+        const float transferWeight = structureStrength * transferConfidence * shadowWeight;
+        resolved = lerp(resolved, nativeGainEdit, transferWeight);
     }
 
+    // Structure transfer changes the candidate edit first. The edge limiter remains the final
+    // per-band cap when both experiments are enabled.
     if (limitBand)
         resolved = ExperimentLimitedBand(resolved, nativeBand, limiterStrength, maxEdgeGain, limiterActivity);
 
     return resolved;
+}
+
+float ExperimentSoftEnvelopeScalar(float value, float lo, float hi, float softness)
+{
+    const float s = max(abs(softness), 1e-6);
+    if (value > hi)
+    {
+        const float excess = value - hi;
+        return hi + excess / (1.0 + excess / s);
+    }
+    if (value < lo)
+    {
+        const float excess = lo - value;
+        return lo - excess / (1.0 + excess / s);
+    }
+    return value;
+}
+
+float3 ExperimentApplyStructureEnvelope(float3 ordinaryModel, float3 transferredModel,
+                                        float3 nativeMin, float3 nativeMax,
+                                        uint envelopeMode, float marginPercent)
+{
+    if (envelopeMode == 0u)
+        return transferredModel;
+
+    const float3 span = max(nativeMax - nativeMin, 0.0);
+    const float3 margin = span * (marginPercent * 0.01);
+    const float3 rawLo = nativeMin - margin;
+    const float3 rawHi = nativeMax + margin;
+    const float3 envelopeLo = min(rawLo, rawHi);
+    const float3 envelopeHi = max(rawLo, rawHi);
+
+    // Guard ONLY the extra change introduced by Structure Transfer. If ordinary NR is already
+    // outside the native envelope, do not pull it back here; merely prevent Structure Transfer from
+    // pushing it farther in the same direction.
+    const float3 structureDelta = transferredModel - ordinaryModel;
+    const float3 loDelta = min(float3(0.0, 0.0, 0.0), envelopeLo - ordinaryModel);
+    const float3 hiDelta = max(float3(0.0, 0.0, 0.0), envelopeHi - ordinaryModel);
+
+    float3 guardedDelta;
+    if (envelopeMode == 1u)
+    {
+        guardedDelta = clamp(structureDelta, loDelta, hiDelta);
+    }
+    else
+    {
+        const float3 softness = max(span * 0.25, float3(0.002, 0.002, 0.002));
+        guardedDelta.x = ExperimentSoftEnvelopeScalar(structureDelta.x, loDelta.x, hiDelta.x, softness.x);
+        guardedDelta.y = ExperimentSoftEnvelopeScalar(structureDelta.y, loDelta.y, hiDelta.y, softness.y);
+        guardedDelta.z = ExperimentSoftEnvelopeScalar(structureDelta.z, loDelta.z, hiDelta.z, softness.z);
+    }
+
+    return ordinaryModel + guardedDelta;
 }
 
 float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineCenter,
@@ -920,11 +1008,34 @@ float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineC
     if (!isfinite(maxEdgeGain))
         maxEdgeGain = 1.0;
 
+    // Structure-transfer safeguard settings are packed into resolve-only fields that are unused by
+    // DlssNrMode_Resolve for Direct/Upscaled residual.
+    const bool polarityGuard = (gGuideHeight & 1u) != 0u;
+    const bool shadowProtection = (gGuideHeight & 2u) != 0u;
+    const uint envelopeMode = min(gGuideWidth, 2u);
+    const float envelopeMargin = gMvScaleY;
+    const float structureMaxGain = isfinite(gResidualScale) ? gResidualScale : 4.0;
+    const float confidenceThreshold = isfinite(gMvScaleX) ? gMvScaleX : 0.020;
+    float shadowThreshold = asfloat(gExposureSourceWidth);
+    float shadowStrength = asfloat(gExposureSourceHeight);
+    if (!isfinite(shadowThreshold))
+        shadowThreshold = 0.08;
+    if (!isfinite(shadowStrength))
+        shadowStrength = 1.0;
+
+    float shadowWeight = 1.0;
+    if (shadowProtection)
+    {
+        const float nativeY = max(dot(nativeCenter, kLuma), 0.0);
+        const float visible = smoothstep(0.0, max(abs(shadowThreshold), 1e-6), nativeY);
+        shadowWeight = lerp(1.0, visible, shadowStrength);
+    }
+
     limiterActivity = 0.0;
 
-    float3 modelBlur1, baselineBlur1, gainBlur1, nativeBlur1;
+    float3 modelBlur1, baselineBlur1, gainBlur1, nativeBlur1, nativeMin1, nativeMax1;
     ExperimentCrossBlur(uvq, 1.0, normScale, modelCenter, baselineCenter, gainCenter, nativeCenter,
-                        modelBlur1, baselineBlur1, gainBlur1, nativeBlur1);
+                        modelBlur1, baselineBlur1, gainBlur1, nativeBlur1, nativeMin1, nativeMax1);
 
     const bool useTwoBands = limiterMode >= 2u || structureMode >= 2u;
     if (!useTwoBands)
@@ -939,16 +1050,28 @@ float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineC
         const float3 fineEdit =
             ExperimentResolveBand(modelFine - baselineFine, gainFine, modelFine, nativeFine,
                                   limiterMode >= 1u, structureMode >= 1u,
-                                  limiterStrength, maxEdgeGain, structureStrength, fineActivity);
+                                  limiterStrength, maxEdgeGain, structureStrength,
+                                  polarityGuard, structureMaxGain, confidenceThreshold, shadowWeight,
+                                  fineActivity);
         limiterActivity = fineActivity;
-        return lowEdit + fineEdit;
+
+        float3 guidedEdit = lowEdit + fineEdit;
+        if (structureMode != 0u && envelopeMode != 0u)
+        {
+            const float3 transferredModel = baselineCenter + guidedEdit;
+            const float3 guardedModel =
+                ExperimentApplyStructureEnvelope(modelCenter, transferredModel, nativeMin1, nativeMax1,
+                                                 envelopeMode, envelopeMargin);
+            guidedEdit = guardedModel - baselineCenter;
+        }
+        return guidedEdit;
     }
 
     // Fine + mid decomposition. This path is selected by EITHER limiter mode 2 or structure mode 2,
     // so the two experiments remain genuinely independent.
-    float3 modelBlur2, baselineBlur2, gainBlur2, nativeBlur2;
+    float3 modelBlur2, baselineBlur2, gainBlur2, nativeBlur2, nativeMin2, nativeMax2;
     ExperimentCrossBlur(uvq, 2.0, normScale, modelCenter, baselineCenter, gainCenter, nativeCenter,
-                        modelBlur2, baselineBlur2, gainBlur2, nativeBlur2);
+                        modelBlur2, baselineBlur2, gainBlur2, nativeBlur2, nativeMin2, nativeMax2);
 
     const float3 lowEdit = modelBlur2 - baselineBlur2;
 
@@ -960,7 +1083,9 @@ float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineC
     const float3 fineEdit =
         ExperimentResolveBand(modelFine - baselineFine, gainFine, modelFine, nativeFine,
                               limiterMode >= 1u, structureMode >= 1u,
-                              limiterStrength, maxEdgeGain, structureStrength, fineActivity);
+                              limiterStrength, maxEdgeGain, structureStrength,
+                              polarityGuard, structureMaxGain, confidenceThreshold, shadowWeight,
+                              fineActivity);
 
     const float3 modelMid = modelBlur1 - modelBlur2;
     const float3 baselineMid = baselineBlur1 - baselineBlur2;
@@ -970,10 +1095,27 @@ float3 ExperimentP100GuidedEdit(float2 uvq, float3 modelCenter, float3 baselineC
     const float3 midEdit =
         ExperimentResolveBand(modelMid - baselineMid, gainMid, modelMid, nativeMid,
                               limiterMode >= 2u, structureMode >= 2u,
-                              limiterStrength, maxEdgeGain, structureStrength, midActivity);
+                              limiterStrength, maxEdgeGain, structureStrength,
+                              polarityGuard, structureMaxGain, confidenceThreshold, shadowWeight,
+                              midActivity);
 
     limiterActivity = max(fineActivity, midActivity);
-    return lowEdit + fineEdit + midEdit;
+    float3 guidedEdit = lowEdit + fineEdit + midEdit;
+
+    // Combined envelope after BOTH structure bands have been recombined. This catches overshoot that
+    // is harmless in each band separately but becomes ringing/sparkles when Fine and Mid add together.
+    if (structureMode != 0u && envelopeMode != 0u)
+    {
+        const float3 nativeMin = min(nativeMin1, nativeMin2);
+        const float3 nativeMax = max(nativeMax1, nativeMax2);
+        const float3 transferredModel = baselineCenter + guidedEdit;
+        const float3 guardedModel =
+            ExperimentApplyStructureEnvelope(modelCenter, transferredModel, nativeMin, nativeMax,
+                                             envelopeMode, envelopeMargin);
+        guidedEdit = guardedModel - baselineCenter;
+    }
+
+    return guidedEdit;
 }
 #endif
 
