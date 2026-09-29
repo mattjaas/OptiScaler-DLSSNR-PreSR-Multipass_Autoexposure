@@ -208,7 +208,7 @@ struct alignas(256) DlssNrConstants
     // thing carried up from small is the edit itself.
     //
     // The idea and the cube-scaled residual are hhkbble's, from the multi-pass PR against this fork.
-    uint32_t Transfer; // 7 is an internal DX12 Direct-NR fused spatial-upscale resolve.
+    uint32_t Transfer; // 7 = internal DX12 Direct-NR fused resolve; 8 = internal P100-guided residual resolve.
 
     // What the debug views are multiplied by on their way out.
     //
