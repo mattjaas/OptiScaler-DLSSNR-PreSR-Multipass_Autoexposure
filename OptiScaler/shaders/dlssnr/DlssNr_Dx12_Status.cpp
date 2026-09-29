@@ -26,6 +26,19 @@ auto DlssNr_Dx12::State::RetryAfterFailure() -> void
     nr.spatialActive = false;
 }
 
+void DlssNr_Dx12::State::ReleaseStyleAnalysisCapture()
+{
+    for (auto& model : styleAnalysisCapture.models)
+        model.Release();
+    for (auto*& output : styleAnalysisCapture.outputs)
+        ParkNrResource(output);
+    styleAnalysisCapture.readback.Reset();
+    styleAnalysisCapture.active = false;
+    styleAnalysisCapture.modelsPrepared = false;
+    styleAnalysisCapture.copiesRecorded = false;
+    styleAnalysisCapture.status.clear();
+}
+
 auto DlssNr_Dx12::State::ConsumeControls() -> void
 {
     const auto& cfg = *Config::Instance();
@@ -46,6 +59,14 @@ auto DlssNr_Dx12::State::ConsumeControls() -> void
     }
     if (requested.captureGeneration != controls.captureGeneration)
         captureFrames.request(requested.captureFrames);
+    if (requested.styleAnalysisCaptureGeneration != controls.styleAnalysisCaptureGeneration)
+    {
+        ReleaseStyleAnalysisCapture();
+        styleAnalysisCapture.requestGeneration = requested.styleAnalysisCaptureGeneration;
+        styleAnalysisCapture.active = true;
+        styleAnalysisCapture.status = "Armed";
+        LOG_INFO("NR style analysis capture armed: Standard/Natural/Cinematic will use one identical reduced frame.");
+    }
     controls = requested;
 }
 
