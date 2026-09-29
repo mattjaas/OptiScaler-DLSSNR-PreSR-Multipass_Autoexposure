@@ -1829,7 +1829,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         // frame's output units so HDR/SDR presentation does not hide it.
         if ((gDirectResolveFlags & 2u) != 0u && gResidualHistoryValidUnused != 0u)
         {
-            gTarget[id.xy] = float4(float3(limiterActivity) * normScale, originalSample.a);
+            gTarget[id.xy] = float4(limiterActivity.xxx * normScale, originalSample.a);
             return;
         }
 
