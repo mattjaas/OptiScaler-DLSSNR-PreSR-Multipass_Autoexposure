@@ -462,6 +462,12 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
                 lowGain = 0.741f;
                 shapingActive = true;
             }
+            else if (finalStyle == 2u) // Cinematic
+            {
+                highGain = 0.370f;
+                lowGain = 0.780f;
+                shapingActive = true;
+            }
         }
         else if (shapingMode == 2u)
         {

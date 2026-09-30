@@ -267,9 +267,9 @@ void RenderInput(Config* config)
             }
 
             HelpMarker("Capture-derived default: 3x3, range sigma 0.015, spatial sigma 1.20, 75% guided. "
-                       "Auto shaping is capture-calibrated for one effective pass: it leaves Cinematic neutral, uses "
-                       "0.421 high/mid + 0.609 low for Standard, and 0.454 high/mid + 0.741 low for Natural. With 2+ "
-                       "passes Auto stays neutral; Manual remains available. The low component is an 8x area-average of E50, "
+                       "Auto shaping is capture-calibrated for one effective pass: it uses 0.421 high/mid + 0.609 low "
+                       "for Standard, 0.454 high/mid + 0.741 low for Natural, and 0.370 high/mid + 0.780 low for "
+                       "Cinematic. With 2+ passes Auto stays neutral; Manual remains available. The low component is an 8x area-average of E50, "
                        "equivalent to a simple mip3 box chain at exact P50, so Proxy100 itself is never blurred. "
                        "Shadow confidence is optional/experimental because its thresholds came from one capture.");
         }
