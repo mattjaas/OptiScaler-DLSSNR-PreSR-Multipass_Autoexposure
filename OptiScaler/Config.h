@@ -350,9 +350,19 @@ class Config
     // P100-guided residual enlargement (Transfer=7). The final resolve directly upsamples NR50-P50
     // using positive joint-bilateral weights guided by the untouched native P100 proxy.
     CustomOptional<uint32_t> DlssNrGuidedResidualRadius { 1 };       // P50 texels; 1 => 3x3, 2 => 5x5
-    CustomOptional<float> DlssNrGuidedResidualRangeSigma { 0.040f }; // encoded proxy-domain RGB distance
-    CustomOptional<float> DlssNrGuidedResidualSpatialSigma { 0.85f };
-    CustomOptional<float> DlssNrGuidedResidualGuideStrength { 1.0f }; // 0 bilinear residual, 1 fully guided
+    CustomOptional<float> DlssNrGuidedResidualRangeSigma { 0.015f }; // capture-derived encoded proxy-domain RGB distance
+    CustomOptional<float> DlssNrGuidedResidualSpatialSigma { 1.20f };
+    CustomOptional<float> DlssNrGuidedResidualGuideStrength { 0.75f }; // 0 bilinear residual, 1 fully guided
+    // Residual frequency shaping: 0 off, 1 Auto by final-pass style, 2 Manual.
+    // Auto: Standard high/low 0.421/0.609, Natural 0.454/0.741, Cinematic neutral/off.
+    CustomOptional<uint32_t> DlssNrGuidedResidualShaping { 1 };
+    CustomOptional<float> DlssNrGuidedResidualHighGain { 0.454f };
+    CustomOptional<float> DlssNrGuidedResidualLowGain { 0.741f };
+    // Optional capture-derived deep-shadow confidence; experimental until validated on more scenes.
+    CustomOptional<bool> DlssNrGuidedResidualShadowGate { false };
+    CustomOptional<float> DlssNrGuidedResidualShadowFloor { 0.15f };
+    CustomOptional<float> DlssNrGuidedResidualShadowLow { 0.02f };
+    CustomOptional<float> DlssNrGuidedResidualShadowHigh { 0.08f };
     // Reference used to reconstruct P50 to P100 for lost-detail detection.
     // FSR1 is the default reconstruction filter; Area remains the default P100 -> P50 reduction.
     CustomOptional<uint32_t> DlssNrDirectDetailReferenceUpscaler { 9 };
