@@ -742,6 +742,12 @@ float3 ExperimentDecodeProxySample(float3 raw)
     return gPassthrough != 0 ? raw : SrgbToLinear(raw);
 }
 
+float3 DecodeGuidedResidualCarrier(float3 carrier)
+{
+    const float3 d = clamp(2.0 * SanitizeFinite3(carrier, 0.5) - 1.0, -0.999, 0.999);
+    return d / (1.0 - abs(d));
+}
+
 // Joint-bilateral P50 residual upsampling guided by the untouched native P100 proxy.
 // All weights are positive. This deliberately avoids negative-lobe reconstruction kernels:
 // the operation can redistribute/attenuate NR50-P50 across a native edge, but cannot invent ringing
@@ -753,7 +759,7 @@ float3 GuidedResidualBilinear(float2 uvq)
     const float3 p = gSource.SampleLevel(gLinear, saturate(uvq), 0).rgb;
     const float3 n = gModel.SampleLevel(gLinear, saturate(uvq), 0).rgb;
     // Transfer 9 stores an already-paired signed E50 signal in a neutral-0.5 carrier.
-    return gTransfer == 9u ? NrDecodeResizeField(n) : n - p;
+    return gTransfer == 9u ? DecodeGuidedResidualCarrier(n) : n - p;
 }
 
 float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
@@ -790,7 +796,7 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
             const float3 proxyCandidate = gSource.Load(int3(p, 0)).rgb;
             const float3 modelCandidate = gModel.Load(int3(p, 0)).rgb;
             const float3 residual =
-                gTransfer == 9u ? NrDecodeResizeField(modelCandidate) : modelCandidate - proxyCandidate;
+                gTransfer == 9u ? DecodeGuidedResidualCarrier(modelCandidate) : modelCandidate - proxyCandidate;
 
             // Match the offline capture fit exactly: mean squared RGB distance in raw proxy space.
             const float3 colourDelta = proxyCandidate - nativeGuide;
