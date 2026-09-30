@@ -46,7 +46,12 @@ void DlssNr_Dx12::State::ReleaseStyleAnalysisCapture()
 auto DlssNr_Dx12::State::ConsumeControls() -> void
 {
     const auto& cfg = *Config::Instance();
-    if (!cfg.DlssNrEnabled.value_or_default() || !DlssNrUsesDlssEnlargement(cfg.DlssNrTransfer.value_or_default()) ||
+    const uint32_t transfer = cfg.DlssNrTransfer.value_or_default();
+    // Transfers 8/9 also own a persistent private DLSS feature/history, even though they do not
+    // use the ordinary P50->P100 enlargement path. Do not destroy that 1:1 DLAA history every frame.
+    const bool ownsPrivateTemporalHistory =
+        DlssNrUsesDlssEnlargement(transfer) || transfer == 8u || transfer == 9u;
+    if (!cfg.DlssNrEnabled.value_or_default() || !ownsPrivateTemporalHistory ||
         cfg.DlssNrWorkingScale.value_or_default() >= 1.0f)
     {
         ReleaseEnlarger();
