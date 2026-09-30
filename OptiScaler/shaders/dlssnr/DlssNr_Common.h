@@ -39,7 +39,9 @@ enum DlssNrMode : uint32_t
     // Detail-quality lab: one low-resolution pass between proxy downscale and NVIDIA NR.
     DlssNrMode_ExperimentPrefilter = 16,
     // Detail-quality lab: one low-resolution pass after NVIDIA NR, before enlargement/resolve.
-    DlssNrMode_ExperimentNrPostfilter = 17
+    DlssNrMode_ExperimentNrPostfilter = 17,
+    // P100-guided residual: collapse E50=NR50-P50 to an 1/8-size positive-lobe low-frequency field.
+    DlssNrMode_GuidedResidualLow = 18
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
