@@ -361,6 +361,13 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrGuidedResidualRangeSigma.set_from_config(readFloat("DlssNr", "GuidedResidualRangeSigma"));
             DlssNrGuidedResidualSpatialSigma.set_from_config(readFloat("DlssNr", "GuidedResidualSpatialSigma"));
             DlssNrGuidedResidualGuideStrength.set_from_config(readFloat("DlssNr", "GuidedResidualGuideStrength"));
+            DlssNrGuidedResidualShaping.set_from_config(readUInt("DlssNr", "GuidedResidualShaping"));
+            DlssNrGuidedResidualHighGain.set_from_config(readFloat("DlssNr", "GuidedResidualHighGain"));
+            DlssNrGuidedResidualLowGain.set_from_config(readFloat("DlssNr", "GuidedResidualLowGain"));
+            DlssNrGuidedResidualShadowGate.set_from_config(readBool("DlssNr", "GuidedResidualShadowGate"));
+            DlssNrGuidedResidualShadowFloor.set_from_config(readFloat("DlssNr", "GuidedResidualShadowFloor"));
+            DlssNrGuidedResidualShadowLow.set_from_config(readFloat("DlssNr", "GuidedResidualShadowLow"));
+            DlssNrGuidedResidualShadowHigh.set_from_config(readFloat("DlssNr", "GuidedResidualShadowHigh"));
             DlssNrDirectDetailReferenceUpscaler.set_from_config(
                 readUInt("DlssNr", "DirectDetailReferenceUpscaler"));
             DlssNrDirectDetailReferenceExecutionMode.set_from_config(
@@ -1401,6 +1408,20 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetFloatValue(Instance()->DlssNrGuidedResidualSpatialSigma.value_for_config()).c_str());
         ini.SetValue("DlssNr", "GuidedResidualGuideStrength",
                      GetFloatValue(Instance()->DlssNrGuidedResidualGuideStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualShaping",
+                     GetIntValue(Instance()->DlssNrGuidedResidualShaping.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualHighGain",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualHighGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualLowGain",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualLowGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualShadowGate",
+                     GetBoolValue(Instance()->DlssNrGuidedResidualShadowGate.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualShadowFloor",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualShadowFloor.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualShadowLow",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualShadowLow.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualShadowHigh",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualShadowHigh.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailReferenceUpscaler",
                      GetIntValue(Instance()->DlssNrDirectDetailReferenceUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectDetailReferenceExecutionMode",
