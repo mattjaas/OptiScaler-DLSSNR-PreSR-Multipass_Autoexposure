@@ -26,12 +26,13 @@ auto DlssNr_Dx12::State::ReleaseSurfacesIfFormatChanged(DXGI_FORMAT modelFormat,
     modelRunning = false;
 
     for (ID3D12Resource** r : { &nr.output, &nr.passScratch, &nr.passClamp, &nr.colorCopy, &nr.hdrCopy,
-                                &nr.colorSmall, &nr.colorSoft, &nr.outputFiltered, &nr.depthSmall, &nr.motionSmall,
-                                &nr.outputNative, &nr.activeColor })
+                                &nr.colorSmall, &nr.colorSoft, &nr.outputFiltered, &nr.guidedResidualLow,
+                                &nr.depthSmall, &nr.motionSmall, &nr.outputNative, &nr.activeColor })
         ParkNrResource(*r);
 
     nr.colorSoftReadable = false;
     nr.outputFilteredReadable = false;
+    nr.guidedResidualLowReadable = false;
     nr.passScratchFailed = false;
 
     nr.reset = true;
@@ -242,10 +243,12 @@ auto DlssNr_Dx12::State::ReleaseResources() -> void
 
     for (auto** resource :
          { &nr.output, &nr.passScratch, &nr.passClamp, &nr.colorCopy, &nr.hdrCopy, &nr.activeColor,
-           &nr.colorSmall, &nr.colorSoft, &nr.outputFiltered, &nr.depthSmall, &nr.motionSmall })
+           &nr.colorSmall, &nr.colorSoft, &nr.outputFiltered, &nr.guidedResidualLow,
+           &nr.depthSmall, &nr.motionSmall })
         ParkNrResource(*resource);
     nr.colorSoftReadable = false;
     nr.outputFilteredReadable = false;
+    nr.guidedResidualLowReadable = false;
     ReleaseSpatialResources();
     nr.spatialSignatureValid = false;
     nr.spatialFallback = false;
