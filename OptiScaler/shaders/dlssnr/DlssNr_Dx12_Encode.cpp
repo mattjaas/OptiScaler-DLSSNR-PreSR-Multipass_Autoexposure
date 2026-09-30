@@ -448,7 +448,7 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         float highGain = 1.0f;
         float lowGain = 1.0f;
         bool shapingActive = false;
-        if (shapingMode == 1u)
+        if (shapingMode == 1u && effectivePasses == 1u)
         {
             if (finalStyle == 0u) // Standard
             {
