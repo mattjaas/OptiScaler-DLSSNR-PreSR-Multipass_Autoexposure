@@ -70,9 +70,13 @@ inline float GuidedResidualGainForScale(float p50Gain, float workScale)
 {
     if (!std::isfinite(p50Gain))
         return 1.0f;
-    const float scale = std::clamp(workScale, 0.25f, 2.0f);
-    const float distanceScale = 0.5f / scale;
-    return std::max(0.0f, 1.0f - (1.0f - p50Gain) * distanceScale);
+
+    // Linear scale correction anchored at P50 and P100:
+    // 0.90 @ P50 -> 0.85 @ P25 -> 0.95 @ P75 -> 1.00 @ P100.
+    // Values below P50 are a linear extrapolation of the same P50->P100 slope.
+    const float scale = std::clamp(workScale, 0.25f, 1.0f);
+    const float t = (scale - 0.5f) / 0.5f;
+    return std::max(0.0f, std::lerp(p50Gain, 1.0f, t));
 }
 
 inline GuidedResidualGains GuidedResidualBaseGains(const Config& cfg, uint32_t shapingMode,

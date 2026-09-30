@@ -317,8 +317,10 @@ void RenderInput(Config* config)
                        "For plain P100-guided residual, Auto shaping is calibrated for one effective pass: 0.421/0.609 "
                        "Standard, 0.454/0.741 Natural, 0.370/0.780 Cinematic (high-mid/low). The two temporal DLAA modes "
                        "leave Auto shaping neutral until they get their own NR50/NR100 capture fit; Manual still works. "
-                       "Base gains are P50 / one-pass values: distance from 1.0 scales by 0.5/workingScale, then high/mid "
-                       "compounds once per effective pass while low remains pass-independent. The low component is an "
+                       "Base gains are P50 / one-pass values. Resolution correction is linear: the P50 value "
+                       "interpolates to 1.0 at P100 and linearly extrapolates below P50 (for example 0.90 -> 0.85 at P25, "
+                       "0.95 at P75, 1.00 at P100). High/mid then compounds once per effective pass while low remains "
+                       "pass-independent. The low component is an "
                        "8x area-average of E50, "
                        "equivalent to a simple mip3 box chain at exact P50, so Proxy100 itself is never blurred. "
                        "Shadow confidence is optional/experimental because its thresholds came from one capture.");
