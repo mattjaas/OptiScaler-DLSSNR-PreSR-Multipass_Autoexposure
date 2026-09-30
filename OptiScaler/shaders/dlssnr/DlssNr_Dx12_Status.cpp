@@ -51,8 +51,7 @@ auto DlssNr_Dx12::State::ConsumeControls() -> void
     // use the ordinary P50->P100 enlargement path. Do not destroy that 1:1 DLAA history every frame.
     const bool ownsPrivateTemporalHistory =
         DlssNrUsesDlssEnlargement(transfer) || transfer == 8u || transfer == 9u;
-    if (!cfg.DlssNrEnabled.value_or_default() || !ownsPrivateTemporalHistory ||
-        cfg.DlssNrWorkingScale.value_or_default() >= 1.0f)
+    if (!cfg.DlssNrEnabled.value_or_default() || !ownsPrivateTemporalHistory)
     {
         ReleaseEnlarger();
         enlargementStatus.clear();

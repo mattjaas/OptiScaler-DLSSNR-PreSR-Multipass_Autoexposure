@@ -362,8 +362,12 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrGuidedResidualSpatialSigma.set_from_config(readFloat("DlssNr", "GuidedResidualSpatialSigma"));
             DlssNrGuidedResidualGuideStrength.set_from_config(readFloat("DlssNr", "GuidedResidualGuideStrength"));
             DlssNrGuidedResidualShaping.set_from_config(readUInt("DlssNr", "GuidedResidualShaping"));
+            DlssNrGuidedResidualStandardHighGain.set_from_config(readFloat("DlssNr", "GuidedResidualStandardHighGain"));
+            DlssNrGuidedResidualStandardLowGain.set_from_config(readFloat("DlssNr", "GuidedResidualStandardLowGain"));
             DlssNrGuidedResidualHighGain.set_from_config(readFloat("DlssNr", "GuidedResidualHighGain"));
             DlssNrGuidedResidualLowGain.set_from_config(readFloat("DlssNr", "GuidedResidualLowGain"));
+            DlssNrGuidedResidualCinematicHighGain.set_from_config(readFloat("DlssNr", "GuidedResidualCinematicHighGain"));
+            DlssNrGuidedResidualCinematicLowGain.set_from_config(readFloat("DlssNr", "GuidedResidualCinematicLowGain"));
             DlssNrGuidedResidualShadowGate.set_from_config(readBool("DlssNr", "GuidedResidualShadowGate"));
             DlssNrGuidedResidualShadowFloor.set_from_config(readFloat("DlssNr", "GuidedResidualShadowFloor"));
             DlssNrGuidedResidualShadowLow.set_from_config(readFloat("DlssNr", "GuidedResidualShadowLow"));
@@ -1410,10 +1414,18 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetFloatValue(Instance()->DlssNrGuidedResidualGuideStrength.value_for_config()).c_str());
         ini.SetValue("DlssNr", "GuidedResidualShaping",
                      GetIntValue(Instance()->DlssNrGuidedResidualShaping.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualStandardHighGain",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualStandardHighGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualStandardLowGain",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualStandardLowGain.value_for_config()).c_str());
         ini.SetValue("DlssNr", "GuidedResidualHighGain",
                      GetFloatValue(Instance()->DlssNrGuidedResidualHighGain.value_for_config()).c_str());
         ini.SetValue("DlssNr", "GuidedResidualLowGain",
                      GetFloatValue(Instance()->DlssNrGuidedResidualLowGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualCinematicHighGain",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualCinematicHighGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualCinematicLowGain",
+                     GetFloatValue(Instance()->DlssNrGuidedResidualCinematicLowGain.value_for_config()).c_str());
         ini.SetValue("DlssNr", "GuidedResidualShadowGate",
                      GetBoolValue(Instance()->DlssNrGuidedResidualShadowGate.value_for_config()).c_str());
         ini.SetValue("DlssNr", "GuidedResidualShadowFloor",

@@ -236,13 +236,16 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
     if (reduced && !spatial)
     {
+        const auto smallDesc = nr.colorSmall ? nr.colorSmall->GetDesc() : D3D12_RESOURCE_DESC {};
         const bool hasSharedP50 =
             nr.colorSmall &&
-            (nr.colorSmall->GetDesc().Flags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS) != 0;
-        if (!nr.colorSmall || hasSharedP50 != wantSharedP50)
+            (smallDesc.Flags & D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS) != 0;
+        const bool smallMatches =
+            nr.colorSmall && smallDesc.Width == workWidth && smallDesc.Height == workHeight &&
+            smallDesc.Format == desc.Format && hasSharedP50 == wantSharedP50;
+        if (!smallMatches)
         {
-            if (nr.colorSmall)
-                ParkNrResource(nr.colorSmall);
+            ParkNrResource(nr.colorSmall);
             auto flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
             if (wantSharedP50)
                 flags |= D3D12_RESOURCE_FLAG_ALLOW_SIMULTANEOUS_ACCESS;
@@ -763,10 +766,20 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     bool matchedGuides = false;
     if (reduced && !spatial && workWidth < width && cfg.DlssNrMatchGuides.value_or_default())
     {
-        if (nr.depthSmall == nullptr)
+        const auto depthSmallDesc = nr.depthSmall ? nr.depthSmall->GetDesc() : D3D12_RESOURCE_DESC {};
+        if (!nr.depthSmall || depthSmallDesc.Width != workWidth || depthSmallDesc.Height != workHeight ||
+            depthSmallDesc.Format != DXGI_FORMAT_R32_FLOAT)
+        {
+            ParkNrResource(nr.depthSmall);
             nr.depthSmall = CreateScratch(device, DXGI_FORMAT_R32_FLOAT, workWidth, workHeight);
-        if (nr.motionSmall == nullptr)
+        }
+        const auto motionSmallDesc = nr.motionSmall ? nr.motionSmall->GetDesc() : D3D12_RESOURCE_DESC {};
+        if (!nr.motionSmall || motionSmallDesc.Width != workWidth || motionSmallDesc.Height != workHeight ||
+            motionSmallDesc.Format != DXGI_FORMAT_R32G32_FLOAT)
+        {
+            ParkNrResource(nr.motionSmall);
             nr.motionSmall = CreateScratch(device, DXGI_FORMAT_R32G32_FLOAT, workWidth, workHeight);
+        }
         if (nr.depthSmall != nullptr && nr.motionSmall != nullptr)
         {
             DlssNrConstants resize {};
@@ -1486,10 +1499,11 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 resolveParams.Transfer = DlssNrSpatialTransfer(transfer); // Inspect the actual model pair.
             }
         }
-        else if ((transfer != 8u && transfer != 9u) || !reduced || workScale >= 1.0f)
+        else if (!DlssNrUsesDlssEnlargement(transfer) && transfer != 8u && transfer != 9u)
         {
-            // At native working scale the enlargement selector is intentionally inert. In particular,
-            // temporal DLAA modes must not make final composition depend on a below-native-only path.
+            // Keep a private enlarger/history resident while the same mode is temporarily at native scale.
+            // This prevents repeated 50% <-> 100% A/B switches from retiring and reallocating several large
+            // NGX histories. The retained feature is inert at native scale and reused if dimensions match.
             ReleaseEnlarger();
             enlargementStatus.clear();
         }

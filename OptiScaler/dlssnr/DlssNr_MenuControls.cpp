@@ -2,6 +2,7 @@
 #include "DlssNr_MenuSections.h"
 #include "DlssNr_Placement.h"
 #include "DlssNr_Status.h"
+#include "PassProfiles.h"
 #include <shaders/dlssnr/DlssNr_Spatial.h>
 #include <Config.h>
 #include <menu/menu_common.h>
@@ -255,10 +256,46 @@ void RenderInput(Config* config)
                 config->DlssNrGuidedResidualShaping = (uint32_t) shaping;
             if (shaping == 2)
             {
-                Slider("High/mid residual gain", config->DlssNrGuidedResidualHighGain,
+                ImGui::TextUnformatted("Manual P50 / 1-pass base gains");
+                Slider("Standard high/mid##guided", config->DlssNrGuidedResidualStandardHighGain,
+                       0.0f, 1.5f, "%.3f", 0.421f);
+                Slider("Standard low##guided", config->DlssNrGuidedResidualStandardLowGain,
+                       0.0f, 1.5f, "%.3f", 0.609f);
+                Slider("Natural high/mid##guided", config->DlssNrGuidedResidualHighGain,
                        0.0f, 1.5f, "%.3f", 0.454f);
-                Slider("Low residual gain", config->DlssNrGuidedResidualLowGain,
+                Slider("Natural low##guided", config->DlssNrGuidedResidualLowGain,
                        0.0f, 1.5f, "%.3f", 0.741f);
+                Slider("Cinematic high/mid##guided", config->DlssNrGuidedResidualCinematicHighGain,
+                       0.0f, 1.5f, "%.3f", 0.370f);
+                Slider("Cinematic low##guided", config->DlssNrGuidedResidualCinematicLowGain,
+                       0.0f, 1.5f, "%.3f", 0.780f);
+            }
+
+            const unsigned int effectivePasses =
+                std::clamp(config->DlssNrPasses.value_or_default(), 1u,
+                           config->DlssNrUnlockPasses.value_or_default() ? DlssNr::MaxPassCount
+                                                                        : DlssNr::DefaultMaxPassCount);
+            const float shapingScale =
+                std::clamp(config->DlssNrWorkingScale.value_or_default(), 0.25f, 2.0f);
+            static const char* shapingStyleNames[] = { "Standard", "Natural", "Cinematic" };
+            const uint32_t finalShapingStyle =
+                Profiles::PassSettings(*config, effectivePasses > 0 ? effectivePasses - 1u : 0u).style;
+            if (shaping != 0)
+            {
+                ImGui::Separator();
+                ImGui::TextUnformatted("Effective frequency gains now");
+                for (uint32_t style = 0; style < 3; ++style)
+                {
+                    const auto effective =
+                        Profiles::EffectiveGuidedResidualGains(*config, (uint32_t) shaping, (uint32_t) transfer,
+                                                              style, effectivePasses, shapingScale);
+                    ImGui::Text("%s%s: high/mid %.4f, low %.4f", shapingStyleNames[style],
+                                style == finalShapingStyle ? " (final style)" : "", effective.high, effective.low);
+                }
+                if (shaping == 1 && transfer != 7)
+                    ImGui::TextDisabled("Auto is neutral for this temporal DLAA mode until it is capture-calibrated.");
+                ImGui::TextDisabled("Scale %.0f%%, %u pass%s. High/mid compounds by pass count; low does not.",
+                                    shapingScale * 100.0f, effectivePasses, effectivePasses == 1 ? "" : "es");
             }
 
             bool shadowGate = config->DlssNrGuidedResidualShadowGate.value_or_default();
@@ -278,7 +315,9 @@ void RenderInput(Config* config)
                        "For plain P100-guided residual, Auto shaping is calibrated for one effective pass: 0.421/0.609 "
                        "Standard, 0.454/0.741 Natural, 0.370/0.780 Cinematic (high-mid/low). The two temporal DLAA modes "
                        "leave Auto shaping neutral until they get their own NR50/NR100 capture fit; Manual still works. "
-                       "With 2+ passes Auto stays neutral. The low component is an 8x area-average of E50, "
+                       "Base gains are P50 / one-pass values: distance from 1.0 scales by 0.5/workingScale, then high/mid "
+                       "compounds once per effective pass while low remains pass-independent. The low component is an "
+                       "8x area-average of E50, "
                        "equivalent to a simple mip3 box chain at exact P50, so Proxy100 itself is never blurred. "
                        "Shadow confidence is optional/experimental because its thresholds came from one capture.");
         }

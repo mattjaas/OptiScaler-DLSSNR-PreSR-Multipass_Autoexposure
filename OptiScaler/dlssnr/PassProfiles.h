@@ -58,4 +58,98 @@ inline ModelSettings PassSettings(const Config& cfg, unsigned int pass)
     }
     return result;
 }
+
+struct GuidedResidualGains
+{
+    float high = 1.0f;
+    float low = 1.0f;
+    bool active = false;
+};
+
+inline float GuidedResidualGainForScale(float p50Gain, float workScale)
+{
+    if (!std::isfinite(p50Gain))
+        return 1.0f;
+    const float scale = std::clamp(workScale, 0.25f, 2.0f);
+    const float distanceScale = 0.5f / scale;
+    return std::max(0.0f, 1.0f - (1.0f - p50Gain) * distanceScale);
+}
+
+inline GuidedResidualGains GuidedResidualBaseGains(const Config& cfg, uint32_t shapingMode,
+                                                   uint32_t transfer, uint32_t style)
+{
+    GuidedResidualGains gains {};
+    style = std::min(style, 2u);
+
+    if (shapingMode == 0u)
+        return gains;
+
+    if (shapingMode == 1u)
+    {
+        // Capture-calibrated Auto currently exists only for the plain P100-guided path.
+        // Temporal DLAA modes stay neutral until separately fitted against true NR100.
+        if (transfer != 7u)
+            return gains;
+        gains.active = true;
+        if (style == 0u)
+        {
+            gains.high = 0.421f;
+            gains.low = 0.609f;
+        }
+        else if (style == 1u)
+        {
+            gains.high = 0.454f;
+            gains.low = 0.741f;
+        }
+        else
+        {
+            gains.high = 0.370f;
+            gains.low = 0.780f;
+        }
+        return gains;
+    }
+
+    gains.active = true;
+    if (style == 0u)
+    {
+        gains.high = cfg.DlssNrGuidedResidualStandardHighGain.value_or_default();
+        gains.low = cfg.DlssNrGuidedResidualStandardLowGain.value_or_default();
+    }
+    else if (style == 1u)
+    {
+        gains.high = cfg.DlssNrGuidedResidualHighGain.value_or_default();
+        gains.low = cfg.DlssNrGuidedResidualLowGain.value_or_default();
+    }
+    else
+    {
+        gains.high = cfg.DlssNrGuidedResidualCinematicHighGain.value_or_default();
+        gains.low = cfg.DlssNrGuidedResidualCinematicLowGain.value_or_default();
+    }
+
+    if (!std::isfinite(gains.high))
+        gains.high = style == 0u ? 0.421f : style == 1u ? 0.454f : 0.370f;
+    if (!std::isfinite(gains.low))
+        gains.low = style == 0u ? 0.609f : style == 1u ? 0.741f : 0.780f;
+    return gains;
+}
+
+inline GuidedResidualGains EffectiveGuidedResidualGains(const Config& cfg, uint32_t shapingMode,
+                                                        uint32_t transfer, uint32_t style,
+                                                        unsigned int effectivePasses, float workScale)
+{
+    auto gains = GuidedResidualBaseGains(cfg, shapingMode, transfer, style);
+    if (!gains.active)
+        return gains;
+
+    const float singlePassHigh = GuidedResidualGainForScale(gains.high, workScale);
+    gains.low = GuidedResidualGainForScale(gains.low, workScale);
+
+    // One-pass P50 setting compounds only high/mid with each additional model pass.
+    // Example: 0.85 -> 0.85^2 -> 0.85^3. Low stays pass-independent.
+    gains.high = std::pow(singlePassHigh, static_cast<float>(std::max(1u, effectivePasses)));
+    if (!std::isfinite(gains.high))
+        gains.high = 1.0f;
+    return gains;
+}
+
 } // namespace DlssNr::Profiles

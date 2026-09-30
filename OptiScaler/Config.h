@@ -362,8 +362,14 @@ class Config
     // Standard high/low 0.421/0.609, Natural 0.454/0.741, Cinematic 0.370/0.780.
     // Temporal DLAA variants intentionally keep Auto neutral until separately capture-calibrated.
     CustomOptional<uint32_t> DlssNrGuidedResidualShaping { 1 };
-    CustomOptional<float> DlssNrGuidedResidualHighGain { 0.454f };
-    CustomOptional<float> DlssNrGuidedResidualLowGain { 0.741f };
+    // Manual values are calibrated at 50% working scale and one effective pass.
+    // Legacy High/Low keys remain the Natural values for INI compatibility.
+    CustomOptional<float> DlssNrGuidedResidualStandardHighGain { 0.421f };
+    CustomOptional<float> DlssNrGuidedResidualStandardLowGain { 0.609f };
+    CustomOptional<float> DlssNrGuidedResidualHighGain { 0.454f }; // Natural
+    CustomOptional<float> DlssNrGuidedResidualLowGain { 0.741f };  // Natural
+    CustomOptional<float> DlssNrGuidedResidualCinematicHighGain { 0.370f };
+    CustomOptional<float> DlssNrGuidedResidualCinematicLowGain { 0.780f };
     // Optional capture-derived deep-shadow confidence; experimental until validated on more scenes.
     CustomOptional<bool> DlssNrGuidedResidualShadowGate { false };
     CustomOptional<float> DlssNrGuidedResidualShadowFloor { 0.15f };

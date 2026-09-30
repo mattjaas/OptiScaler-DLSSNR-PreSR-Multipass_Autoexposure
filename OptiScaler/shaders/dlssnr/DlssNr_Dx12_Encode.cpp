@@ -446,41 +446,12 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
         const unsigned int finalPass = effectivePasses > 0 ? effectivePasses - 1u : 0u;
         const uint32_t finalStyle = PassSettings(cfg, finalPass).style;
-        float highGain = 1.0f;
-        float lowGain = 1.0f;
-        bool shapingActive = false;
-        if (shapingMode == 1u && effectivePasses == 1u && configuredTransfer == 7u)
-        {
-            if (finalStyle == 0u) // Standard
-            {
-                highGain = 0.421f;
-                lowGain = 0.609f;
-                shapingActive = true;
-            }
-            else if (finalStyle == 1u) // Natural
-            {
-                highGain = 0.454f;
-                lowGain = 0.741f;
-                shapingActive = true;
-            }
-            else if (finalStyle == 2u) // Cinematic
-            {
-                highGain = 0.370f;
-                lowGain = 0.780f;
-                shapingActive = true;
-            }
-        }
-        else if (shapingMode == 2u)
-        {
-            const float configuredHigh = cfg.DlssNrGuidedResidualHighGain.value_or_default();
-            const float configuredLow = cfg.DlssNrGuidedResidualLowGain.value_or_default();
-            highGain = std::isfinite(configuredHigh) ? configuredHigh : 0.454f;
-            lowGain = std::isfinite(configuredLow) ? configuredLow : 0.741f;
-            shapingActive = true;
-        }
-        resolveParams.MvScaleX = highGain;
-        resolveParams.MvScaleY = lowGain;
-        resolveParams.GuideWidth = shapingActive ? 1u : 0u;
+        const auto shaping =
+            DlssNr::Profiles::EffectiveGuidedResidualGains(cfg, shapingMode, configuredTransfer, finalStyle,
+                                                           effectivePasses, context.workScale);
+        resolveParams.MvScaleX = shaping.high;
+        resolveParams.MvScaleY = shaping.low;
+        resolveParams.GuideWidth = shaping.active ? 1u : 0u;
         resolveParams.GuideHeight = cfg.DlssNrGuidedResidualShadowGate.value_or_default() ? 1u : 0u;
 
         float shadowLow = cfg.DlssNrGuidedResidualShadowLow.value_or_default();
