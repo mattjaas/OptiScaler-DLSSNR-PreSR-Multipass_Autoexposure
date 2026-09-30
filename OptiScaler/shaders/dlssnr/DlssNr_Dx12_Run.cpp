@@ -1486,8 +1486,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 resolveParams.Transfer = DlssNrSpatialTransfer(transfer); // Inspect the actual model pair.
             }
         }
-        else if (transfer != 8u && transfer != 9u)
+        else if ((transfer != 8u && transfer != 9u) || !reduced || workScale >= 1.0f)
         {
+            // At native working scale the enlargement selector is intentionally inert. In particular,
+            // temporal DLAA modes must not make final composition depend on a below-native-only path.
             ReleaseEnlarger();
             enlargementStatus.clear();
         }
@@ -1497,9 +1499,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         // while mode 9 stabilizes a neutral-0.5 signed E50 carrier. DLSS does no P50->P100 scaling
         // here; the existing native-P100-guided resolve remains the only spatial enlargement step.
         const bool guidedFamily = transfer >= 7u && transfer <= 9u;
-        if (guidedFamily && !spatialDownFailed)
+        if (guidedFamily && !spatialDownFailed && reduced && workScale < 1.0f)
         {
-            if (!spatial && reduced && workScale < 1.0f && ordinaryProxy && ordinaryAnswer)
+            if (!spatial && ordinaryProxy && ordinaryAnswer)
             {
                 resolveProxy = ordinaryProxy;
                 resolveAnswer = ordinaryAnswer;

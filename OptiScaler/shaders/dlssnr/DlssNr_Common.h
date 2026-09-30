@@ -54,9 +54,10 @@ inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
 // The spatial mode is used until the caller has supplied an enlarged DLSS carrier.
 inline uint32_t DlssNrSpatialTransfer(uint32_t transfer)
 {
-    // Direct NR and the native-resolution residual path have no spatial transfer equivalent.
-    // Until their full-resolution products exist, use ordinary classic composition.
-    if (transfer == 5 || transfer == 6)
+    // Native-output / guided families have no separate spatial-transfer meaning at 100%.
+    // Until their reduced-resolution product exists, or when working at native resolution, use
+    // ordinary classic composition. Reduced guided modes overwrite this with internal Transfer 8/9.
+    if (transfer >= 5 && transfer <= 9)
         return 0;
     return DlssNrUsesDlssEnlargement(transfer) ? transfer - 1 : std::min(transfer, 3u);
 }
