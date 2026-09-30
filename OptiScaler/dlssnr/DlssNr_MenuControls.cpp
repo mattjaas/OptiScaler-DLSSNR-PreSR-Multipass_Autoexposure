@@ -271,10 +271,12 @@ void RenderInput(Config* config)
                        0.0f, 1.5f, "%.3f", 0.780f);
             }
 
+            const unsigned int runtimePassLimit =
+                config->DlssNrUnlockPasses.value_or_default()
+                    ? static_cast<unsigned int>(std::size(config->DlssNrPassOverrides) + 1u)
+                    : 3u;
             const unsigned int effectivePasses =
-                std::clamp(config->DlssNrPasses.value_or_default(), 1u,
-                           config->DlssNrUnlockPasses.value_or_default() ? DlssNr::MaxPassCount
-                                                                        : DlssNr::DefaultMaxPassCount);
+                std::clamp(config->DlssNrPasses.value_or_default(), 1u, runtimePassLimit);
             const float shapingScale =
                 std::clamp(config->DlssNrWorkingScale.value_or_default(), 0.25f, 2.0f);
             static const char* shapingStyleNames[] = { "Standard", "Natural", "Cinematic" };
