@@ -1504,6 +1504,64 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 resolveParams.Transfer = 8u;
                 enlargementReady = true;
                 enlargementStatus.clear();
+
+                // Capture-derived frequency shaping. Generate only the low E50 field (about mip3);
+                // final resolve already owns P50, NR50 and native P100, so no full-resolution
+                // intermediate is introduced. At P50, ceil(work/8) is exactly 240x135 for 4K.
+                if (resolveParams.GuideWidth != 0u)
+                {
+                    const unsigned lowW = std::max(1u, (workWidth + 7u) / 8u);
+                    const unsigned lowH = std::max(1u, (workHeight + 7u) / 8u);
+                    const auto pairDesc = ordinaryAnswer->GetDesc();
+                    const bool lowMatches =
+                        nr.guidedResidualLow &&
+                        nr.guidedResidualLow->GetDesc().Width == lowW &&
+                        nr.guidedResidualLow->GetDesc().Height == lowH &&
+                        nr.guidedResidualLow->GetDesc().Format == pairDesc.Format;
+                    if (!lowMatches)
+                    {
+                        ParkNrResource(nr.guidedResidualLow);
+                        nr.guidedResidualLowReadable = false;
+                        nr.guidedResidualLow = CreateScratch(device, pairDesc.Format, lowW, lowH);
+                    }
+
+                    bool lowReady = nr.guidedResidualLow != nullptr;
+                    if (lowReady)
+                    {
+                        if (nr.guidedResidualLowReadable)
+                        {
+                            Barrier(cmdList, nr.guidedResidualLow,
+                                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                            nr.guidedResidualLowReadable = false;
+                        }
+
+                        DlssNrConstants low {};
+                        low.Mode = DlssNrMode_GuidedResidualLow;
+                        low.Width = lowW;
+                        low.Height = lowH;
+                        low.Passthrough = resolveParams.Passthrough;
+                        lowReady = shader.DispatchPass(cmdList, low, ordinaryProxy, ordinaryAnswer,
+                                                       nullptr, nullptr, nullptr,
+                                                       nr.guidedResidualLow, nullptr);
+                    }
+
+                    if (lowReady)
+                    {
+                        Barrier(cmdList, nr.guidedResidualLow,
+                                D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                        nr.guidedResidualLowReadable = true;
+                        directDetailReference = nr.guidedResidualLow; // Aux2 in final resolve.
+                    }
+                    else
+                    {
+                        // The guided geometry still works; only the optional frequency shaping is
+                        // disabled for this frame rather than failing composition.
+                        resolveParams.GuideWidth = 0u;
+                        enlargementStatus = "P100-guided residual: low-frequency shaping scratch failed; guided-only fallback.";
+                    }
+                }
             }
             else
             {
