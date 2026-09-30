@@ -429,14 +429,68 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         // ResidualBlend = range sigma in encoded proxy RGB space
         // ResidualScale = spatial sigma in reduced-resolution texels
         // ResidualConfidenceSensitivity = blend: 0 bilinear residual, 1 fully guided.
+        // MvScaleX / MvScaleY = high-mid / low-frequency residual gains.
+        // GuideWidth = low-frequency shaping active (Aux2 contains 1/8 E50).
+        // GuideHeight = experimental shadow confidence active.
+        // ExposureSourceWidth/Height/Padding = raw float bits of shadow low/high/floor.
         resolveParams.ResidualHistoryValid =
             std::clamp(cfg.DlssNrGuidedResidualRadius.value_or_default(), 1u, 3u);
         const float rangeSigma = cfg.DlssNrGuidedResidualRangeSigma.value_or_default();
-        resolveParams.ResidualBlend = std::isfinite(rangeSigma) ? rangeSigma : 0.040f;
+        resolveParams.ResidualBlend = std::isfinite(rangeSigma) ? rangeSigma : 0.015f;
         const float spatialSigma = cfg.DlssNrGuidedResidualSpatialSigma.value_or_default();
-        resolveParams.ResidualScale = std::isfinite(spatialSigma) ? spatialSigma : 0.85f;
+        resolveParams.ResidualScale = std::isfinite(spatialSigma) ? spatialSigma : 1.20f;
         const float guideStrength = cfg.DlssNrGuidedResidualGuideStrength.value_or_default();
-        resolveParams.ResidualConfidenceSensitivity = std::isfinite(guideStrength) ? guideStrength : 1.0f;
+        resolveParams.ResidualConfidenceSensitivity = std::isfinite(guideStrength) ? guideStrength : 0.75f;
+
+        const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
+        const unsigned int finalPass = effectivePasses > 0 ? effectivePasses - 1u : 0u;
+        const uint32_t finalStyle = PassSettings(cfg, finalPass).style;
+        float highGain = 1.0f;
+        float lowGain = 1.0f;
+        bool shapingActive = false;
+        if (shapingMode == 1u)
+        {
+            if (finalStyle == 0u) // Standard
+            {
+                highGain = 0.421f;
+                lowGain = 0.609f;
+                shapingActive = true;
+            }
+            else if (finalStyle == 1u) // Natural
+            {
+                highGain = 0.454f;
+                lowGain = 0.741f;
+                shapingActive = true;
+            }
+        }
+        else if (shapingMode == 2u)
+        {
+            const float configuredHigh = cfg.DlssNrGuidedResidualHighGain.value_or_default();
+            const float configuredLow = cfg.DlssNrGuidedResidualLowGain.value_or_default();
+            highGain = std::isfinite(configuredHigh) ? configuredHigh : 0.454f;
+            lowGain = std::isfinite(configuredLow) ? configuredLow : 0.741f;
+            shapingActive = true;
+        }
+        resolveParams.MvScaleX = highGain;
+        resolveParams.MvScaleY = lowGain;
+        resolveParams.GuideWidth = shapingActive ? 1u : 0u;
+        resolveParams.GuideHeight = cfg.DlssNrGuidedResidualShadowGate.value_or_default() ? 1u : 0u;
+
+        float shadowLow = cfg.DlssNrGuidedResidualShadowLow.value_or_default();
+        float shadowHigh = cfg.DlssNrGuidedResidualShadowHigh.value_or_default();
+        float shadowFloor = cfg.DlssNrGuidedResidualShadowFloor.value_or_default();
+        if (!std::isfinite(shadowLow))
+            shadowLow = 0.02f;
+        if (!std::isfinite(shadowHigh))
+            shadowHigh = 0.08f;
+        if (!std::isfinite(shadowFloor))
+            shadowFloor = 0.15f;
+        static_assert(sizeof(shadowLow) == sizeof(resolveParams.ExposureSourceWidth));
+        static_assert(sizeof(shadowHigh) == sizeof(resolveParams.ExposureSourceHeight));
+        static_assert(sizeof(shadowFloor) == sizeof(resolveParams.ExposurePadding));
+        std::memcpy(&resolveParams.ExposureSourceWidth, &shadowLow, sizeof(shadowLow));
+        std::memcpy(&resolveParams.ExposureSourceHeight, &shadowHigh, sizeof(shadowHigh));
+        std::memcpy(&resolveParams.ExposurePadding, &shadowFloor, sizeof(shadowFloor));
     }
     else if (context.workScale < 1.0f &&
              (cfg.DlssNrTransfer.value_or_default() == 5u || cfg.DlssNrTransfer.value_or_default() == 6u))
