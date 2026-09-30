@@ -1486,16 +1486,18 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 resolveParams.Transfer = DlssNrSpatialTransfer(transfer); // Inspect the actual model pair.
             }
         }
-        else
+        else if (transfer != 8u && transfer != 9u)
         {
             ReleaseEnlarger();
             enlargementStatus.clear();
         }
 
-        // P100-guided residual is deliberately not an "enlarger": no NR100/P100 reconstruction
-        // texture is created. Source=P50 and Model=NR50 stay reduced, while Original is untouched
-        // P100. Internal Transfer=8 tells final resolve to joint-bilateral-upsample only NR50-P50.
-        if (transfer == 7u && !spatialDownFailed)
+        // P100-guided residual family. Transfer 7 uses NR50 directly. Transfers 8/9 first run
+        // a private 1:1 DLAA pass at the working resolution: mode 8 stabilizes the NR50 image,
+        // while mode 9 stabilizes a neutral-0.5 signed E50 carrier. DLSS does no P50->P100 scaling
+        // here; the existing native-P100-guided resolve remains the only spatial enlargement step.
+        const bool guidedFamily = transfer >= 7u && transfer <= 9u;
+        if (guidedFamily && !spatialDownFailed)
         {
             if (!spatial && reduced && workScale < 1.0f && ordinaryProxy && ordinaryAnswer)
             {
@@ -1503,16 +1505,31 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 resolveAnswer = ordinaryAnswer;
                 resolveParams.Transfer = 8u;
                 enlargementReady = true;
-                enlargementStatus.clear();
 
-                // Capture-derived frequency shaping. Generate only the low E50 field (about mip3);
-                // final resolve already owns P50, NR50 and native P100, so no full-resolution
-                // intermediate is introduced. At P50, ceil(work/8) is exactly 240x135 for 4K.
-                if (resolveParams.GuideWidth != 0u)
+                if (transfer == 8u || transfer == 9u)
+                {
+                    auto* temporal =
+                        EnlargeMatchedResidual(cmdList, device, ordinaryProxy, ordinaryReference, ordinaryAnswer,
+                                               originalDepthIn, originalMotionIn, frame, resolveParams, transfer,
+                                               enlargementReset, timingQueue, false);
+                    enlargementReady = temporal != nullptr;
+                    if (temporal)
+                    {
+                        resolveAnswer = temporal;
+                        // Transfer 9 tells the guided shader that Model is an encoded signed residual,
+                        // not a temporally filtered NR image.
+                        resolveParams.Transfer = transfer == 9u ? 9u : 8u;
+                    }
+                }
+
+                // Capture-derived frequency shaping. Generate only the low residual field (about mip3);
+                // final resolve already owns P50 plus the current guided-family answer and native P100,
+                // so no full-resolution intermediate is introduced.
+                if (enlargementReady && resolveParams.GuideWidth != 0u)
                 {
                     const unsigned lowW = std::max(1u, (workWidth + 7u) / 8u);
                     const unsigned lowH = std::max(1u, (workHeight + 7u) / 8u);
-                    const auto pairDesc = ordinaryAnswer->GetDesc();
+                    const auto pairDesc = resolveAnswer->GetDesc();
                     const bool lowMatches =
                         nr.guidedResidualLow &&
                         nr.guidedResidualLow->GetDesc().Width == lowW &&
@@ -1541,7 +1558,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         low.Width = lowW;
                         low.Height = lowH;
                         low.Passthrough = resolveParams.Passthrough;
-                        lowReady = shader.DispatchPass(cmdList, low, ordinaryProxy, ordinaryAnswer,
+                        // Mode 9's Model texture is a DLAA-filtered neutral-0.5 signed residual carrier.
+                        low.Transfer = transfer == 9u ? 1u : 0u;
+                        lowReady = shader.DispatchPass(cmdList, low, resolveProxy, resolveAnswer,
                                                        nullptr, nullptr, nullptr,
                                                        nr.guidedResidualLow, nullptr);
                     }
@@ -1559,14 +1578,18 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         // The guided geometry still works; only the optional frequency shaping is
                         // disabled for this frame rather than failing composition.
                         resolveParams.GuideWidth = 0u;
-                        enlargementStatus = "P100-guided residual: low-frequency shaping scratch failed; guided-only fallback.";
+                        enlargementStatus =
+                            "P100-guided residual: low-frequency shaping scratch failed; guided-only fallback.";
                     }
                 }
             }
             else
             {
                 enlargementReady = false;
-                enlargementStatus = "P100-guided residual requires below-100% ordinary non-spatial NR.";
+                enlargementStatus =
+                    transfer == 7u
+                        ? "P100-guided residual requires below-100% ordinary non-spatial NR."
+                        : "Temporal DLAA + P100-guided requires below-100% post-upscale ordinary DX12 NR.";
             }
         }
 

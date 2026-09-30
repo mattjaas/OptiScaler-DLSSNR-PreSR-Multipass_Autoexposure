@@ -197,8 +197,10 @@ void RenderInput(Config* config)
 
         static const char* enlargeNames[] = { "Classic", "Matched residual", "Matched residual + DLSS",
                                               "Lighting + colour", "Lighting + colour + DLSS", "Direct NR",
-                                              "Upscaled NR residual", "P100-guided residual" };
-        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 7u);
+                                              "Upscaled NR residual", "P100-guided residual",
+                                              "Temporal DLAA NR50 + P100-guided",
+                                              "Temporal DLAA residual + P100-guided" };
+        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 9u);
 
         if (ImGui::Combo("Enlargement", &enlarge, enlargeNames, IM_ARRAYSIZE(enlargeNames)))
             config->DlssNrTransfer = (uint32_t) enlarge;
@@ -210,7 +212,11 @@ void RenderInput(Config* config)
                    "residual constructs two P100 images and subtracts them. P100-guided residual instead upsamples "
                    "NR50-P50 directly inside final resolve: untouched native P100 supplies edge-aware positive weights, "
                    "so residual should cross real object boundaries less readily and cannot ring from negative kernel lobes. "
-                   "DLSS-based enlargement requires post-upscale DX12 processing.");
+                   "Temporal DLAA NR50 runs private DLSS at the working resolution 1:1 before the same P100-guided resolve. "
+                   "Temporal DLAA residual instead encodes NR50-P50 around neutral 0.5, runs that signed carrier through "
+                   "1:1 DLAA, then decodes it before P100 guidance. Both temporal modes keep jitter at zero because this "
+                   "post-upscale colour has already been reconstructed by the game's upscaler; resized depth/MV still feed "
+                   "the private DLSS history. DLSS-based modes require post-upscale DX12 processing.");
 
         const auto transfer = config->DlssNrTransfer.value_or_default();
 
@@ -228,9 +234,11 @@ void RenderInput(Config* config)
                        "16-bit PNG and exact RAW files under nr-style-analysis-captures.");
         }
 
-        if (reduced && transfer == 7)
+        if (reduced && transfer >= 7 && transfer <= 9)
         {
-            ImGui::TextUnformatted("P100-guided residual");
+            ImGui::TextUnformatted(transfer == 7 ? "P100-guided residual"
+                                   : transfer == 8 ? "Temporal DLAA NR50 + P100-guided"
+                                                   : "Temporal DLAA residual + P100-guided");
             int radius = (int) std::min(config->DlssNrGuidedResidualRadius.value_or_default(), 3u);
             if (ImGui::SliderInt("Guided radius", &radius, 1, 3, "%d P50 px"))
                 config->DlssNrGuidedResidualRadius = (uint32_t) radius;
@@ -267,9 +275,10 @@ void RenderInput(Config* config)
             }
 
             HelpMarker("Capture-derived default: 3x3, range sigma 0.015, spatial sigma 1.20, 75% guided. "
-                       "Auto shaping is capture-calibrated for one effective pass: it uses 0.421 high/mid + 0.609 low "
-                       "for Standard, 0.454 high/mid + 0.741 low for Natural, and 0.370 high/mid + 0.780 low for "
-                       "Cinematic. With 2+ passes Auto stays neutral; Manual remains available. The low component is an 8x area-average of E50, "
+                       "For plain P100-guided residual, Auto shaping is calibrated for one effective pass: 0.421/0.609 "
+                       "Standard, 0.454/0.741 Natural, 0.370/0.780 Cinematic (high-mid/low). The two temporal DLAA modes "
+                       "leave Auto shaping neutral until they get their own NR50/NR100 capture fit; Manual still works. "
+                       "With 2+ passes Auto stays neutral. The low component is an 8x area-average of E50, "
                        "equivalent to a simple mip3 box chain at exact P50, so Proxy100 itself is never blurred. "
                        "Shadow confidence is optional/experimental because its thresholds came from one capture.");
         }

@@ -422,9 +422,10 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
     // The main shader intentionally leaves these legacy residual slots unused; the separate temporal
     // residual shader has its own constant buffer. Reuse them here so experimental final-resolve controls
     // add no bytes and keep DlssNrConstants exactly 256 bytes.
-    if (context.workScale < 1.0f && cfg.DlssNrTransfer.value_or_default() == 7u)
+    const uint32_t configuredTransfer = cfg.DlssNrTransfer.value_or_default();
+    if (context.workScale < 1.0f && configuredTransfer >= 7u && configuredTransfer <= 9u)
     {
-        // P100-guided residual, internal final-resolve Transfer=8:
+        // P100-guided residual family, internal final-resolve Transfer=8/9:
         // ResidualHistoryValid = source-space radius (1..3)
         // ResidualBlend = range sigma in encoded proxy RGB space
         // ResidualScale = spatial sigma in reduced-resolution texels
@@ -448,7 +449,7 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         float highGain = 1.0f;
         float lowGain = 1.0f;
         bool shapingActive = false;
-        if (shapingMode == 1u && effectivePasses == 1u)
+        if (shapingMode == 1u && effectivePasses == 1u && configuredTransfer == 7u)
         {
             if (finalStyle == 0u) // Standard
             {

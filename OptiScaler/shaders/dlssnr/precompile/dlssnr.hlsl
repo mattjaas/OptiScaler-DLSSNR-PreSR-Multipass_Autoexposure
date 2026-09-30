@@ -752,7 +752,8 @@ float3 GuidedResidualBilinear(float2 uvq)
     // (the sRGB-coded model input/output for linear-HDR mode), so keep the guided estimator there.
     const float3 p = gSource.SampleLevel(gLinear, saturate(uvq), 0).rgb;
     const float3 n = gModel.SampleLevel(gLinear, saturate(uvq), 0).rgb;
-    return n - p;
+    // Transfer 9 stores an already-paired signed E50 signal in a neutral-0.5 carrier.
+    return gTransfer == 9u ? NrDecodeResizeField(n) : n - p;
 }
 
 float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
@@ -788,7 +789,8 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
             const int2 p = clamp(base + int2(ox, oy), int2(0, 0), int2((int) srcW - 1, (int) srcH - 1));
             const float3 proxyCandidate = gSource.Load(int3(p, 0)).rgb;
             const float3 modelCandidate = gModel.Load(int3(p, 0)).rgb;
-            const float3 residual = modelCandidate - proxyCandidate;
+            const float3 residual =
+                gTransfer == 9u ? NrDecodeResizeField(modelCandidate) : modelCandidate - proxyCandidate;
 
             // Match the offline capture fit exactly: mean squared RGB distance in raw proxy space.
             const float3 colourDelta = proxyCandidate - nativeGuide;
@@ -1736,11 +1738,25 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                 const int2 p = int2(x, y);
                 const float3 proxyLow = gSource.Load(int3(p, 0)).rgb;
                 const float3 modelLow = gModel.Load(int3(p, 0)).rgb;
-                sum += SanitizeFinite3(modelLow - proxyLow, 0.0);
+                const float3 residualLow =
+                    gTransfer != 0u ? NrDecodeResizeField(modelLow) : modelLow - proxyLow;
+                sum += SanitizeFinite3(residualLow, 0.0);
                 ++count;
             }
         }
         gTarget[id.xy] = float4(count != 0u ? sum / (float) count : 0.0, 1.0);
+        return;
+    }
+
+    if (gMode == 19)
+    {
+        // Temporal-residual experiment: preserve the exact RAW-domain residual used by P100-guided,
+        // but remap signed values to an LDR-like neutral-0.5 carrier before same-resolution DLAA.
+        const int2 p = int2(id.xy);
+        const float3 proxyRaw = gSource.Load(int3(p, 0)).rgb;
+        const float3 modelRaw = gModel.Load(int3(p, 0)).rgb;
+        const float3 residualRaw = SanitizeFinite3(modelRaw - proxyRaw, 0.0);
+        gTarget[id.xy] = float4(NrEncodeResizeField(residualRaw), 1.0);
         return;
     }
 
@@ -2056,7 +2072,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     }
 
 #ifndef VK_MODE
-    if (gTransfer == 8u && modelRanSmall)
+    if ((gTransfer == 8u || gTransfer == 9u) && modelRanSmall)
     {
         // Build the exact native proxy the encoder would have shown at P100. It is only a guide/base;
         // the NVIDIA model still ran exclusively at the reduced size.

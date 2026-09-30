@@ -92,6 +92,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     const bool structural = transfer == 4;
     const bool direct = transfer == 5;
     const bool upscaledResidual = transfer == 6;
+    const bool temporalDlaa = transfer == 8 || transfer == 9;
+    const bool residualDlaa = transfer == 9;
     const auto& cfg = *Config::Instance();
     if (!referenceProxy)
         referenceProxy = proxy;
@@ -100,13 +102,15 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     const bool directFinalReferenceExperiment =
         direct && cfg.DlssNrExperimentStructureTransfer.value_or_default() != 0;
     const uint32_t outputUpscaler =
-        direct ? std::min(cfg.DlssNrDirectOutputUpscaler.value_or_default(), 10u)
-               : upscaledResidual ? std::min(cfg.DlssNrUpscaledResidualUpscaler.value_or_default(), 10u)
-                                  : 10u;
+        temporalDlaa ? 10u
+        : direct ? std::min(cfg.DlssNrDirectOutputUpscaler.value_or_default(), 10u)
+                 : upscaledResidual ? std::min(cfg.DlssNrUpscaledResidualUpscaler.value_or_default(), 10u)
+                                    : 10u;
     const uint32_t detailReferenceUpscaler =
         upscaledResidual ? std::min(cfg.DlssNrUpscaledResidualReferenceUpscaler.value_or_default(), 10u)
                          : direct ? std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u) : 0u;
-    const uint32_t carrierMode = upscaledResidual ? 3u : direct ? 2u : structural ? 1u : 0u;
+    const uint32_t carrierMode =
+        residualDlaa ? 5u : temporalDlaa ? 4u : upscaledResidual ? 3u : direct ? 2u : structural ? 1u : 0u;
     const bool directAnswerSource = direct && DirectAnswerCanFeedUpscaler(answer);
     const bool p100GuidedExperiment =
         direct && (cfg.DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
@@ -122,8 +126,10 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
 
     const auto desc = proxy->GetDesc();
     const unsigned w = unsigned(desc.Width), h = desc.Height;
-    if (enlarger && (enlarger->w != w || enlarger->h != h || enlarger->outW != resolve.Width ||
-                     enlarger->outH != resolve.Height || (queue && enlarger->queue.Get() != queue) ||
+    const unsigned desiredOutW = temporalDlaa ? w : resolve.Width;
+    const unsigned desiredOutH = temporalDlaa ? h : resolve.Height;
+    if (enlarger && (enlarger->w != w || enlarger->h != h || enlarger->outW != desiredOutW ||
+                     enlarger->outH != desiredOutH || (queue && enlarger->queue.Get() != queue) ||
                      enlarger->depthInverted != frame.DepthInverted || enlarger->carrierMode != carrierMode ||
                      enlarger->dlssPreset != dlssPreset || enlarger->outputUpscaler != outputUpscaler ||
                      enlarger->detailReferenceUpscaler != detailReferenceUpscaler))
@@ -139,8 +145,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         auto& g = *enlarger;
         g.w = w;
         g.h = h;
-        g.outW = resolve.Width;
-        g.outH = resolve.Height;
+        g.outW = desiredOutW;
+        g.outH = desiredOutH;
         g.depthInverted = frame.DepthInverted;
         g.queue = queue;
         g.carrierMode = carrierMode;
@@ -176,12 +182,12 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         info.height = h;
         info.outputWidth = g.outW;
         info.outputHeight = g.outH;
-        info.quality = 2;
+        info.quality = temporalDlaa ? (int) NVSDK_NGX_PerfQuality_Value_DLAA : 2;
         info.dlssPreset = dlssPreset;
         info.depthInverted = frame.DepthInverted;
         info.rayReconstruction = false;
         if (!g.dlss->Init(device, cmd, info))
-            return say("Private DLSS SR: " + g.dlss->Error());
+            return say(std::string(temporalDlaa ? "Private DLSS DLAA: " : "Private DLSS SR: ") + g.dlss->Error());
 
         // P50->P100 via DLSS owns a completely separate temporal feature/history from NR50->NR100.
         // Upscaled NR residual always needs that second history when DLSS is selected because the clean
@@ -291,13 +297,17 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     else
     {
         DlssNrConstants encode {};
-        encode.Mode = upscaledResidual ? DlssNrMode_Downsample
-                                       : structural ? DlssNrMode_EncodeResizeField
-                                                    : DlssNrMode_EncodeProxyResidual;
+        encode.Mode = temporalDlaa
+                          ? (residualDlaa ? DlssNrMode_EncodeRawResidualCarrier : DlssNrMode_Downsample)
+                          : upscaledResidual ? DlssNrMode_Downsample
+                                             : structural ? DlssNrMode_EncodeResizeField
+                                                          : DlssNrMode_EncodeProxyResidual;
         encode.Width = w;
         encode.Height = h;
         encode.Passthrough = resolve.Passthrough;
-        if (upscaledResidual)
+        if (temporalDlaa && !residualDlaa)
+            ok = shader.DispatchPass(cmd, encode, answer, nullptr, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
+        else if (upscaledResidual)
             ok = shader.DispatchPass(cmd, encode, answer, nullptr, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
         else
             ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr, g.input.Get(), nullptr);
@@ -429,8 +439,14 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         f.reset = reset || frame.Reset || g.reset || frames < g.lastFrame || frames > g.lastFrame + 1;
         outputOk = g.dlss->Evaluate(cmd, f);
         if (outputOk && g.lastFrame == 0)
-            LOG_INFO("NR Direct output: first private DLSS SR evaluation succeeded on producer queue {}",
-                     (void*) g.queue.Get());
+        {
+            if (temporalDlaa)
+                LOG_INFO("NR temporal DLAA: first 1:1 private DLSS evaluation succeeded on producer queue {}",
+                         (void*) g.queue.Get());
+            else
+                LOG_INFO("NR Direct output: first private DLSS SR evaluation succeeded on producer queue {}",
+                         (void*) g.queue.Get());
+        }
     }
     else
     {

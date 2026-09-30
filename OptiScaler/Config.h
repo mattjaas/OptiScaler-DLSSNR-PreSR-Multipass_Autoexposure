@@ -329,7 +329,10 @@ class Config
     // Reduced output: 0 classic, 1/2 matched residual spatial/DLSS, 3/4 lighting + colour spatial/DLSS,
     // 5 direct NR output enlarged and composed like a native-resolution model answer,
     // 6 upscale P50 and NR50 separately, create their residual at P100, then apply it to untouched P100,
-    // 7 P100-guided residual: jointly upscale NR50-P50 while native P100 guides edge-aware positive weights.
+    // 7 P100-guided residual: jointly upscale NR50-P50 while native P100 guides edge-aware positive weights,
+    // 8 temporal DLAA NR50: stabilize NR50 at the working resolution with 1:1 DLSS DLAA, then P100-guide it,
+    // 9 temporal DLAA residual: encode NR50-P50 around 0.5, stabilize that signed carrier with 1:1 DLAA,
+    //   then decode and P100-guide the residual.
     CustomOptional<uint32_t> DlssNrTransfer { 1 };
     // NGX render preset for private DLSS SR used by NR enlargement: 0 default, 1..15 A..O,
     // NV_PRESET_LATEST for the latest model supported by the loaded DLSS DLL.
@@ -347,14 +350,17 @@ class Config
     // P50 -> P100 reference execution: 0 Auto, 1 Serial, 2 Async compute.
     CustomOptional<uint32_t> DlssNrUpscaledResidualReferenceExecutionMode { 0 };
 
-    // P100-guided residual enlargement (Transfer=7). The final resolve directly upsamples NR50-P50
-    // using positive joint-bilateral weights guided by the untouched native P100 proxy.
+    // P100-guided residual family (Transfer=7..9). Transfer 7 directly upsamples NR50-P50.
+    // Transfer 8 first applies 1:1 DLAA to NR50; Transfer 9 applies 1:1 DLAA to a signed residual carrier.
+    // The final resolve then uses positive joint-bilateral weights guided by untouched native P100.
     CustomOptional<uint32_t> DlssNrGuidedResidualRadius { 1 };       // P50 texels; 1 => 3x3, 2 => 5x5
     CustomOptional<float> DlssNrGuidedResidualRangeSigma { 0.015f }; // capture-derived encoded proxy-domain RGB distance
     CustomOptional<float> DlssNrGuidedResidualSpatialSigma { 1.20f };
     CustomOptional<float> DlssNrGuidedResidualGuideStrength { 0.75f }; // 0 bilinear residual, 1 fully guided
     // Residual frequency shaping: 0 off, 1 Auto by final-pass style, 2 Manual.
-    // Auto: Standard high/low 0.421/0.609, Natural 0.454/0.741, Cinematic neutral/off.
+    // Auto for the capture-calibrated plain guided path (Transfer 7):
+    // Standard high/low 0.421/0.609, Natural 0.454/0.741, Cinematic 0.370/0.780.
+    // Temporal DLAA variants intentionally keep Auto neutral until separately capture-calibrated.
     CustomOptional<uint32_t> DlssNrGuidedResidualShaping { 1 };
     CustomOptional<float> DlssNrGuidedResidualHighGain { 0.454f };
     CustomOptional<float> DlssNrGuidedResidualLowGain { 0.741f };
