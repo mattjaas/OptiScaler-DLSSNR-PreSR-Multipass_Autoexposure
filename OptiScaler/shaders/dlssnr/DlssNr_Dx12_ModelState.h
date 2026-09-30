@@ -47,6 +47,11 @@ struct ModelStateDx12
     bool colorSoftReadable = false;
     bool outputFilteredReadable = false;
 
+    // P100-guided residual shaping: 1/8-resolution positive-lobe low-frequency residual.
+    // Generated only while Transfer=7 shaping is active, then bound to Aux2 in final resolve.
+    ID3D12Resource* guidedResidualLow = nullptr;
+    bool guidedResidualLowReadable = false;
+
     // Peripheral compression keeps a packed model pair and packed guides separate from the
     // ordinary uniform-scale pair consumed by composition and optional DLSS enlargement.
     ID3D12Resource* spatialColor = nullptr;
