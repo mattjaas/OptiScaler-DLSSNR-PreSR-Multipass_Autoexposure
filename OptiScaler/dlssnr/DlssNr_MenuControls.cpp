@@ -235,15 +235,42 @@ void RenderInput(Config* config)
             if (ImGui::SliderInt("Guided radius", &radius, 1, 3, "%d P50 px"))
                 config->DlssNrGuidedResidualRadius = (uint32_t) radius;
             Slider("Guided range sigma", config->DlssNrGuidedResidualRangeSigma,
-                   0.005f, 0.200f, "%.3f", 0.040f);
+                   0.005f, 0.200f, "%.3f", 0.015f);
             Slider("Guided spatial sigma", config->DlssNrGuidedResidualSpatialSigma,
-                   0.25f, 3.0f, "%.2f", 0.85f);
+                   0.25f, 3.0f, "%.2f", 1.20f);
             Slider("Guided strength", config->DlssNrGuidedResidualGuideStrength,
-                   0.0f, 1.0f, "%.2f", 1.0f);
-            HelpMarker("The shader samples a positive 3x3/5x5/7x7 neighbourhood of NR50-P50. Spatial distance and "
-                       "similarity to the native P100 proxy determine the weights. Range sigma sets how strongly a real "
-                       "P100 boundary rejects a residual sample from the other side; spatial sigma controls distance "
-                       "falloff. Guided strength blends from ordinary bilinear residual (0) to fully guided residual (1).");
+                   0.0f, 1.0f, "%.2f", 0.75f);
+
+            static const char* shapingNames[] = { "Off", "Auto by NR style", "Manual" };
+            int shaping = (int) std::min(config->DlssNrGuidedResidualShaping.value_or_default(), 2u);
+            if (ImGui::Combo("Residual frequency shaping", &shaping, shapingNames, IM_ARRAYSIZE(shapingNames)))
+                config->DlssNrGuidedResidualShaping = (uint32_t) shaping;
+            if (shaping == 2)
+            {
+                Slider("High/mid residual gain", config->DlssNrGuidedResidualHighGain,
+                       0.0f, 1.5f, "%.3f", 0.454f);
+                Slider("Low residual gain", config->DlssNrGuidedResidualLowGain,
+                       0.0f, 1.5f, "%.3f", 0.741f);
+            }
+
+            bool shadowGate = config->DlssNrGuidedResidualShadowGate.value_or_default();
+            if (ImGui::Checkbox("Experimental shadow confidence", &shadowGate))
+                config->DlssNrGuidedResidualShadowGate = shadowGate;
+            if (shadowGate)
+            {
+                Slider("Shadow confidence floor", config->DlssNrGuidedResidualShadowFloor,
+                       0.0f, 1.0f, "%.2f", 0.15f);
+                Slider("Shadow threshold low", config->DlssNrGuidedResidualShadowLow,
+                       0.0f, 0.25f, "%.3f", 0.02f);
+                Slider("Shadow threshold high", config->DlssNrGuidedResidualShadowHigh,
+                       0.0f, 0.50f, "%.3f", 0.08f);
+            }
+
+            HelpMarker("Capture-derived default: 3x3, range sigma 0.015, spatial sigma 1.20, 75% guided. "
+                       "Auto shaping leaves Cinematic neutral, uses 0.421 high/mid + 0.609 low for Standard, and "
+                       "0.454 high/mid + 0.741 low for Natural. The low component is an 8x area-average of E50, "
+                       "equivalent to a simple mip3 box chain at exact P50, so Proxy100 itself is never blurred. "
+                       "Shadow confidence is optional/experimental because its thresholds came from one capture.");
         }
         if (reduced && (transfer == 2 || transfer == 4 || transfer == 5 || transfer == 6))
         {
