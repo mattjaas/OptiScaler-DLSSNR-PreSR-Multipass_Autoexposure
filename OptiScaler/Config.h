@@ -337,6 +337,9 @@ class Config
     // NGX render preset for private DLSS SR used by NR enlargement: 0 default, 1..15 A..O,
     // NV_PRESET_LATEST for the latest model supported by the loaded DLSS DLL.
     CustomOptional<int> DlssNrScalingDlssPreset { 1 };
+    // Independent NGX render presets for the two 1:1 temporal DLAA experiments.
+    CustomOptional<int> DlssNrTemporalDlaaNrPreset { 1 };
+    CustomOptional<int> DlssNrTemporalDlaaResidualPreset { 1 };
 
     // Direct native-output upscalers. 0 bilinear, 1 bicubic, 2 Catmull-Rom, 3 Lanczos2,
     // 4 Lanczos3, 5 Kaiser2, 6 Kaiser3, 7 Area, 8 MAGIC, 9 FSR1, 10 DLSS.

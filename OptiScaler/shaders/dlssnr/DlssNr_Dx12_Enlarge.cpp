@@ -122,7 +122,10 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         p100GuidedExperiment && (outputUpscaler == 8u || resolve.CompareMode == 1u);
     const bool fusedDirectOutput =
         directAnswerSource && DirectFusedResolveUpscaler(outputUpscaler) && !materializeExpensiveFused;
-    const int dlssPreset = cfg.DlssNrScalingDlssPreset.value_or_default();
+    const int dlssPreset =
+        transfer == 8u ? cfg.DlssNrTemporalDlaaNrPreset.value_or_default()
+        : transfer == 9u ? cfg.DlssNrTemporalDlaaResidualPreset.value_or_default()
+                         : cfg.DlssNrScalingDlssPreset.value_or_default();
 
     const auto desc = proxy->GetDesc();
     const unsigned w = unsigned(desc.Width), h = desc.Height;

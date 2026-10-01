@@ -240,6 +240,44 @@ void RenderInput(Config* config)
             ImGui::TextUnformatted(transfer == 7 ? "P100-guided residual"
                                    : transfer == 8 ? "Temporal DLAA NR50 + P100-guided"
                                                    : "Temporal DLAA residual + P100-guided");
+            if (transfer == 8 || transfer == 9)
+            {
+                static const char* temporalPresetNames[] = { "Default", "A", "B", "C", "D", "E", "F", "G", "H",
+                                                             "I", "J", "K", "L", "M", "N", "O", "Latest" };
+                static constexpr int temporalPresetValues[] = {
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_Default,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_A,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_B,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_C,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_D,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_E,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_F,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_G,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_H_Reserved,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_I_Reserved,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_J,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_K,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_L,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_M,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_N,
+                    NVSDK_NGX_DLSS_Hint_Render_Preset_O,
+                    static_cast<int>(NV_PRESET_LATEST)
+                };
+                auto& temporalPresetSetting =
+                    transfer == 8 ? config->DlssNrTemporalDlaaNrPreset : config->DlssNrTemporalDlaaResidualPreset;
+                int temporalPresetIndex = 1;
+                const int configuredTemporalPreset = temporalPresetSetting.value_or_default();
+                for (int i = 0; i < IM_ARRAYSIZE(temporalPresetValues); ++i)
+                    if (temporalPresetValues[i] == configuredTemporalPreset)
+                        temporalPresetIndex = i;
+                const char* temporalPresetLabel =
+                    transfer == 8 ? "Temporal DLAA NR preset" : "Temporal DLAA Residual preset";
+                if (ImGui::Combo(temporalPresetLabel, &temporalPresetIndex, temporalPresetNames,
+                                 IM_ARRAYSIZE(temporalPresetNames)))
+                    temporalPresetSetting = temporalPresetValues[temporalPresetIndex];
+                HelpMarker("NGX render preset used only by this private 1:1 DLAA feature. Changing it recreates "
+                           "the temporal DLSS feature and starts a fresh history.");
+            }
             int radius = (int) std::min(config->DlssNrGuidedResidualRadius.value_or_default(), 3u);
             if (ImGui::SliderInt("Guided radius", &radius, 1, 3, "%d P50 px"))
                 config->DlssNrGuidedResidualRadius = (uint32_t) radius;

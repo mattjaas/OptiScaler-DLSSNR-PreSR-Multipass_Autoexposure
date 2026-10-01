@@ -349,6 +349,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrMaxDarkening.set_from_config(readFloat("DlssNr", "MaxDarkening"));
             DlssNrTransfer.set_from_config(readUInt("DlssNr", "Transfer"));
             DlssNrScalingDlssPreset.set_from_config(readInt("DlssNr", "ScalingDlssPreset"));
+            DlssNrTemporalDlaaNrPreset.set_from_config(readInt("DlssNr", "TemporalDlaaNrPreset"));
+            DlssNrTemporalDlaaResidualPreset.set_from_config(readInt("DlssNr", "TemporalDlaaResidualPreset"));
             DlssNrDirectOutputUpscaler.set_from_config(readUInt("DlssNr", "DirectOutputUpscaler"));
             DlssNrUpscaledResidualDownscaleFilter.set_from_config(
                 readUInt("DlssNr", "UpscaledResidualDownscaleFilter"));
@@ -1394,6 +1396,10 @@ bool Config::SaveIni(std::filesystem::path destination)
         ini.SetValue("DlssNr", "Transfer", GetIntValue(Instance()->DlssNrTransfer.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ScalingDlssPreset",
                      GetIntValue(Instance()->DlssNrScalingDlssPreset.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalDlaaNrPreset",
+                     GetIntValue(Instance()->DlssNrTemporalDlaaNrPreset.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalDlaaResidualPreset",
+                     GetIntValue(Instance()->DlssNrTemporalDlaaResidualPreset.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectOutputUpscaler",
                      GetIntValue(Instance()->DlssNrDirectOutputUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "UpscaledResidualDownscaleFilter",
