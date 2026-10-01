@@ -316,6 +316,13 @@ void RenderInput(Config* config)
                     Slider("Auto K rise (stops/s)", config->DlssNrTemporalCarrierAutoRiseStopsPerSecond,
                            0.0f, 16.0f, "%.2f", 4.0f);
 
+                bool ignoreWatermarks = config->DlssNrTemporalCarrierIgnoreNvidiaWatermarks.value_or_default();
+                if (ImGui::Checkbox("Ignore NVIDIA watermarks in K analysis", &ignoreWatermarks))
+                    config->DlssNrTemporalCarrierIgnoreNvidiaWatermarks = ignoreWatermarks;
+                HelpMarker("Excludes only the known bottom-left NVIDIA diagnostic watermark footprints from the K-safe "
+                           "reduction. The carrier and final image are not masked or altered. The SR/game watermark footprint "
+                           "scales with working resolution; the NR watermark uses a separate fixed-pixel footprint.");
+
                 const auto carrierStatus = ReadStatus(Backend::Dx12);
                 if (carrierStatus.temporalCarrierTelemetryValid)
                 {
@@ -331,8 +338,9 @@ void RenderInput(Config* config)
                 {
                     ImGui::TextDisabled("Carrier K telemetry appears after the first completed temporal frame.");
                 }
-                HelpMarker("Auto Strict takes the most restrictive pixel/channel in the current frame, so the encoder "
-                           "does not intentionally clip the edit. Auto Robust ignores one most restrictive source sample "
+                HelpMarker("Auto Strict takes the most restrictive pixel/channel in the current frame outside any enabled "
+                           "NVIDIA-watermark exclusion footprints, so the encoder does not intentionally clip the scene edit. "
+                           "Auto Robust ignores one most restrictive source sample "
                            "inside each approximately 32x32 tile before taking the global minimum; it can preserve a much "
                            "larger K when isolated outliers dominate, but those trimmed outliers may clip. K is computed "
                            "on the GPU before the same frame's DLAA pass. Auto K drops immediately when safety requires it; "

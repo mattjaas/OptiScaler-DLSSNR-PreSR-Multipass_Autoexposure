@@ -1778,6 +1778,26 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         {
             [loop] for (uint x = x0; x < min(x1, srcW); ++x)
             {
+                if (gPassthrough != 0u)
+                {
+                    // Two NVIDIA diagnostic watermark footprints observed in captures:
+                    // 1) the game's DLSS SR watermark is already part of Proxy and therefore scales
+                    //    with working resolution (~23% width x ~4.7% height in the capture);
+                    // 2) DLSS NR overlays its own approximately fixed-pixel text block afterwards.
+                    // Use conservative margins around both. Only K analysis skips these pixels;
+                    // the carrier/DLAA/final image still processes them normally.
+                    const uint srMaskW = min(srcW, max(1u, (srcW + 3u) / 4u));       // 25% width
+                    const uint srMaskH = min(srcH, max(1u, (srcH * 55u + 999u) / 1000u)); // 5.5% height
+                    const uint nrMaskW = min(srcW, 832u);
+                    const uint nrMaskH = min(srcH, 56u);
+                    const bool inSrWatermark =
+                        x < srMaskW && y >= (srcH > srMaskH ? srcH - srMaskH : 0u);
+                    const bool inNrWatermark =
+                        x < nrMaskW && y >= (srcH > nrMaskH ? srcH - nrMaskH : 0u);
+                    if (inSrWatermark || inNrWatermark)
+                        continue;
+                }
+
                 const int2 p = int2(x, y);
                 const float3 proxyRaw = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.0);
                 const float3 modelRaw = SanitizeFinite3(gModel.Load(int3(p, 0)).rgb, proxyRaw);

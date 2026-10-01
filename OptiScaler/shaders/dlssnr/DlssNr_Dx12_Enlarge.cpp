@@ -401,6 +401,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             limits.GuideHeight = h;
             limits.Transfer = carrierType;
             limits.ResidualScale = margin;
+            limits.Passthrough = cfg.DlssNrTemporalCarrierIgnoreNvidiaWatermarks.value_or_default() ? 1u : 0u;
             ok = shader.DispatchPass(cmd, limits, proxy, answer, nullptr, nullptr, nullptr,
                                      g.carrierReduceA.Get(), nullptr);
 
