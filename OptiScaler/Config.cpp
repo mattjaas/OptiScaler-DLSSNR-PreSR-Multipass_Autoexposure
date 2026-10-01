@@ -358,6 +358,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrTemporalAnchoredGainMode.set_from_config(readUInt("DlssNr", "TemporalAnchoredGainMode"));
             DlssNrTemporalAnchoredManualGain.set_from_config(readFloat("DlssNr", "TemporalAnchoredManualGain"));
             DlssNrTemporalAnchoredBaseStrength.set_from_config(readFloat("DlssNr", "TemporalAnchoredBaseStrength"));
+            DlssNrTemporalAnchoredBaseStrengthCustom.set_from_config(
+                readBool("DlssNr", "TemporalAnchoredBaseStrengthCustom"));
             DlssNrTemporalAnchoredPairedBaseline.set_from_config(readBool("DlssNr", "TemporalAnchoredPairedBaseline"));
             DlssNrTemporalCarrierMargin.set_from_config(readFloat("DlssNr", "TemporalCarrierMargin"));
             DlssNrTemporalCarrierAutoMaxGain.set_from_config(readFloat("DlssNr", "TemporalCarrierAutoMaxGain"));
@@ -1433,6 +1435,8 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetFloatValue(Instance()->DlssNrTemporalAnchoredManualGain.value_for_config()).c_str());
         ini.SetValue("DlssNr", "TemporalAnchoredBaseStrength",
                      GetFloatValue(Instance()->DlssNrTemporalAnchoredBaseStrength.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalAnchoredBaseStrengthCustom",
+                     Instance()->DlssNrTemporalAnchoredBaseStrengthCustom.value_for_config().value_or(false) ? "true" : "false");
         ini.SetValue("DlssNr", "TemporalAnchoredPairedBaseline",
                      Instance()->DlssNrTemporalAnchoredPairedBaseline.value_for_config().value_or(false) ? "true" : "false");
         ini.SetValue("DlssNr", "TemporalCarrierMargin",
