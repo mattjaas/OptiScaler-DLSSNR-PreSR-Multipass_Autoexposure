@@ -354,6 +354,8 @@ class Config
     // Compress Proxy around neutral 0.5 before adding K*E. 0.5 maps the clean image to 0.25..0.75,
     // preserving scene structure for DLAA while reserving symmetric residual headroom.
     CustomOptional<float> DlssNrTemporalAnchoredBaseStrength { 0.50f };
+    // Keep an explicit Custom selection sticky even when its numeric value exactly matches a preset.
+    CustomOptional<bool> DlssNrTemporalAnchoredBaseStrengthCustom { false };
     // Reference experiment: run a second independent 1:1 DLAA history on the compressed clean anchor
     // and decode (DLAA(anchor+K*E)-DLAA(anchor))/K.
     CustomOptional<bool> DlssNrTemporalAnchoredPairedBaseline { false };
