@@ -2318,7 +2318,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
 
     if (gDebugView == 5 && gTransfer == 9u && (gDirectResolveFlags & 4u) != 0u)
     {
-        const float3 carrier = saturate(gPrevEdit.SampleLevel(gLinear, cmpUv, 0).rgb);
+        const float3 carrier = saturate(gAux.SampleLevel(gLinear, cmpUv, 0).rgb);
         gTarget[id.xy] = float4(SrgbToLinear(carrier) * gDebugScale, originalSample.a);
         return;
     }
