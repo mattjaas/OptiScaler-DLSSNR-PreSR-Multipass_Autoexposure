@@ -351,6 +351,14 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrScalingDlssPreset.set_from_config(readInt("DlssNr", "ScalingDlssPreset"));
             DlssNrTemporalDlaaNrPreset.set_from_config(readInt("DlssNr", "TemporalDlaaNrPreset"));
             DlssNrTemporalDlaaResidualPreset.set_from_config(readInt("DlssNr", "TemporalDlaaResidualPreset"));
+            DlssNrTemporalDlaaAnchoredPreset.set_from_config(readInt("DlssNr", "TemporalDlaaAnchoredPreset"));
+            DlssNrTemporalResidualEncoding.set_from_config(readUInt("DlssNr", "TemporalResidualEncoding"));
+            DlssNrTemporalResidualGainMode.set_from_config(readUInt("DlssNr", "TemporalResidualGainMode"));
+            DlssNrTemporalResidualManualGain.set_from_config(readFloat("DlssNr", "TemporalResidualManualGain"));
+            DlssNrTemporalAnchoredGainMode.set_from_config(readUInt("DlssNr", "TemporalAnchoredGainMode"));
+            DlssNrTemporalAnchoredManualGain.set_from_config(readFloat("DlssNr", "TemporalAnchoredManualGain"));
+            DlssNrTemporalCarrierMargin.set_from_config(readFloat("DlssNr", "TemporalCarrierMargin"));
+            DlssNrTemporalCarrierAutoMaxGain.set_from_config(readFloat("DlssNr", "TemporalCarrierAutoMaxGain"));
             DlssNrDirectOutputUpscaler.set_from_config(readUInt("DlssNr", "DirectOutputUpscaler"));
             DlssNrUpscaledResidualDownscaleFilter.set_from_config(
                 readUInt("DlssNr", "UpscaledResidualDownscaleFilter"));
@@ -1400,6 +1408,22 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetIntValue(Instance()->DlssNrTemporalDlaaNrPreset.value_for_config()).c_str());
         ini.SetValue("DlssNr", "TemporalDlaaResidualPreset",
                      GetIntValue(Instance()->DlssNrTemporalDlaaResidualPreset.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalDlaaAnchoredPreset",
+                     GetIntValue(Instance()->DlssNrTemporalDlaaAnchoredPreset.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalResidualEncoding",
+                     GetIntValue(Instance()->DlssNrTemporalResidualEncoding.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalResidualGainMode",
+                     GetIntValue(Instance()->DlssNrTemporalResidualGainMode.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalResidualManualGain",
+                     GetFloatValue(Instance()->DlssNrTemporalResidualManualGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalAnchoredGainMode",
+                     GetIntValue(Instance()->DlssNrTemporalAnchoredGainMode.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalAnchoredManualGain",
+                     GetFloatValue(Instance()->DlssNrTemporalAnchoredManualGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalCarrierMargin",
+                     GetFloatValue(Instance()->DlssNrTemporalCarrierMargin.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalCarrierAutoMaxGain",
+                     GetFloatValue(Instance()->DlssNrTemporalCarrierAutoMaxGain.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectOutputUpscaler",
                      GetIntValue(Instance()->DlssNrDirectOutputUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "UpscaledResidualDownscaleFilter",

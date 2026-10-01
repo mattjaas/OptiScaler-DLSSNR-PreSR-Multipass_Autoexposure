@@ -758,8 +758,8 @@ float3 GuidedResidualBilinear(float2 uvq)
     // (the sRGB-coded model input/output for linear-HDR mode), so keep the guided estimator there.
     const float3 p = gSource.SampleLevel(gLinear, saturate(uvq), 0).rgb;
     const float3 n = gModel.SampleLevel(gLinear, saturate(uvq), 0).rgb;
-    // Transfer 9 stores an already-paired signed E50 signal in a neutral-0.5 carrier.
-    return gTransfer == 9u ? DecodeGuidedResidualCarrier(n) : n - p;
+    // Internal Transfer 9 receives an already-decoded signed E50 texture from the temporal carrier path.
+    return gTransfer == 9u ? n : n - p;
 }
 
 float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
@@ -796,7 +796,7 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
             const float3 proxyCandidate = gSource.Load(int3(p, 0)).rgb;
             const float3 modelCandidate = gModel.Load(int3(p, 0)).rgb;
             const float3 residual =
-                gTransfer == 9u ? DecodeGuidedResidualCarrier(modelCandidate) : modelCandidate - proxyCandidate;
+                gTransfer == 9u ? modelCandidate : modelCandidate - proxyCandidate;
 
             // Match the offline capture fit exactly: mean squared RGB distance in raw proxy space.
             const float3 colourDelta = proxyCandidate - nativeGuide;
@@ -1745,12 +1745,195 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                 const float3 proxyLow = gSource.Load(int3(p, 0)).rgb;
                 const float3 modelLow = gModel.Load(int3(p, 0)).rgb;
                 const float3 residualLow =
-                    gTransfer != 0u ? NrDecodeResizeField(modelLow) : modelLow - proxyLow;
+                    gTransfer != 0u ? modelLow : modelLow - proxyLow;
                 sum += SanitizeFinite3(residualLow, 0.0);
                 ++count;
             }
         }
         gTarget[id.xy] = float4(count != 0u ? sum / (float) count : 0.0, 1.0);
+        return;
+    }
+
+    if (gMode == 20)
+    {
+        // First-stage temporal-carrier analysis. One output texel scans one source tile (normally ~32x32).
+        // x = strict safe K, y = robust safe K after dropping the single most restrictive source pixel
+        // in this tile, z/w = strict positive/negative directional limits.
+        const uint srcW = max(gGuideWidth, 1u);
+        const uint srcH = max(gGuideHeight, 1u);
+        const uint x0 = (id.x * srcW) / gWidth;
+        const uint x1 = max(((id.x + 1u) * srcW) / gWidth, x0 + 1u);
+        const uint y0 = (id.y * srcH) / gHeight;
+        const uint y1 = max(((id.y + 1u) * srcH) / gHeight, y0 + 1u);
+        const float margin = clamp(abs(gResidualScale), 0.0, 0.49);
+        const float huge = 1.0e20;
+
+        float strictMin = huge;
+        float secondMin = huge;
+        float positiveMin = huge;
+        float negativeMin = huge;
+        uint samples = 0u;
+
+        [loop] for (uint y = y0; y < min(y1, srcH); ++y)
+        {
+            [loop] for (uint x = x0; x < min(x1, srcW); ++x)
+            {
+                const int2 p = int2(x, y);
+                const float3 proxyRaw = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.0);
+                const float3 modelRaw = SanitizeFinite3(gModel.Load(int3(p, 0)).rgb, proxyRaw);
+                const float3 e = modelRaw - proxyRaw;
+                float pixelLimit = huge;
+                float pixelPositive = huge;
+                float pixelNegative = huge;
+
+                [unroll] for (int ch = 0; ch < 3; ++ch)
+                {
+                    const float edit = e[ch];
+                    float bound = huge;
+                    if (gTransfer == 0u)
+                    {
+                        // Nonlinear carrier c=.5+.5*x/(1+abs(x)). Auto K keeps it away from the
+                        // inverse poles by the requested carrier margin.
+                        const float d = clamp(1.0 - 2.0 * margin, 1.0e-4, 0.999999);
+                        const float fieldLimit = d / max(1.0 - d, 1.0e-6);
+                        if (edit > 1.0e-12)
+                        {
+                            bound = fieldLimit / edit;
+                            pixelPositive = min(pixelPositive, bound);
+                        }
+                        else if (edit < -1.0e-12)
+                        {
+                            bound = fieldLimit / -edit;
+                            pixelNegative = min(pixelNegative, bound);
+                        }
+                    }
+                    else if (gTransfer == 1u)
+                    {
+                        // Linear residual carrier .5 + K*E.
+                        const float room = max(0.5 - margin, 0.0);
+                        if (edit > 1.0e-12)
+                        {
+                            bound = room / edit;
+                            pixelPositive = min(pixelPositive, bound);
+                        }
+                        else if (edit < -1.0e-12)
+                        {
+                            bound = room / -edit;
+                            pixelNegative = min(pixelNegative, bound);
+                        }
+                    }
+                    else
+                    {
+                        // Image-anchored carrier Proxy + K*E. A raw proxy value outside [0,1] cannot
+                        // be represented losslessly by an LDR DLSS carrier, even at K=0.
+                        if (proxyRaw[ch] < 0.0 || proxyRaw[ch] > 1.0)
+                        {
+                            bound = 0.0;
+                            pixelPositive = min(pixelPositive, 0.0);
+                            pixelNegative = min(pixelNegative, 0.0);
+                        }
+                        else if (edit > 1.0e-12)
+                        {
+                            bound = max((1.0 - margin) - proxyRaw[ch], 0.0) / edit;
+                            pixelPositive = min(pixelPositive, bound);
+                        }
+                        else if (edit < -1.0e-12)
+                        {
+                            bound = max(proxyRaw[ch] - margin, 0.0) / -edit;
+                            pixelNegative = min(pixelNegative, bound);
+                        }
+                    }
+                    pixelLimit = min(pixelLimit, bound);
+                }
+
+                pixelLimit = max(SanitizeFinite(pixelLimit, 0.0), 0.0);
+                pixelPositive = max(SanitizeFinite(pixelPositive, huge), 0.0);
+                pixelNegative = max(SanitizeFinite(pixelNegative, huge), 0.0);
+                positiveMin = min(positiveMin, pixelPositive);
+                negativeMin = min(negativeMin, pixelNegative);
+
+                if (pixelLimit < strictMin)
+                {
+                    secondMin = strictMin;
+                    strictMin = pixelLimit;
+                }
+                else if (pixelLimit < secondMin)
+                {
+                    secondMin = pixelLimit;
+                }
+                ++samples;
+            }
+        }
+
+        if (samples < 2u || secondMin >= huge * 0.5)
+            secondMin = strictMin;
+        gTarget[id.xy] = float4(strictMin, secondMin, positiveMin, negativeMin);
+        return;
+    }
+
+    if (gMode == 21)
+    {
+        // Min-reduce the tile statistics. Repeating this pass reaches one texel without a CPU/GPU sync.
+        const uint srcW = max(gGuideWidth, 1u);
+        const uint srcH = max(gGuideHeight, 1u);
+        const uint x0 = (id.x * srcW) / gWidth;
+        const uint x1 = max(((id.x + 1u) * srcW) / gWidth, x0 + 1u);
+        const uint y0 = (id.y * srcH) / gHeight;
+        const uint y1 = max(((id.y + 1u) * srcH) / gHeight, y0 + 1u);
+        float4 limits = 1.0e20;
+        [loop] for (uint y = y0; y < min(y1, srcH); ++y)
+            [loop] for (uint x = x0; x < min(x1, srcW); ++x)
+                limits = min(limits, gSource.Load(int3(x, y, 0)));
+        gTarget[id.xy] = limits;
+        return;
+    }
+
+    if (gMode == 22)
+    {
+        // Build the actual current-frame DLAA carrier using the gain already reduced on the GPU.
+        // gTransfer: 0 nonlinear residual, 1 linear residual, 2 image-anchored residual.
+        const float4 stats = gAux2.Load(int3(0, 0, 0));
+        const uint gainMode = min(gDebugView, 2u);
+        const float strictSafe = max(SanitizeFinite(stats.x, 0.0), 0.0);
+        const float robustSafe = max(SanitizeFinite(stats.y, strictSafe), 0.0);
+        const float selectedSafe = gainMode == 2u ? robustSafe : strictSafe;
+        const float ceiling = max(abs(gResidualConfidenceUnused), 1.0e-6);
+        const float manualK = max(abs(gResidualScale), 1.0e-6);
+        const float K = gainMode == 0u ? manualK : max(min(selectedSafe, ceiling), 1.0e-6);
+
+        const int2 p = int2(id.xy);
+        const float3 proxyRaw = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.0);
+        const float3 modelRaw = SanitizeFinite3(gModel.Load(int3(p, 0)).rgb, proxyRaw);
+        const float3 e = modelRaw - proxyRaw;
+        float3 carrier;
+        if (gTransfer == 0u)
+            carrier = NrEncodeResizeField(K * e);
+        else if (gTransfer == 1u)
+            carrier = saturate(0.5 + K * e);
+        else
+            carrier = saturate(proxyRaw + K * e);
+
+        gTarget[id.xy] = float4(carrier, 1.0);
+        if (id.x == 0u && id.y == 0u)
+            gKeep[uint2(0, 0)] = float4(K, selectedSafe, stats.z, stats.w);
+        return;
+    }
+
+    if (gMode == 23)
+    {
+        // Undo the carrier after DLAA so P100-guided always receives one ordinary signed E50 texture.
+        const float K = max(abs(gAux2.Load(int3(0, 0, 0)).x), 1.0e-6);
+        const int2 p = int2(id.xy);
+        const float3 filtered = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.5);
+        const float3 proxyRaw = SanitizeFinite3(gModel.Load(int3(p, 0)).rgb, 0.0);
+        float3 e;
+        if (gTransfer == 0u)
+            e = NrDecodeResizeField(filtered) / K;
+        else if (gTransfer == 1u)
+            e = (saturate(filtered) - 0.5) / K;
+        else
+            e = (saturate(filtered) - proxyRaw) / K;
+        gTarget[id.xy] = float4(SanitizeFinite3(e, 0.0), 1.0);
         return;
     }
 

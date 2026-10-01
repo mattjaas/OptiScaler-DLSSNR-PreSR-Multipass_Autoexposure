@@ -23,6 +23,11 @@ struct StatusSnapshot
     unsigned long long frames = 0;
     std::string spatialStatus;
     bool spatialActive = false;
+    bool temporalCarrierTelemetryValid = false;
+    float temporalCarrierAppliedK = 1.0f;
+    float temporalCarrierSafeK = 1.0f;
+    float temporalCarrierPositiveLimit = 1.0f;
+    float temporalCarrierNegativeLimit = 1.0f;
 };
 
 struct ControlRequests

@@ -423,9 +423,9 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
     // residual shader has its own constant buffer. Reuse them here so experimental final-resolve controls
     // add no bytes and keep DlssNrConstants exactly 256 bytes.
     const uint32_t configuredTransfer = cfg.DlssNrTransfer.value_or_default();
-    if (context.workScale < 1.0f && configuredTransfer >= 7u && configuredTransfer <= 9u)
+    if (context.workScale < 1.0f && configuredTransfer >= 7u && configuredTransfer <= 10u)
     {
-        // P100-guided residual family, internal final-resolve Transfer=8/9:
+        // P100-guided residual family, internal final-resolve Transfer=8/9 (9 is decoded signed residual):
         // ResidualHistoryValid = source-space radius (1..3)
         // ResidualBlend = range sigma in encoded proxy RGB space
         // ResidualScale = spatial sigma in reduced-resolution texels

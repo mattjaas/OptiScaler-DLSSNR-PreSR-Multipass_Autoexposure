@@ -200,8 +200,9 @@ void RenderInput(Config* config)
                                               "Lighting + colour", "Lighting + colour + DLSS", "Direct NR",
                                               "Upscaled NR residual", "P100-guided residual",
                                               "Temporal DLAA NR50 + P100-guided",
-                                              "Temporal DLAA residual + P100-guided" };
-        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 9u);
+                                              "Temporal DLAA residual + P100-guided",
+                                              "Temporal image-anchored residual + P100-guided" };
+        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 10u);
 
         if (ImGui::Combo("Enlargement", &enlarge, enlargeNames, IM_ARRAYSIZE(enlargeNames)))
             config->DlssNrTransfer = (uint32_t) enlarge;
@@ -214,8 +215,9 @@ void RenderInput(Config* config)
                    "NR50-P50 directly inside final resolve: untouched native P100 supplies edge-aware positive weights, "
                    "so residual should cross real object boundaries less readily and cannot ring from negative kernel lobes. "
                    "Temporal DLAA NR50 runs private DLSS at the working resolution 1:1 before the same P100-guided resolve. "
-                   "Temporal DLAA residual instead encodes NR50-P50 around neutral 0.5, runs that signed carrier through "
-                   "1:1 DLAA, then decodes it before P100 guidance. Both temporal modes keep jitter at zero because this "
+                   "Temporal DLAA residual encodes NR50-P50 around neutral 0.5 before 1:1 DLAA. Image-anchored residual "
+                   "instead feeds Proxy50 + K*(NR50-P50), so DLSS sees ordinary scene structure while the edit is amplified, "
+                   "then recovers the signed edit before P100 guidance. All temporal modes keep jitter at zero because this "
                    "post-upscale colour has already been reconstructed by the game's upscaler; resized depth/MV still feed "
                    "the private DLSS history. DLSS-based modes require post-upscale DX12 processing.");
 
@@ -235,12 +237,13 @@ void RenderInput(Config* config)
                        "16-bit PNG and exact RAW files under nr-style-analysis-captures.");
         }
 
-        if (reduced && transfer >= 7 && transfer <= 9)
+        if (reduced && transfer >= 7 && transfer <= 10)
         {
             ImGui::TextUnformatted(transfer == 7 ? "P100-guided residual"
                                    : transfer == 8 ? "Temporal DLAA NR50 + P100-guided"
-                                                   : "Temporal DLAA residual + P100-guided");
-            if (transfer == 8 || transfer == 9)
+                                   : transfer == 9 ? "Temporal DLAA residual + P100-guided"
+                                                    : "Temporal image-anchored residual + P100-guided");
+            if (transfer == 8 || transfer == 9 || transfer == 10)
             {
                 static const char* temporalPresetNames[] = { "Default", "A", "B", "C", "D", "E", "F", "G", "H",
                                                              "I", "J", "K", "L", "M", "N", "O", "Latest" };
@@ -264,20 +267,74 @@ void RenderInput(Config* config)
                     static_cast<int>(NV_PRESET_LATEST)
                 };
                 auto& temporalPresetSetting =
-                    transfer == 8 ? config->DlssNrTemporalDlaaNrPreset : config->DlssNrTemporalDlaaResidualPreset;
+                    transfer == 8 ? config->DlssNrTemporalDlaaNrPreset
+                    : transfer == 9 ? config->DlssNrTemporalDlaaResidualPreset
+                                     : config->DlssNrTemporalDlaaAnchoredPreset;
                 int temporalPresetIndex = 1;
                 const int configuredTemporalPreset = temporalPresetSetting.value_or_default();
                 for (int i = 0; i < IM_ARRAYSIZE(temporalPresetValues); ++i)
                     if (temporalPresetValues[i] == configuredTemporalPreset)
                         temporalPresetIndex = i;
                 const char* temporalPresetLabel =
-                    transfer == 8 ? "Temporal DLAA NR preset" : "Temporal DLAA Residual preset";
+                    transfer == 8 ? "Temporal DLAA NR preset"
+                    : transfer == 9 ? "Temporal DLAA Residual preset"
+                                     : "Temporal image-anchored preset";
                 if (ImGui::Combo(temporalPresetLabel, &temporalPresetIndex, temporalPresetNames,
                                  IM_ARRAYSIZE(temporalPresetNames)))
                     temporalPresetSetting = temporalPresetValues[temporalPresetIndex];
                 HelpMarker("NGX render preset used only by this private 1:1 DLAA feature. Changing it recreates "
                            "the temporal DLSS feature and starts a fresh history.");
             }
+            if (transfer == 9 || transfer == 10)
+            {
+                if (transfer == 9)
+                {
+                    static const char* encodingNames[] = { "Nonlinear E/(1+abs(E))", "Linear 0.5 + K*E" };
+                    int encoding = (int) std::min(config->DlssNrTemporalResidualEncoding.value_or_default(), 1u);
+                    if (ImGui::Combo("Residual carrier encoding", &encoding, encodingNames, IM_ARRAYSIZE(encodingNames)))
+                        config->DlssNrTemporalResidualEncoding = (uint32_t) encoding;
+                    HelpMarker("Nonlinear is bounded for any finite residual and was the original experiment. Linear is "
+                               "amplitude-faithful and exactly reversible while K stays inside the safe carrier range.");
+                }
+
+                auto& gainModeSetting =
+                    transfer == 9 ? config->DlssNrTemporalResidualGainMode : config->DlssNrTemporalAnchoredGainMode;
+                auto& manualGainSetting =
+                    transfer == 9 ? config->DlssNrTemporalResidualManualGain : config->DlssNrTemporalAnchoredManualGain;
+                static const char* gainModeNames[] = { "Manual", "Auto Strict", "Auto Robust" };
+                int gainMode = (int) std::min(gainModeSetting.value_or_default(), 2u);
+                if (ImGui::Combo("Temporal carrier gain", &gainMode, gainModeNames, IM_ARRAYSIZE(gainModeNames)))
+                    gainModeSetting = (uint32_t) gainMode;
+                if (gainMode == 0)
+                    Slider("Manual K", manualGainSetting, 0.01f, 32.0f, "%.3f", 4.0f);
+
+                Slider("Carrier edge margin", config->DlssNrTemporalCarrierMargin,
+                       0.0f, 0.10f, "%.4f", 0.01f);
+                Slider("Auto K ceiling", config->DlssNrTemporalCarrierAutoMaxGain,
+                       1.0f, 128.0f, "%.2f", 32.0f);
+
+                const auto carrierStatus = ReadStatus(Backend::Dx12);
+                if (carrierStatus.temporalCarrierTelemetryValid)
+                {
+                    ImGui::Text("Applied K: %.4f   Safe K: %.4f",
+                                carrierStatus.temporalCarrierAppliedK, carrierStatus.temporalCarrierSafeK);
+                    ImGui::TextDisabled("Positive limit %.4f   Negative limit %.4f",
+                                        carrierStatus.temporalCarrierPositiveLimit,
+                                        carrierStatus.temporalCarrierNegativeLimit);
+                    if (gainMode == 0 && manualGainSetting.value_or_default() > carrierStatus.temporalCarrierSafeK)
+                        ImGui::TextDisabled("Manual K exceeds the current strict safe K; linear/image carrier may clip.");
+                }
+                else
+                {
+                    ImGui::TextDisabled("Carrier K telemetry appears after the first completed temporal frame.");
+                }
+                HelpMarker("Auto Strict takes the most restrictive pixel/channel in the current frame, so the encoder "
+                           "does not intentionally clip the edit. Auto Robust ignores one most restrictive source sample "
+                           "inside each approximately 32x32 tile before taking the global minimum; it can preserve a much "
+                           "larger K when isolated outliers dominate, but those trimmed outliers may clip. K is computed "
+                           "on the GPU before the same frame's DLAA pass.");
+            }
+
             int radius = (int) std::min(config->DlssNrGuidedResidualRadius.value_or_default(), 3u);
             if (ImGui::SliderInt("Guided radius", &radius, 1, 3, "%d P50 px"))
                 config->DlssNrGuidedResidualRadius = (uint32_t) radius;

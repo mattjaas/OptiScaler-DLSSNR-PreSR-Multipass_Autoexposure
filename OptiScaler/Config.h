@@ -331,15 +331,30 @@ class Config
     // 6 upscale P50 and NR50 separately, create their residual at P100, then apply it to untouched P100,
     // 7 P100-guided residual: jointly upscale NR50-P50 while native P100 guides edge-aware positive weights,
     // 8 temporal DLAA NR50: stabilize NR50 at the working resolution with 1:1 DLSS DLAA, then P100-guide it,
-    // 9 temporal DLAA residual: encode NR50-P50 around 0.5, stabilize that signed carrier with 1:1 DLAA,
-    //   then decode and P100-guide the residual.
+    // 9 temporal DLAA residual: stabilize a signed E50 carrier at the working resolution,
+    // 10 image-anchored temporal DLAA residual: stabilize Proxy50 + K*(NR50-Proxy50), then recover E50.
     CustomOptional<uint32_t> DlssNrTransfer { 1 };
     // NGX render preset for private DLSS SR used by NR enlargement: 0 default, 1..15 A..O,
     // NV_PRESET_LATEST for the latest model supported by the loaded DLSS DLL.
     CustomOptional<int> DlssNrScalingDlssPreset { 1 };
-    // Independent NGX render presets for the two 1:1 temporal DLAA experiments.
+    // Independent NGX render presets for the 1:1 temporal DLAA experiments.
     CustomOptional<int> DlssNrTemporalDlaaNrPreset { 1 };
     CustomOptional<int> DlssNrTemporalDlaaResidualPreset { 1 };
+    CustomOptional<int> DlssNrTemporalDlaaAnchoredPreset { 1 };
+
+    // Temporal residual carrier experiments.
+    // Residual encoding: 0 reversible nonlinear E/(1+abs(E)), 1 linear 0.5+K*E.
+    CustomOptional<uint32_t> DlssNrTemporalResidualEncoding { 0 };
+    // Gain mode: 0 Manual, 1 Auto Strict (no intentional clipping), 2 Auto Robust
+    // (ignores one most restrictive sample per ~32x32 source tile).
+    CustomOptional<uint32_t> DlssNrTemporalResidualGainMode { 1 };
+    CustomOptional<float> DlssNrTemporalResidualManualGain { 4.0f };
+    CustomOptional<uint32_t> DlssNrTemporalAnchoredGainMode { 1 };
+    CustomOptional<float> DlssNrTemporalAnchoredManualGain { 4.0f };
+    // Carrier headroom from 0/1 for automatic gain. Auto ceiling prevents effectively-infinite K
+    // on nearly-zero residuals; typed finite values remain user-adjustable.
+    CustomOptional<float> DlssNrTemporalCarrierMargin { 0.01f };
+    CustomOptional<float> DlssNrTemporalCarrierAutoMaxGain { 32.0f };
 
     // Direct native-output upscalers. 0 bilinear, 1 bicubic, 2 Catmull-Rom, 3 Lanczos2,
     // 4 Lanczos3, 5 Kaiser2, 6 Kaiser3, 7 Area, 8 MAGIC, 9 FSR1, 10 DLSS.

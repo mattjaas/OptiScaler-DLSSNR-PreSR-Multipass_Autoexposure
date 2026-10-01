@@ -1500,20 +1500,19 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             }
         }
         else if (!reduced || workScale >= 1.0f ||
-                 (!DlssNrUsesDlssEnlargement(transfer) && transfer != 8u && transfer != 9u))
+                 (!DlssNrUsesDlssEnlargement(transfer) && transfer != 8u && transfer != 9u && transfer != 10u))
         {
-            // Below native, temporal modes 8/9 keep their private history alive frame-to-frame.
+            // Below native, temporal modes 8/9/10 keep their private history alive frame-to-frame.
             // At native scale no private enlargement/DLAA work is needed, so release those NGX
             // resources instead of reserving VRAM for an idle feature.
             ReleaseEnlarger();
             enlargementStatus.clear();
         }
 
-        // P100-guided residual family. Transfer 7 uses NR50 directly. Transfers 8/9 first run
-        // a private 1:1 DLAA pass at the working resolution: mode 8 stabilizes the NR50 image,
-        // while mode 9 stabilizes a neutral-0.5 signed E50 carrier. DLSS does no P50->P100 scaling
-        // here; the existing native-P100-guided resolve remains the only spatial enlargement step.
-        const bool guidedFamily = transfer >= 7u && transfer <= 9u;
+        // P100-guided residual family. Transfer 7 uses NR50 directly. Transfer 8 temporalizes NR50;
+        // 9 temporalizes a residual carrier; 10 temporalizes Proxy50+K*E50. Modes 9/10 are decoded
+        // back to one signed E50 texture before this point. DLSS never performs the P50->P100 resize.
+        const bool guidedFamily = transfer >= 7u && transfer <= 10u;
         if (guidedFamily && !spatialDownFailed && reduced && workScale < 1.0f)
         {
             if (!spatial && ordinaryProxy && ordinaryAnswer)
@@ -1523,7 +1522,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 resolveParams.Transfer = 8u;
                 enlargementReady = true;
 
-                if (transfer == 8u || transfer == 9u)
+                if (transfer == 8u || transfer == 9u || transfer == 10u)
                 {
                     auto* temporal =
                         EnlargeMatchedResidual(cmdList, device, ordinaryProxy, ordinaryReference, ordinaryAnswer,
@@ -1533,9 +1532,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                     if (temporal)
                     {
                         resolveAnswer = temporal;
-                        // Transfer 9 tells the guided shader that Model is an encoded signed residual,
-                        // not a temporally filtered NR image.
-                        resolveParams.Transfer = transfer == 9u ? 9u : 8u;
+                        // Internal Transfer 9 means Model is an already-decoded signed residual.
+                        // Both residual-carrier variants use that common representation.
+                        resolveParams.Transfer = transfer >= 9u ? 9u : 8u;
                     }
                 }
 
@@ -1575,8 +1574,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         low.Width = lowW;
                         low.Height = lowH;
                         low.Passthrough = resolveParams.Passthrough;
-                        // Mode 9's Model texture is a DLAA-filtered neutral-0.5 signed residual carrier.
-                        low.Transfer = transfer == 9u ? 1u : 0u;
+                        // Modes 9/10 already provide a decoded signed residual texture.
+                        low.Transfer = transfer >= 9u ? 1u : 0u;
                         lowReady = shader.DispatchPass(cmdList, low, resolveProxy, resolveAnswer,
                                                        nullptr, nullptr, nullptr,
                                                        nr.guidedResidualLow, nullptr);

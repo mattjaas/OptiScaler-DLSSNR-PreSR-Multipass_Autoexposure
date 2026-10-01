@@ -20,6 +20,7 @@
 #include <dlssnr/DlssNr_AnalysisCapture.h>
 #include <dlssnr/DlssNr_Proxy.h>
 #include <dlssnr/DlssNr_GpuLifetime.h>
+#include <dlssnr/DlssNr_Readback.h>
 
 #include "DlssNr_Dx12.h"
 #include "DlssNr_ActiveColor.h"
@@ -63,12 +64,23 @@ struct DlssNr_Dx12::State
         std::unique_ptr<OS_Dx12> detailSpatialScaler;
         DlssNr::GpuLifetime lifetime;
         ComPtr<ID3D12Resource> input, output, depth, motion, exposure, detailInfo, detailReference;
+        // Temporal residual carrier analysis. A/B hold tile reductions, applied is a 1x1 float4:
+        // applied K, selected safe K, strict positive limit, strict negative limit.
+        ComPtr<ID3D12Resource> carrierReduceA, carrierReduceB, carrierApplied;
+        struct CarrierReadback
+        {
+            DlssNr::ReadbackImage image;
+            std::function<bool()> ready;
+            bool pending = false;
+        };
+        std::array<CarrierReadback, 2> carrierReadback;
+        unsigned carrierReadbackCursor = 0;
         ComPtr<ID3D12CommandQueue> queue;
         ID3D12CommandList* creation = nullptr;
         unsigned w = 0, h = 0, outW = 0, outH = 0;
         uint64_t lastFrame = 0, detailLastFrame = 0;
-        bool submitted = false, failed = false, depthInverted = false, readable = false, detailReadable = false,
-             detailReferenceReadable = false, reset = true, detailReset = true;
+        bool submitted = false, failed = false, depthInverted = false, readable = false, inputReadable = false,
+             detailReadable = false, detailReferenceReadable = false, reset = true, detailReset = true;
         uint32_t carrierMode = 0;
         uint32_t outputUpscaler = 10;
         uint32_t detailReferenceUpscaler = 0;
@@ -83,6 +95,11 @@ struct DlssNr_Dx12::State
     std::vector<std::unique_ptr<Enlarger>> retiredEnlargers;
     bool collectingEnlargers = false;
     std::string enlargementStatus;
+    bool temporalCarrierTelemetryValid = false;
+    float temporalCarrierAppliedK = 1.0f;
+    float temporalCarrierSafeK = 1.0f;
+    float temporalCarrierPositiveLimit = 1.0f;
+    float temporalCarrierNegativeLimit = 1.0f;
     void ReleaseEnlarger();
     void CollectEnlargers();
     ID3D12Resource* EnlargeMatchedResidual(ID3D12GraphicsCommandList* cmd, ID3D12Device* device, ID3D12Resource* proxy,

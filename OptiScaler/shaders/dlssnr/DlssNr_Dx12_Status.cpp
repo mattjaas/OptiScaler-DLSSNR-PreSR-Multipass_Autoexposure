@@ -47,10 +47,10 @@ auto DlssNr_Dx12::State::ConsumeControls() -> void
 {
     const auto& cfg = *Config::Instance();
     const uint32_t transfer = cfg.DlssNrTransfer.value_or_default();
-    // Transfers 8/9 also own a persistent private DLSS feature/history, even though they do not
+    // Transfers 8/9/10 also own a persistent private DLSS feature/history, even though they do not
     // use the ordinary P50->P100 enlargement path. Do not destroy that 1:1 DLAA history every frame.
     const bool ownsPrivateTemporalHistory =
-        DlssNrUsesDlssEnlargement(transfer) || transfer == 8u || transfer == 9u;
+        DlssNrUsesDlssEnlargement(transfer) || transfer == 8u || transfer == 9u || transfer == 10u;
     if (!cfg.DlssNrEnabled.value_or_default() || !ownsPrivateTemporalHistory ||
         cfg.DlssNrWorkingScale.value_or_default() >= 1.0f)
     {
@@ -101,10 +101,19 @@ auto DlssNr_Dx12::State::Publish() -> void
                             std::to_string(nr.spatialLayout.ordinaryH) + " -> " +
                             std::to_string(nr.spatialLayout.modelW) + "x" + std::to_string(nr.spatialLayout.modelH);
     }
-    DlssNr::PublishStatus(&shader, DlssNr::Backend::Dx12,
-                          { !nr.failed && modelRunning && enlargementStatus.empty(),
-                            nr.failed ? nr.reason : enlargementStatus, lastGpuTime, frames, spatialStatus,
-                            nr.spatialActive });
+    DlssNr::StatusSnapshot snapshot;
+    snapshot.running = !nr.failed && modelRunning && enlargementStatus.empty();
+    snapshot.failureReason = nr.failed ? nr.reason : enlargementStatus;
+    snapshot.gpuTime = lastGpuTime;
+    snapshot.frames = frames;
+    snapshot.spatialStatus = spatialStatus;
+    snapshot.spatialActive = nr.spatialActive;
+    snapshot.temporalCarrierTelemetryValid = temporalCarrierTelemetryValid;
+    snapshot.temporalCarrierAppliedK = temporalCarrierAppliedK;
+    snapshot.temporalCarrierSafeK = temporalCarrierSafeK;
+    snapshot.temporalCarrierPositiveLimit = temporalCarrierPositiveLimit;
+    snapshot.temporalCarrierNegativeLimit = temporalCarrierNegativeLimit;
+    DlssNr::PublishStatus(&shader, DlssNr::Backend::Dx12, snapshot);
 }
 
 void DlssNr_Dx12::State::EndGpuTiming(ID3D12GraphicsCommandList* cmdList)

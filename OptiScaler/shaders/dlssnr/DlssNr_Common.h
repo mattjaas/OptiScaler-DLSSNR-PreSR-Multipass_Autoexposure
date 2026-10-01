@@ -42,8 +42,16 @@ enum DlssNrMode : uint32_t
     DlssNrMode_ExperimentNrPostfilter = 17,
     // P100-guided residual: collapse E50=NR50-P50 to an 1/8-size positive-lobe low-frequency field.
     DlssNrMode_GuidedResidualLow = 18,
-    // Temporal residual DLAA: encode raw-domain E50 around neutral 0.5 for a same-resolution DLAA pass.
-    DlssNrMode_EncodeRawResidualCarrier = 19
+    // Legacy temporal residual carrier encoder; retained for captures/backward experiments.
+    DlssNrMode_EncodeRawResidualCarrier = 19,
+    // Temporal carrier first-stage analysis: per ~32x32 source tile strict/robust safe-K statistics.
+    DlssNrMode_TemporalCarrierLimits = 20,
+    // Reduce temporal carrier statistics to one pixel.
+    DlssNrMode_TemporalCarrierReduce = 21,
+    // Encode nonlinear/linear residual or image-anchored carrier using the same-frame GPU K.
+    DlssNrMode_TemporalCarrierEncode = 22,
+    // Decode the private DLAA output back to a signed raw-domain E50 residual.
+    DlssNrMode_TemporalCarrierDecode = 23
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
@@ -57,7 +65,7 @@ inline uint32_t DlssNrSpatialTransfer(uint32_t transfer)
     // Native-output / guided families have no separate spatial-transfer meaning at 100%.
     // Until their reduced-resolution product exists, or when working at native resolution, use
     // ordinary classic composition. Reduced guided modes overwrite this with internal Transfer 8/9.
-    if (transfer >= 5 && transfer <= 9)
+    if (transfer >= 5 && transfer <= 10)
         return 0;
     return DlssNrUsesDlssEnlargement(transfer) ? transfer - 1 : std::min(transfer, 3u);
 }
