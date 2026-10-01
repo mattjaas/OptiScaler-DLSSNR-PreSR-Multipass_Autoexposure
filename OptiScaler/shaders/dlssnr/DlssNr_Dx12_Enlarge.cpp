@@ -171,6 +171,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         g.exposure.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, 1, 1));
         if (residualDlaa)
         {
+            temporalCarrierTelemetryValid = false;
             const unsigned tileW = std::max(1u, (w + 31u) / 32u);
             const unsigned tileH = std::max(1u, (h + 31u) / 32u);
             g.carrierReduceA.Attach(CreateScratch(device, DXGI_FORMAT_R32G32B32A32_FLOAT, tileW, tileH));
@@ -378,6 +379,17 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             const float configuredCeiling = cfg.DlssNrTemporalCarrierAutoMaxGain.value_or_default();
             const float autoCeiling =
                 std::max(std::isfinite(configuredCeiling) ? std::abs(configuredCeiling) : 32.0f, 1.0e-6f);
+            const float configuredRise = cfg.DlssNrTemporalCarrierAutoRiseStopsPerSecond.value_or_default();
+            const float riseStopsPerSecond =
+                std::max(std::isfinite(configuredRise) ? configuredRise : 4.0f, 0.0f);
+            const float frameSeconds =
+                std::clamp(std::isfinite(frame.FrameTimeMs) ? frame.FrameTimeMs * 0.001f : 0.01667f,
+                           0.0f, 0.25f);
+            const float riseMultiplier = std::exp2(riseStopsPerSecond * frameSeconds);
+            const float previousAppliedK =
+                temporalCarrierTelemetryValid && std::isfinite(temporalCarrierAppliedK)
+                    ? std::max(temporalCarrierAppliedK, 1.0e-6f)
+                    : 1.0f;
 
             unsigned statW = std::max(1u, (w + 31u) / 32u);
             unsigned statH = std::max(1u, (h + 31u) / 32u);
@@ -431,6 +443,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                 encode.DebugView = gainMode;
                 encode.ResidualScale = manualK;
                 encode.ResidualConfidenceSensitivity = autoCeiling;
+                encode.TransferStrength = previousAppliedK;
+                encode.ColourStrength = riseMultiplier;
                 ok = shader.DispatchPassAux2(cmd, encode, proxy, answer, nullptr, nullptr, nullptr,
                                              statSource, g.input.Get(), g.carrierApplied.Get());
             }

@@ -355,6 +355,9 @@ class Config
     // on nearly-zero residuals; typed finite values remain user-adjustable.
     CustomOptional<float> DlssNrTemporalCarrierMargin { 0.01f };
     CustomOptional<float> DlssNrTemporalCarrierAutoMaxGain { 32.0f };
+    // Auto K drops immediately when the current frame requires it, but grows at this rate
+    // to avoid changing the DLAA carrier amplitude too aggressively between frames.
+    CustomOptional<float> DlssNrTemporalCarrierAutoRiseStopsPerSecond { 4.0f };
 
     // Direct native-output upscalers. 0 bilinear, 1 bicubic, 2 Catmull-Rom, 3 Lanczos2,
     // 4 Lanczos3, 5 Kaiser2, 6 Kaiser3, 7 Area, 8 MAGIC, 9 FSR1, 10 DLSS.

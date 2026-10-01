@@ -1899,7 +1899,12 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const float selectedSafe = gainMode == 2u ? robustSafe : strictSafe;
         const float ceiling = max(abs(gResidualConfidenceUnused), 1.0e-6);
         const float manualK = max(abs(gResidualScale), 1.0e-6);
-        const float K = gainMode == 0u ? manualK : max(min(selectedSafe, ceiling), 1.0e-6);
+        const float autoTarget = max(min(selectedSafe, ceiling), 1.0e-6);
+        const float previousK = max(abs(gTransferStrength), 1.0e-6);
+        const float riseMultiplier = max(gColourStrength, 1.0);
+        // Safety has zero latency: falling K follows this frame's safe limit immediately.
+        // Rising K is rate-limited so one DLAA history does not see large carrier-amplitude jumps.
+        const float K = gainMode == 0u ? manualK : min(autoTarget, previousK * riseMultiplier);
 
         const int2 p = int2(id.xy);
         const float3 proxyRaw = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.0);

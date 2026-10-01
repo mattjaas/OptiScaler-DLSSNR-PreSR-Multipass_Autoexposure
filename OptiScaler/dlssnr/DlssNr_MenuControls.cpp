@@ -312,6 +312,9 @@ void RenderInput(Config* config)
                        0.0f, 0.10f, "%.4f", 0.01f);
                 Slider("Auto K ceiling", config->DlssNrTemporalCarrierAutoMaxGain,
                        1.0f, 128.0f, "%.2f", 32.0f);
+                if (gainMode != 0)
+                    Slider("Auto K rise (stops/s)", config->DlssNrTemporalCarrierAutoRiseStopsPerSecond,
+                           0.0f, 16.0f, "%.2f", 4.0f);
 
                 const auto carrierStatus = ReadStatus(Backend::Dx12);
                 if (carrierStatus.temporalCarrierTelemetryValid)
@@ -332,7 +335,9 @@ void RenderInput(Config* config)
                            "does not intentionally clip the edit. Auto Robust ignores one most restrictive source sample "
                            "inside each approximately 32x32 tile before taking the global minimum; it can preserve a much "
                            "larger K when isolated outliers dominate, but those trimmed outliers may clip. K is computed "
-                           "on the GPU before the same frame's DLAA pass.");
+                           "on the GPU before the same frame's DLAA pass. Auto K drops immediately when safety requires it; "
+                           "upward changes are rate-limited in exposure stops per second so DLAA history does not see abrupt "
+                           "carrier-amplitude jumps.");
             }
 
             int radius = (int) std::min(config->DlssNrGuidedResidualRadius.value_or_default(), 3u);

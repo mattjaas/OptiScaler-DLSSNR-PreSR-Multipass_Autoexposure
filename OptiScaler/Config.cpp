@@ -359,6 +359,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrTemporalAnchoredManualGain.set_from_config(readFloat("DlssNr", "TemporalAnchoredManualGain"));
             DlssNrTemporalCarrierMargin.set_from_config(readFloat("DlssNr", "TemporalCarrierMargin"));
             DlssNrTemporalCarrierAutoMaxGain.set_from_config(readFloat("DlssNr", "TemporalCarrierAutoMaxGain"));
+            DlssNrTemporalCarrierAutoRiseStopsPerSecond.set_from_config(
+                readFloat("DlssNr", "TemporalCarrierAutoRiseStopsPerSecond"));
             DlssNrDirectOutputUpscaler.set_from_config(readUInt("DlssNr", "DirectOutputUpscaler"));
             DlssNrUpscaledResidualDownscaleFilter.set_from_config(
                 readUInt("DlssNr", "UpscaledResidualDownscaleFilter"));
@@ -1424,6 +1426,8 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetFloatValue(Instance()->DlssNrTemporalCarrierMargin.value_for_config()).c_str());
         ini.SetValue("DlssNr", "TemporalCarrierAutoMaxGain",
                      GetFloatValue(Instance()->DlssNrTemporalCarrierAutoMaxGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalCarrierAutoRiseStopsPerSecond",
+                     GetFloatValue(Instance()->DlssNrTemporalCarrierAutoRiseStopsPerSecond.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectOutputUpscaler",
                      GetIntValue(Instance()->DlssNrDirectOutputUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "UpscaledResidualDownscaleFilter",
