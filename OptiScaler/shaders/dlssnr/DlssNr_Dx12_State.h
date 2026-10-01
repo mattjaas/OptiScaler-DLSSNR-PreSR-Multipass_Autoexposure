@@ -60,6 +60,7 @@ struct DlssNr_Dx12::State
         template <typename T> using ComPtr = Microsoft::WRL::ComPtr<T>;
         std::unique_ptr<DlssNr::PrivateUpscalerDx12> dlss;
         std::unique_ptr<DlssNr::PrivateUpscalerDx12> detailDlss;
+        std::unique_ptr<DlssNr::PrivateUpscalerDx12> baselineDlss;
         std::unique_ptr<OS_Dx12> outputSpatialScaler;
         std::unique_ptr<OS_Dx12> detailSpatialScaler;
         DlssNr::GpuLifetime lifetime;
@@ -67,9 +68,13 @@ struct DlssNr_Dx12::State
         // Temporal residual carrier analysis. A/B hold tile reductions, applied is a 1x1 float4:
         // applied K, selected safe K, strict positive limit, strict negative limit.
         ComPtr<ID3D12Resource> carrierReduceA, carrierReduceB, carrierApplied;
+        ComPtr<ID3D12Resource> carrierDiagA, carrierDiagB;
+        ComPtr<ID3D12Resource> baselineInput, baselineOutput;
+        ComPtr<ID3D12Resource> carrierDebug;
         struct CarrierReadback
         {
             DlssNr::ReadbackImage image;
+            DlssNr::ReadbackImage diagnostics;
             std::function<bool()> ready;
             bool pending = false;
         };
@@ -78,15 +83,18 @@ struct DlssNr_Dx12::State
         ComPtr<ID3D12CommandQueue> queue;
         ID3D12CommandList* creation = nullptr;
         unsigned w = 0, h = 0, outW = 0, outH = 0;
-        uint64_t lastFrame = 0, detailLastFrame = 0;
+        uint64_t lastFrame = 0, detailLastFrame = 0, baselineLastFrame = 0;
         bool submitted = false, failed = false, depthInverted = false, readable = false, inputReadable = false,
-             detailReadable = false, detailReferenceReadable = false, reset = true, detailReset = true;
+             detailReadable = false, detailReferenceReadable = false, carrierDebugReadable = false,
+             reset = true, detailReset = true, baselineReset = true, pairedBaseline = false;
         uint32_t carrierMode = 0;
+        float anchorStrength = 0.5f;
         uint32_t outputUpscaler = 10;
         uint32_t detailReferenceUpscaler = 0;
         int dlssPreset = 0;
         ~Enlarger()
         {
+            baselineDlss.reset();
             detailDlss.reset();
             dlss.reset();
         } // Release NGX before its borrowed input/output resources.
@@ -100,6 +108,10 @@ struct DlssNr_Dx12::State
     float temporalCarrierSafeK = 1.0f;
     float temporalCarrierPositiveLimit = 1.0f;
     float temporalCarrierNegativeLimit = 1.0f;
+    float temporalCarrierWhiteLimitedPixels = 0.0f;
+    float temporalCarrierBlackLimitedPixels = 0.0f;
+    float temporalCarrierProxyBelowZeroPixels = 0.0f;
+    float temporalCarrierProxyAboveOnePixels = 0.0f;
     void ReleaseEnlarger();
     void CollectEnlargers();
     ID3D12Resource* EnlargeMatchedResidual(ID3D12GraphicsCommandList* cmd, ID3D12Device* device, ID3D12Resource* proxy,

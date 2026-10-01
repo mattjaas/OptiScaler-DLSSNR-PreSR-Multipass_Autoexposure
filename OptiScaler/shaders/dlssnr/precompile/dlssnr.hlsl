@@ -1757,8 +1757,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (gMode == 20)
     {
         // First-stage temporal-carrier analysis. One output texel scans one source tile (normally ~32x32).
-        // x = strict safe K, y = robust safe K after dropping the single most restrictive source pixel
-        // in this tile, z/w = strict positive/negative directional limits.
+        // gTarget = strict K, robust K, minimum white-side headroom, minimum black-side headroom.
+        // gKeep   = white-zero pixels, black-zero pixels, raw Proxy<0 pixels, raw Proxy>1 pixels.
         const uint srcW = max(gGuideWidth, 1u);
         const uint srcH = max(gGuideHeight, 1u);
         const uint x0 = (id.x * srcW) / gWidth;
@@ -1766,12 +1766,17 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const uint y0 = (id.y * srcH) / gHeight;
         const uint y1 = max(((id.y + 1u) * srcH) / gHeight, y0 + 1u);
         const float margin = clamp(abs(gResidualScale), 0.0, 0.49);
+        const float anchorStrength = saturate(gTransferStrength);
         const float huge = 1.0e20;
 
         float strictMin = huge;
         float secondMin = huge;
-        float positiveMin = huge;
-        float negativeMin = huge;
+        float positiveHeadroomMin = huge;
+        float negativeHeadroomMin = huge;
+        float whiteLimitedPixels = 0.0;
+        float blackLimitedPixels = 0.0;
+        float proxyBelowZeroPixels = 0.0;
+        float proxyAboveOnePixels = 0.0;
         uint samples = 0u;
 
         [loop] for (uint y = y0; y < min(y1, srcH); ++y)
@@ -1780,28 +1785,16 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             {
                 if (gPassthrough != 0u)
                 {
-                    // Two distinct NVIDIA diagnostic watermark domains, measured from the matched captures.
-                    // Game/DLSS-SR text is fixed-size at the native SR output (~885x~100 px including its bottom offset
-                    // in this capture), then our WorkingScale reduction scales it. NR text is injected by NR itself and
-                    // stays approximately fixed-size in working-resolution pixels. Use deliberately larger base boxes
-                    // plus configurable X/Y placement margins so perspective/crop or another game's small offset does
-                    // not let either overlay dominate K-safe. Only analysis skips these pixels.
                     const float nativeW = max((float) gExposureSourceWidth, 1.0);
                     const float nativeH = max((float) gExposureSourceHeight, 1.0);
                     const float workFromNativeX = (float) srcW / nativeW;
                     const float workFromNativeY = (float) srcH / nativeH;
                     const float marginX = max(gMvScaleX, 0.0);
                     const float marginY = max(gMvScaleY, 0.0);
-
-                    // Conservative native-output footprint: capture content reached ~885 px wide; 960 leaves
-                    // intrinsic slack before the user margin. Height includes glyphs plus bottom placement.
                     const uint srMaskW =
                         min(srcW, max(1u, (uint) ceil((960.0 + marginX) * workFromNativeX)));
                     const uint srMaskH =
                         min(srcH, max(1u, (uint) ceil((112.0 + marginY) * workFromNativeY)));
-
-                    // NR watermark is fixed in the working-resolution domain. Capture NR text reached ~750 px;
-                    // 832x64 leaves intrinsic slack before the same configurable placement margin.
                     const uint nrMaskW = min(srcW, max(1u, (uint) ceil(832.0 + marginX)));
                     const uint nrMaskH = min(srcH, max(1u, (uint) ceil(64.0 + marginY)));
                     const bool inSrWatermark =
@@ -1816,75 +1809,85 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                 const float3 proxyRaw = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.0);
                 const float3 modelRaw = SanitizeFinite3(gModel.Load(int3(p, 0)).rgb, proxyRaw);
                 const float3 e = modelRaw - proxyRaw;
+                if (proxyRaw.x < 0.0 || proxyRaw.y < 0.0 || proxyRaw.z < 0.0)
+                    proxyBelowZeroPixels += 1.0;
+                if (proxyRaw.x > 1.0 || proxyRaw.y > 1.0 || proxyRaw.z > 1.0)
+                    proxyAboveOnePixels += 1.0;
+
                 float pixelLimit = huge;
-                float pixelPositive = huge;
-                float pixelNegative = huge;
+                bool whiteLimited = false;
+                bool blackLimited = false;
 
                 [unroll] for (int ch = 0; ch < 3; ++ch)
                 {
                     const float edit = e[ch];
                     float bound = huge;
+                    float positiveHeadroom = huge;
+                    float negativeHeadroom = huge;
+
                     if (gTransfer == 0u)
                     {
-                        // Nonlinear carrier c=.5+.5*x/(1+abs(x)). Auto K keeps it away from the
-                        // inverse poles by the requested carrier margin.
+                        // Nonlinear carrier c=.5+.5*x/(1+abs(x)). K-safe is range-safe only; very high
+                        // K can still amplify DLAA errors during the inverse mapping.
                         const float d = clamp(1.0 - 2.0 * margin, 1.0e-4, 0.999999);
                         const float fieldLimit = d / max(1.0 - d, 1.0e-6);
+                        const float room = max(0.5 - margin, 0.0);
                         if (edit > 1.0e-12)
                         {
                             bound = fieldLimit / edit;
-                            pixelPositive = min(pixelPositive, bound);
+                            positiveHeadroom = room;
                         }
                         else if (edit < -1.0e-12)
                         {
                             bound = fieldLimit / -edit;
-                            pixelNegative = min(pixelNegative, bound);
+                            negativeHeadroom = room;
                         }
                     }
                     else if (gTransfer == 1u)
                     {
-                        // Linear residual carrier .5 + K*E.
                         const float room = max(0.5 - margin, 0.0);
                         if (edit > 1.0e-12)
                         {
                             bound = room / edit;
-                            pixelPositive = min(pixelPositive, bound);
+                            positiveHeadroom = room;
                         }
                         else if (edit < -1.0e-12)
                         {
                             bound = room / -edit;
-                            pixelNegative = min(pixelNegative, bound);
+                            negativeHeadroom = room;
                         }
                     }
                     else
                     {
-                        // Image-anchored carrier Proxy + K*E. A raw proxy value outside [0,1] cannot
-                        // be represented losslessly by an LDR DLSS carrier, even at K=0.
-                        if (proxyRaw[ch] < 0.0 || proxyRaw[ch] > 1.0)
+                        // Compressed image anchor: preserve scene structure while reserving symmetric
+                        // headroom. Raw Proxy is saturated only for the carrier anchor, never for E itself.
+                        const float anchor = 0.5 + anchorStrength * (saturate(proxyRaw[ch]) - 0.5);
+                        const float roomWhite = max((1.0 - margin) - anchor, 0.0);
+                        const float roomBlack = max(anchor - margin, 0.0);
+                        if (edit > 1.0e-12)
                         {
-                            bound = 0.0;
-                            pixelPositive = min(pixelPositive, 0.0);
-                            pixelNegative = min(pixelNegative, 0.0);
-                        }
-                        else if (edit > 1.0e-12)
-                        {
-                            bound = max((1.0 - margin) - proxyRaw[ch], 0.0) / edit;
-                            pixelPositive = min(pixelPositive, bound);
+                            bound = roomWhite / edit;
+                            positiveHeadroom = roomWhite;
+                            whiteLimited = whiteLimited || roomWhite <= 1.0e-6;
                         }
                         else if (edit < -1.0e-12)
                         {
-                            bound = max(proxyRaw[ch] - margin, 0.0) / -edit;
-                            pixelNegative = min(pixelNegative, bound);
+                            bound = roomBlack / -edit;
+                            negativeHeadroom = roomBlack;
+                            blackLimited = blackLimited || roomBlack <= 1.0e-6;
                         }
                     }
+
                     pixelLimit = min(pixelLimit, bound);
+                    positiveHeadroomMin = min(positiveHeadroomMin, positiveHeadroom);
+                    negativeHeadroomMin = min(negativeHeadroomMin, negativeHeadroom);
                 }
 
                 pixelLimit = max(SanitizeFinite(pixelLimit, 0.0), 0.0);
-                pixelPositive = max(SanitizeFinite(pixelPositive, huge), 0.0);
-                pixelNegative = max(SanitizeFinite(pixelNegative, huge), 0.0);
-                positiveMin = min(positiveMin, pixelPositive);
-                negativeMin = min(negativeMin, pixelNegative);
+                if (whiteLimited)
+                    whiteLimitedPixels += 1.0;
+                if (blackLimited)
+                    blackLimitedPixels += 1.0;
 
                 if (pixelLimit < strictMin)
                 {
@@ -1901,13 +1904,15 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
 
         if (samples < 2u || secondMin >= huge * 0.5)
             secondMin = strictMin;
-        gTarget[id.xy] = float4(strictMin, secondMin, positiveMin, negativeMin);
+        gTarget[id.xy] = float4(strictMin, secondMin, positiveHeadroomMin, negativeHeadroomMin);
+        gKeep[id.xy] = float4(whiteLimitedPixels, blackLimitedPixels,
+                              proxyBelowZeroPixels, proxyAboveOnePixels);
         return;
     }
 
     if (gMode == 21)
     {
-        // Min-reduce the tile statistics. Repeating this pass reaches one texel without a CPU/GPU sync.
+        // Min-reduce K/headroom statistics.
         const uint srcW = max(gGuideWidth, 1u);
         const uint srcH = max(gGuideHeight, 1u);
         const uint x0 = (id.x * srcW) / gWidth;
@@ -1922,10 +1927,25 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         return;
     }
 
+    if (gMode == 24)
+    {
+        // Sum-reduce diagnostic pixel counts emitted by mode 20.
+        const uint srcW = max(gGuideWidth, 1u);
+        const uint srcH = max(gGuideHeight, 1u);
+        const uint x0 = (id.x * srcW) / gWidth;
+        const uint x1 = max(((id.x + 1u) * srcW) / gWidth, x0 + 1u);
+        const uint y0 = (id.y * srcH) / gHeight;
+        const uint y1 = max(((id.y + 1u) * srcH) / gHeight, y0 + 1u);
+        float4 counts = 0.0;
+        [loop] for (uint y = y0; y < min(y1, srcH); ++y)
+            [loop] for (uint x = x0; x < min(x1, srcW); ++x)
+                counts += gSource.Load(int3(x, y, 0));
+        gTarget[id.xy] = counts;
+        return;
+    }
+
     if (gMode == 22)
     {
-        // Build the actual current-frame DLAA carrier using the gain already reduced on the GPU.
-        // gTransfer: 0 nonlinear residual, 1 linear residual, 2 image-anchored residual.
         const float4 stats = gAux2.Load(int3(0, 0, 0));
         const uint gainMode = min(gDebugView, 2u);
         const float strictSafe = max(SanitizeFinite(stats.x, 0.0), 0.0);
@@ -1936,9 +1956,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const float autoTarget = max(min(selectedSafe, ceiling), 1.0e-6);
         const float previousK = max(abs(gTransferStrength), 1.0e-6);
         const float riseMultiplier = max(gColourStrength, 1.0);
-        // Safety has zero latency: falling K follows this frame's safe limit immediately.
-        // Rising K is rate-limited so one DLAA history does not see large carrier-amplitude jumps.
         const float K = gainMode == 0u ? manualK : min(autoTarget, previousK * riseMultiplier);
+        const float anchorStrength = saturate(gMaxRatio);
 
         const int2 p = int2(id.xy);
         const float3 proxyRaw = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.0);
@@ -1950,7 +1969,10 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         else if (gTransfer == 1u)
             carrier = saturate(0.5 + K * e);
         else
-            carrier = saturate(proxyRaw + K * e);
+        {
+            const float3 anchor = 0.5 + anchorStrength * (saturate(proxyRaw) - 0.5);
+            carrier = saturate(anchor + K * e);
+        }
 
         gTarget[id.xy] = float4(carrier, 1.0);
         if (id.x == 0u && id.y == 0u)
@@ -1958,20 +1980,40 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         return;
     }
 
+    if (gMode == 25)
+    {
+        const float anchorStrength = saturate(gTransferStrength);
+        const float3 proxyRaw = SanitizeFinite3(gSource.Load(int3(id.xy, 0)).rgb, 0.0);
+        const float3 anchor = 0.5 + anchorStrength * (saturate(proxyRaw) - 0.5);
+        gTarget[id.xy] = float4(anchor, 1.0);
+        return;
+    }
+
+    if (gMode == 26)
+    {
+        gTarget[id.xy] = gSource.Load(int3(id.xy, 0));
+        return;
+    }
+
     if (gMode == 23)
     {
-        // Undo the carrier after DLAA so P100-guided always receives one ordinary signed E50 texture.
         const float K = max(abs(gAux2.Load(int3(0, 0, 0)).x), 1.0e-6);
         const int2 p = int2(id.xy);
         const float3 filtered = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.5);
-        const float3 proxyRaw = SanitizeFinite3(gModel.Load(int3(p, 0)).rgb, 0.0);
+        const float3 baseRaw = SanitizeFinite3(gModel.Load(int3(p, 0)).rgb, 0.0);
         float3 e;
         if (gTransfer == 0u)
             e = NrDecodeResizeField(filtered) / K;
         else if (gTransfer == 1u)
             e = (saturate(filtered) - 0.5) / K;
+        else if (gDebugView != 0u)
+            e = (filtered - baseRaw) / K; // paired DLAA baseline: cancel the two raw DLAA outputs directly
         else
-            e = (saturate(filtered) - proxyRaw) / K;
+        {
+            const float anchorStrength = saturate(gTransferStrength);
+            const float3 anchor = 0.5 + anchorStrength * (saturate(baseRaw) - 0.5);
+            e = (saturate(filtered) - anchor) / K;
+        }
         gTarget[id.xy] = float4(SanitizeFinite3(e, 0.0), 1.0);
         return;
     }
@@ -2271,6 +2313,21 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (gApplyModel == 0)
     {
         gTarget[id.xy] = float4(max(originalSample.rgb, 0.0), originalSample.a);
+        return;
+    }
+
+    if (gDebugView == 5 && gTransfer == 9u && (gDirectResolveFlags & 4u) != 0u)
+    {
+        const float3 carrier = saturate(gPrevEdit.SampleLevel(gLinear, cmpUv, 0).rgb);
+        gTarget[id.xy] = float4(SrgbToLinear(carrier) * gDebugScale, originalSample.a);
+        return;
+    }
+
+    if (gDebugView == 6 && gTransfer == 9u)
+    {
+        const float3 signedResidual = SanitizeFinite3(modelSample.rgb, 0.0);
+        const float3 shown = saturate(0.5 + signedResidual * 20.0);
+        gTarget[id.xy] = float4(SrgbToLinear(shown) * gDebugScale, originalSample.a);
         return;
     }
 

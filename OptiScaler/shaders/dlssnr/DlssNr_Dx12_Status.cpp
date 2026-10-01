@@ -113,6 +113,10 @@ auto DlssNr_Dx12::State::Publish() -> void
     snapshot.temporalCarrierSafeK = temporalCarrierSafeK;
     snapshot.temporalCarrierPositiveLimit = temporalCarrierPositiveLimit;
     snapshot.temporalCarrierNegativeLimit = temporalCarrierNegativeLimit;
+    snapshot.temporalCarrierWhiteLimitedPixels = temporalCarrierWhiteLimitedPixels;
+    snapshot.temporalCarrierBlackLimitedPixels = temporalCarrierBlackLimitedPixels;
+    snapshot.temporalCarrierProxyBelowZeroPixels = temporalCarrierProxyBelowZeroPixels;
+    snapshot.temporalCarrierProxyAboveOnePixels = temporalCarrierProxyAboveOnePixels;
     DlssNr::PublishStatus(&shader, DlssNr::Backend::Dx12, snapshot);
 }
 

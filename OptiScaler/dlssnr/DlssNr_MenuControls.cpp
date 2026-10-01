@@ -216,8 +216,9 @@ void RenderInput(Config* config)
                    "so residual should cross real object boundaries less readily and cannot ring from negative kernel lobes. "
                    "Temporal DLAA NR50 runs private DLSS at the working resolution 1:1 before the same P100-guided resolve. "
                    "Temporal DLAA residual encodes NR50-P50 around neutral 0.5 before 1:1 DLAA. Image-anchored residual "
-                   "instead feeds Proxy50 + K*(NR50-P50), so DLSS sees ordinary scene structure while the edit is amplified, "
-                   "then recovers the signed edit before P100 guidance. All temporal modes keep jitter at zero because this "
+                   "feeds a compressed clean anchor 0.5+B*(Proxy50-0.5) plus K*(NR50-P50), reserving carrier headroom while "
+                   "DLSS still sees scene structure; optional Paired DLAA subtracts a second independently temporalized clean "
+                   "anchor before P100 guidance. All temporal modes keep jitter at zero because this "
                    "post-upscale colour has already been reconstructed by the game's upscaler; resized depth/MV still feed "
                    "the private DLSS history. DLSS-based modes require post-upscale DX12 processing.");
 
@@ -287,6 +288,35 @@ void RenderInput(Config* config)
             }
             if (transfer == 9 || transfer == 10)
             {
+                if (transfer == 10)
+                {
+                    static const char* anchorNames[] = { "0.25", "0.50", "0.75", "1.00", "Custom" };
+                    const float currentB = config->DlssNrTemporalAnchoredBaseStrength.value_or_default();
+                    int anchorPreset =
+                        std::abs(currentB - 0.25f) < 0.0001f ? 0
+                        : std::abs(currentB - 0.50f) < 0.0001f ? 1
+                        : std::abs(currentB - 0.75f) < 0.0001f ? 2
+                        : std::abs(currentB - 1.00f) < 0.0001f ? 3 : 4;
+                    if (ImGui::Combo("Anchor strength B", &anchorPreset, anchorNames, IM_ARRAYSIZE(anchorNames)))
+                    {
+                        static constexpr float anchorValues[] = { 0.25f, 0.50f, 0.75f, 1.00f };
+                        if (anchorPreset < 4)
+                            config->DlssNrTemporalAnchoredBaseStrength = anchorValues[anchorPreset];
+                    }
+                    if (anchorPreset == 4)
+                        Slider("Custom anchor B", config->DlssNrTemporalAnchoredBaseStrength,
+                               0.0f, 1.0f, "%.3f", 0.50f);
+                    HelpMarker("Anchor = 0.5 + B*(saturate(Proxy50)-0.5). Lower B reserves more symmetric carrier "
+                               "headroom while preserving a lower-contrast copy of scene structure for DLAA.");
+
+                    bool paired = config->DlssNrTemporalAnchoredPairedBaseline.value_or_default();
+                    if (ImGui::Checkbox("Paired DLAA baseline (2x DLAA)", &paired))
+                        config->DlssNrTemporalAnchoredPairedBaseline = paired;
+                    HelpMarker("Reference experiment: a second independent 1:1 DLAA history processes the compressed "
+                               "clean anchor. Decode becomes (DLAA(anchor+K*E)-DLAA(anchor))/K, cancelling DLAA changes "
+                               "to the base image. This intentionally costs a second DLAA pass and extra history VRAM.");
+                }
+
                 if (transfer == 9)
                 {
                     static const char* encodingNames[] = { "Nonlinear E/(1+abs(E))", "Linear 0.5 + K*E" };
@@ -337,9 +367,15 @@ void RenderInput(Config* config)
                 {
                     ImGui::Text("Applied K: %.4f   Safe K: %.4f",
                                 carrierStatus.temporalCarrierAppliedK, carrierStatus.temporalCarrierSafeK);
-                    ImGui::TextDisabled("Positive limit %.4f   Negative limit %.4f",
+                    ImGui::TextDisabled("Min white headroom %.5f   Min black headroom %.5f",
                                         carrierStatus.temporalCarrierPositiveLimit,
                                         carrierStatus.temporalCarrierNegativeLimit);
+                    ImGui::TextDisabled("Headroom-zero pixels: white %.0f, black %.0f",
+                                        carrierStatus.temporalCarrierWhiteLimitedPixels,
+                                        carrierStatus.temporalCarrierBlackLimitedPixels);
+                    ImGui::TextDisabled("Raw Proxy outside carrier range: below 0 %.0f, above 1 %.0f pixels",
+                                        carrierStatus.temporalCarrierProxyBelowZeroPixels,
+                                        carrierStatus.temporalCarrierProxyAboveOnePixels);
                     if (gainMode == 0 && manualGainSetting.value_or_default() > carrierStatus.temporalCarrierSafeK)
                         ImGui::TextDisabled("Manual K exceeds the current strict safe K; linear/image carrier may clip.");
                 }
@@ -1086,12 +1122,16 @@ void RenderInspect(Config* config)
     }
 
     static const char* debugNames[] = { "Off", "Proxy (what the model sees)", "Model output (raw)",
-                                        "Difference (amplified)", "Compressed model input" };
+                                        "Difference (amplified)", "Compressed model input",
+                                        "Temporal carrier before DLAA",
+                                        "Decoded temporal residual (20x, zero=grey)" };
     int debugView = (int) config->DlssNrDebugView.value_or_default();
     if (ImGui::Combo("Debug view", &debugView, debugNames, IM_ARRAYSIZE(debugNames)))
         config->DlssNrDebugView = (uint32_t) debugView;
 
     HelpMarker("Difference is amplified 20x. Grey means unchanged. Proxy and raw model output use unpacked geometry. "
-               "Compressed model input shows the input before unpacking, scaled to fill the screen.");
+               "Compressed model input shows the input before unpacking, scaled to fill the screen. Temporal carrier "
+               "before DLAA is available in Temporal residual/image-anchored modes. Decoded temporal residual maps signed "
+               "zero to 50% grey and amplifies it 20x, avoiding the misleading mostly-black raw signed view.");
 }
 } // namespace DlssNr::MenuSections

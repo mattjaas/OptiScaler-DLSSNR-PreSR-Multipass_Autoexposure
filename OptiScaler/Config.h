@@ -351,6 +351,12 @@ class Config
     CustomOptional<float> DlssNrTemporalResidualManualGain { 4.0f };
     CustomOptional<uint32_t> DlssNrTemporalAnchoredGainMode { 1 };
     CustomOptional<float> DlssNrTemporalAnchoredManualGain { 4.0f };
+    // Compress Proxy around neutral 0.5 before adding K*E. 0.5 maps the clean image to 0.25..0.75,
+    // preserving scene structure for DLAA while reserving symmetric residual headroom.
+    CustomOptional<float> DlssNrTemporalAnchoredBaseStrength { 0.50f };
+    // Reference experiment: run a second independent 1:1 DLAA history on the compressed clean anchor
+    // and decode (DLAA(anchor+K*E)-DLAA(anchor))/K.
+    CustomOptional<bool> DlssNrTemporalAnchoredPairedBaseline { false };
     // Carrier headroom from 0/1 for automatic gain. Auto ceiling prevents effectively-infinite K
     // on nearly-zero residuals; typed finite values remain user-adjustable.
     CustomOptional<float> DlssNrTemporalCarrierMargin { 0.01f };
@@ -379,8 +385,9 @@ class Config
     // P50 -> P100 reference execution: 0 Auto, 1 Serial, 2 Async compute.
     CustomOptional<uint32_t> DlssNrUpscaledResidualReferenceExecutionMode { 0 };
 
-    // P100-guided residual family (Transfer=7..9). Transfer 7 directly upsamples NR50-P50.
-    // Transfer 8 first applies 1:1 DLAA to NR50; Transfer 9 applies 1:1 DLAA to a signed residual carrier.
+    // P100-guided residual family (Transfer=7..10). Transfer 7 directly upsamples NR50-P50.
+    // Transfer 8 applies 1:1 DLAA to NR50; 9 applies DLAA to a signed residual carrier; 10 uses
+    // a compressed image anchor with optional paired clean-anchor DLAA.
     // The final resolve then uses positive joint-bilateral weights guided by untouched native P100.
     CustomOptional<uint32_t> DlssNrGuidedResidualRadius { 1 };       // P50 texels; 1 => 3x3, 2 => 5x5
     CustomOptional<float> DlssNrGuidedResidualRangeSigma { 0.015f }; // capture-derived encoded proxy-domain RGB distance

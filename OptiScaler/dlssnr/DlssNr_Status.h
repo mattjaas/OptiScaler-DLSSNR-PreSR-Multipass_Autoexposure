@@ -28,6 +28,10 @@ struct StatusSnapshot
     float temporalCarrierSafeK = 1.0f;
     float temporalCarrierPositiveLimit = 1.0f;
     float temporalCarrierNegativeLimit = 1.0f;
+    float temporalCarrierWhiteLimitedPixels = 0.0f;
+    float temporalCarrierBlackLimitedPixels = 0.0f;
+    float temporalCarrierProxyBelowZeroPixels = 0.0f;
+    float temporalCarrierProxyAboveOnePixels = 0.0f;
 };
 
 struct ControlRequests

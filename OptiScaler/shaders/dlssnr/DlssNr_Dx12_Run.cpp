@@ -1535,6 +1535,15 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         // Internal Transfer 9 means Model is an already-decoded signed residual.
                         // Both residual-carrier variants use that common representation.
                         resolveParams.Transfer = transfer >= 9u ? 9u : 8u;
+
+                        // Debug view 5 needs the exact pre-DLAA carrier. EnlargeMatchedResidual snapshots
+                        // it only while that view is active, so normal gameplay pays no full-P50 debug copy.
+                        if (resolveParams.DebugView == 5u && transfer >= 9u && enlarger &&
+                            enlarger->carrierDebug && enlarger->carrierDebugReadable)
+                        {
+                            directDetailInfo = enlarger->carrierDebug.Get(); // t4 / gPrevEdit
+                            resolveParams.DirectResolveFlags |= 4u;          // valid temporal-carrier debug binding
+                        }
                     }
                 }
 

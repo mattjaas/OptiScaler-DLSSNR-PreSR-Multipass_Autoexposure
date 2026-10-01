@@ -51,7 +51,13 @@ enum DlssNrMode : uint32_t
     // Encode nonlinear/linear residual or image-anchored carrier using the same-frame GPU K.
     DlssNrMode_TemporalCarrierEncode = 22,
     // Decode the private DLAA output back to a signed raw-domain E50 residual.
-    DlssNrMode_TemporalCarrierDecode = 23
+    DlssNrMode_TemporalCarrierDecode = 23,
+    // Sum-reduce diagnostic counts emitted beside K-limit tiles.
+    DlssNrMode_TemporalCarrierDiagnosticsReduce = 24,
+    // Build only the compressed image anchor for the paired independent DLAA baseline.
+    DlssNrMode_TemporalAnchorEncode = 25,
+    // Exact raw texture copy used only to snapshot the pre-DLAA carrier for debug display.
+    DlssNrMode_TemporalCarrierDebugCopy = 26
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
