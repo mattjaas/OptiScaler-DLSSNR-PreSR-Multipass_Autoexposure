@@ -1780,16 +1780,30 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             {
                 if (gPassthrough != 0u)
                 {
-                    // Two NVIDIA diagnostic watermark footprints observed in captures:
-                    // 1) the game's DLSS SR watermark is already part of Proxy and therefore scales
-                    //    with working resolution (~23% width x ~4.7% height in the capture);
-                    // 2) DLSS NR overlays its own approximately fixed-pixel text block afterwards.
-                    // Use conservative margins around both. Only K analysis skips these pixels;
-                    // the carrier/DLAA/final image still processes them normally.
-                    const uint srMaskW = min(srcW, max(1u, (srcW + 3u) / 4u));       // 25% width
-                    const uint srMaskH = min(srcH, max(1u, (srcH * 55u + 999u) / 1000u)); // 5.5% height
-                    const uint nrMaskW = min(srcW, 832u);
-                    const uint nrMaskH = min(srcH, 56u);
+                    // Two distinct NVIDIA diagnostic watermark domains, measured from the matched captures.
+                    // Game/DLSS-SR text is fixed-size at the native SR output (~885x~100 px including its bottom offset
+                    // in this capture), then our WorkingScale reduction scales it. NR text is injected by NR itself and
+                    // stays approximately fixed-size in working-resolution pixels. Use deliberately larger base boxes
+                    // plus configurable X/Y placement margins so perspective/crop or another game's small offset does
+                    // not let either overlay dominate K-safe. Only analysis skips these pixels.
+                    const float nativeW = max((float) gExposureSourceWidth, 1.0);
+                    const float nativeH = max((float) gExposureSourceHeight, 1.0);
+                    const float workFromNativeX = (float) srcW / nativeW;
+                    const float workFromNativeY = (float) srcH / nativeH;
+                    const float marginX = max(gMvScaleX, 0.0);
+                    const float marginY = max(gMvScaleY, 0.0);
+
+                    // Conservative native-output footprint: capture content reached ~885 px wide; 960 leaves
+                    // intrinsic slack before the user margin. Height includes glyphs plus bottom placement.
+                    const uint srMaskW =
+                        min(srcW, max(1u, (uint) ceil((960.0 + marginX) * workFromNativeX)));
+                    const uint srMaskH =
+                        min(srcH, max(1u, (uint) ceil((112.0 + marginY) * workFromNativeY)));
+
+                    // NR watermark is fixed in the working-resolution domain. Capture NR text reached ~750 px;
+                    // 832x64 leaves intrinsic slack before the same configurable placement margin.
+                    const uint nrMaskW = min(srcW, max(1u, (uint) ceil(832.0 + marginX)));
+                    const uint nrMaskH = min(srcH, max(1u, (uint) ceil(64.0 + marginY)));
                     const bool inSrWatermark =
                         x < srMaskW && y >= (srcH > srMaskH ? srcH - srMaskH : 0u);
                     const bool inNrWatermark =

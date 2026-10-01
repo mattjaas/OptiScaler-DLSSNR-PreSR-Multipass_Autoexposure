@@ -402,6 +402,12 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             limits.Transfer = carrierType;
             limits.ResidualScale = margin;
             limits.Passthrough = cfg.DlssNrTemporalCarrierIgnoreNvidiaWatermarks.value_or_default() ? 1u : 0u;
+            limits.ExposureSourceWidth = resolve.Width;
+            limits.ExposureSourceHeight = resolve.Height;
+            const float configuredWatermarkMarginX = cfg.DlssNrTemporalCarrierWatermarkMarginX.value_or_default();
+            const float configuredWatermarkMarginY = cfg.DlssNrTemporalCarrierWatermarkMarginY.value_or_default();
+            limits.MvScaleX = std::max(std::isfinite(configuredWatermarkMarginX) ? configuredWatermarkMarginX : 128.0f, 0.0f);
+            limits.MvScaleY = std::max(std::isfinite(configuredWatermarkMarginY) ? configuredWatermarkMarginY : 64.0f, 0.0f);
             ok = shader.DispatchPass(cmd, limits, proxy, answer, nullptr, nullptr, nullptr,
                                      g.carrierReduceA.Get(), nullptr);
 

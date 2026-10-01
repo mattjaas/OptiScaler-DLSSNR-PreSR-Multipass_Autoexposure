@@ -363,6 +363,10 @@ bool Config::Reload(std::filesystem::path iniPath)
                 readFloat("DlssNr", "TemporalCarrierAutoRiseStopsPerSecond"));
             DlssNrTemporalCarrierIgnoreNvidiaWatermarks.set_from_config(
                 readBool("DlssNr", "TemporalCarrierIgnoreNvidiaWatermarks"));
+            DlssNrTemporalCarrierWatermarkMarginX.set_from_config(
+                readFloat("DlssNr", "TemporalCarrierWatermarkMarginX"));
+            DlssNrTemporalCarrierWatermarkMarginY.set_from_config(
+                readFloat("DlssNr", "TemporalCarrierWatermarkMarginY"));
             DlssNrDirectOutputUpscaler.set_from_config(readUInt("DlssNr", "DirectOutputUpscaler"));
             DlssNrUpscaledResidualDownscaleFilter.set_from_config(
                 readUInt("DlssNr", "UpscaledResidualDownscaleFilter"));
@@ -1433,6 +1437,10 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetFloatValue(Instance()->DlssNrTemporalCarrierAutoRiseStopsPerSecond.value_for_config()).c_str());
         ini.SetValue("DlssNr", "TemporalCarrierIgnoreNvidiaWatermarks",
                      Instance()->DlssNrTemporalCarrierIgnoreNvidiaWatermarks.value_for_config().value_or(true) ? "true" : "false");
+        ini.SetValue("DlssNr", "TemporalCarrierWatermarkMarginX",
+                     GetFloatValue(Instance()->DlssNrTemporalCarrierWatermarkMarginX.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalCarrierWatermarkMarginY",
+                     GetFloatValue(Instance()->DlssNrTemporalCarrierWatermarkMarginY.value_for_config()).c_str());
         ini.SetValue("DlssNr", "DirectOutputUpscaler",
                      GetIntValue(Instance()->DlssNrDirectOutputUpscaler.value_for_config()).c_str());
         ini.SetValue("DlssNr", "UpscaledResidualDownscaleFilter",

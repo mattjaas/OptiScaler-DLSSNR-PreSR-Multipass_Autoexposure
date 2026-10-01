@@ -362,6 +362,10 @@ class Config
     // the game/SR watermark scales with the working image; the NR watermark is approximately
     // fixed-size in pixels. The actual carrier still includes those pixels unchanged.
     CustomOptional<bool> DlssNrTemporalCarrierIgnoreNvidiaWatermarks { true };
+    // Extra conservative extent from the bottom-left watermark anchor. X absorbs rightward shifts /
+    // longer text; Y absorbs upward shifts / perspective-correction differences between games.
+    CustomOptional<float> DlssNrTemporalCarrierWatermarkMarginX { 128.0f };
+    CustomOptional<float> DlssNrTemporalCarrierWatermarkMarginY { 64.0f };
 
     // Direct native-output upscalers. 0 bilinear, 1 bicubic, 2 Catmull-Rom, 3 Lanczos2,
     // 4 Lanczos3, 5 Kaiser2, 6 Kaiser3, 7 Area, 8 MAGIC, 9 FSR1, 10 DLSS.

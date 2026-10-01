@@ -319,9 +319,18 @@ void RenderInput(Config* config)
                 bool ignoreWatermarks = config->DlssNrTemporalCarrierIgnoreNvidiaWatermarks.value_or_default();
                 if (ImGui::Checkbox("Ignore NVIDIA watermarks in K analysis", &ignoreWatermarks))
                     config->DlssNrTemporalCarrierIgnoreNvidiaWatermarks = ignoreWatermarks;
-                HelpMarker("Excludes only the known bottom-left NVIDIA diagnostic watermark footprints from the K-safe "
-                           "reduction. The carrier and final image are not masked or altered. The SR/game watermark footprint "
-                           "scales with working resolution; the NR watermark uses a separate fixed-pixel footprint.");
+                if (ignoreWatermarks)
+                {
+                    Slider("Watermark margin X (px)", config->DlssNrTemporalCarrierWatermarkMarginX,
+                           0.0f, 512.0f, "%.0f", 128.0f);
+                    Slider("Watermark margin Y (px)", config->DlssNrTemporalCarrierWatermarkMarginY,
+                           0.0f, 256.0f, "%.0f", 64.0f);
+                }
+                HelpMarker("Excludes only a conservative bottom-left NVIDIA diagnostic watermark region from K-safe "
+                           "reduction; carrier/DLAA/final pixels remain untouched. The game/SR watermark is modeled as a "
+                           "fixed native-output pixel footprint and then scaled by WorkingScale. The NR watermark is modeled "
+                           "as a fixed pixel footprint at the NR working resolution. X/Y margins absorb longer text, small "
+                           "position changes and perspective/crop differences between games.");
 
                 const auto carrierStatus = ReadStatus(Backend::Dx12);
                 if (carrierStatus.temporalCarrierTelemetryValid)
