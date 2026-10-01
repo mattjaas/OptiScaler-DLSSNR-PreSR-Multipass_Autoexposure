@@ -1499,11 +1499,12 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 resolveParams.Transfer = DlssNrSpatialTransfer(transfer); // Inspect the actual model pair.
             }
         }
-        else if (!DlssNrUsesDlssEnlargement(transfer) && transfer != 8u && transfer != 9u)
+        else if (!reduced || workScale >= 1.0f ||
+                 (!DlssNrUsesDlssEnlargement(transfer) && transfer != 8u && transfer != 9u))
         {
-            // Keep a private enlarger/history resident while the same mode is temporarily at native scale.
-            // This prevents repeated 50% <-> 100% A/B switches from retiring and reallocating several large
-            // NGX histories. The retained feature is inert at native scale and reused if dimensions match.
+            // Below native, temporal modes 8/9 keep their private history alive frame-to-frame.
+            // At native scale no private enlargement/DLAA work is needed, so release those NGX
+            // resources instead of reserving VRAM for an idle feature.
             ReleaseEnlarger();
             enlargementStatus.clear();
         }

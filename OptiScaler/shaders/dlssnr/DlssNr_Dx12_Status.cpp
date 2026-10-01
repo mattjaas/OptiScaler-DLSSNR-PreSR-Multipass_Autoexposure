@@ -51,8 +51,11 @@ auto DlssNr_Dx12::State::ConsumeControls() -> void
     // use the ordinary P50->P100 enlargement path. Do not destroy that 1:1 DLAA history every frame.
     const bool ownsPrivateTemporalHistory =
         DlssNrUsesDlssEnlargement(transfer) || transfer == 8u || transfer == 9u;
-    if (!cfg.DlssNrEnabled.value_or_default() || !ownsPrivateTemporalHistory)
+    if (!cfg.DlssNrEnabled.value_or_default() || !ownsPrivateTemporalHistory ||
+        cfg.DlssNrWorkingScale.value_or_default() >= 1.0f)
     {
+        // Native-scale NR does not use the private DLSS/DLAA feature. Release it instead of
+        // keeping its NGX history resident in VRAM while it is idle.
         ReleaseEnlarger();
         enlargementStatus.clear();
     }
