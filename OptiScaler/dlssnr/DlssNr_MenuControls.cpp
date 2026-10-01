@@ -292,16 +292,31 @@ void RenderInput(Config* config)
                 {
                     static const char* anchorNames[] = { "0.25", "0.50", "0.75", "1.00", "Custom" };
                     const float currentB = config->DlssNrTemporalAnchoredBaseStrength.value_or_default();
-                    int anchorPreset =
+                    const int inferredAnchorPreset =
                         std::abs(currentB - 0.25f) < 0.0001f ? 0
                         : std::abs(currentB - 0.50f) < 0.0001f ? 1
                         : std::abs(currentB - 0.75f) < 0.0001f ? 2
                         : std::abs(currentB - 1.00f) < 0.0001f ? 3 : 4;
+                    bool anchorCustom = config->DlssNrTemporalAnchoredBaseStrengthCustom.value_or_default();
+                    if (inferredAnchorPreset == 4 && !anchorCustom)
+                    {
+                        // Preserve old configs containing an arbitrary B and migrate them to explicit Custom mode.
+                        anchorCustom = true;
+                        config->DlssNrTemporalAnchoredBaseStrengthCustom = true;
+                    }
+                    int anchorPreset = anchorCustom ? 4 : inferredAnchorPreset;
                     if (ImGui::Combo("Anchor strength B", &anchorPreset, anchorNames, IM_ARRAYSIZE(anchorNames)))
                     {
                         static constexpr float anchorValues[] = { 0.25f, 0.50f, 0.75f, 1.00f };
                         if (anchorPreset < 4)
+                        {
                             config->DlssNrTemporalAnchoredBaseStrength = anchorValues[anchorPreset];
+                            config->DlssNrTemporalAnchoredBaseStrengthCustom = false;
+                        }
+                        else
+                        {
+                            config->DlssNrTemporalAnchoredBaseStrengthCustom = true;
+                        }
                     }
                     if (anchorPreset == 4)
                         Slider("Custom anchor B", config->DlssNrTemporalAnchoredBaseStrength,
