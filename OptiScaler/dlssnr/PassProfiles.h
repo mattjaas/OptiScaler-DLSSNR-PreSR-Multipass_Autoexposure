@@ -149,9 +149,12 @@ inline GuidedResidualGains EffectiveGuidedResidualGains(const Config& cfg, uint3
     const float singlePassHigh = GuidedResidualGainForScale(gains.high, workScale);
     gains.low = GuidedResidualGainForScale(gains.low, workScale);
 
-    // One-pass P50 setting compounds only high/mid with each additional model pass.
-    // Example: 0.85 -> 0.85^2 -> 0.85^3. Low stays pass-independent.
-    gains.high = std::pow(singlePassHigh, static_cast<float>(std::max(1u, effectivePasses)));
+    // Optional pass-count compounding applies only to high/mid. When disabled, the gain still follows
+    // the working-resolution correction but remains a one-pass value regardless of NR pass count.
+    if (cfg.DlssNrGuidedResidualCompoundPasses.value_or_default())
+        gains.high = std::pow(singlePassHigh, static_cast<float>(std::max(1u, effectivePasses)));
+    else
+        gains.high = singlePassHigh;
     if (!std::isfinite(gains.high))
         gains.high = 1.0f;
     return gains;

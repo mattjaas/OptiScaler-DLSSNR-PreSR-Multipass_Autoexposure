@@ -380,6 +380,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrGuidedResidualLowGain.set_from_config(readFloat("DlssNr", "GuidedResidualLowGain"));
             DlssNrGuidedResidualCinematicHighGain.set_from_config(readFloat("DlssNr", "GuidedResidualCinematicHighGain"));
             DlssNrGuidedResidualCinematicLowGain.set_from_config(readFloat("DlssNr", "GuidedResidualCinematicLowGain"));
+            DlssNrGuidedResidualCompoundPasses.set_from_config(readBool("DlssNr", "GuidedResidualCompoundPasses"));
             DlssNrGuidedResidualShadowGate.set_from_config(readBool("DlssNr", "GuidedResidualShadowGate"));
             DlssNrGuidedResidualShadowFloor.set_from_config(readFloat("DlssNr", "GuidedResidualShadowFloor"));
             DlssNrGuidedResidualShadowLow.set_from_config(readFloat("DlssNr", "GuidedResidualShadowLow"));
@@ -1460,6 +1461,8 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetFloatValue(Instance()->DlssNrGuidedResidualCinematicHighGain.value_for_config()).c_str());
         ini.SetValue("DlssNr", "GuidedResidualCinematicLowGain",
                      GetFloatValue(Instance()->DlssNrGuidedResidualCinematicLowGain.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "GuidedResidualCompoundPasses",
+                     Instance()->DlssNrGuidedResidualCompoundPasses.value_for_config().value_or(true) ? "true" : "false");
         ini.SetValue("DlssNr", "GuidedResidualShadowGate",
                      GetBoolValue(Instance()->DlssNrGuidedResidualShadowGate.value_for_config()).c_str());
         ini.SetValue("DlssNr", "GuidedResidualShadowFloor",

@@ -371,6 +371,16 @@ void RenderInput(Config* config)
                        0.0f, 1.5f, "%.3f", 0.780f);
             }
 
+            if (shaping != 0)
+            {
+                bool compoundPasses = config->DlssNrGuidedResidualCompoundPasses.value_or_default();
+                if (ImGui::Checkbox("Compound high/mid by pass count", &compoundPasses))
+                    config->DlssNrGuidedResidualCompoundPasses = compoundPasses;
+                HelpMarker("On: after working-scale correction, high/mid is raised to the number of effective NR passes "
+                           "(for example 0.85 -> 0.85^2 -> 0.85^3). Off: pass count does not change high/mid. "
+                           "Low frequency is never compounded by pass count.");
+            }
+
             const unsigned int runtimePassLimit =
                 config->DlssNrUnlockPasses.value_or_default()
                     ? static_cast<unsigned int>(std::size(config->DlssNrPassOverrides) + 1u)
@@ -396,8 +406,9 @@ void RenderInput(Config* config)
                 }
                 if (shaping == 1 && transfer != 7)
                     ImGui::TextDisabled("Auto is neutral for this temporal DLAA mode until it is capture-calibrated.");
-                ImGui::TextDisabled("Scale %.0f%%, %u pass%s. High/mid compounds by pass count; low does not.",
-                                    shapingScale * 100.0f, effectivePasses, effectivePasses == 1 ? "" : "es");
+                ImGui::TextDisabled("Scale %.0f%%, %u pass%s. High/mid pass compounding: %s; low never compounds.",
+                                    shapingScale * 100.0f, effectivePasses, effectivePasses == 1 ? "" : "es",
+                                    config->DlssNrGuidedResidualCompoundPasses.value_or_default() ? "ON" : "OFF");
             }
 
             bool shadowGate = config->DlssNrGuidedResidualShadowGate.value_or_default();
@@ -419,8 +430,8 @@ void RenderInput(Config* config)
                        "leave Auto shaping neutral until they get their own NR50/NR100 capture fit; Manual still works. "
                        "Base gains are P50 / one-pass values. Resolution correction is geometric: "
                        "gain(scale) = gain50 ^ log2(1/scale), so 0.90 gives 1.00 at P100, 0.90 at P50 and 0.81 at P25. "
-                       "High/mid then compounds once per effective pass while low remains "
-                       "pass-independent. The low component is an "
+                       "High/mid can optionally compound once per effective pass; the UI toggle can disable that "
+                       "additional pass-count calculation. Low remains pass-independent. The low component is an "
                        "8x area-average of E50, "
                        "equivalent to a simple mip3 box chain at exact P50, so Proxy100 itself is never blurred. "
                        "Shadow confidence is optional/experimental because its thresholds came from one capture.");
