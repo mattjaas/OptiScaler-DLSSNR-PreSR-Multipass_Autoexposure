@@ -9,12 +9,14 @@ on:
       - OptiScaler/Config.cpp
       - OptiScaler.ini
       - OptiScaler/dlssnr/PassProfiles.h
+      - OptiScaler/dlssnr/DlssNr_Menu.cpp
       - OptiScaler/dlssnr/DlssNr_MenuControls.cpp
       - OptiScaler/dlssnr/DlssNr_Status.h
       - OptiScaler/dlssnr/DlssNr_Status.cpp
       - OptiScaler/dlssnr/DlssNr_AnalysisCapture.h
       - OptiScaler/shaders/dlssnr/DlssNr_Common.h
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp
+      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_DeferredSr.cpp
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Status.cpp
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_FinishedQueue.cpp
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_ModelState.h
