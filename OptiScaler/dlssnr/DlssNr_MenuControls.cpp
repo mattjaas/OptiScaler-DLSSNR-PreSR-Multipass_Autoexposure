@@ -1045,6 +1045,24 @@ void RenderModel(Config* config)
         config->DlssNrPasses = std::clamp(config->DlssNrPasses.value_or_default(), 1u, unlockPasses ? 10u : 2u);
     }
 
+    const bool interPassAvailable =
+        config->DlssNrPasses.value_or_default() > 1u &&
+        config->DlssNrWorkingScale.value_or_default() < 0.999f &&
+        !config->DlssNrSpatialCompression.value_or_default();
+    if (interPassAvailable)
+    {
+        static const char* interPassNames[] = {
+            "Off", "P100-guided -> P100 -> working-res", "P100-guided fused -> working-res"
+        };
+        int interPass = (int) std::min(config->DlssNrInterPassReconstruction.value_or_default(), 2u);
+        if (ImGui::Combo("Inter-pass reconstruction", &interPass, interPassNames, IM_ARRAYSIZE(interPassNames)))
+            config->DlssNrInterPassReconstruction = (uint32_t) interPass;
+        HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
+                   "feeds the corrected working-resolution image to the next NR pass. Final transfer remains unchanged.");
+        HelpMarker("Inter-pass frequency shaping uses the currently selected guided residual gains once per transition. "
+                   "Compound-pass gain scaling is intentionally ignored.");
+    }
+
     static unsigned selectedPass = 0;
     const auto selectedLabel = std::format("Pass {}", selectedPass + 1);
     if (ImGui::BeginCombo("Edit pass", selectedLabel.c_str()))
@@ -1194,7 +1212,8 @@ void RenderInspect(Config* config)
     static const char* debugNames[] = { "Off", "Proxy (what the model sees)", "Model output (raw)",
                                         "Difference (amplified)", "Compressed model input",
                                         "Temporal carrier before DLAA",
-                                        "Decoded temporal residual (20x, zero=grey)" };
+                                        "Decoded temporal residual (20x, zero=grey)",
+                                        "Inter-pass corrected input (pass 2)" };
     int debugView = (int) config->DlssNrDebugView.value_or_default();
     if (ImGui::Combo("Debug view", &debugView, debugNames, IM_ARRAYSIZE(debugNames)))
         config->DlssNrDebugView = (uint32_t) debugView;
@@ -1202,6 +1221,7 @@ void RenderInspect(Config* config)
     HelpMarker("Difference is amplified 20x. Grey means unchanged. Proxy and raw model output use unpacked geometry. "
                "Compressed model input shows the input before unpacking, scaled to fill the screen. Temporal carrier "
                "before DLAA is available in Temporal residual/image-anchored modes. Decoded temporal residual maps signed "
-               "zero to 50% grey and amplifies it 20x, avoiding the misleading mostly-black raw signed view.");
+               "zero to 50% grey and amplifies it 20x, avoiding the misleading mostly-black raw signed view. Inter-pass "
+               "corrected input snapshots the exact bounded working-resolution image fed to pass 2.");
 }
 } // namespace DlssNr::MenuSections
