@@ -24,6 +24,18 @@ struct ModelStateDx12
     bool passScratchFailed = false;
     ID3D12Resource* passClamp = nullptr; // bounded input for the next model pass
 
+    // Optional P100-guided reconstruction between independent NR histories. The immutable residual base is
+    // still the exact model input shown to pass 1; these surfaces only construct the next pass's colour.
+    ID3D12Resource* interPassWorking = nullptr;
+    ID3D12Resource* interPassP100 = nullptr;
+    ID3D12Resource* interPassResidualLow = nullptr;
+    // Allocated only while debug view 7 is active so pass-2 input survives a later pass2->pass3 rewrite.
+    ID3D12Resource* interPassDebug = nullptr;
+    uint32_t interPassMode = 0;
+    bool interPassModeInitialized = false;
+    bool interPassWarned = false;
+    bool interPassFusedReferenceWarned = false;
+
     // The frame as the upscaler wrote it. The resolve adds the model's edit to this rather than
     // reconstructing it by inverting the tone curve, which is what turned every light in the frame into
     // a string of coloured cells.
