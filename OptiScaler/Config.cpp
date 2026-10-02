@@ -352,6 +352,12 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrTemporalDlaaNrPreset.set_from_config(readInt("DlssNr", "TemporalDlaaNrPreset"));
             DlssNrTemporalDlaaResidualPreset.set_from_config(readInt("DlssNr", "TemporalDlaaResidualPreset"));
             DlssNrTemporalDlaaAnchoredPreset.set_from_config(readInt("DlssNr", "TemporalDlaaAnchoredPreset"));
+            DlssNrTemporalDlaaNrAutoExposure.set_from_config(
+                readBool("DlssNr", "TemporalDlaaNrAutoExposure"));
+            DlssNrTemporalDlaaResidualAutoExposure.set_from_config(
+                readBool("DlssNr", "TemporalDlaaResidualAutoExposure"));
+            DlssNrTemporalDlaaAnchoredAutoExposure.set_from_config(
+                readBool("DlssNr", "TemporalDlaaAnchoredAutoExposure"));
             DlssNrTemporalResidualEncoding.set_from_config(readUInt("DlssNr", "TemporalResidualEncoding"));
             DlssNrTemporalResidualGainMode.set_from_config(readUInt("DlssNr", "TemporalResidualGainMode"));
             DlssNrTemporalResidualManualGain.set_from_config(readFloat("DlssNr", "TemporalResidualManualGain"));
@@ -364,6 +370,11 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrTemporalCarrierExtendedRange.set_from_config(
                 readBool("DlssNr", "TemporalCarrierExtendedRange"));
             DlssNrTemporalDlaaIsHdr.set_from_config(readBool("DlssNr", "TemporalDlaaIsHdr"));
+            DlssNrScalingDlssAutoExposure.set_from_config(readBool("DlssNr", "ScalingDlssAutoExposure"));
+            DlssNrDetailReferenceDlssAutoExposure.set_from_config(
+                readBool("DlssNr", "DetailReferenceDlssAutoExposure"));
+            DlssNrPrivateUpscalerAutoExposure.set_from_config(
+                readBool("DlssNr", "PrivateUpscalerAutoExposure"));
             DlssNrTemporalCarrierMargin.set_from_config(readFloat("DlssNr", "TemporalCarrierMargin"));
             DlssNrTemporalCarrierAutoMaxGain.set_from_config(readFloat("DlssNr", "TemporalCarrierAutoMaxGain"));
             DlssNrTemporalCarrierAutoRiseStopsPerSecond.set_from_config(
@@ -1426,6 +1437,12 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetIntValue(Instance()->DlssNrTemporalDlaaResidualPreset.value_for_config()).c_str());
         ini.SetValue("DlssNr", "TemporalDlaaAnchoredPreset",
                      GetIntValue(Instance()->DlssNrTemporalDlaaAnchoredPreset.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalDlaaNrAutoExposure",
+                     Instance()->DlssNrTemporalDlaaNrAutoExposure.value_for_config().value_or(false) ? "true" : "false");
+        ini.SetValue("DlssNr", "TemporalDlaaResidualAutoExposure",
+                     Instance()->DlssNrTemporalDlaaResidualAutoExposure.value_for_config().value_or(false) ? "true" : "false");
+        ini.SetValue("DlssNr", "TemporalDlaaAnchoredAutoExposure",
+                     Instance()->DlssNrTemporalDlaaAnchoredAutoExposure.value_for_config().value_or(false) ? "true" : "false");
         ini.SetValue("DlssNr", "TemporalResidualEncoding",
                      GetIntValue(Instance()->DlssNrTemporalResidualEncoding.value_for_config()).c_str());
         ini.SetValue("DlssNr", "TemporalResidualGainMode",
@@ -1446,6 +1463,12 @@ bool Config::SaveIni(std::filesystem::path destination)
                      Instance()->DlssNrTemporalCarrierExtendedRange.value_for_config().value_or(false) ? "true" : "false");
         ini.SetValue("DlssNr", "TemporalDlaaIsHdr",
                      Instance()->DlssNrTemporalDlaaIsHdr.value_for_config().value_or(false) ? "true" : "false");
+        ini.SetValue("DlssNr", "ScalingDlssAutoExposure",
+                     Instance()->DlssNrScalingDlssAutoExposure.value_for_config().value_or(false) ? "true" : "false");
+        ini.SetValue("DlssNr", "DetailReferenceDlssAutoExposure",
+                     Instance()->DlssNrDetailReferenceDlssAutoExposure.value_for_config().value_or(false) ? "true" : "false");
+        ini.SetValue("DlssNr", "PrivateUpscalerAutoExposure",
+                     Instance()->DlssNrPrivateUpscalerAutoExposure.value_for_config().value_or(false) ? "true" : "false");
         ini.SetValue("DlssNr", "TemporalCarrierMargin",
                      GetFloatValue(Instance()->DlssNrTemporalCarrierMargin.value_for_config()).c_str());
         ini.SetValue("DlssNr", "TemporalCarrierAutoMaxGain",
