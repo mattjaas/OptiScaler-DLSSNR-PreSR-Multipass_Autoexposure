@@ -2328,7 +2328,10 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
 
     if (gDebugView == 5 && gTransfer == 9u && (gDirectResolveFlags & 4u) != 0u)
     {
-        const float3 carrier = saturate(gAux.SampleLevel(gLinear, cmpUv, 0).rgb);
+        const float3 carrierRaw = gAux.SampleLevel(gLinear, cmpUv, 0).rgb;
+        // Extended carrier debug maps [-1,2] back to [0,1]; neutral 0.5 remains neutral 0.5.
+        const float3 carrier =
+            (gDirectResolveFlags & 8u) != 0u ? saturate((carrierRaw + 1.0) / 3.0) : saturate(carrierRaw);
         gTarget[id.xy] = float4(SrgbToLinear(carrier) * gDebugScale, originalSample.a);
         return;
     }
