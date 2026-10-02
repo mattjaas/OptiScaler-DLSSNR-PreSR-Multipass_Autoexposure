@@ -179,6 +179,8 @@ auto DlssNr_Dx12::State::DeferredSrContext::Before(ID3D12GraphicsCommandList* cm
         (NVSDK_NGX_DLSS_Feature_Flags_DepthInverted | NVSDK_NGX_DLSS_Feature_Flags_MVLowRes |
          NVSDK_NGX_DLSS_Feature_Flags_MVJittered);
     const auto backend = DlssNr::GetPrivateUpscaler(cfg.DlssNrPrivateUpscaler.value_or_default());
+    const bool privateDlssAutoExposure =
+        backend == DlssNr::PrivateUpscaler::DLSS && cfg.DlssNrPrivateUpscalerAutoExposure.value_or_default();
     // Only native DX12 RR parameters contain DX12 material/reflection guides. Bridges
     // do not transfer these resources, so keep their existing private SR backend.
     auto rrInputs = backend == DlssNr::PrivateUpscaler::DLSS && rayReconstruction && !interop
@@ -190,6 +192,7 @@ auto DlssNr_Dx12::State::DeferredSrContext::Before(ID3D12GraphicsCommandList* cm
          (privateRr && (current->frame.rr.roughnessMode != rrInputs.roughnessMode ||
                         current->frame.rr.hardwareDepth != rrInputs.hardwareDepth)) ||
          current->finishedPicture != cfg.DlssNrFinishedPicture.value_or_default() || current->backend != backend ||
+         current->privateDlssAutoExposure != privateDlssAutoExposure ||
          current->device != device || current->queue != ownerQueue || current->w != active->width ||
          current->h != active->height || current->outW != outDesc.Width || current->outH != outDesc.Height ||
          current->inputFormat != inDesc.Format || current->outputFormat != outDesc.Format || current->flags != flags))
@@ -219,6 +222,7 @@ auto DlssNr_Dx12::State::DeferredSrContext::Before(ID3D12GraphicsCommandList* cm
         current->backend = backend;
         current->rayReconstruction = rayReconstruction;
         current->privateRr = privateRr;
+        current->privateDlssAutoExposure = privateDlssAutoExposure;
         if (backend == DlssNr::PrivateUpscaler::DLSS)
             LOG_INFO("DLSS-NR private residual upscaler: {} ({})", privateRr ? "DLSS RR" : "DLSS SR",
                      privateRr ? "game RR guides available" : "game RR guides unavailable for this API/extent");
@@ -278,14 +282,16 @@ auto DlssNr_Dx12::State::DeferredSrContext::Before(ID3D12GraphicsCommandList* cm
         info.jitteredMotion = (g.flags & NVSDK_NGX_DLSS_Feature_Flags_MVJittered) != 0;
         info.lowResolutionMotion = (g.flags & NVSDK_NGX_DLSS_Feature_Flags_MVLowRes) != 0;
         info.rayReconstruction = g.privateRr;
+        info.autoExposure = g.privateDlssAutoExposure;
         info.roughnessMode = g.frame.rr.roughnessMode;
         info.hardwareDepth = g.frame.rr.hardwareDepth;
         g.upscaler = std::make_unique<DlssNr::PrivateUpscalerDx12>(g.backend);
         LOG_INFO("DLSS-NR private creation: {} {}x{} -> {}x{}, quality {}, inverted {}, jittered MV {}, low-res MV {}, "
-                 "roughness {}, HW depth {}",
+                 "roughness {}, HW depth {}, auto exposure {}",
                  g.privateRr ? "DLSS RR" : DlssNr::PrivateUpscalerName(g.backend), info.width, info.height,
                  info.outputWidth, info.outputHeight, info.quality, info.depthInverted, info.jitteredMotion,
-                 info.lowResolutionMotion, info.roughnessMode, info.hardwareDepth);
+                 info.lowResolutionMotion, info.roughnessMode, info.hardwareDepth,
+                 info.autoExposure ? "on" : "off");
         if (!g.upscaler->Init(g.device, cmd, info))
         {
             g.failed = true;
