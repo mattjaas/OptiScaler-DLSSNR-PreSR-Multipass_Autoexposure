@@ -1767,6 +1767,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const uint y1 = max(((id.y + 1u) * srcH) / gHeight, y0 + 1u);
         const float margin = clamp(abs(gResidualScale), 0.0, 0.49);
         const float anchorStrength = saturate(gTransferStrength);
+        // CompareSwap is repurposed by these carrier-only dispatches as the extended-range flag.
+        // Nonlinear encoding remains bounded in [0,1]; linear/image carriers expand to [-1,2].
+        const bool extendedRange = gCompareSwap != 0u && gTransfer != 0u;
+        const float carrierLow = extendedRange ? -1.0 : 0.0;
+        const float carrierHigh = extendedRange ? 2.0 : 1.0;
         const float huge = 1.0e20;
 
         float strictMin = huge;
@@ -1845,25 +1850,26 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                     }
                     else if (gTransfer == 1u)
                     {
-                        const float room = max(0.5 - margin, 0.0);
+                        const float roomWhite = max((carrierHigh - margin) - 0.5, 0.0);
+                        const float roomBlack = max(0.5 - (carrierLow + margin), 0.0);
                         if (edit > 1.0e-12)
                         {
-                            bound = room / edit;
-                            positiveHeadroom = room;
+                            bound = roomWhite / edit;
+                            positiveHeadroom = roomWhite;
                         }
                         else if (edit < -1.0e-12)
                         {
-                            bound = room / -edit;
-                            negativeHeadroom = room;
+                            bound = roomBlack / -edit;
+                            negativeHeadroom = roomBlack;
                         }
                     }
                     else
                     {
-                        // Compressed image anchor: preserve scene structure while reserving symmetric
-                        // headroom. Raw Proxy is saturated only for the carrier anchor, never for E itself.
+                        // Compressed image anchor: preserve scene structure while reserving headroom.
+                        // Raw Proxy is saturated only for the carrier anchor, never for E itself.
                         const float anchor = 0.5 + anchorStrength * (saturate(proxyRaw[ch]) - 0.5);
-                        const float roomWhite = max((1.0 - margin) - anchor, 0.0);
-                        const float roomBlack = max(anchor - margin, 0.0);
+                        const float roomWhite = max((carrierHigh - margin) - anchor, 0.0);
+                        const float roomBlack = max(anchor - (carrierLow + margin), 0.0);
                         if (edit > 1.0e-12)
                         {
                             bound = roomWhite / edit;
@@ -1958,6 +1964,9 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const float riseMultiplier = max(gColourStrength, 1.0);
         const float K = gainMode == 0u ? manualK : min(autoTarget, previousK * riseMultiplier);
         const float anchorStrength = saturate(gMaxRatio);
+        const bool extendedRange = gCompareSwap != 0u && gTransfer != 0u;
+        const float carrierLow = extendedRange ? -1.0 : 0.0;
+        const float carrierHigh = extendedRange ? 2.0 : 1.0;
 
         const int2 p = int2(id.xy);
         const float3 proxyRaw = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.0);
@@ -1967,11 +1976,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         if (gTransfer == 0u)
             carrier = NrEncodeResizeField(K * e);
         else if (gTransfer == 1u)
-            carrier = saturate(0.5 + K * e);
+            carrier = clamp(0.5 + K * e, carrierLow, carrierHigh);
         else
         {
             const float3 anchor = 0.5 + anchorStrength * (saturate(proxyRaw) - 0.5);
-            carrier = saturate(anchor + K * e);
+            carrier = clamp(anchor + K * e, carrierLow, carrierHigh);
         }
 
         gTarget[id.xy] = float4(carrier, 1.0);
@@ -2001,18 +2010,19 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const int2 p = int2(id.xy);
         const float3 filtered = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.5);
         const float3 baseRaw = SanitizeFinite3(gModel.Load(int3(p, 0)).rgb, 0.0);
+        const bool extendedRange = gCompareSwap != 0u && gTransfer != 0u;
         float3 e;
         if (gTransfer == 0u)
             e = NrDecodeResizeField(filtered) / K;
         else if (gTransfer == 1u)
-            e = (saturate(filtered) - 0.5) / K;
+            e = ((extendedRange ? filtered : saturate(filtered)) - 0.5) / K;
         else if (gDebugView != 0u)
             e = (filtered - baseRaw) / K; // paired DLAA baseline: cancel the two raw DLAA outputs directly
         else
         {
             const float anchorStrength = saturate(gTransferStrength);
             const float3 anchor = 0.5 + anchorStrength * (saturate(baseRaw) - 0.5);
-            e = (saturate(filtered) - anchor) / K;
+            e = ((extendedRange ? filtered : saturate(filtered)) - anchor) / K;
         }
         gTarget[id.xy] = float4(SanitizeFinite3(e, 0.0), 1.0);
         return;
