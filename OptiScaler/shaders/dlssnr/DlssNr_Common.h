@@ -57,7 +57,11 @@ enum DlssNrMode : uint32_t
     // Build only the compressed image anchor for the paired independent DLAA baseline.
     DlssNrMode_TemporalAnchorEncode = 25,
     // Exact raw texture copy used only to snapshot the pre-DLAA carrier for debug display.
-    DlssNrMode_TemporalCarrierDebugCopy = 26
+    DlssNrMode_TemporalCarrierDebugCopy = 26,
+    // Between NR passes: reconstruct P100 + guided cumulative residual into a native P100 scratch.
+    DlssNrMode_InterPassGuidedP100 = 27,
+    // Between NR passes: evaluate the same corrected P100 procedurally while downsampling to working-res.
+    DlssNrMode_InterPassGuidedWorking = 28
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
