@@ -1543,6 +1543,13 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         {
                             directDetailInfo = enlarger->carrierDebug.Get(); // t4 / gPrevEdit
                             resolveParams.DirectResolveFlags |= 4u;          // valid temporal-carrier debug binding
+                            const bool extendedDebug =
+                                cfg.DlssNrTemporalCarrierExtendedRange.value_or_default() &&
+                                (transfer == 10u ||
+                                 (transfer == 9u &&
+                                  cfg.DlssNrTemporalResidualEncoding.value_or_default() == 1u));
+                            if (extendedDebug)
+                                resolveParams.DirectResolveFlags |= 8u; // remap [-1,2] to [0,1] for display only
                         }
                     }
                 }
