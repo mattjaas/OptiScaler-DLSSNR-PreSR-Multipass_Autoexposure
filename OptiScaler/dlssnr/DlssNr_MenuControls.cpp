@@ -285,6 +285,13 @@ void RenderInput(Config* config)
                     temporalPresetSetting = temporalPresetValues[temporalPresetIndex];
                 HelpMarker("NGX render preset used only by this private 1:1 DLAA feature. Changing it recreates "
                            "the temporal DLSS feature and starts a fresh history.");
+
+                bool temporalIsHdr = config->DlssNrTemporalDlaaIsHdr.value_or_default();
+                if (ImGui::Checkbox("Private DLAA IsHDR (experimental)", &temporalIsHdr))
+                    config->DlssNrTemporalDlaaIsHdr = temporalIsHdr;
+                HelpMarker("Sets NVSDK_NGX_DLSS_Feature_Flags_IsHDR on the private 1:1 DLAA feature. This is independent "
+                           "from the carrier numeric range and keeps pre-exposure/exposure fixed at 1 for an isolated A/B test. "
+                           "Changing it recreates the private DLAA history.");
             }
             if (transfer == 9 || transfer == 10)
             {
@@ -341,6 +348,18 @@ void RenderInput(Config* config)
                     HelpMarker("Nonlinear is bounded for any finite residual and was the original experiment. Linear is "
                                "amplitude-faithful and exactly reversible while K stays inside the safe carrier range.");
                 }
+
+                const bool extendedRelevant =
+                    transfer == 10 || config->DlssNrTemporalResidualEncoding.value_or_default() == 1u;
+                bool extendedCarrier = config->DlssNrTemporalCarrierExtendedRange.value_or_default();
+                ImGui::BeginDisabled(!extendedRelevant);
+                if (ImGui::Checkbox("Extended carrier range [-1, 2] (experimental)", &extendedCarrier))
+                    config->DlssNrTemporalCarrierExtendedRange = extendedCarrier;
+                ImGui::EndDisabled();
+                HelpMarker("For Linear residual and image-anchored carriers, expands the encoded domain from [0,1] "
+                           "to [-1,2], keeping neutral at 0.5 and increasing symmetric headroom from 0.5 to 1.5. "
+                           "Safe K and Auto K use the selected range. The nonlinear residual encoding remains bounded "
+                           "inside [0,1], so this option has no effect there.");
 
                 auto& gainModeSetting =
                     transfer == 9 ? config->DlssNrTemporalResidualGainMode : config->DlssNrTemporalAnchoredGainMode;
@@ -400,12 +419,12 @@ void RenderInput(Config* config)
                 }
                 HelpMarker("Auto Strict takes the most restrictive pixel/channel in the current frame outside any enabled "
                            "NVIDIA-watermark exclusion footprints, so the encoder does not intentionally clip the scene edit. "
-                           "Auto Robust ignores one most restrictive source sample "
-                           "inside each approximately 32x32 tile before taking the global minimum; it can preserve a much "
-                           "larger K when isolated outliers dominate, but those trimmed outliers may clip. K is computed "
-                           "on the GPU before the same frame's DLAA pass. Auto K drops immediately when safety requires it; "
-                           "upward changes are rate-limited in exposure stops per second so DLAA history does not see abrupt "
-                           "carrier-amplitude jumps.");
+                           "With Extended carrier range enabled, the linear/image carrier safety interval is [-1,2] instead "
+                           "of [0,1]. Auto Robust ignores one most restrictive source sample inside each approximately 32x32 "
+                           "tile before taking the global minimum; it can preserve a much larger K when isolated outliers "
+                           "dominate, but those trimmed outliers may clip. K is computed on the GPU before the same frame's "
+                           "DLAA pass. Auto K drops immediately when safety requires it; upward changes are rate-limited in "
+                           "exposure stops per second so DLAA history does not see abrupt carrier-amplitude jumps.");
             }
 
             int radius = (int) std::min(config->DlssNrGuidedResidualRadius.value_or_default(), 3u);
