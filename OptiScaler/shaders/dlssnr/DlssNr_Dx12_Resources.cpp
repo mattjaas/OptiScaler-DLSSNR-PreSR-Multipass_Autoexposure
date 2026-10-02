@@ -27,6 +27,7 @@ auto DlssNr_Dx12::State::ReleaseSurfacesIfFormatChanged(DXGI_FORMAT modelFormat,
 
     for (ID3D12Resource** r : { &nr.output, &nr.passScratch, &nr.passClamp, &nr.colorCopy, &nr.hdrCopy,
                                 &nr.colorSmall, &nr.colorSoft, &nr.outputFiltered, &nr.guidedResidualLow,
+                                &nr.interPassWorking, &nr.interPassP100, &nr.interPassResidualLow, &nr.interPassDebug,
                                 &nr.depthSmall, &nr.motionSmall, &nr.outputNative, &nr.activeColor })
         ParkNrResource(*r);
 
@@ -244,6 +245,7 @@ auto DlssNr_Dx12::State::ReleaseResources() -> void
     for (auto** resource :
          { &nr.output, &nr.passScratch, &nr.passClamp, &nr.colorCopy, &nr.hdrCopy, &nr.activeColor,
            &nr.colorSmall, &nr.colorSoft, &nr.outputFiltered, &nr.guidedResidualLow,
+           &nr.interPassWorking, &nr.interPassP100, &nr.interPassResidualLow, &nr.interPassDebug,
            &nr.depthSmall, &nr.motionSmall })
         ParkNrResource(*resource);
     nr.colorSoftReadable = false;
@@ -254,6 +256,9 @@ auto DlssNr_Dx12::State::ReleaseResources() -> void
     nr.spatialFallback = false;
     nr.spatialActive = false;
     nr.passScratchFailed = false;
+    nr.interPassModeInitialized = false;
+    nr.interPassWarned = false;
+    nr.interPassFusedReferenceWarned = false;
 
     ReleaseSupersamplers();
     nr.proxyDownScaler = Scaler::Count;
