@@ -160,4 +160,23 @@ inline GuidedResidualGains EffectiveGuidedResidualGains(const Config& cfg, uint3
     return gains;
 }
 
+inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass(const Config& cfg, uint32_t shapingMode,
+                                                                    uint32_t style, float workScale)
+{
+    // Inter-pass reconstruction is always the plain signed NR-working-minus-original-working residual.
+    // Reuse the same style/UI calibration as P100-guided residual, including working-scale correction,
+    // but intentionally never apply GuidedResidualCompoundPasses: every transition gets one normal gain.
+    auto gains = GuidedResidualBaseGains(cfg, shapingMode, 7u, style);
+    if (!gains.active)
+        return gains;
+
+    gains.high = GuidedResidualGainForScale(gains.high, workScale);
+    gains.low = GuidedResidualGainForScale(gains.low, workScale);
+    if (!std::isfinite(gains.high))
+        gains.high = 1.0f;
+    if (!std::isfinite(gains.low))
+        gains.low = 1.0f;
+    return gains;
+}
+
 } // namespace DlssNr::Profiles
