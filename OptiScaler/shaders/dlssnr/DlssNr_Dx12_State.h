@@ -86,7 +86,8 @@ struct DlssNr_Dx12::State
         uint64_t lastFrame = 0, detailLastFrame = 0, baselineLastFrame = 0;
         bool submitted = false, failed = false, depthInverted = false, readable = false, inputReadable = false,
              detailReadable = false, detailReferenceReadable = false, carrierDebugReadable = false,
-             reset = true, detailReset = true, baselineReset = true, pairedBaseline = false;
+             reset = true, detailReset = true, baselineReset = true, pairedBaseline = false,
+             dlssAutoExposure = false, detailDlssAutoExposure = false;
         uint32_t carrierMode = 0;
         float anchorStrength = 0.5f;
         uint32_t outputUpscaler = 10;
