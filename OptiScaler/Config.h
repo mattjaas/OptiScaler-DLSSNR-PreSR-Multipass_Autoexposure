@@ -341,6 +341,11 @@ class Config
     CustomOptional<int> DlssNrTemporalDlaaNrPreset { 1 };
     CustomOptional<int> DlssNrTemporalDlaaResidualPreset { 1 };
     CustomOptional<int> DlssNrTemporalDlaaAnchoredPreset { 1 };
+    // Auto Exposure is intentionally independent per temporal experiment so switching modes does not
+    // silently change another mode's input interpretation.
+    CustomOptional<bool> DlssNrTemporalDlaaNrAutoExposure { false };
+    CustomOptional<bool> DlssNrTemporalDlaaResidualAutoExposure { false };
+    CustomOptional<bool> DlssNrTemporalDlaaAnchoredAutoExposure { false };
 
     // Temporal residual carrier experiments.
     // Residual encoding: 0 reversible nonlinear E/(1+abs(E)), 1 linear 0.5+K*E.
@@ -365,6 +370,11 @@ class Config
     // Independently advertise the private 1:1 DLAA input as HDR to NGX. This is intentionally
     // separate from ExtendedRange so either behaviour can be A/B tested on its own.
     CustomOptional<bool> DlssNrTemporalDlaaIsHdr { false };
+
+    // Auto Exposure for the other private DLSS roles.
+    CustomOptional<bool> DlssNrScalingDlssAutoExposure { false };
+    CustomOptional<bool> DlssNrDetailReferenceDlssAutoExposure { false };
+    CustomOptional<bool> DlssNrPrivateUpscalerAutoExposure { false };
     // Carrier headroom from the active carrier limits for automatic gain. Auto ceiling prevents
     // effectively-infinite K on nearly-zero residuals; typed finite values remain user-adjustable.
     CustomOptional<float> DlssNrTemporalCarrierMargin { 0.01f };
