@@ -551,6 +551,9 @@ class Config
 
     // Sequential layers with independent histories; up to 30 when unlocked.
     CustomOptional<uint32_t> DlssNrPasses { 1 };
+    // Between-pass reconstruction only changes the input to the next NR feature. Final transfer stays independent.
+    // 0 Off, 1 P100-guided -> P100 -> working-res, 2 P100-guided fused -> working-res.
+    CustomOptional<uint32_t> DlssNrInterPassReconstruction { 0 };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
