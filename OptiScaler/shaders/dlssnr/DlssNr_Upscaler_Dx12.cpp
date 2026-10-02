@@ -199,7 +199,8 @@ struct PrivateUpscalerDx12::Impl
             unsigned flags = (inverted ? NVSDK_NGX_DLSS_Feature_Flags_DepthInverted : 0) |
                              (jittered ? NVSDK_NGX_DLSS_Feature_Flags_MVJittered : 0) |
                              (!highMv ? NVSDK_NGX_DLSS_Feature_Flags_MVLowRes : 0) |
-                             ((rayReconstruction || info.isHdr) ? NVSDK_NGX_DLSS_Feature_Flags_IsHDR : 0);
+                             ((rayReconstruction || info.isHdr) ? NVSDK_NGX_DLSS_Feature_Flags_IsHDR : 0) |
+                             (info.autoExposure ? NVSDK_NGX_DLSS_Feature_Flags_AutoExposure : 0);
             p->Set(NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags, flags);
             if (rayReconstruction)
             {
