@@ -17,8 +17,9 @@ struct PrivateUpscalerCreateDx12
     int dlssPreset = -1;
     bool depthInverted = false, jitteredMotion = false, lowResolutionMotion = true;
     bool rayReconstruction = false;
-    // Independent DLSS/DLAA feature-create HDR flag for non-RR experiments.
+    // Independent DLSS/DLAA feature-create flags for private experiments.
     bool isHdr = false;
+    bool autoExposure = false;
     unsigned roughnessMode = 0, hardwareDepth = 1;
 };
 struct PrivateUpscalerResourceDx12
