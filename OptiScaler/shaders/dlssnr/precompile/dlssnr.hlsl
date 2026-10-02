@@ -817,6 +817,62 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
     return lerp(bilinearResidual, guided, saturate(gResidualConfidenceUnused));
 }
 
+#ifndef VK_MODE
+float3 InterPassGuidedEditAt(float2 uvq, float3 nativeGuide)
+{
+    float3 guidedEditRaw = P100GuidedResidualAt(uvq, nativeGuide);
+    if (gGuideWidth != 0u)
+    {
+        const float3 lowEditRaw = gAux2.SampleLevel(gLinear, saturate(uvq), 0).rgb;
+        guidedEditRaw = gMvScaleX * guidedEditRaw + (gMvScaleY - gMvScaleX) * lowEditRaw;
+    }
+
+    if (gGuideHeight != 0u)
+    {
+        const float shadowLowRaw = asfloat(gExposureSourceWidth);
+        const float shadowHighRaw = asfloat(gExposureSourceHeight);
+        const float shadowFloorRaw = asfloat(gExposurePadding);
+        const float shadowLow = isfinite(shadowLowRaw) ? shadowLowRaw : 0.02;
+        const float shadowHigh = isfinite(shadowHighRaw) ? shadowHighRaw : 0.08;
+        const float shadowFloor = isfinite(shadowFloorRaw) ? shadowFloorRaw : 0.15;
+        const float lo = min(shadowLow, shadowHigh);
+        const float hi = max(max(shadowLow, shadowHigh), lo + 1e-6);
+        const float y = max(dot(nativeGuide, kLuma), 0.0);
+        guidedEditRaw *= lerp(saturate(shadowFloor), 1.0, smoothstep(lo, hi, y));
+    }
+    return SanitizeFinite3(guidedEditRaw, 0.0);
+}
+
+float4 InterPassCorrectedP100Load(int2 p)
+{
+    uint nativeW, nativeH;
+    gOriginal.GetDimensions(nativeW, nativeH);
+    if (nativeW == 0u || nativeH == 0u)
+        return float4(0.5, 0.5, 0.5, 1.0);
+
+    p = clamp(p, int2(0, 0), int2((int) nativeW - 1, (int) nativeH - 1));
+    const float4 native = gOriginal.Load(int3(p, 0));
+    const float2 uvq = (float2(p) + 0.5) / float2(nativeW, nativeH);
+    const float3 corrected =
+        SanitizeFinite3(native.rgb + InterPassGuidedEditAt(uvq, native.rgb), native.rgb);
+    return float4(corrected, native.a);
+}
+
+float4 InterPassCorrectedP100Bilinear(float2 uvq)
+{
+    uint nativeW, nativeH;
+    gOriginal.GetDimensions(nativeW, nativeH);
+    const float2 pos = saturate(uvq) * float2(nativeW, nativeH) - 0.5;
+    const int2 p0 = int2(floor(pos));
+    const float2 f = frac(pos);
+    const float4 a = lerp(InterPassCorrectedP100Load(p0),
+                          InterPassCorrectedP100Load(p0 + int2(1, 0)), f.x);
+    const float4 b = lerp(InterPassCorrectedP100Load(p0 + int2(0, 1)),
+                          InterPassCorrectedP100Load(p0 + int2(1, 1)), f.x);
+    return lerp(a, b, f.y);
+}
+#endif
+
 float3 ExperimentFinalModelAt(float2 uvq)
 {
     uvq = saturate(uvq);
@@ -1713,6 +1769,76 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         gTarget[id.xy] = ExperimentNrArtifactControl(uv);
         return;
     }
+
+#ifndef VK_MODE
+    if (gMode == 27)
+    {
+        // Reference inter-pass path: materialize C100 = P100 + shaped Guided(Ncurrent-Boriginal, P100).
+        // Do not clamp here; the selected P100->working filter runs next, followed by ClampProxy.
+        gTarget[id.xy] = InterPassCorrectedP100Load(int2(id.xy));
+        return;
+    }
+
+    if (gMode == 28)
+    {
+        // Fused inter-pass path for local filters. Evaluate conceptual C100 texels while integrating
+        // them into the working pixel, so no corrected full-resolution surface is written.
+        // Transfer is the active proxy downfilter: 0 Area, 1 Bilinear, 4 Point.
+        uint nativeW, nativeH;
+        gOriginal.GetDimensions(nativeW, nativeH);
+        if (nativeW == 0u || nativeH == 0u)
+        {
+            gTarget[id.xy] = float4(0.5, 0.5, 0.5, 1.0);
+            return;
+        }
+
+        const float2 sampleUv = (float2(id.xy) + 0.5) / float2(gWidth, gHeight);
+        float4 corrected = 0.0;
+        if (gTransfer == 1u)
+        {
+            corrected = InterPassCorrectedP100Bilinear(sampleUv);
+        }
+        else if (gTransfer == 4u)
+        {
+            const int2 p = int2(clamp(floor(sampleUv * float2(nativeW, nativeH)), 0.0,
+                                     float2(nativeW - 1, nativeH - 1)));
+            corrected = InterPassCorrectedP100Load(p);
+        }
+        else
+        {
+            const float x0 = ((float) id.x * (float) nativeW) / (float) gWidth;
+            const float x1 = ((float) (id.x + 1) * (float) nativeW) / (float) gWidth;
+            const float y0 = ((float) id.y * (float) nativeH) / (float) gHeight;
+            const float y1 = ((float) (id.y + 1) * (float) nativeH) / (float) gHeight;
+            const float area = max((x1 - x0) * (y1 - y0), 1e-8);
+            const int i0 = (int) floor(x0);
+            const int i1 = (int) ceil(x1) - 1;
+            const int j0 = (int) floor(y0);
+            const int j1 = (int) ceil(y1) - 1;
+            float4 acc = 0.0;
+            [loop] for (int j = j0; j <= j1; ++j)
+            {
+                const float wy = max(min(y1, (float) j + 1.0) - max(y0, (float) j), 0.0);
+                [loop] for (int i = i0; i <= i1; ++i)
+                {
+                    const float wx = max(min(x1, (float) i + 1.0) - max(x0, (float) i), 0.0);
+                    acc += InterPassCorrectedP100Load(int2(i, j)) * (wx * wy);
+                }
+            }
+            corrected = acc / area;
+            const int acx = clamp((int) floor(((float) id.x + 0.5) * (float) nativeW / (float) gWidth),
+                                  0, (int) nativeW - 1);
+            const int acy = clamp((int) floor(((float) id.y + 0.5) * (float) nativeH / (float) gHeight),
+                                  0, (int) nativeH - 1);
+            corrected.a = gOriginal.Load(int3(acx, acy, 0)).a;
+        }
+
+        // Same domain contract as ClampProxy in the reference path.
+        corrected.rgb = saturate(SanitizeFinite3(corrected.rgb, 0.5));
+        gTarget[id.xy] = corrected;
+        return;
+    }
+#endif
 
     if (gMode == 18)
     {
