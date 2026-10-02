@@ -236,6 +236,14 @@ void RenderMenu(Config* config, float menuResScale)
                 config->DlssNrPrivateUpscaler = backend;
             HelpMarker(
                 "Upscales only the NR edit, with or without game RR. FSR (FidelityFX) and XeSS need their runtimes.");
+
+            if (backend == (int) PrivateUpscaler::DLSS)
+            {
+                bool autoExposure = config->DlssNrPrivateUpscalerAutoExposure.value_or_default();
+                if (ImGui::Checkbox("Private NR DLSS Auto Exposure (experimental)", &autoExposure))
+                    config->DlssNrPrivateUpscalerAutoExposure = autoExposure;
+                HelpMarker("Sets NVSDK_NGX_DLSS_Feature_Flags_AutoExposure on the deferred/private DLSS upscaler.");
+            }
         }
 
         PipelineUi::View view;
