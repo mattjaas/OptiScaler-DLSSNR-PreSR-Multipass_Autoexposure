@@ -23,6 +23,8 @@ on:
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Encode.cpp
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Enlarge.cpp
+      - OptiScaler/shaders/dlssnr/DlssNr_Upscaler_Dx12.h
+      - OptiScaler/shaders/dlssnr/DlssNr_Upscaler_Dx12.cpp
       - OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl
       - .github/workflows/build_nr_detail_quality_experiments.yml
 
