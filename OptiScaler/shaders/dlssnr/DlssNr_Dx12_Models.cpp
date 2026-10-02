@@ -39,6 +39,10 @@ bool DlssNr_Dx12::State::PrepareRunModels(ID3D12GraphicsCommandList* cmdList, ID
             ParkNrResource(nr.output);
             ParkNrResource(nr.passScratch);
             ParkNrResource(nr.passClamp);
+            ParkNrResource(nr.interPassWorking);
+            ParkNrResource(nr.interPassP100);
+            ParkNrResource(nr.interPassResidualLow);
+            ParkNrResource(nr.interPassDebug);
             ParkNrResource(nr.colorCopy);
             ParkNrResource(nr.hdrCopy);
             ParkNrResource(nr.colorSmall);
@@ -89,6 +93,10 @@ bool DlssNr_Dx12::State::PrepareRunModels(ID3D12GraphicsCommandList* cmdList, ID
         // allocation attempt; holding a failing allocation at two must not retry it every frame.
         ParkNrResource(nr.passScratch);
         ParkNrResource(nr.passClamp);
+        ParkNrResource(nr.interPassWorking);
+        ParkNrResource(nr.interPassP100);
+        ParkNrResource(nr.interPassResidualLow);
+        ParkNrResource(nr.interPassDebug);
         nr.passScratchFailed = false;
     }
     else if (nr.passScratch == nullptr && !nr.passScratchFailed)
