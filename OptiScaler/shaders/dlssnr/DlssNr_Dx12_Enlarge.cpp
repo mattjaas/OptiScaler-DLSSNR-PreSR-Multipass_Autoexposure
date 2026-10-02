@@ -118,11 +118,19 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         std::clamp(std::isfinite(configuredAnchorStrength) ? configuredAnchorStrength : 0.5f, 0.0f, 1.0f);
     const bool pairedAnchorBaseline =
         imageAnchoredDlaa && cfg.DlssNrTemporalAnchoredPairedBaseline.value_or_default();
+    const bool extendedCarrierRange =
+        residualDlaa && cfg.DlssNrTemporalCarrierExtendedRange.value_or_default() &&
+        (imageAnchoredDlaa || residualEncoding == 1u);
+    const bool temporalDlaaIsHdr = temporalDlaa && cfg.DlssNrTemporalDlaaIsHdr.value_or_default();
     const uint32_t baseCarrierMode =
         imageAnchoredDlaa ? 7u
         : transfer == 9 ? (residualEncoding == 0u ? 5u : 6u)
         : temporalDlaa ? 4u : upscaledResidual ? 3u : direct ? 2u : structural ? 1u : 0u;
-    const uint32_t carrierMode = baseCarrierMode | (pairedAnchorBaseline ? 0x100u : 0u);
+    // Extra bits make experimental input-domain changes recreate/reset the private temporal feature.
+    const uint32_t carrierMode = baseCarrierMode |
+                                 (pairedAnchorBaseline ? 0x100u : 0u) |
+                                 (extendedCarrierRange ? 0x200u : 0u) |
+                                 (temporalDlaaIsHdr ? 0x400u : 0u);
     const bool directAnswerSource = direct && DirectAnswerCanFeedUpscaler(answer);
     const bool p100GuidedExperiment =
         direct && (cfg.DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
@@ -239,6 +247,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         info.dlssPreset = dlssPreset;
         info.depthInverted = frame.DepthInverted;
         info.rayReconstruction = false;
+        info.isHdr = temporalDlaaIsHdr;
         if (!g.dlss->Init(device, cmd, info))
             return say(std::string(temporalDlaa ? "Private DLSS DLAA: " : "Private DLSS SR: ") + g.dlss->Error());
 
@@ -462,6 +471,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             limits.Transfer = carrierType;
             limits.TransferStrength = anchorStrength;
             limits.ResidualScale = margin;
+            limits.CompareSwap = extendedCarrierRange ? 1u : 0u;
             limits.Passthrough = cfg.DlssNrTemporalCarrierIgnoreNvidiaWatermarks.value_or_default() ? 1u : 0u;
             limits.ExposureSourceWidth = resolve.Width;
             limits.ExposureSourceHeight = resolve.Height;
@@ -535,6 +545,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                 encode.TransferStrength = previousAppliedK;
                 encode.ColourStrength = riseMultiplier;
                 encode.MaxRatio = anchorStrength;
+                encode.CompareSwap = extendedCarrierRange ? 1u : 0u;
                 ok = shader.DispatchPassAux2(cmd, encode, proxy, answer, nullptr, nullptr, nullptr,
                                              statSource, g.input.Get(), g.carrierApplied.Get());
             }
@@ -816,6 +827,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         decode.Transfer = carrierType;
         decode.TransferStrength = anchorStrength;
         decode.DebugView = pairedAnchorBaseline ? 1u : 0u;
+        decode.CompareSwap = extendedCarrierRange ? 1u : 0u;
         ID3D12Resource* const decodeBase = pairedAnchorBaseline ? g.baselineOutput.Get() : proxy;
         const bool decoded =
             shader.DispatchPassAux2(cmd, decode, g.output.Get(), decodeBase, nullptr, nullptr, nullptr,
