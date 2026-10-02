@@ -286,6 +286,16 @@ void RenderInput(Config* config)
                 HelpMarker("NGX render preset used only by this private 1:1 DLAA feature. Changing it recreates "
                            "the temporal DLSS feature and starts a fresh history.");
 
+                auto& temporalAutoExposureSetting =
+                    transfer == 8 ? config->DlssNrTemporalDlaaNrAutoExposure
+                    : transfer == 9 ? config->DlssNrTemporalDlaaResidualAutoExposure
+                                     : config->DlssNrTemporalDlaaAnchoredAutoExposure;
+                bool temporalAutoExposure = temporalAutoExposureSetting.value_or_default();
+                if (ImGui::Checkbox("Private DLAA Auto Exposure (experimental)", &temporalAutoExposure))
+                    temporalAutoExposureSetting = temporalAutoExposure;
+                HelpMarker("Sets NVSDK_NGX_DLSS_Feature_Flags_AutoExposure only for this temporal DLAA mode. "
+                           "The image-anchored Paired baseline uses the same setting on both DLAA histories.");
+
                 bool temporalIsHdr = config->DlssNrTemporalDlaaIsHdr.value_or_default();
                 if (ImGui::Checkbox("Private DLAA IsHDR (experimental)", &temporalIsHdr))
                     config->DlssNrTemporalDlaaIsHdr = temporalIsHdr;
@@ -665,6 +675,32 @@ void RenderInput(Config* config)
 
                 HelpMarker("NGX render preset for any private DLSS SR feature used by NR enlargement or P50 "
                            "detail-reference reconstruction.");
+
+                const bool mainDlssActive =
+                    transfer == 2 || transfer == 4 ||
+                    (transfer == 5 && outputUpscaler == 10) ||
+                    (transfer == 6 && residualUpscaler == 10);
+                const bool referenceDlssActive =
+                    (transfer == 5 && (detailMode != 0 || directExperimentNeedsReference) && referenceUpscaler == 10) ||
+                    (transfer == 6 && residualReferenceUpscaler == 10);
+
+                if (mainDlssActive)
+                {
+                    bool autoExposure = config->DlssNrScalingDlssAutoExposure.value_or_default();
+                    if (ImGui::Checkbox("Main DLSS Auto Exposure (experimental)", &autoExposure))
+                        config->DlssNrScalingDlssAutoExposure = autoExposure;
+                    HelpMarker("Sets NVSDK_NGX_DLSS_Feature_Flags_AutoExposure on the main private DLSS SR feature "
+                               "used for the selected enlargement/output path.");
+                }
+
+                if (referenceDlssActive)
+                {
+                    bool autoExposure = config->DlssNrDetailReferenceDlssAutoExposure.value_or_default();
+                    if (ImGui::Checkbox("P50 reference DLSS Auto Exposure (experimental)", &autoExposure))
+                        config->DlssNrDetailReferenceDlssAutoExposure = autoExposure;
+                    HelpMarker("Sets NVSDK_NGX_DLSS_Feature_Flags_AutoExposure only on the separate P50 -> P100 "
+                               "DLSS reference history.");
+                }
             }
 
             if ((transfer == 5 || transfer == 6) && ImGui::TreeNode("Detail quality lab (experimental)"))
