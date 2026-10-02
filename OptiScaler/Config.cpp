@@ -361,6 +361,9 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrTemporalAnchoredBaseStrengthCustom.set_from_config(
                 readBool("DlssNr", "TemporalAnchoredBaseStrengthCustom"));
             DlssNrTemporalAnchoredPairedBaseline.set_from_config(readBool("DlssNr", "TemporalAnchoredPairedBaseline"));
+            DlssNrTemporalCarrierExtendedRange.set_from_config(
+                readBool("DlssNr", "TemporalCarrierExtendedRange"));
+            DlssNrTemporalDlaaIsHdr.set_from_config(readBool("DlssNr", "TemporalDlaaIsHdr"));
             DlssNrTemporalCarrierMargin.set_from_config(readFloat("DlssNr", "TemporalCarrierMargin"));
             DlssNrTemporalCarrierAutoMaxGain.set_from_config(readFloat("DlssNr", "TemporalCarrierAutoMaxGain"));
             DlssNrTemporalCarrierAutoRiseStopsPerSecond.set_from_config(
@@ -1439,6 +1442,10 @@ bool Config::SaveIni(std::filesystem::path destination)
                      Instance()->DlssNrTemporalAnchoredBaseStrengthCustom.value_for_config().value_or(false) ? "true" : "false");
         ini.SetValue("DlssNr", "TemporalAnchoredPairedBaseline",
                      Instance()->DlssNrTemporalAnchoredPairedBaseline.value_for_config().value_or(false) ? "true" : "false");
+        ini.SetValue("DlssNr", "TemporalCarrierExtendedRange",
+                     Instance()->DlssNrTemporalCarrierExtendedRange.value_for_config().value_or(false) ? "true" : "false");
+        ini.SetValue("DlssNr", "TemporalDlaaIsHdr",
+                     Instance()->DlssNrTemporalDlaaIsHdr.value_for_config().value_or(false) ? "true" : "false");
         ini.SetValue("DlssNr", "TemporalCarrierMargin",
                      GetFloatValue(Instance()->DlssNrTemporalCarrierMargin.value_for_config()).c_str());
         ini.SetValue("DlssNr", "TemporalCarrierAutoMaxGain",
