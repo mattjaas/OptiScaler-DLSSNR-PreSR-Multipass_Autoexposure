@@ -276,7 +276,8 @@ struct DlssNr_Dx12::State
             unsigned accumulatedIndex = 0;
             bool accumulationReadable = false, accumulationValid = false;
             bool smallReadable = false, reset = true, failed = false;
-            bool rayReconstruction = false, finishedPicture = false, privateRr = false;
+            bool rayReconstruction = false, finishedPicture = false, privateRr = false,
+                 privateDlssAutoExposure = false;
             DlssNr::PrivateUpscaler backend = DlssNr::PrivateUpscaler::DLSS;
             std::unique_ptr<DlssNr::PrivateUpscalerDx12> upscaler;
             DlssNr::PrivateUpscalerFrameDx12 frame;
