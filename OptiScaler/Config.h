@@ -359,8 +359,14 @@ class Config
     // Reference experiment: run a second independent 1:1 DLAA history on the compressed clean anchor
     // and decode (DLAA(anchor+K*E)-DLAA(anchor))/K.
     CustomOptional<bool> DlssNrTemporalAnchoredPairedBaseline { false };
-    // Carrier headroom from 0/1 for automatic gain. Auto ceiling prevents effectively-infinite K
-    // on nearly-zero residuals; typed finite values remain user-adjustable.
+    // Experimental carrier domain. Off keeps the legacy [0,1] LDR-like carrier. On expands the
+    // linear/image-anchored carrier symmetrically around neutral 0.5 to [-1,2].
+    CustomOptional<bool> DlssNrTemporalCarrierExtendedRange { false };
+    // Independently advertise the private 1:1 DLAA input as HDR to NGX. This is intentionally
+    // separate from ExtendedRange so either behaviour can be A/B tested on its own.
+    CustomOptional<bool> DlssNrTemporalDlaaIsHdr { false };
+    // Carrier headroom from the active carrier limits for automatic gain. Auto ceiling prevents
+    // effectively-infinite K on nearly-zero residuals; typed finite values remain user-adjustable.
     CustomOptional<float> DlssNrTemporalCarrierMargin { 0.01f };
     CustomOptional<float> DlssNrTemporalCarrierAutoMaxGain { 32.0f };
     // Auto K drops immediately when the current frame requires it, but grows at this rate
