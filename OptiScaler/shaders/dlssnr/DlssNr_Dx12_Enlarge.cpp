@@ -122,6 +122,20 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         residualDlaa && cfg.DlssNrTemporalCarrierExtendedRange.value_or_default() &&
         (imageAnchoredDlaa || residualEncoding == 1u);
     const bool temporalDlaaIsHdr = temporalDlaa && cfg.DlssNrTemporalDlaaIsHdr.value_or_default();
+    const bool temporalAutoExposure =
+        transfer == 8u ? cfg.DlssNrTemporalDlaaNrAutoExposure.value_or_default()
+        : transfer == 9u ? cfg.DlssNrTemporalDlaaResidualAutoExposure.value_or_default()
+        : transfer == 10u ? cfg.DlssNrTemporalDlaaAnchoredAutoExposure.value_or_default()
+                          : false;
+    const bool mainDlssActive =
+        transfer == 2u || transfer == 4u || temporalDlaa ||
+        ((direct || upscaledResidual) && outputUpscaler == 10u);
+    const bool mainDlssAutoExposure =
+        mainDlssActive && (temporalDlaa ? temporalAutoExposure
+                                       : cfg.DlssNrScalingDlssAutoExposure.value_or_default());
+    const bool detailDlssAutoExposure =
+        (direct || upscaledResidual) && detailReferenceUpscaler == 10u &&
+        cfg.DlssNrDetailReferenceDlssAutoExposure.value_or_default();
     const uint32_t baseCarrierMode =
         imageAnchoredDlaa ? 7u
         : transfer == 9 ? (residualEncoding == 0u ? 5u : 6u)
@@ -156,7 +170,9 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                      enlarger->outH != desiredOutH || (queue && enlarger->queue.Get() != queue) ||
                      enlarger->depthInverted != frame.DepthInverted || enlarger->carrierMode != carrierMode ||
                      enlarger->dlssPreset != dlssPreset || enlarger->outputUpscaler != outputUpscaler ||
-                     enlarger->detailReferenceUpscaler != detailReferenceUpscaler))
+                     enlarger->detailReferenceUpscaler != detailReferenceUpscaler ||
+                     enlarger->dlssAutoExposure != mainDlssAutoExposure ||
+                     enlarger->detailDlssAutoExposure != detailDlssAutoExposure))
         ReleaseEnlarger();
 
     if (enlarger && imageAnchoredDlaa && std::abs(enlarger->anchorStrength - anchorStrength) > 1.0e-6f)
@@ -187,6 +203,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         g.dlssPreset = dlssPreset;
         g.outputUpscaler = outputUpscaler;
         g.detailReferenceUpscaler = detailReferenceUpscaler;
+        g.dlssAutoExposure = mainDlssAutoExposure;
+        g.detailDlssAutoExposure = detailDlssAutoExposure;
 
         g.input.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, w, h));
         g.output.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, g.outW, g.outH));
@@ -248,6 +266,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         info.depthInverted = frame.DepthInverted;
         info.rayReconstruction = false;
         info.isHdr = temporalDlaaIsHdr;
+        info.autoExposure = mainDlssAutoExposure;
         if (!g.dlss->Init(device, cmd, info))
             return say(std::string(temporalDlaa ? "Private DLSS DLAA: " : "Private DLSS SR: ") + g.dlss->Error());
 
@@ -264,13 +283,17 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         if ((direct || upscaledResidual) && detailReferenceUpscaler == 10)
         {
             g.detailDlss = std::make_unique<DlssNr::PrivateUpscalerDx12>(DlssNr::PrivateUpscaler::DLSS);
-            if (!g.detailDlss->Init(device, cmd, info))
+            auto detailInfo = info;
+            detailInfo.isHdr = false;
+            detailInfo.autoExposure = detailDlssAutoExposure;
+            if (!g.detailDlss->Init(device, cmd, detailInfo))
                 return say("Private P50-reference DLSS SR: " + g.detailDlss->Error());
         }
 
         LOG_INFO("NR enlargement created at {}x{} -> {}x{}, output upscaler {}, detail-reference upscaler {}, "
-                 "DLSS preset {}",
-                 w, h, g.outW, g.outH, outputUpscaler, detailReferenceUpscaler, dlssPreset);
+                 "DLSS preset {}, main AE {}, reference AE {}",
+                 w, h, g.outW, g.outH, outputUpscaler, detailReferenceUpscaler, dlssPreset,
+                 mainDlssAutoExposure ? "on" : "off", detailDlssAutoExposure ? "on" : "off");
 
         ID3D12GraphicsCommandList* real = nullptr;
         g.creation = Util::CheckForRealObject(__FUNCTION__, cmd, (IUnknown**) &real) ? real : cmd;
