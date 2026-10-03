@@ -54,6 +54,21 @@ cbuffer Params : register(b0)
 
 float SanitizeFinite(float v, float fallback) { return isfinite(v) ? v : fallback; }
 
+float2 TemporalCarrierRange()
+{
+    const float kFp16Max = 65504.0;
+    float low = clamp(SanitizeFinite(gWhitePoint, 0.0), -kFp16Max, kFp16Max);
+    float high = clamp(SanitizeFinite(gDebugScale, 1.0), -kFp16Max, kFp16Max);
+    if (!(high > low))
+        return float2(0.0, 1.0);
+    return float2(low, high);
+}
+
+bool TemporalCarrierDefaultRange(float2 range)
+{
+    return abs(range.x) <= 1.0e-6 && abs(range.y - 1.0) <= 1.0e-6;
+}
+
 // Approximate skin-colour selection, not a face/skin segmentation network. Warm
 // materials may be selected and coloured lighting can hide skin. The preview is
 // deliberately exposed so users can check this before relying on protection.
@@ -1893,11 +1908,12 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const uint y1 = max(((id.y + 1u) * srcH) / gHeight, y0 + 1u);
         const float margin = clamp(abs(gResidualScale), 0.0, 0.49);
         const float anchorStrength = saturate(gTransferStrength);
-        // CompareSwap is repurposed by these carrier-only dispatches as the extended-range flag.
-        // Nonlinear encoding remains bounded in [0,1]; linear/image carriers expand to [-1,2].
-        const bool extendedRange = gCompareSwap != 0u && gTransfer != 0u;
-        const float carrierLow = extendedRange ? -1.0 : 0.0;
-        const float carrierHigh = extendedRange ? 2.0 : 1.0;
+        // Linear/image carriers use the manually selected FP16 range. Neutral is always its midpoint.
+        // Nonlinear encoding remains its original bounded [0,1] mapping and ignores these values.
+        const float2 carrierRange = TemporalCarrierRange();
+        const float carrierLow = carrierRange.x;
+        const float carrierHigh = carrierRange.y;
+        const float carrierNeutral = 0.5 * (carrierLow + carrierHigh);
         const float huge = 1.0e20;
 
         float strictMin = huge;
@@ -1976,8 +1992,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                     }
                     else if (gTransfer == 1u)
                     {
-                        const float roomWhite = max((carrierHigh - margin) - 0.5, 0.0);
-                        const float roomBlack = max(0.5 - (carrierLow + margin), 0.0);
+                        const float roomWhite = max((carrierHigh - margin) - carrierNeutral, 0.0);
+                        const float roomBlack = max(carrierNeutral - (carrierLow + margin), 0.0);
                         if (edit > 1.0e-12)
                         {
                             bound = roomWhite / edit;
@@ -1993,7 +2009,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                     {
                         // Compressed image anchor: preserve scene structure while reserving headroom.
                         // Raw Proxy is saturated only for the carrier anchor, never for E itself.
-                        const float anchor = 0.5 + anchorStrength * (saturate(proxyRaw[ch]) - 0.5);
+                        const float anchor = carrierNeutral + anchorStrength * (saturate(proxyRaw[ch]) - 0.5);
                         const float roomWhite = max((carrierHigh - margin) - anchor, 0.0);
                         const float roomBlack = max(anchor - (carrierLow + margin), 0.0);
                         if (edit > 1.0e-12)
@@ -2090,9 +2106,10 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const float riseMultiplier = max(gColourStrength, 1.0);
         const float K = gainMode == 0u ? manualK : min(autoTarget, previousK * riseMultiplier);
         const float anchorStrength = saturate(gMaxRatio);
-        const bool extendedRange = gCompareSwap != 0u && gTransfer != 0u;
-        const float carrierLow = extendedRange ? -1.0 : 0.0;
-        const float carrierHigh = extendedRange ? 2.0 : 1.0;
+        const float2 carrierRange = TemporalCarrierRange();
+        const float carrierLow = carrierRange.x;
+        const float carrierHigh = carrierRange.y;
+        const float carrierNeutral = 0.5 * (carrierLow + carrierHigh);
 
         const int2 p = int2(id.xy);
         const float3 proxyRaw = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.0);
@@ -2102,10 +2119,10 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         if (gTransfer == 0u)
             carrier = NrEncodeResizeField(K * e);
         else if (gTransfer == 1u)
-            carrier = clamp(0.5 + K * e, carrierLow, carrierHigh);
+            carrier = clamp(carrierNeutral + K * e, carrierLow, carrierHigh);
         else
         {
-            const float3 anchor = 0.5 + anchorStrength * (saturate(proxyRaw) - 0.5);
+            const float3 anchor = carrierNeutral + anchorStrength * (saturate(proxyRaw) - 0.5);
             carrier = clamp(anchor + K * e, carrierLow, carrierHigh);
         }
 
@@ -2118,8 +2135,10 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (gMode == 25)
     {
         const float anchorStrength = saturate(gTransferStrength);
+        const float2 carrierRange = TemporalCarrierRange();
+        const float carrierNeutral = 0.5 * (carrierRange.x + carrierRange.y);
         const float3 proxyRaw = SanitizeFinite3(gSource.Load(int3(id.xy, 0)).rgb, 0.0);
-        const float3 anchor = 0.5 + anchorStrength * (saturate(proxyRaw) - 0.5);
+        const float3 anchor = carrierNeutral + anchorStrength * (saturate(proxyRaw) - 0.5);
         gTarget[id.xy] = float4(anchor, 1.0);
         return;
     }
@@ -2133,22 +2152,27 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (gMode == 23)
     {
         const float K = max(abs(gAux2.Load(int3(0, 0, 0)).x), 1.0e-6);
+        const float2 carrierRange = TemporalCarrierRange();
+        const float carrierNeutral = 0.5 * (carrierRange.x + carrierRange.y);
+        const bool defaultRange = TemporalCarrierDefaultRange(carrierRange);
         const int2 p = int2(id.xy);
-        const float3 filtered = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, 0.5);
+        const float3 filtered = SanitizeFinite3(gSource.Load(int3(p, 0)).rgb, carrierNeutral.xxx);
         const float3 baseRaw = SanitizeFinite3(gModel.Load(int3(p, 0)).rgb, 0.0);
-        const bool extendedRange = gCompareSwap != 0u && gTransfer != 0u;
+        // Preserve the legacy [0,1] decode exactly. Any custom diagnostic range intentionally keeps
+        // raw DLAA excursions so the test can reveal whether the network itself collapses one side.
+        const float3 decodedCarrier = defaultRange ? saturate(filtered) : filtered;
         float3 e;
         if (gTransfer == 0u)
             e = NrDecodeResizeField(filtered) / K;
         else if (gTransfer == 1u)
-            e = ((extendedRange ? filtered : saturate(filtered)) - 0.5) / K;
+            e = (decodedCarrier - carrierNeutral) / K;
         else if (gDebugView != 0u)
             e = (filtered - baseRaw) / K; // paired DLAA baseline: cancel the two raw DLAA outputs directly
         else
         {
             const float anchorStrength = saturate(gTransferStrength);
-            const float3 anchor = 0.5 + anchorStrength * (saturate(baseRaw) - 0.5);
-            e = ((extendedRange ? filtered : saturate(filtered)) - anchor) / K;
+            const float3 anchor = carrierNeutral + anchorStrength * (saturate(baseRaw) - 0.5);
+            e = (decodedCarrier - anchor) / K;
         }
         gTarget[id.xy] = float4(SanitizeFinite3(e, 0.0), 1.0);
         return;
@@ -2455,9 +2479,16 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (gDebugView == 5 && gTransfer == 9u && (gDirectResolveFlags & 4u) != 0u)
     {
         const float3 carrierRaw = gAux.SampleLevel(gLinear, cmpUv, 0).rgb;
-        // Extended carrier debug maps [-1,2] back to [0,1]; neutral 0.5 remains neutral 0.5.
-        const float3 carrier =
-            (gDirectResolveFlags & 8u) != 0u ? saturate((carrierRaw + 1.0) / 3.0) : saturate(carrierRaw);
+        // Custom carrier debug maps the selected Min/Max back to [0,1], so its midpoint is always 0.5.
+        float3 carrier = saturate(carrierRaw);
+        if ((gDirectResolveFlags & 8u) != 0u)
+        {
+            const float rangeLow = asfloat(gResidualMotionBaseXUnused);
+            const float rangeHigh = asfloat(gResidualMotionBaseYUnused);
+            const float rangeWidth = rangeHigh - rangeLow;
+            if (isfinite(rangeLow) && isfinite(rangeHigh) && rangeWidth > 1.0e-6)
+                carrier = saturate((carrierRaw - rangeLow) / rangeWidth);
+        }
         gTarget[id.xy] = float4(SrgbToLinear(carrier) * gDebugScale, originalSample.a);
         return;
     }

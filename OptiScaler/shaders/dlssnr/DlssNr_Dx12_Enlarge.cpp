@@ -118,9 +118,22 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         std::clamp(std::isfinite(configuredAnchorStrength) ? configuredAnchorStrength : 0.5f, 0.0f, 1.0f);
     const bool pairedAnchorBaseline =
         imageAnchoredDlaa && cfg.DlssNrTemporalAnchoredPairedBaseline.value_or_default();
-    const bool extendedCarrierRange =
-        residualDlaa && cfg.DlssNrTemporalCarrierExtendedRange.value_or_default() &&
-        (imageAnchoredDlaa || residualEncoding == 1u);
+    constexpr float kCarrierFp16Limit = 65504.0f;
+    const bool carrierRangeRelevant = residualDlaa && (imageAnchoredDlaa || residualEncoding == 1u);
+    float carrierRangeLow = carrierRangeRelevant ? cfg.DlssNrTemporalCarrierRangeMin.value_or_default() : 0.0f;
+    float carrierRangeHigh = carrierRangeRelevant ? cfg.DlssNrTemporalCarrierRangeMax.value_or_default() : 1.0f;
+    carrierRangeLow = std::clamp(std::isfinite(carrierRangeLow) ? carrierRangeLow : 0.0f,
+                                 -kCarrierFp16Limit, kCarrierFp16Limit);
+    carrierRangeHigh = std::clamp(std::isfinite(carrierRangeHigh) ? carrierRangeHigh : 1.0f,
+                                  -kCarrierFp16Limit, kCarrierFp16Limit);
+    if (!(carrierRangeHigh > carrierRangeLow))
+    {
+        carrierRangeLow = 0.0f;
+        carrierRangeHigh = 1.0f;
+    }
+    const bool customCarrierRange =
+        carrierRangeRelevant &&
+        (std::abs(carrierRangeLow) > 1.0e-6f || std::abs(carrierRangeHigh - 1.0f) > 1.0e-6f);
     const bool temporalDlaaIsHdr = temporalDlaa && cfg.DlssNrTemporalDlaaIsHdr.value_or_default();
     const bool temporalAutoExposure =
         transfer == 8u ? cfg.DlssNrTemporalDlaaNrAutoExposure.value_or_default()
@@ -143,7 +156,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     // Extra bits make experimental input-domain changes recreate/reset the private temporal feature.
     const uint32_t carrierMode = baseCarrierMode |
                                  (pairedAnchorBaseline ? 0x100u : 0u) |
-                                 (extendedCarrierRange ? 0x200u : 0u) |
+                                 (customCarrierRange ? 0x200u : 0u) |
                                  (temporalDlaaIsHdr ? 0x400u : 0u);
     const bool directAnswerSource = direct && DirectAnswerCanFeedUpscaler(answer);
     const bool p100GuidedExperiment =
@@ -182,6 +195,18 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         enlarger->reset = true;
         enlarger->baselineReset = true;
     }
+    if (enlarger && residualDlaa &&
+        (std::abs(enlarger->carrierRangeLow - carrierRangeLow) > 1.0e-6f ||
+         std::abs(enlarger->carrierRangeHigh - carrierRangeHigh) > 1.0e-6f))
+    {
+        // Range/midpoint changes alter the signal seen by DLAA. Reset temporal histories without
+        // throwing away the already-created feature, and invalidate old K telemetry immediately.
+        enlarger->carrierRangeLow = carrierRangeLow;
+        enlarger->carrierRangeHigh = carrierRangeHigh;
+        enlarger->reset = true;
+        enlarger->baselineReset = true;
+        temporalCarrierTelemetryValid = false;
+    }
 
     CollectEnlargers();
     if (!enlarger)
@@ -200,6 +225,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         g.carrierMode = carrierMode;
         g.pairedBaseline = pairedAnchorBaseline;
         g.anchorStrength = anchorStrength;
+        g.carrierRangeLow = carrierRangeLow;
+        g.carrierRangeHigh = carrierRangeHigh;
         g.dlssPreset = dlssPreset;
         g.outputUpscaler = outputUpscaler;
         g.detailReferenceUpscaler = detailReferenceUpscaler;
@@ -494,7 +521,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             limits.Transfer = carrierType;
             limits.TransferStrength = anchorStrength;
             limits.ResidualScale = margin;
-            limits.CompareSwap = extendedCarrierRange ? 1u : 0u;
+            limits.WhitePoint = carrierRangeLow;
+            limits.DebugScale = carrierRangeHigh;
             limits.Passthrough = cfg.DlssNrTemporalCarrierIgnoreNvidiaWatermarks.value_or_default() ? 1u : 0u;
             limits.ExposureSourceWidth = resolve.Width;
             limits.ExposureSourceHeight = resolve.Height;
@@ -568,7 +596,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                 encode.TransferStrength = previousAppliedK;
                 encode.ColourStrength = riseMultiplier;
                 encode.MaxRatio = anchorStrength;
-                encode.CompareSwap = extendedCarrierRange ? 1u : 0u;
+                encode.WhitePoint = carrierRangeLow;
+                encode.DebugScale = carrierRangeHigh;
                 ok = shader.DispatchPassAux2(cmd, encode, proxy, answer, nullptr, nullptr, nullptr,
                                              statSource, g.input.Get(), g.carrierApplied.Get());
             }
@@ -584,6 +613,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                 anchor.Width = w;
                 anchor.Height = h;
                 anchor.TransferStrength = anchorStrength;
+                anchor.WhitePoint = carrierRangeLow;
+                anchor.DebugScale = carrierRangeHigh;
                 ok = shader.DispatchPass(cmd, anchor, proxy, nullptr, nullptr, nullptr, nullptr,
                                          g.baselineInput.Get(), nullptr);
                 if (ok)
@@ -850,7 +881,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         decode.Transfer = carrierType;
         decode.TransferStrength = anchorStrength;
         decode.DebugView = pairedAnchorBaseline ? 1u : 0u;
-        decode.CompareSwap = extendedCarrierRange ? 1u : 0u;
+        decode.WhitePoint = carrierRangeLow;
+        decode.DebugScale = carrierRangeHigh;
         ID3D12Resource* const decodeBase = pairedAnchorBaseline ? g.baselineOutput.Get() : proxy;
         const bool decoded =
             shader.DispatchPassAux2(cmd, decode, g.output.Get(), decodeBase, nullptr, nullptr, nullptr,

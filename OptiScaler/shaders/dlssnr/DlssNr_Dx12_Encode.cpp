@@ -379,7 +379,8 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
     }
 }
 
-DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& context, unsigned int effectivePasses)
+DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& context, unsigned int effectivePasses,
+                                                          bool interPassShapingApplied)
 {
     const auto& cfg = *Config::Instance();
     const auto whitePoint = context.whitePoint;
@@ -446,9 +447,13 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
         const unsigned int finalPass = effectivePasses > 0 ? effectivePasses - 1u : 0u;
         const uint32_t finalStyle = PassSettings(cfg, finalPass).style;
+        // Inter-pass reconstruction already applies one normal shaping step after every completed pass.
+        // The final cumulative residual still needs its normal one-pass shaping, but pass-count compounding
+        // would double-count the multipass correction. Keep legacy compounding only when inter-pass was unused.
+        const unsigned int finalShapingPasses = interPassShapingApplied ? 1u : effectivePasses;
         const auto shaping =
             DlssNr::Profiles::EffectiveGuidedResidualGains(cfg, shapingMode, configuredTransfer, finalStyle,
-                                                           effectivePasses, context.workScale);
+                                                           finalShapingPasses, context.workScale);
         resolveParams.MvScaleX = shaping.high;
         resolveParams.MvScaleY = shaping.low;
         resolveParams.GuideWidth = shaping.active ? 1u : 0u;

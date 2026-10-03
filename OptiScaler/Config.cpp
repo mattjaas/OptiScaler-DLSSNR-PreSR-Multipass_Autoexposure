@@ -367,8 +367,19 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrTemporalAnchoredBaseStrengthCustom.set_from_config(
                 readBool("DlssNr", "TemporalAnchoredBaseStrengthCustom"));
             DlssNrTemporalAnchoredPairedBaseline.set_from_config(readBool("DlssNr", "TemporalAnchoredPairedBaseline"));
-            DlssNrTemporalCarrierExtendedRange.set_from_config(
-                readBool("DlssNr", "TemporalCarrierExtendedRange"));
+            const auto carrierRangeMinIni = readFloat("DlssNr", "TemporalCarrierRangeMin");
+            const auto carrierRangeMaxIni = readFloat("DlssNr", "TemporalCarrierRangeMax");
+            if (carrierRangeMinIni.has_value() || carrierRangeMaxIni.has_value())
+            {
+                DlssNrTemporalCarrierRangeMin.set_from_config(carrierRangeMinIni);
+                DlssNrTemporalCarrierRangeMax.set_from_config(carrierRangeMaxIni);
+            }
+            else if (readBool("DlssNr", "TemporalCarrierExtendedRange").value_or(false))
+            {
+                // One-time compatibility migration from the old fixed [-1,2] checkbox.
+                DlssNrTemporalCarrierRangeMin.set_from_config(std::optional<float> { -1.0f });
+                DlssNrTemporalCarrierRangeMax.set_from_config(std::optional<float> { 2.0f });
+            }
             DlssNrTemporalDlaaIsHdr.set_from_config(readBool("DlssNr", "TemporalDlaaIsHdr"));
             DlssNrScalingDlssAutoExposure.set_from_config(readBool("DlssNr", "ScalingDlssAutoExposure"));
             DlssNrDetailReferenceDlssAutoExposure.set_from_config(
@@ -1460,8 +1471,13 @@ bool Config::SaveIni(std::filesystem::path destination)
                      Instance()->DlssNrTemporalAnchoredBaseStrengthCustom.value_for_config().value_or(false) ? "true" : "false");
         ini.SetValue("DlssNr", "TemporalAnchoredPairedBaseline",
                      Instance()->DlssNrTemporalAnchoredPairedBaseline.value_for_config().value_or(false) ? "true" : "false");
-        ini.SetValue("DlssNr", "TemporalCarrierExtendedRange",
-                     Instance()->DlssNrTemporalCarrierExtendedRange.value_for_config().value_or(false) ? "true" : "false");
+        ini.SetValue("DlssNr", "TemporalCarrierRangeMin",
+                     GetFloatValue(Instance()->DlssNrTemporalCarrierRangeMin.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "TemporalCarrierRangeMax",
+                     GetFloatValue(Instance()->DlssNrTemporalCarrierRangeMax.value_for_config()).c_str());
+        // Retire the old fixed-range switch after migration so [0,1] does not get turned back into [-1,2]
+        // on a later load where both new values are left at their defaults ("auto").
+        ini.SetValue("DlssNr", "TemporalCarrierExtendedRange", "false");
         ini.SetValue("DlssNr", "TemporalDlaaIsHdr",
                      Instance()->DlssNrTemporalDlaaIsHdr.value_for_config().value_or(false) ? "true" : "false");
         ini.SetValue("DlssNr", "ScalingDlssAutoExposure",

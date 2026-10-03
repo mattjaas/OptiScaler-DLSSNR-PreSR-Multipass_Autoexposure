@@ -356,19 +356,22 @@ class Config
     CustomOptional<float> DlssNrTemporalResidualManualGain { 4.0f };
     CustomOptional<uint32_t> DlssNrTemporalAnchoredGainMode { 1 };
     CustomOptional<float> DlssNrTemporalAnchoredManualGain { 4.0f };
-    // Compress Proxy around neutral 0.5 before adding K*E. 0.5 maps the clean image to 0.25..0.75,
-    // preserving scene structure for DLAA while reserving symmetric residual headroom.
+    // Compress Proxy around the carrier midpoint before adding K*E. At the legacy [0,1] range,
+    // strength 0.5 maps the clean image to 0.25..0.75; custom ranges move the midpoint but keep
+    // the clean-anchor contrast excursion unchanged.
     CustomOptional<float> DlssNrTemporalAnchoredBaseStrength { 0.50f };
     // Keep an explicit Custom selection sticky even when its numeric value exactly matches a preset.
     CustomOptional<bool> DlssNrTemporalAnchoredBaseStrengthCustom { false };
     // Reference experiment: run a second independent 1:1 DLAA history on the compressed clean anchor
     // and decode (DLAA(anchor+K*E)-DLAA(anchor))/K.
     CustomOptional<bool> DlssNrTemporalAnchoredPairedBaseline { false };
-    // Experimental carrier domain. Off keeps the legacy [0,1] LDR-like carrier. On expands the
-    // linear/image-anchored carrier symmetrically around neutral 0.5 to [-1,2].
-    CustomOptional<bool> DlssNrTemporalCarrierExtendedRange { false };
+    // Manual carrier domain for the linear/image-anchored experiments. Neutral is always the exact
+    // midpoint (Min+Max)/2. The storage texture is FP16, whose largest finite magnitude is 65504.
+    // This numeric storage limit does not imply that private DLAA preserves such extreme values.
+    CustomOptional<float> DlssNrTemporalCarrierRangeMin { 0.0f };
+    CustomOptional<float> DlssNrTemporalCarrierRangeMax { 1.0f };
     // Independently advertise the private 1:1 DLAA input as HDR to NGX. This is intentionally
-    // separate from ExtendedRange so either behaviour can be A/B tested on its own.
+    // separate from the carrier numeric range so either behaviour can be A/B tested on its own.
     CustomOptional<bool> DlssNrTemporalDlaaIsHdr { false };
 
     // Auto Exposure for the other private DLSS roles.

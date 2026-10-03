@@ -338,7 +338,7 @@ void RenderInput(Config* config)
                     if (anchorPreset == 4)
                         Slider("Custom anchor B", config->DlssNrTemporalAnchoredBaseStrength,
                                0.0f, 1.0f, "%.3f", 0.50f);
-                    HelpMarker("Anchor = 0.5 + B*(saturate(Proxy50)-0.5). Lower B reserves more symmetric carrier "
+                    HelpMarker("Anchor = carrier midpoint + B*(saturate(Proxy50)-0.5). Lower B reserves more carrier "
                                "headroom while preserving a lower-contrast copy of scene structure for DLAA.");
 
                     bool paired = config->DlssNrTemporalAnchoredPairedBaseline.value_or_default();
@@ -359,17 +359,68 @@ void RenderInput(Config* config)
                                "amplitude-faithful and exactly reversible while K stays inside the safe carrier range.");
                 }
 
-                const bool extendedRelevant =
+                const bool carrierRangeRelevant =
                     transfer == 10 || config->DlssNrTemporalResidualEncoding.value_or_default() == 1u;
-                bool extendedCarrier = config->DlssNrTemporalCarrierExtendedRange.value_or_default();
-                ImGui::BeginDisabled(!extendedRelevant);
-                if (ImGui::Checkbox("Extended carrier range [-1, 2] (experimental)", &extendedCarrier))
-                    config->DlssNrTemporalCarrierExtendedRange = extendedCarrier;
+                constexpr float carrierFp16Limit = 65504.0f;
+                float carrierLow = config->DlssNrTemporalCarrierRangeMin.value_or_default();
+                float carrierHigh = config->DlssNrTemporalCarrierRangeMax.value_or_default();
+                bool carrierRangeChanged = false;
+
+                ImGui::BeginDisabled(!carrierRangeRelevant);
+                carrierRangeChanged |= ImGui::InputFloat("Carrier range min", &carrierLow, 0.0f, 0.0f, "%.6g");
+                carrierRangeChanged |= ImGui::InputFloat("Carrier range max", &carrierHigh, 0.0f, 0.0f, "%.6g");
+                if (ImGui::Button("Preset [0,1]##carrier-range"))
+                {
+                    carrierLow = 0.0f;
+                    carrierHigh = 1.0f;
+                    carrierRangeChanged = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("[-1,2]##carrier-range"))
+                {
+                    carrierLow = -1.0f;
+                    carrierHigh = 2.0f;
+                    carrierRangeChanged = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("[0,2]##carrier-range"))
+                {
+                    carrierLow = 0.0f;
+                    carrierHigh = 2.0f;
+                    carrierRangeChanged = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("[0,3]##carrier-range"))
+                {
+                    carrierLow = 0.0f;
+                    carrierHigh = 3.0f;
+                    carrierRangeChanged = true;
+                }
+                if (carrierRangeChanged)
+                {
+                    carrierLow = std::clamp(std::isfinite(carrierLow) ? carrierLow : 0.0f,
+                                            -carrierFp16Limit, carrierFp16Limit);
+                    carrierHigh = std::clamp(std::isfinite(carrierHigh) ? carrierHigh : 1.0f,
+                                             -carrierFp16Limit, carrierFp16Limit);
+                    if (carrierHigh > carrierLow)
+                    {
+                        config->DlssNrTemporalCarrierRangeMin = carrierLow;
+                        config->DlssNrTemporalCarrierRangeMax = carrierHigh;
+                    }
+                }
                 ImGui::EndDisabled();
-                HelpMarker("For Linear residual and image-anchored carriers, expands the encoded domain from [0,1] "
-                           "to [-1,2], keeping neutral at 0.5 and increasing symmetric headroom from 0.5 to 1.5. "
-                           "Safe K and Auto K use the selected range. The nonlinear residual encoding remains bounded "
-                           "inside [0,1], so this option has no effect there.");
+
+                const float activeCarrierLow = config->DlssNrTemporalCarrierRangeMin.value_or_default();
+                const float activeCarrierHigh = config->DlssNrTemporalCarrierRangeMax.value_or_default();
+                ImGui::TextDisabled("Carrier neutral/midpoint: %.6g", 0.5f * (activeCarrierLow + activeCarrierHigh));
+                ImGui::TextDisabled("FP16 finite storage limit: -65504 .. +65504");
+                if (carrierRangeChanged && !(carrierHigh > carrierLow))
+                    ImGui::TextDisabled("Invalid range: min must be lower than max; previous valid range kept.");
+                HelpMarker("Linear residual and image-anchored carriers use the typed Min/Max interval. Neutral grey is "
+                           "always exactly (Min+Max)/2: [-1,2] -> 0.5, [0,3] -> 1.5. Safe K and Auto K use the same "
+                           "limits. The FP16 texture can store finite values through +/-65504, but that is only a format "
+                           "limit and does not guarantee that private DLAA preserves extreme values. Nonlinear residual "
+                           "encoding remains fixed to its bounded [0,1] mapping, so these fields are disabled there.");
 
                 auto& gainModeSetting =
                     transfer == 9 ? config->DlssNrTemporalResidualGainMode : config->DlssNrTemporalAnchoredGainMode;
@@ -417,7 +468,7 @@ void RenderInput(Config* config)
                     ImGui::TextDisabled("Headroom-zero pixels: white %.0f, black %.0f",
                                         carrierStatus.temporalCarrierWhiteLimitedPixels,
                                         carrierStatus.temporalCarrierBlackLimitedPixels);
-                    ImGui::TextDisabled("Raw Proxy outside carrier range: below 0 %.0f, above 1 %.0f pixels",
+                    ImGui::TextDisabled("Raw Proxy outside [0,1]: below 0 %.0f, above 1 %.0f pixels",
                                         carrierStatus.temporalCarrierProxyBelowZeroPixels,
                                         carrierStatus.temporalCarrierProxyAboveOnePixels);
                     if (gainMode == 0 && manualGainSetting.value_or_default() > carrierStatus.temporalCarrierSafeK)
@@ -468,14 +519,23 @@ void RenderInput(Config* config)
                        0.0f, 1.5f, "%.3f", 0.780f);
             }
 
+            const bool interPassShapingActive =
+                config->DlssNrInterPassReconstruction.value_or_default() != 0u &&
+                config->DlssNrPasses.value_or_default() > 1u &&
+                config->DlssNrWorkingScale.value_or_default() < 0.999f &&
+                !config->DlssNrSpatialCompression.value_or_default();
             if (shaping != 0)
             {
                 bool compoundPasses = config->DlssNrGuidedResidualCompoundPasses.value_or_default();
-                if (ImGui::Checkbox("Compound high/mid by pass count", &compoundPasses))
+                ImGui::BeginDisabled(interPassShapingActive);
+                if (ImGui::Checkbox("Compound final high/mid by pass count", &compoundPasses))
                     config->DlssNrGuidedResidualCompoundPasses = compoundPasses;
-                HelpMarker("On: after working-scale correction, high/mid is raised to the number of effective NR passes "
-                           "(for example 0.85 -> 0.85^2 -> 0.85^3). Off: pass count does not change high/mid. "
-                           "Low frequency is never compounded by pass count.");
+                ImGui::EndDisabled();
+                HelpMarker("Without inter-pass correction: after working-scale correction, final high/mid can be raised "
+                           "to the number of effective NR passes (for example 0.85 -> 0.85^2 -> 0.85^3). With inter-pass "
+                           "correction active, every transition already applies one normal shaping step, so the final "
+                           "resolve deliberately uses only the normal one-pass gain and this extra compounding is ignored. "
+                           "Low frequency is never pass-compounded.");
             }
 
             const unsigned int runtimePassLimit =
@@ -497,15 +557,18 @@ void RenderInput(Config* config)
                 {
                     const auto effective =
                         Profiles::EffectiveGuidedResidualGains(*config, (uint32_t) shaping, (uint32_t) transfer,
-                                                              style, effectivePasses, shapingScale);
+                                                              style, interPassShapingActive ? 1u : effectivePasses,
+                                                              shapingScale);
                     ImGui::Text("%s%s: high/mid %.4f, low %.4f", shapingStyleNames[style],
                                 style == finalShapingStyle ? " (final style)" : "", effective.high, effective.low);
                 }
                 if (shaping == 1 && transfer != 7)
                     ImGui::TextDisabled("Auto is neutral for this temporal DLAA mode until it is capture-calibrated.");
-                ImGui::TextDisabled("Scale %.0f%%, %u pass%s. High/mid pass compounding: %s; low never compounds.",
+                ImGui::TextDisabled("Scale %.0f%%, %u pass%s. Final high/mid pass compounding: %s; low never compounds.",
                                     shapingScale * 100.0f, effectivePasses, effectivePasses == 1 ? "" : "es",
-                                    config->DlssNrGuidedResidualCompoundPasses.value_or_default() ? "ON" : "OFF");
+                                    interPassShapingActive
+                                        ? "BYPASSED by inter-pass correction"
+                                        : (config->DlssNrGuidedResidualCompoundPasses.value_or_default() ? "ON" : "OFF"));
             }
 
             bool shadowGate = config->DlssNrGuidedResidualShadowGate.value_or_default();
@@ -1060,7 +1123,8 @@ void RenderModel(Config* config)
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
                    "feeds the corrected working-resolution image to the next NR pass. Final transfer remains unchanged.");
         HelpMarker("Inter-pass frequency shaping uses the currently selected guided residual gains once per transition. "
-                   "Compound-pass gain scaling is intentionally ignored.");
+                   "Pass-count compounding is ignored both between passes and in the final resolve while inter-pass "
+                   "correction is actually being used; the final resolve still applies one normal shaping gain.");
     }
 
     static unsigned selectedPass = 0;

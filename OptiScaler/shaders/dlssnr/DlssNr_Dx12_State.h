@@ -90,6 +90,8 @@ struct DlssNr_Dx12::State
              dlssAutoExposure = false, detailDlssAutoExposure = false;
         uint32_t carrierMode = 0;
         float anchorStrength = 0.5f;
+        float carrierRangeLow = 0.0f;
+        float carrierRangeHigh = 1.0f;
         uint32_t outputUpscaler = 10;
         uint32_t detailReferenceUpscaler = 0;
         int dlssPreset = 0;
@@ -487,7 +489,8 @@ struct DlssNr_Dx12::State
         DlssNrConstants exposureConstants {};
     };
     void EncodeInput(EncodeContext& context);
-    DlssNrConstants MakeResolveConstants(const EncodeContext& context, unsigned int effectivePasses);
+    DlssNrConstants MakeResolveConstants(const EncodeContext& context, unsigned int effectivePasses,
+                                           bool interPassShapingApplied);
     OptiScaler::RollingVitals vitals;
     void EndGpuTiming(ID3D12GraphicsCommandList* cmdList);
 

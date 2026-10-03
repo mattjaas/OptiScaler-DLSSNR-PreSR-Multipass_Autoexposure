@@ -987,6 +987,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     bool interPassDebugReadable = false;
     bool clampFailed = false;
     bool interPassFailed = false;
+    bool interPassShapingApplied = false;
     uint32_t clampSlots[2] = { UINT32_MAX, UINT32_MAX };
 
     const auto MakeModelReadable = [&](ID3D12Resource* resource)
@@ -1283,6 +1284,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
             if (reconstructed)
             {
+                interPassShapingApplied = true;
                 passInput = nr.interPassWorking;
 
                 // Debug view 7 must remain the exact input of pass 2 even when a later transition rewrites
@@ -1630,7 +1632,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         // Resolve takes the difference between what the model returned and what it was shown, and adds
         // that back to the frame. At strength zero the result is what the upscaler produced, exactly, and
         // anything the model left alone is untouched rather than round-tripped through the curve.
-        auto resolveParams = MakeResolveConstants(encoded, effectivePasses);
+        auto resolveParams = MakeResolveConstants(encoded, effectivePasses, interPassShapingApplied);
 
         // For spatial supersampling, both halves of the pair use the same filter. A failed paired
         // downsample skips composition this frame so a mismatched proxy cannot create an edit.
@@ -1848,13 +1850,19 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         {
                             directDetailInfo = enlarger->carrierDebug.Get(); // t4 / gPrevEdit
                             resolveParams.DirectResolveFlags |= 4u;          // valid temporal-carrier debug binding
-                            const bool extendedDebug =
-                                cfg.DlssNrTemporalCarrierExtendedRange.value_or_default() &&
-                                (transfer == 10u ||
-                                 (transfer == 9u &&
-                                  cfg.DlssNrTemporalResidualEncoding.value_or_default() == 1u));
-                            if (extendedDebug)
-                                resolveParams.DirectResolveFlags |= 8u; // remap [-1,2] to [0,1] for display only
+                            const bool customCarrierDebug =
+                                std::abs(enlarger->carrierRangeLow) > 1.0e-6f ||
+                                std::abs(enlarger->carrierRangeHigh - 1.0f) > 1.0e-6f;
+                            if (customCarrierDebug)
+                            {
+                                resolveParams.DirectResolveFlags |= 8u; // normalize the active custom range for display
+                                static_assert(sizeof(enlarger->carrierRangeLow) ==
+                                              sizeof(resolveParams.ResidualMotionBaseX));
+                                std::memcpy(&resolveParams.ResidualMotionBaseX, &enlarger->carrierRangeLow,
+                                            sizeof(enlarger->carrierRangeLow));
+                                std::memcpy(&resolveParams.ResidualMotionBaseY, &enlarger->carrierRangeHigh,
+                                            sizeof(enlarger->carrierRangeHigh));
+                            }
                         }
                     }
                 }
