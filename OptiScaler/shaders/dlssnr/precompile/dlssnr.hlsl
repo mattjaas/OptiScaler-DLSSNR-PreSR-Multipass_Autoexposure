@@ -1842,8 +1842,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                 const int2 po = int2(min(uint2(sub * float2(originalW, originalH)),
                                          uint2(originalW - 1u, originalH - 1u)));
                 const int2 pn = int2(min(uint2(sub * float2(nrW, nrH)), uint2(nrW - 1u, nrH - 1u)));
-                float3 original = max(SanitizeFinite3(gSource.Load(int3(po, 0)).rgb, float3(0.0, 0.0, 0.0)), 0.0);
-                float3 edited = max(SanitizeFinite3(gModel.Load(int3(pn, 0)).rgb, original), 0.0);
+                // Linear HDR/scRGB intentionally permits negative Rec.709 components: after HDR10 BT.2020 ->
+                // linear Rec.709 conversion they carry valid wide-gamut chromaticity. Only display-referred SDR
+                // is constrained to [0,1] before its sRGB decode.
+                float3 original = SanitizeFinite3(gSource.Load(int3(po, 0)).rgb, float3(0.0, 0.0, 0.0));
+                float3 edited = SanitizeFinite3(gModel.Load(int3(pn, 0)).rgb, original);
                 if (gPassthrough != 0u)
                 {
                     original = SrgbToLinear(saturate(original));
@@ -1871,7 +1874,9 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (gMode == 31)
     {
         const float4 sourceRaw = gSource.Load(int3(id.xy, 0));
-        float3 linearColor = max(SanitizeFinite3(sourceRaw.rgb, float3(0.0, 0.0, 0.0)), 0.0);
+        // Keep signed scRGB/linear Rec.709 intact for HDR. Negative components can be valid wide-gamut colours
+        // which are converted back to BT.2020/PQ after this pass. SDR remains bounded before sRGB decoding.
+        float3 linearColor = SanitizeFinite3(sourceRaw.rgb, float3(0.0, 0.0, 0.0));
         if (gPassthrough != 0u)
             linearColor = SrgbToLinear(saturate(linearColor));
 
@@ -1925,10 +1930,15 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         }
         lab.yz *= exp2(clamp(requestedLogGain * recoveryWeight, -2.0, 2.0));
 
-        float3 corrected = ClampAp1(FromOkLab(lab));
-        corrected = max(SanitizeFinite3(corrected, linearColor), 0.0);
+        float3 corrected = SanitizeFinite3(FromOkLab(lab), linearColor);
         if (gPassthrough != 0u)
+        {
+            // Display-referred SDR still needs ordinary gamut protection and legal sRGB output.
+            corrected = max(ClampAp1(corrected), 0.0);
             corrected = saturate(LinearToSrgb(corrected));
+        }
+        // HDR deliberately skips ClampAp1/max(0): preserving signed linear Rec.709 lets the existing
+        // Rec.709 -> BT.2020 -> PQ conversion reconstruct wide-gamut colours instead of clipping them here.
         gTarget[id.xy] = float4(corrected, sourceRaw.a);
         return;
     }
