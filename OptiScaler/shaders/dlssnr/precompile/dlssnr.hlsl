@@ -1878,22 +1878,49 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const float4 correction = gModel.Load(int3(0, 0, 0));
         float3 lab = ToOkLab(linearColor);
         const float3 safeCorrection = SanitizeFinite3(correction.xyz, float3(0.0, 0.0, 0.0));
-        lab.yz += safeCorrection.xy * saturate(gTransferStrength);
 
-        const float chroma = length(lab.yz);
-        const float perceptualSaturation = chroma / max(abs(lab.x), 0.05);
+        const float chromaBeforeChromaticity = length(lab.yz);
+        lab.yz += safeCorrection.xy * saturate(gTransferStrength);
+        float chromaAfterChromaticity = length(lab.yz);
+
+        // Optional strict chromaticity-only mode. Keep the new a/b direction/cast, but restore the chroma
+        // magnitude the pixel had before Temperature/Hue. This intentionally leaves the legacy behaviour available.
+        if (gApplyModel != 0u)
+        {
+            if (chromaBeforeChromaticity <= 1.0e-6)
+            {
+                lab.yz = 0.0;
+                chromaAfterChromaticity = 0.0;
+            }
+            else if (chromaAfterChromaticity > 1.0e-6)
+            {
+                lab.yz *= chromaBeforeChromaticity / chromaAfterChromaticity;
+                chromaAfterChromaticity = chromaBeforeChromaticity;
+            }
+        }
+
+        const float perceptualSaturation = chromaAfterChromaticity / max(abs(lab.x), 0.05);
+
+        // The whole-frame target was measured against raw NR. Temperature/Hue may already have changed local
+        // chroma, so subtract that contribution before applying Saturation/Vibrance. At 100% saturation recovery,
+        // the combined result targets the same missing chroma instead of blindly stacking two gains.
+        const float chromaEpsilon = 1.0e-5;
+        const float chromaticityLogChromaChange =
+            log2((chromaAfterChromaticity + chromaEpsilon) / (chromaBeforeChromaticity + chromaEpsilon));
+        const float remainingTargetLogGain = safeCorrection.z - chromaticityLogChromaChange;
         float recoveryWeight = 1.0;
         if (gTransfer == 1u)
         {
-            // Vibrance keeps a floor so vivid colours still move toward the measured whole-frame target.
-            const float vivid = smoothstep(0.08, 0.55, perceptualSaturation);
-            recoveryWeight *= lerp(1.0, 0.15, vivid);
+            // Deliberately stronger than the first implementation: muted colours receive most of the recovery,
+            // while vivid colours receive only a small fraction. This should be visibly distinct from Saturation.
+            const float vivid = smoothstep(0.05, 0.35, perceptualSaturation);
+            recoveryWeight *= lerp(1.0, 0.05, vivid);
         }
 
-        const float requestedLogGain = safeCorrection.z * saturate(gColourStrength);
+        const float requestedLogGain = remainingTargetLogGain * saturate(gColourStrength);
         if (requestedLogGain > 0.0 && gMaxDarkening > 0.0)
         {
-            const float highSaturation = smoothstep(0.20, 0.55, perceptualSaturation);
+            const float highSaturation = smoothstep(0.18, 0.45, perceptualSaturation);
             recoveryWeight *= lerp(1.0, 1.0 - highSaturation, saturate(gMaxDarkening));
         }
         lab.yz *= exp2(clamp(requestedLogGain * recoveryWeight, -2.0, 2.0));

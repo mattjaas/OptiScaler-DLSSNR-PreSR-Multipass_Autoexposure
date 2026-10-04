@@ -329,6 +329,8 @@ class Config
     // Final global colour matching. Compare the untouched pre-NR frame with the fully composed post-NR
     // frame in perceptual OKLab. Zero keeps the legacy output bit-for-bit on this branch.
     CustomOptional<float> DlssNrFinalChromaticityRecovery { 0.0f }; // 0..100%, global temperature/tint/hue cast
+    // Optional strict mode: rotate/translate chromaticity direction but restore each pixel's pre-correction OKLab chroma.
+    CustomOptional<bool> DlssNrFinalChromaticityPreserveSaturation { false };
     CustomOptional<float> DlssNrFinalSaturationRecovery { 0.0f };   // 0..100%, global perceptual chroma match
     CustomOptional<uint32_t> DlssNrFinalSaturationMode { 0 };       // 0 Saturation, 1 Vibrance
     CustomOptional<float> DlssNrFinalHighSaturationProtection { 0.0f }; // 0..100%, positive-gain protection

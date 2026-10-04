@@ -1242,6 +1242,14 @@ void RenderBlend(Config* config)
                    "pre-NR frame. 0% is off; 100% applies the measured global temperature/tint/hue-cast correction. "
                    "This is chromaticity matching, not a simple hue rotation.");
 
+        ImGui::BeginDisabled(config->DlssNrFinalChromaticityRecovery.value_or_default() <= 0.0f);
+        Checkbox("Preserve saturation in Temperature / hue",
+                 config->DlssNrFinalChromaticityPreserveSaturation);
+        HelpMarker("Off preserves the current behaviour, where moving OKLab a/b can also change chroma magnitude. "
+                   "On restores each pixel's pre-correction OKLab chroma after the Temperature/Hue shift, so this "
+                   "stage changes chromaticity direction/cast without independently increasing or decreasing saturation.");
+        ImGui::EndDisabled();
+
         Slider("Saturation recovery", config->DlssNrFinalSaturationRecovery,
                0.0f, 100.0f, "%.0f%%", 0.0f);
         HelpMarker("Measures whole-frame perceptual OKLab chroma before and after NR. 100% targets the original "
@@ -1253,8 +1261,10 @@ void RenderBlend(Config* config)
         if (ImGui::Combo("Saturation matching method", &saturationMode, saturationModes,
                          IM_ARRAYSIZE(saturationModes)))
             config->DlssNrFinalSaturationMode = (uint32_t) saturationMode;
-        HelpMarker("Saturation applies the measured chroma ratio uniformly in OKLab. Vibrance uses the same "
-                   "whole-frame target but progressively reduces the correction on colours that are already vivid.");
+        HelpMarker("Saturation applies the remaining measured chroma correction uniformly in OKLab. Vibrance uses "
+                   "the same final target but strongly prioritizes muted colours and protects already-vivid colours. "
+                   "Both methods account for chroma already added or removed by Temperature/Hue, so enabling both "
+                   "does not blindly stack two independent saturation gains.");
 
         Slider("High saturation protection", config->DlssNrFinalHighSaturationProtection,
                0.0f, 100.0f, "%.0f%%", 0.0f);

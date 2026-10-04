@@ -2134,6 +2134,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                     apply.Passthrough = resolveParams.Passthrough;
                     apply.TransferStrength = finalChromaticityRecovery * 0.01f;
                     apply.ColourStrength = finalSaturationRecovery * 0.01f;
+                    apply.ApplyModel = cfg.DlssNrFinalChromaticityPreserveSaturation.value_or_default() ? 1u : 0u;
                     apply.Transfer = std::min(cfg.DlssNrFinalSaturationMode.value_or_default(), 1u);
                     apply.MaxDarkening = std::clamp(
                         cfg.DlssNrFinalHighSaturationProtection.value_or_default() * 0.01f, 0.0f, 1.0f);

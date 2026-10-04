@@ -348,6 +348,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrMaxRatio.set_from_config(readFloat("DlssNr", "MaxRatio"));
             DlssNrMaxDarkening.set_from_config(readFloat("DlssNr", "MaxDarkening"));
             DlssNrFinalChromaticityRecovery.set_from_config(readFloat("DlssNr", "FinalChromaticityRecovery"));
+            DlssNrFinalChromaticityPreserveSaturation.set_from_config(
+                readBool("DlssNr", "FinalChromaticityPreserveSaturation"));
             DlssNrFinalSaturationRecovery.set_from_config(readFloat("DlssNr", "FinalSaturationRecovery"));
             DlssNrFinalSaturationMode.set_from_config(readUInt("DlssNr", "FinalSaturationMode"));
             DlssNrFinalHighSaturationProtection.set_from_config(
@@ -1448,6 +1450,8 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetFloatValue(Instance()->DlssNrMaxDarkening.value_for_config()).c_str());
         ini.SetValue("DlssNr", "FinalChromaticityRecovery",
                      GetFloatValue(Instance()->DlssNrFinalChromaticityRecovery.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "FinalChromaticityPreserveSaturation",
+                     GetBoolValue(Instance()->DlssNrFinalChromaticityPreserveSaturation.value_for_config()).c_str());
         ini.SetValue("DlssNr", "FinalSaturationRecovery",
                      GetFloatValue(Instance()->DlssNrFinalSaturationRecovery.value_for_config()).c_str());
         ini.SetValue("DlssNr", "FinalSaturationMode",
