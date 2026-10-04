@@ -40,6 +40,19 @@ struct ModelStateDx12
     // reconstructing it by inverting the tone curve, which is what turned every light in the frame into
     // a string of coloured cells.
     ID3D12Resource* hdrCopy = nullptr;
+
+    // Optional post-NR global colour matching. The full-size surface holds the uncorrected composed NR frame;
+    // sparse statistics and two 1x1 histories keep measurement and smoothing entirely on the GPU.
+    ID3D12Resource* finalColorOutput = nullptr;
+    ID3D12Resource* finalColorStatsOriginal = nullptr;
+    ID3D12Resource* finalColorStatsNr = nullptr;
+    ID3D12Resource* finalColorHistory[2] = { nullptr, nullptr };
+    bool finalColorOutputReadable = false;
+    bool finalColorStatsReadable = false;
+    bool finalColorHistoryReadable[2] = { false, false };
+    bool finalColorHistoryValid = false;
+    uint32_t finalColorHistoryCursor = 0;
+
     ID3D12Resource* exposureMeter = nullptr;
     ID3D12Resource* exposure = nullptr;
     bool exposureReadable = false;

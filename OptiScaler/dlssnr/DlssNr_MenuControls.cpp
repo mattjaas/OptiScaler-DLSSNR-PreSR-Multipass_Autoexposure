@@ -1232,6 +1232,47 @@ void RenderBlend(Config* config)
 
     Slider("Darkening guard", config->DlssNrMaxDarkening, 0.0f, 100.0f, "%.0f%%", 100.0f);
     HelpMarker("Maximum luminance reduction. 100% leaves darkening uncapped; 50% prevents pixels from becoming darker than half their original luminance; 0% prevents darkening.");
+
+    if (ImGui::TreeNode("Final colour matching (post-NR)"))
+    {
+        ImGui::BeginDisabled(State::Instance().swapchainApi == API::Vulkan);
+        Slider("Temperature / hue recovery", config->DlssNrFinalChromaticityRecovery,
+               0.0f, 100.0f, "%.0f%%", 0.0f);
+        HelpMarker("Matches the global perceptual OKLab a/b chromaticity of the final NR image to the untouched "
+                   "pre-NR frame. 0% is off; 100% applies the measured global temperature/tint/hue-cast correction. "
+                   "This is chromaticity matching, not a simple hue rotation.");
+
+        Slider("Saturation recovery", config->DlssNrFinalSaturationRecovery,
+               0.0f, 100.0f, "%.0f%%", 0.0f);
+        HelpMarker("Measures whole-frame perceptual OKLab chroma before and after NR. 100% targets the original "
+                   "global chroma level; 0% leaves the NR result unchanged.");
+
+        ImGui::BeginDisabled(config->DlssNrFinalSaturationRecovery.value_or_default() <= 0.0f);
+        static const char* saturationModes[] = { "Saturation", "Vibrance" };
+        int saturationMode = (int) std::min(config->DlssNrFinalSaturationMode.value_or_default(), 1u);
+        if (ImGui::Combo("Saturation matching method", &saturationMode, saturationModes,
+                         IM_ARRAYSIZE(saturationModes)))
+            config->DlssNrFinalSaturationMode = (uint32_t) saturationMode;
+        HelpMarker("Saturation applies the measured chroma ratio uniformly in OKLab. Vibrance uses the same "
+                   "whole-frame target but progressively reduces the correction on colours that are already vivid.");
+
+        Slider("High saturation protection", config->DlssNrFinalHighSaturationProtection,
+               0.0f, 100.0f, "%.0f%%", 0.0f);
+        HelpMarker("Only when saturation needs to be increased: attenuates positive recovery on already highly "
+                   "saturated pixels. 0% is exact uniform recovery; 100% strongly protects vivid colours.");
+        ImGui::EndDisabled();
+
+        Slider("Measurement smoothing", config->DlssNrFinalColourSmoothingMs,
+               0.0f, 5000.0f, "%.0f ms", 250.0f);
+        HelpMarker("GPU-side exponential smoothing of the measured temperature/hue and saturation correction. "
+                   "0 ms reacts immediately; larger values trade response speed for temporal stability. The "
+                   "time constant is frame-rate independent.");
+        if (config->DlssNrCompare.value_or_default() != 0 || config->DlssNrDebugView.value_or_default() != 0 ||
+            config->DlssNrShowSkinMask.value_or_default())
+            ImGui::TextWrapped("Final colour matching is temporarily bypassed by compare/debug/skin-mask views.");
+        ImGui::EndDisabled();
+        ImGui::TreePop();
+    }
 }
 
 void RenderInspect(Config* config)

@@ -61,7 +61,13 @@ enum DlssNrMode : uint32_t
     // Between NR passes: reconstruct P100 + guided cumulative residual into a native P100 scratch.
     DlssNrMode_InterPassGuidedP100 = 27,
     // Between NR passes: evaluate the same corrected P100 procedurally while downsampling to working-res.
-    DlssNrMode_InterPassGuidedWorking = 28
+    DlssNrMode_InterPassGuidedWorking = 28,
+    // Final post-NR colour matching: sparse paired OKLab statistics from original and composed output.
+    DlssNrMode_FinalColourStats = 29,
+    // Reduce paired statistics, derive correction and temporally smooth it entirely on the GPU.
+    DlssNrMode_FinalColourReduce = 30,
+    // Apply global chromaticity plus Saturation/Vibrance recovery to the already composed NR output.
+    DlssNrMode_FinalColourApply = 31
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)

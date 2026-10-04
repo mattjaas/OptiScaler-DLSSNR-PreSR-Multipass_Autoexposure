@@ -1613,6 +1613,8 @@ float4 ExperimentNrArtifactControl(float2 uv)
 #include "dlssnr_resize.hlsli"
 
 groupshared float4 gExposureReduce[64];
+groupshared float4 gFinalColorReduceOriginal[64];
+groupshared float4 gFinalColorReduceNr[64];
 
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
@@ -1762,11 +1764,147 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         return;
     }
 
+    if (gMode == 30)
+    {
+        // Reduce sparse paired OKLab statistics and smooth the measured correction rather than pixels.
+        const uint statsW = max(gGuideWidth, 1u);
+        const uint statsH = max(gGuideHeight, 1u);
+        const uint sampleCount = statsW * statsH;
+        float4 sumOriginal = 0.0;
+        float4 sumNr = 0.0;
+        [loop] for (uint index = lane; index < sampleCount; index += 64u)
+        {
+            const uint2 p = uint2(index % statsW, index / statsW);
+            sumOriginal += gSource.Load(int3(p, 0));
+            sumNr += gModel.Load(int3(p, 0));
+        }
+        gFinalColorReduceOriginal[lane] = sumOriginal;
+        gFinalColorReduceNr[lane] = sumNr;
+        GroupMemoryBarrierWithGroupSync();
+        [unroll] for (uint stride = 32u; stride > 0u; stride >>= 1u)
+        {
+            if (lane < stride)
+            {
+                gFinalColorReduceOriginal[lane] += gFinalColorReduceOriginal[lane + stride];
+                gFinalColorReduceNr[lane] += gFinalColorReduceNr[lane + stride];
+            }
+            GroupMemoryBarrierWithGroupSync();
+        }
+        if (lane == 0u)
+        {
+            const float4 totalOriginal = gFinalColorReduceOriginal[0];
+            const float4 totalNr = gFinalColorReduceNr[0];
+            const bool valid = totalOriginal.w > 1.0e-4 && totalNr.w > 1.0e-4;
+            float3 rawCorrection = 0.0; // delta a, delta b, log2(chroma ratio)
+            if (valid)
+            {
+                const float3 meanOriginal = totalOriginal.xyz / totalOriginal.w;
+                const float3 meanNr = totalNr.xyz / totalNr.w;
+                float2 delta = meanOriginal.xy - meanNr.xy;
+                const float deltaLength = length(delta);
+                if (deltaLength > 0.5)
+                    delta *= 0.5 / deltaLength;
+                const float chromaRatio = clamp(meanOriginal.z / max(meanNr.z, 1.0e-5), 0.25, 4.0);
+                rawCorrection = float3(delta, log2(chromaRatio));
+            }
+
+            const float3 previous = gApplyModel != 0u
+                ? SanitizeFinite3(gOriginal.Load(int3(0, 0, 0)).xyz, rawCorrection)
+                : rawCorrection;
+            const float tauMs = max(SanitizeFinite(gMaxRatio, 0.0), 0.0);
+            const float dtMs = clamp(SanitizeFinite(gDebugScale, 16.67), 0.01, 1000.0);
+            const float alpha = tauMs <= 0.001 ? 1.0 : 1.0 - exp(-dtMs / tauMs);
+            const float3 smoothed = gApplyModel != 0u ? lerp(previous, rawCorrection, saturate(alpha)) : rawCorrection;
+            gTarget[uint2(0, 0)] = float4(SanitizeFinite3(smoothed, previous), valid ? 1.0 : 0.0);
+        }
+        return;
+    }
+
     if (id.x >= gWidth || id.y >= gHeight)
         return;
 
     // Normalised, so the source may be any size relative to this dispatch.
     float2 uv = (float2(id.xy) + 0.5) / float2(gWidth, gHeight);
+
+    if (gMode == 29)
+    {
+        // Four deterministic sub-cell samples per stats texel keep measurement cheap but representative.
+        uint originalW, originalH, nrW, nrH;
+        gSource.GetDimensions(originalW, originalH);
+        gModel.GetDimensions(nrW, nrH);
+        float4 originalStats = 0.0;
+        float4 nrStats = 0.0;
+        [unroll] for (uint sy = 0u; sy < 2u; ++sy)
+        {
+            [unroll] for (uint sx = 0u; sx < 2u; ++sx)
+            {
+                const float2 sub = (float2(id.xy) + (float2(sx, sy) + 0.5) * 0.5) / float2(gWidth, gHeight);
+                const int2 po = int2(min(uint2(sub * float2(originalW, originalH)),
+                                         uint2(originalW - 1u, originalH - 1u)));
+                const int2 pn = int2(min(uint2(sub * float2(nrW, nrH)), uint2(nrW - 1u, nrH - 1u)));
+                float3 original = max(SanitizeFinite3(gSource.Load(int3(po, 0)).rgb, float3(0.0, 0.0, 0.0)), 0.0);
+                float3 edited = max(SanitizeFinite3(gModel.Load(int3(pn, 0)).rgb, original), 0.0);
+                if (gPassthrough != 0u)
+                {
+                    original = SrgbToLinear(saturate(original));
+                    edited = SrgbToLinear(saturate(edited));
+                }
+                const float3 originalLab = ToOkLab(original);
+                const float3 editedLab = ToOkLab(edited);
+                const float lowL = min(abs(originalLab.x), abs(editedLab.x));
+                const float highL = max(abs(originalLab.x), abs(editedLab.x));
+                // Near-black chroma is numerically unstable; very bright HDR samples get a soft influence cap.
+                const float weight = smoothstep(0.015, 0.080, lowL) /
+                                     (1.0 + 0.25 * max(highL - 1.0, 0.0));
+                const float originalChroma = min(length(originalLab.yz), 4.0);
+                const float editedChroma = min(length(editedLab.yz), 4.0);
+                originalStats += float4(originalLab.y * weight, originalLab.z * weight,
+                                        originalChroma * weight, weight);
+                nrStats += float4(editedLab.y * weight, editedLab.z * weight, editedChroma * weight, weight);
+            }
+        }
+        gTarget[id.xy] = originalStats;
+        gKeep[id.xy] = nrStats;
+        return;
+    }
+
+    if (gMode == 31)
+    {
+        const float4 sourceRaw = gSource.Load(int3(id.xy, 0));
+        float3 linear = max(SanitizeFinite3(sourceRaw.rgb, float3(0.0, 0.0, 0.0)), 0.0);
+        if (gPassthrough != 0u)
+            linear = SrgbToLinear(saturate(linear));
+
+        const float4 correction = gModel.Load(int3(0, 0, 0));
+        float3 lab = ToOkLab(linear);
+        const float3 safeCorrection = SanitizeFinite3(correction.xyz, float3(0.0, 0.0, 0.0));
+        lab.yz += safeCorrection.xy * saturate(gTransferStrength);
+
+        const float chroma = length(lab.yz);
+        const float perceptualSaturation = chroma / max(abs(lab.x), 0.05);
+        float recoveryWeight = 1.0;
+        if (gTransfer == 1u)
+        {
+            // Vibrance keeps a floor so vivid colours still move toward the measured whole-frame target.
+            const float vivid = smoothstep(0.08, 0.55, perceptualSaturation);
+            recoveryWeight *= lerp(1.0, 0.15, vivid);
+        }
+
+        const float requestedLogGain = safeCorrection.z * saturate(gColourStrength);
+        if (requestedLogGain > 0.0 && gMaxDarkening > 0.0)
+        {
+            const float highSaturation = smoothstep(0.20, 0.55, perceptualSaturation);
+            recoveryWeight *= lerp(1.0, 1.0 - highSaturation, saturate(gMaxDarkening));
+        }
+        lab.yz *= exp2(clamp(requestedLogGain * recoveryWeight, -2.0, 2.0));
+
+        float3 corrected = ClampAp1(FromOkLab(lab));
+        corrected = max(SanitizeFinite3(corrected, linear), 0.0);
+        if (gPassthrough != 0u)
+            corrected = saturate(LinearToSrgb(corrected));
+        gTarget[id.xy] = float4(corrected, sourceRaw.a);
+        return;
+    }
 
     if (gMode == 14)
     {

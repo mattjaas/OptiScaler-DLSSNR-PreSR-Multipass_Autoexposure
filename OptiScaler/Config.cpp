@@ -347,6 +347,12 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrColourStrength.set_from_config(readFloat("DlssNr", "ColourStrength"));
             DlssNrMaxRatio.set_from_config(readFloat("DlssNr", "MaxRatio"));
             DlssNrMaxDarkening.set_from_config(readFloat("DlssNr", "MaxDarkening"));
+            DlssNrFinalChromaticityRecovery.set_from_config(readFloat("DlssNr", "FinalChromaticityRecovery"));
+            DlssNrFinalSaturationRecovery.set_from_config(readFloat("DlssNr", "FinalSaturationRecovery"));
+            DlssNrFinalSaturationMode.set_from_config(readUInt("DlssNr", "FinalSaturationMode"));
+            DlssNrFinalHighSaturationProtection.set_from_config(
+                readFloat("DlssNr", "FinalHighSaturationProtection"));
+            DlssNrFinalColourSmoothingMs.set_from_config(readFloat("DlssNr", "FinalColourSmoothingMs"));
             DlssNrTransfer.set_from_config(readUInt("DlssNr", "Transfer"));
             DlssNrScalingDlssPreset.set_from_config(readInt("DlssNr", "ScalingDlssPreset"));
             DlssNrTemporalDlaaNrPreset.set_from_config(readInt("DlssNr", "TemporalDlaaNrPreset"));
@@ -1440,6 +1446,16 @@ bool Config::SaveIni(std::filesystem::path destination)
         ini.SetValue("DlssNr", "MaxRatio", GetFloatValue(Instance()->DlssNrMaxRatio.value_for_config()).c_str());
         ini.SetValue("DlssNr", "MaxDarkening",
                      GetFloatValue(Instance()->DlssNrMaxDarkening.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "FinalChromaticityRecovery",
+                     GetFloatValue(Instance()->DlssNrFinalChromaticityRecovery.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "FinalSaturationRecovery",
+                     GetFloatValue(Instance()->DlssNrFinalSaturationRecovery.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "FinalSaturationMode",
+                     GetIntValue(Instance()->DlssNrFinalSaturationMode.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "FinalHighSaturationProtection",
+                     GetFloatValue(Instance()->DlssNrFinalHighSaturationProtection.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "FinalColourSmoothingMs",
+                     GetFloatValue(Instance()->DlssNrFinalColourSmoothingMs.value_for_config()).c_str());
         ini.SetValue("DlssNr", "Transfer", GetIntValue(Instance()->DlssNrTransfer.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ScalingDlssPreset",
                      GetIntValue(Instance()->DlssNrScalingDlssPreset.value_for_config()).c_str());

@@ -326,6 +326,14 @@ class Config
     // 100 means darkening is uncapped; 0 prevents any darkening.
     CustomOptional<float> DlssNrMaxDarkening { 100.0f };
 
+    // Final global colour matching. Compare the untouched pre-NR frame with the fully composed post-NR
+    // frame in perceptual OKLab. Zero keeps the legacy output bit-for-bit on this branch.
+    CustomOptional<float> DlssNrFinalChromaticityRecovery { 0.0f }; // 0..100%, global temperature/tint/hue cast
+    CustomOptional<float> DlssNrFinalSaturationRecovery { 0.0f };   // 0..100%, global perceptual chroma match
+    CustomOptional<uint32_t> DlssNrFinalSaturationMode { 0 };       // 0 Saturation, 1 Vibrance
+    CustomOptional<float> DlssNrFinalHighSaturationProtection { 0.0f }; // 0..100%, positive-gain protection
+    CustomOptional<float> DlssNrFinalColourSmoothingMs { 250.0f };  // time constant; 0 = immediate
+
     // Reduced output: 0 classic, 1/2 matched residual spatial/DLSS, 3/4 lighting + colour spatial/DLSS,
     // 5 direct NR output enlarged and composed like a native-resolution model answer,
     // 6 upscale P50 and NR50 separately, create their residual at P100, then apply it to untouched P100,

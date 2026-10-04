@@ -104,6 +104,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     }
     const auto width = active->width;
     const auto height = active->height;
+    if (frame.Reset)
+        nr.finalColorHistoryValid = false;
     const bool cropColor = frame.BeforeUpscale && (width != desc.Width || height != desc.Height);
     const bool targetSupportsUav = cropColor || (desc.Flags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) != 0;
 
@@ -1634,6 +1636,17 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         // anything the model left alone is untouched rather than round-tripped through the curve.
         auto resolveParams = MakeResolveConstants(encoded, effectivePasses, interPassShapingApplied);
 
+        const float finalChromaticityRecovery =
+            std::clamp(cfg.DlssNrFinalChromaticityRecovery.value_or_default(), 0.0f, 100.0f);
+        const float finalSaturationRecovery =
+            std::clamp(cfg.DlssNrFinalSaturationRecovery.value_or_default(), 0.0f, 100.0f);
+        const bool finalColourRequested = finalChromaticityRecovery > 0.0f || finalSaturationRecovery > 0.0f;
+        const bool finalColourViewCompatible = resolveParams.CompareMode == 0u && resolveParams.DebugView == 0u &&
+                                               resolveParams.ShowSkinMask == 0u && resolveParams.ApplyModel != 0u;
+        const bool finalColourEnabled = finalColourRequested && finalColourViewCompatible;
+        if (!finalColourEnabled)
+            nr.finalColorHistoryValid = false;
+
         // For spatial supersampling, both halves of the pair use the same filter. A failed paired
         // downsample skips composition this frame so a mismatched proxy cannot create an edit.
         bool superDownOk = false;
@@ -1969,11 +1982,68 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             enlargementReady = residualReady;
         }
 
-        // Resolve pre-SR inputs without UAV support through an owned scratch and copy-back.
+        // Resolve pre-SR inputs without UAV support through an owned scratch and copy-back. With final colour
+        // matching active, resolve into a dedicated full-size scratch first so the statistics compare the untouched
+        // pre-NR frame against the exact fully-composed NR result.
         ID3D12Resource* resolveOriginal = targetSupportsUav ? nr.hdrCopy : target;
-        ID3D12Resource* resolveTarget = targetSupportsUav ? target : nr.hdrCopy;
+        ID3D12Resource* normalResolveTarget = targetSupportsUav ? target : nr.hdrCopy;
 
-        if (targetSupportsUav)
+        constexpr unsigned kFinalColorStatsW = 32u;
+        const unsigned finalColorStatsH = std::max(
+            1u, (unsigned) (((uint64_t) kFinalColorStatsW * height + std::max(width, 1u) / 2u) /
+                            std::max(width, 1u)));
+        const auto matchesTexture = [](ID3D12Resource* resource, DXGI_FORMAT format, unsigned w, unsigned h)
+        {
+            if (!resource)
+                return false;
+            const auto d = resource->GetDesc();
+            return d.Format == format && d.Width == w && d.Height == h;
+        };
+
+        bool finalColourReady = finalColourEnabled;
+        if (finalColourReady && !matchesTexture(nr.finalColorOutput, desc.Format, width, height))
+        {
+            ParkNrResource(nr.finalColorOutput);
+            nr.finalColorOutput = CreateScratch(device, desc.Format, width, height);
+            nr.finalColorOutputReadable = false;
+            nr.finalColorHistoryValid = false;
+        }
+        for (auto** stats : { &nr.finalColorStatsOriginal, &nr.finalColorStatsNr })
+        {
+            if (finalColourReady && !matchesTexture(*stats, DXGI_FORMAT_R32G32B32A32_FLOAT,
+                                                    kFinalColorStatsW, finalColorStatsH))
+            {
+                ParkNrResource(*stats);
+                *stats = CreateScratch(device, DXGI_FORMAT_R32G32B32A32_FLOAT,
+                                       kFinalColorStatsW, finalColorStatsH);
+                nr.finalColorStatsReadable = false;
+                nr.finalColorHistoryValid = false;
+            }
+        }
+        for (unsigned i = 0; i < 2; ++i)
+        {
+            if (finalColourReady && !matchesTexture(nr.finalColorHistory[i], DXGI_FORMAT_R32G32B32A32_FLOAT, 1u, 1u))
+            {
+                ParkNrResource(nr.finalColorHistory[i]);
+                nr.finalColorHistory[i] = CreateScratch(device, DXGI_FORMAT_R32G32B32A32_FLOAT, 1u, 1u);
+                nr.finalColorHistoryReadable[i] = false;
+                nr.finalColorHistoryValid = false;
+            }
+        }
+        finalColourReady = finalColourReady && nr.finalColorOutput && nr.finalColorStatsOriginal &&
+                           nr.finalColorStatsNr && nr.finalColorHistory[0] && nr.finalColorHistory[1];
+
+        ID3D12Resource* resolveTarget = finalColourReady ? nr.finalColorOutput : normalResolveTarget;
+        if (finalColourReady)
+        {
+            if (nr.finalColorOutputReadable)
+            {
+                Barrier(cmdList, nr.finalColorOutput, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                nr.finalColorOutputReadable = false;
+            }
+        }
+        else if (targetSupportsUav)
         {
             TransitionTarget(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         }
@@ -1992,8 +2062,116 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             Barrier(cmdList, enlarger->input.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
-        if (resolved && !targetSupportsUav)
+        bool finalColourApplied = false;
+        if (resolved && finalColourReady)
         {
+            Barrier(cmdList, nr.finalColorOutput, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            nr.finalColorOutputReadable = true;
+
+            if (nr.finalColorStatsReadable)
+            {
+                Barrier(cmdList, nr.finalColorStatsOriginal, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                Barrier(cmdList, nr.finalColorStatsNr, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                nr.finalColorStatsReadable = false;
+            }
+
+            DlssNrConstants stats {};
+            stats.Mode = DlssNrMode_FinalColourStats;
+            stats.Width = kFinalColorStatsW;
+            stats.Height = finalColorStatsH;
+            stats.Passthrough = resolveParams.Passthrough;
+            const bool statsOk = shader.DispatchPass(resolveCmd, stats, resolveOriginal, nr.finalColorOutput,
+                                                     nullptr, nullptr, nullptr, nr.finalColorStatsOriginal,
+                                                     nr.finalColorStatsNr);
+            if (statsOk)
+            {
+                Barrier(cmdList, nr.finalColorStatsOriginal, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                Barrier(cmdList, nr.finalColorStatsNr, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                nr.finalColorStatsReadable = true;
+
+                const unsigned historyWrite = nr.finalColorHistoryCursor & 1u;
+                const unsigned historyRead = historyWrite ^ 1u;
+                if (nr.finalColorHistoryReadable[historyWrite])
+                {
+                    Barrier(cmdList, nr.finalColorHistory[historyWrite], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                    nr.finalColorHistoryReadable[historyWrite] = false;
+                }
+
+                DlssNrConstants reduce {};
+                reduce.Mode = DlssNrMode_FinalColourReduce;
+                reduce.Width = 1;
+                reduce.Height = 1;
+                reduce.GuideWidth = kFinalColorStatsW;
+                reduce.GuideHeight = finalColorStatsH;
+                reduce.MaxRatio = std::clamp(cfg.DlssNrFinalColourSmoothingMs.value_or_default(), 0.0f, 5000.0f);
+                reduce.DebugScale = std::clamp(frame.FrameTimeMs, 0.01f, 1000.0f);
+                reduce.ApplyModel = nr.finalColorHistoryValid ? 1u : 0u;
+                ID3D12Resource* previousHistory =
+                    nr.finalColorHistoryValid && nr.finalColorHistoryReadable[historyRead]
+                        ? nr.finalColorHistory[historyRead]
+                        : nr.finalColorStatsOriginal;
+                const bool reduceOk = shader.DispatchPass(resolveCmd, reduce, nr.finalColorStatsOriginal,
+                                                           nr.finalColorStatsNr, previousHistory, nullptr, nullptr,
+                                                           nr.finalColorHistory[historyWrite], nullptr);
+                if (reduceOk)
+                {
+                    Barrier(cmdList, nr.finalColorHistory[historyWrite], D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                    nr.finalColorHistoryReadable[historyWrite] = true;
+                    nr.finalColorHistoryValid = true;
+                    nr.finalColorHistoryCursor = historyRead;
+
+                    DlssNrConstants apply {};
+                    apply.Mode = DlssNrMode_FinalColourApply;
+                    apply.Width = width;
+                    apply.Height = height;
+                    apply.Passthrough = resolveParams.Passthrough;
+                    apply.TransferStrength = finalChromaticityRecovery * 0.01f;
+                    apply.ColourStrength = finalSaturationRecovery * 0.01f;
+                    apply.Transfer = std::min(cfg.DlssNrFinalSaturationMode.value_or_default(), 1u);
+                    apply.MaxDarkening = std::clamp(
+                        cfg.DlssNrFinalHighSaturationProtection.value_or_default() * 0.01f, 0.0f, 1.0f);
+
+                    if (targetSupportsUav)
+                    {
+                        TransitionTarget(D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                        finalColourApplied = shader.DispatchPass(resolveCmd, apply, nr.finalColorOutput,
+                                                                 nr.finalColorHistory[historyWrite], nullptr, nullptr,
+                                                                 nullptr, target, nullptr);
+                    }
+                    else
+                    {
+                        Barrier(cmdList, nr.hdrCopy, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                                D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                        finalColourApplied = shader.DispatchPass(resolveCmd, apply, nr.finalColorOutput,
+                                                                 nr.finalColorHistory[historyWrite], nullptr, nullptr,
+                                                                 nullptr, nr.hdrCopy, nullptr);
+                    }
+                }
+            }
+        }
+
+        // Optional colour matching must never turn a successful NR resolve into a missing frame.
+        if (resolved && finalColourReady && !finalColourApplied)
+        {
+            Barrier(cmdList, nr.finalColorOutput, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                    D3D12_RESOURCE_STATE_COPY_SOURCE);
+            const D3D12_RESOURCE_STATES priorTargetState = targetState;
+            TransitionTarget(D3D12_RESOURCE_STATE_COPY_DEST);
+            cmdList->CopyResource(target, nr.finalColorOutput);
+            TransitionTarget(priorTargetState);
+            Barrier(cmdList, nr.finalColorOutput, D3D12_RESOURCE_STATE_COPY_SOURCE,
+                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        }
+        else if (resolved && !targetSupportsUav)
+        {
+            // Either the legacy resolve wrote hdrCopy directly, or the colour-recovery pass did.
             Barrier(cmdList, nr.hdrCopy, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
             const D3D12_RESOURCE_STATES priorTargetState = targetState;
             TransitionTarget(D3D12_RESOURCE_STATE_COPY_DEST);
@@ -2002,10 +2180,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             Barrier(cmdList, nr.hdrCopy, D3D12_RESOURCE_STATE_COPY_SOURCE,
                     D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         }
-        else if (!targetSupportsUav)
+        else if (!targetSupportsUav && !finalColourReady)
         {
-            // The resolve target was made writable even while private DLSS was
-            // warming up. Restore it before the common end-of-frame transition.
+            // The legacy resolve target was made writable even while private DLSS was warming up.
             Barrier(cmdList, nr.hdrCopy, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                     D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         }

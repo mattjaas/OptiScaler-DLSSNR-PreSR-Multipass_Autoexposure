@@ -28,12 +28,19 @@ auto DlssNr_Dx12::State::ReleaseSurfacesIfFormatChanged(DXGI_FORMAT modelFormat,
     for (ID3D12Resource** r : { &nr.output, &nr.passScratch, &nr.passClamp, &nr.colorCopy, &nr.hdrCopy,
                                 &nr.colorSmall, &nr.colorSoft, &nr.outputFiltered, &nr.guidedResidualLow,
                                 &nr.interPassWorking, &nr.interPassP100, &nr.interPassResidualLow, &nr.interPassDebug,
+                                &nr.finalColorOutput, &nr.finalColorStatsOriginal, &nr.finalColorStatsNr,
+                                &nr.finalColorHistory[0], &nr.finalColorHistory[1],
                                 &nr.depthSmall, &nr.motionSmall, &nr.outputNative, &nr.activeColor })
         ParkNrResource(*r);
 
     nr.colorSoftReadable = false;
     nr.outputFilteredReadable = false;
     nr.guidedResidualLowReadable = false;
+    nr.finalColorOutputReadable = false;
+    nr.finalColorStatsReadable = false;
+    nr.finalColorHistoryReadable[0] = nr.finalColorHistoryReadable[1] = false;
+    nr.finalColorHistoryValid = false;
+    nr.finalColorHistoryCursor = 0;
     nr.passScratchFailed = false;
 
     nr.reset = true;
@@ -246,11 +253,18 @@ auto DlssNr_Dx12::State::ReleaseResources() -> void
          { &nr.output, &nr.passScratch, &nr.passClamp, &nr.colorCopy, &nr.hdrCopy, &nr.activeColor,
            &nr.colorSmall, &nr.colorSoft, &nr.outputFiltered, &nr.guidedResidualLow,
            &nr.interPassWorking, &nr.interPassP100, &nr.interPassResidualLow, &nr.interPassDebug,
+           &nr.finalColorOutput, &nr.finalColorStatsOriginal, &nr.finalColorStatsNr,
+           &nr.finalColorHistory[0], &nr.finalColorHistory[1],
            &nr.depthSmall, &nr.motionSmall })
         ParkNrResource(*resource);
     nr.colorSoftReadable = false;
     nr.outputFilteredReadable = false;
     nr.guidedResidualLowReadable = false;
+    nr.finalColorOutputReadable = false;
+    nr.finalColorStatsReadable = false;
+    nr.finalColorHistoryReadable[0] = nr.finalColorHistoryReadable[1] = false;
+    nr.finalColorHistoryValid = false;
+    nr.finalColorHistoryCursor = 0;
     ReleaseSpatialResources();
     nr.spatialSignatureValid = false;
     nr.spatialFallback = false;
