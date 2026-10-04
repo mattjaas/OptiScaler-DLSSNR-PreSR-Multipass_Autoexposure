@@ -1871,12 +1871,12 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (gMode == 31)
     {
         const float4 sourceRaw = gSource.Load(int3(id.xy, 0));
-        float3 linear = max(SanitizeFinite3(sourceRaw.rgb, float3(0.0, 0.0, 0.0)), 0.0);
+        float3 linearColor = max(SanitizeFinite3(sourceRaw.rgb, float3(0.0, 0.0, 0.0)), 0.0);
         if (gPassthrough != 0u)
-            linear = SrgbToLinear(saturate(linear));
+            linearColor = SrgbToLinear(saturate(linearColor));
 
         const float4 correction = gModel.Load(int3(0, 0, 0));
-        float3 lab = ToOkLab(linear);
+        float3 lab = ToOkLab(linearColor);
         const float3 safeCorrection = SanitizeFinite3(correction.xyz, float3(0.0, 0.0, 0.0));
         lab.yz += safeCorrection.xy * saturate(gTransferStrength);
 
@@ -1899,7 +1899,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         lab.yz *= exp2(clamp(requestedLogGain * recoveryWeight, -2.0, 2.0));
 
         float3 corrected = ClampAp1(FromOkLab(lab));
-        corrected = max(SanitizeFinite3(corrected, linear), 0.0);
+        corrected = max(SanitizeFinite3(corrected, linearColor), 0.0);
         if (gPassthrough != 0u)
             corrected = saturate(LinearToSrgb(corrected));
         gTarget[id.xy] = float4(corrected, sourceRaw.a);
