@@ -2525,10 +2525,14 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (gMode == 0)
     {
         float4 source = gSource.Load(int3(id.xy, 0));
+        // Keep two domains separate. NVIDIA NR continues to see the same non-negative proxy as before,
+        // but linear HDR keeps its signed scRGB/Rec.709 original. Negative components are valid wide-gamut
+        // chromaticity after BT.2020/PQ -> linear Rec.709 and must survive until the final BT.2020/PQ encode.
         float3 frame = max(source.rgb, float3(0.0, 0.0, 0.0));
+        const float3 originalFrame = gPassthrough != 0 ? frame : source.rgb;
 
-        // Kept so the resolve has the frame as it was, rather than having to reconstruct it.
-        gKeep[id.xy] = float4(frame, source.a);
+        // This really is the untouched HDR frame now; only the model-facing proxy is clipped to its safe domain.
+        gKeep[id.xy] = float4(originalFrame, source.a);
 
         // Some games hand DLSS a frame that has already been through their tonemapper. The game says
         // which in its own DLSS creation flags, and converting one that needs no conversion is pure
@@ -2637,7 +2641,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     // the result to a near-constant scale. Colour still moves, because that comes from the model's
     // own hue, which is what makes the failure so confusing to look at.
     const float normScale = gPassthrough != 0 ? 1.0 : WhitePoint();
-    float3 original = originalSample.rgb / normScale;
+    const float3 originalSigned = originalSample.rgb / normScale;
+    // Keep legacy/model composition in the same non-negative domain it used before. Wide-gamut information
+    // is carried separately and re-attached after the NR edit, so the private model never has to consume
+    // negative RGB and existing transfer math does not suddenly start operating on signed values.
+    float3 original = gPassthrough != 0 ? originalSigned : max(originalSigned, 0.0);
 
     float originalLuma = dot(original, kLuma);
     float proxyLuma = dot(proxy, kLuma);
@@ -2647,7 +2655,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     // with and without Neural Rendering. In passthrough the frame is already display-referred.
     if (gApplyModel == 0)
     {
-        gTarget[id.xy] = float4(max(originalSample.rgb, 0.0), originalSample.a);
+        const float3 cleanFrame = gPassthrough != 0 ? max(originalSample.rgb, 0.0) : originalSample.rgb;
+        gTarget[id.xy] = float4(cleanFrame, originalSample.a);
         return;
     }
 
@@ -2943,7 +2952,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         float3 editedChroma = result / max(editedY, 1e-6);
         // Exact endpoints avoid changing the default image or fully protected pixels.
         if (detail == 0.0 && colour == 0.0)
-            result = originalSample.rgb;
+            result = original * normScale;
         else if (detail != 1.0 || colour != 1.0)
             result = ClampAp1(lerp(baseChroma, editedChroma, colour) * wantedY);
         if (gShowSkinMask != 0)
@@ -2970,6 +2979,22 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         }
     }
 
+    // Re-attach the wide-gamut component that was intentionally withheld from the NVIDIA/model domain.
+    // Scaling it by the final positive-domain luminance ratio lets NR brighten/darken the pixel without
+    // collapsing its original out-of-Rec.709 chromaticity. Components above 1 were never clipped; this
+    // restores only the signed component lost by max(rgb,0) in the model-facing proxy.
+    if (gPassthrough == 0u && gShowSkinMask == 0u)
+    {
+        const float3 safeOriginalFrame = max(originalSample.rgb, 0.0);
+        const float3 wideGamutResidual = originalSample.rgb - safeOriginalFrame;
+        const float basePositiveY = max(dot(safeOriginalFrame, kLuma), 0.0);
+        const float editedPositiveY = max(dot(max(result, 0.0), kLuma), 0.0);
+        float wideGamutScale = basePositiveY > 1.0e-6 ? editedPositiveY / basePositiveY : 1.0;
+        if (!isfinite(wideGamutScale) || wideGamutScale < 0.0)
+            wideGamutScale = 1.0;
+        result += wideGamutResidual * wideGamutScale;
+    }
+
     // The side being shown untouched takes the frame as it arrived, past every step above.
     if (showOriginal)
         result = originalSample.rgb;
@@ -2983,5 +3008,10 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     if (onDivider)
         result = float3(WhitePoint(), WhitePoint(), WhitePoint());
 
-    gTarget[id.xy] = float4(max(result, float3(0.0, 0.0, 0.0)), originalSample.a);
+    // SDR/display-referred output keeps the historical non-negative contract. Linear HDR must stay signed:
+    // the finished-picture path converts this linear Rec.709/scRGB signal back to BT.2020/PQ afterwards.
+    const float3 outputResult = gPassthrough != 0u
+        ? max(result, float3(0.0, 0.0, 0.0))
+        : SanitizeFinite3(result, originalSample.rgb);
+    gTarget[id.xy] = float4(outputResult, originalSample.a);
 }
