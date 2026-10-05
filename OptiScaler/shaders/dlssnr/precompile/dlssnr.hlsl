@@ -2979,20 +2979,27 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         }
     }
 
-    // Re-attach the wide-gamut component that was intentionally withheld from the NVIDIA/model domain.
-    // Scaling it by the final positive-domain luminance ratio lets NR brighten/darken the pixel without
-    // collapsing its original out-of-Rec.709 chromaticity. Components above 1 were never clipped; this
-    // restores only the signed component lost by max(rgb,0) in the model-facing proxy.
-    if (gPassthrough == 0u && gShowSkinMask == 0u)
+    // In linear HDR, any negative Rec.709 component means the original chromaticity lies outside
+    // the Rec.709 triangle (typically P3/BT.2020 content). NVIDIA NR deliberately sees a non-negative
+    // proxy, so letting its RGB answer replace chromaticity here would collapse those colours toward
+    // Rec.709. For wide-gamut pixels preserve the exact original chromaticity and transfer only NR's
+    // final luminance verdict. In-gamut pixels keep the ordinary NR colour composition unchanged.
+    if (gPassthrough == 0u && gShowSkinMask == 0u &&
+        any(originalSample.rgb < float3(0.0, 0.0, 0.0)))
     {
-        const float3 safeOriginalFrame = max(originalSample.rgb, 0.0);
-        const float3 wideGamutResidual = originalSample.rgb - safeOriginalFrame;
-        const float basePositiveY = max(dot(safeOriginalFrame, kLuma), 0.0);
-        const float editedPositiveY = max(dot(max(result, 0.0), kLuma), 0.0);
-        float wideGamutScale = basePositiveY > 1.0e-6 ? editedPositiveY / basePositiveY : 1.0;
-        if (!isfinite(wideGamutScale) || wideGamutScale < 0.0)
-            wideGamutScale = 1.0;
-        result += wideGamutResidual * wideGamutScale;
+        const float originalY = dot(originalSample.rgb, kLuma);
+        const float editedY = dot(result, kLuma);
+        if (isfinite(originalY) && isfinite(editedY) && originalY > 1.0e-6 && editedY >= 0.0)
+        {
+            const float luminanceScale = editedY / originalY;
+            if (isfinite(luminanceScale) && luminanceScale >= 0.0)
+                result = originalSample.rgb * luminanceScale;
+        }
+        else
+        {
+            // Degenerate wide-gamut pixels are safer untouched than projected into the model's Rec.709 proxy.
+            result = originalSample.rgb;
+        }
     }
 
     // The side being shown untouched takes the frame as it arrived, past every step above.
