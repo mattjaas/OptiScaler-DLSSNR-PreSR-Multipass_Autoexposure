@@ -1063,6 +1063,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         if (cfg.DlssNrInterPassExactOptimized.value_or_default())
         {
             guided.DirectResolveFlags = 16u;
+            if (cfg.DlssNrInterPassSharedBilinear.value_or_default())
+                guided.DirectResolveFlags |= 64u; // only exact P50/Area/radius 1 branch consumes this
             if (shaping.active && shaping.high == shaping.low)
             {
                 guided.GuideWidth = 0u;
