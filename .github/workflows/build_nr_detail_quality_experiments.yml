@@ -1,9 +1,9 @@
-name: Build NR classical fused downsample clamp v5
+name: Build NR classical shared guided stencil v6
 
 on:
   push:
     branches:
-      - codex/nr-interpass-classic-fused-clamp-v5
+      - codex/nr-interpass-classic-guided-stencil-v6
     paths:
       - OptiScaler/Config.h
       - OptiScaler/Config.cpp
@@ -32,13 +32,14 @@ on:
       - tests/test_nr_interpass_dynamic_geometry.py
       - tests/test_nr_interpass_paired_area.py
       - tests/test_nr_interpass_classic_downsample_clamp.py
+      - tests/test_nr_interpass_classic_guided_stencil.py
       - .github/workflows/build_nr_detail_quality_experiments.yml
 
 permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-classic-fused-clamp-v5-${{ github.sha }}
+  group: nr-interpass-classic-guided-stencil-v6-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -75,6 +76,10 @@ jobs:
         shell: powershell
         run: python tests/test_nr_interpass_classic_downsample_clamp.py
 
+      - name: Verify v6 classical P100 guided stencil arithmetic
+        shell: powershell
+        run: python tests/test_nr_interpass_classic_guided_stencil.py
+
       - name: Rebuild NR detail experiment shader
         shell: powershell
         run: |
@@ -90,13 +95,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-classic-fused-clamp-v5-20261010"
+        run: ./package_release.ps1 -Version "nr-interpass-classic-guided-stencil-v6-20261010"
 
       - name: Upload test package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-area-paired-v4-20261009
-          path: release/OptiScaler-NR-nr-interpass-classic-fused-clamp-v5-20261010.zip
+          name: OptiScaler-NR-interpass-classic-guided-stencil-v6-20261010
+          path: release/OptiScaler-NR-nr-interpass-classic-guided-stencil-v6-20261010.zip
           if-no-files-found: error
 
       - name: Publish compiled ZIP as experimental GitHub Release
@@ -104,25 +109,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-classic-fused-clamp-v5-20261010"
-          $archive = "release/OptiScaler-NR-nr-interpass-classic-fused-clamp-v5-20261010.zip"
+          $tag = "nr-interpass-classic-guided-stencil-v6-20261010"
+          $archive = "release/OptiScaler-NR-nr-interpass-classic-guided-stencil-v6-20261010.zip"
           if (-not (Test-Path $archive)) { throw "Release ZIP missing: $archive" }
           $notes = @"
-          Experimental build from commit $env:GITHUB_SHA of codex/nr-interpass-classic-fused-clamp-v5.
+          Experimental build from commit $env:GITHUB_SHA of codex/nr-interpass-classic-guided-stencil-v6.
 
-          Contains all v1-v4 low-band antialias and inter-pass variants.
-          v4 paired Area defaults OFF after user measured +0.41ms at P65.
-          NEW classical P100-guided -> P100 -> working-res v5: combine local
-          Downsample (Area, Bilinear, Point, SSIM Sharp) and ClampProxy into
-          one full-screen shader dispatch and write final working input directly.
-          Skips the intermediate working-res scratch UAV write/read and state
-          transitions. External Output Scaling filters use the old path.
-          For FP16 scratch, explicitly reproduce intermediate half rounding
-          before sanitization/clamp, preserving original encoded input range.
-          Independent A/B toggle Classic: fuse downsample + clamp (v5),
-          shown under Exact optimized inter-pass for classical reconstruction.
-          CI validates FP16/FP32 clamp arithmetic, prior v1-v4 tests,
-          DXC cs_6_0 compilation and a Windows Release ZIP.
-          In-game moving-image checks and GPU timing are still required.
+          Includes prior low-band antialias and v1-v5 inter-pass optimizations.
+          NEW v6 classical P100-guided stage optimization: each native P100
+          pixel shares its own 3x3 radius-one source/model texture loads
+          between the joint-bilateral reconstruction and bilinear fallback.
+          Reduces redundant bilinear texture samples and branch/comparison ALU
+          without combining separate P100 pixels (v4 paired Area was slower).
+          Preserves native guide, positive Gaussian weights, exact native/working
+          geometry and all inter-pass frequency shaping and shadow gating.
+          Applicable to arbitrary Resolution including P65/P66, only with
+          Exact optimized ON, radius 1, guide strength >0 and valid dimensions.
+          Larger radii and guide strength zero use the v5 reference automatically.
+          Checkbox Classic: shared P100 guided stencil (v6) can be turned
+          OFF for GPU A/B; independently retain v5 downsample+clamp fusion.
+          v4 paired Area remains OFF by default.
+          CPU arithmetic regression tests, DXC shader compilation and Windows
+          Release build pass in CI; in-game GPU ms / motion image parity pending.
           "@
-          gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR - classical fused downsample clamp v5 (experimental)" --notes $notes --prerelease
+          gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR - classical P100 guided shared stencil v6 (experimental)" --notes $notes --prerelease
