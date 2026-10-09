@@ -567,6 +567,9 @@ class Config
     // Between-pass reconstruction only changes the input to the next NR feature. Final transfer stays independent.
     // 0 Off, 1 P100-guided -> P100 -> working-res, 2 P100-guided fused -> working-res.
     CustomOptional<uint32_t> DlssNrInterPassReconstruction { 0 };
+    // Optional faster shader implementation of the SAME P100-guided inter-pass reconstruction.
+    // False = original reference; true = optimized shared-tap fused P50 Area path and cheaper weights.
+    CustomOptional<bool> DlssNrInterPassExactOptimized { false };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
