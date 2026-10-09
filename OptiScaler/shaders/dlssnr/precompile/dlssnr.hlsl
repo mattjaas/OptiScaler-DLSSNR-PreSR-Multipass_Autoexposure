@@ -1029,6 +1029,106 @@ float4 InterPassCorrectedAreaP50Optimized(int2 outP, uint2 nativeSize)
     return float4(correctedSum * 0.25, originals[3].a);
 }
 
+
+ // P50 + Area + radius=1 specialization: the guided stencil is a 3x3 P50
+ // neighbourhood, which ALSO contains every texel needed to bilinearly
+ // reconstruct the residual at the four P100 positions. Accumulate the
+ // bilinear fallbacks from these already-fetched signed residuals rather
+ // than issuing eight redundant bilinear texture samples.
+ //
+ // This path is selectable for A/B with v1. Its weights remain the same
+ // per-P100 positive bilateral weights, including at clamped image edges.
+float4 InterPassCorrectedAreaP50SharedBilinear(int2 outP, uint2 nativeSize)
+{
+    const float2 nativeSizeF = float2(nativeSize);
+    float4 originals[4];
+    float2 uvList[4];
+    float3 bilinear[4];
+    float3 weighted[4];
+    float weightSum[4];
+
+    [unroll] for (uint k = 0u; k < 4u; ++k)
+    {
+        const int2 nativeP = outP * 2 + int2(k & 1u, k >> 1u);
+        uvList[k] = (float2(nativeP) + 0.5) / nativeSizeF;
+        originals[k] = gOriginal.Load(int3(nativeP, 0));
+        bilinear[k] = 0.0;
+        weighted[k] = 0.0;
+        weightSum[k] = 0.0;
+    }
+
+    const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
+    const float spatialSigma = max(abs(gResidualScale), 1e-4);
+    const float rangeFactor = (0.7213475204444817 / 3.0) / (rangeSigma * rangeSigma);
+    const float spatialFactor = 0.7213475204444817 / (spatialSigma * spatialSigma);
+    const float2 baseP = float2(outP);
+    const float2 p00 = baseP + float2(-0.25, -0.25);
+    const float2 p11 = baseP + float2(0.25, 0.25);
+
+    // The 3x3 static bound lets DXC unroll all nine stencil steps. Even
+    // when clamping duplicates a sample at the frame edge, the position
+    // used for the spatial Gaussian is its CLAMPED source texel centre.
+    [unroll] for (int oy = -1; oy <= 1; ++oy)
+    {
+        const float wy0 = oy == -1 ? 0.25 : (oy == 0 ? 0.75 : 0.0);
+        const float wy1 = oy == 1 ? 0.25 : (oy == 0 ? 0.75 : 0.0);
+        [unroll] for (int ox = -1; ox <= 1; ++ox)
+        {
+            const float wx0 = ox == -1 ? 0.25 : (ox == 0 ? 0.75 : 0.0);
+            const float wx1 = ox == 1 ? 0.25 : (ox == 0 ? 0.75 : 0.0);
+            const int2 sampleP = clamp(outP + int2(ox, oy), int2(0, 0),
+                                       int2((int) gWidth - 1, (int) gHeight - 1));
+            const float3 proxyCandidate = gSource.Load(int3(sampleP, 0)).rgb;
+            const float3 residual = gModel.Load(int3(sampleP, 0)).rgb - proxyCandidate;
+
+            // Hardware bilinear samples at +/-0.25 P50 texel offsets are
+            // exactly the positive 0.25/0.75 separable weights accumulated here.
+            bilinear[0] += residual * (wx0 * wy0);
+            bilinear[1] += residual * (wx1 * wy0);
+            bilinear[2] += residual * (wx0 * wy1);
+            bilinear[3] += residual * (wx1 * wy1);
+
+            const float dx0 = (float) sampleP.x - p00.x;
+            const float dx1 = (float) sampleP.x - p11.x;
+            const float dy0 = (float) sampleP.y - p00.y;
+            const float dy1 = (float) sampleP.y - p11.y;
+            const float dx0sq = dx0 * dx0;
+            const float dx1sq = dx1 * dx1;
+            const float dy0sq = dy0 * dy0;
+            const float dy1sq = dy1 * dy1;
+            const float4 spatialPenalties = float4(dx0sq + dy0sq, dx1sq + dy0sq,
+                                                   dx0sq + dy1sq, dx1sq + dy1sq) * spatialFactor;
+            const float3 delta0 = proxyCandidate - originals[0].rgb;
+            const float3 delta1 = proxyCandidate - originals[1].rgb;
+            const float3 delta2 = proxyCandidate - originals[2].rgb;
+            const float3 delta3 = proxyCandidate - originals[3].rgb;
+            const float4 rangePenalties = float4(dot(delta0, delta0), dot(delta1, delta1),
+                                                 dot(delta2, delta2), dot(delta3, delta3)) * rangeFactor;
+            const float4 w = exp2(-(rangePenalties + spatialPenalties));
+
+            weighted[0] += residual * w.x;
+            weighted[1] += residual * w.y;
+            weighted[2] += residual * w.z;
+            weighted[3] += residual * w.w;
+            weightSum[0] += w.x;
+            weightSum[1] += w.y;
+            weightSum[2] += w.z;
+            weightSum[3] += w.w;
+        }
+    }
+
+    const float guideStrength = saturate(gResidualConfidenceUnused);
+    float3 correctedSum = 0.0;
+    [unroll] for (uint k = 0u; k < 4u; ++k)
+    {
+        const float3 guided = weightSum[k] > 1e-8 ? weighted[k] / weightSum[k] : bilinear[k];
+        const float3 edit = InterPassShapeEditAt(lerp(bilinear[k], guided, guideStrength),
+                                                 uvList[k], originals[k].rgb);
+        correctedSum += SanitizeFinite3(originals[k].rgb + edit, originals[k].rgb);
+    }
+    return float4(correctedSum * 0.25, originals[3].a);
+}
+
 #endif
 
 float3 ExperimentFinalModelAt(float2 uvq)
@@ -2135,7 +2235,14 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             sourceW == gWidth && sourceH == gHeight &&
             answerW == gWidth && answerH == gHeight)
         {
-            corrected = InterPassCorrectedAreaP50Optimized(int2(id.xy), uint2(nativeW, nativeH));
+            // v2 reuses the 3x3 source loads for BOTH the bilateral and
+            // bilinear terms; radius 2/3 or no-guide uses the v1 fallback.
+            const bool sharedBilinear = (gDirectResolveFlags & 64u) != 0u &&
+                                        gResidualHistoryValidUnused == 1u &&
+                                        gResidualConfidenceUnused > 0.0;
+            corrected = sharedBilinear
+                ? InterPassCorrectedAreaP50SharedBilinear(int2(id.xy), uint2(nativeW, nativeH))
+                : InterPassCorrectedAreaP50Optimized(int2(id.xy), uint2(nativeW, nativeH));
         }
         else if (gTransfer == 1u)
         {
