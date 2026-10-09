@@ -1279,6 +1279,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 std::memcpy(&guided.ResidualMotionBaseX, &nr.interPassGeometryRatioX, sizeof(float));
                 std::memcpy(&guided.ResidualMotionBaseY, &nr.interPassGeometryRatioY, sizeof(float));
                 guided.DirectResolveFlags |= 128u;
+                if (cfg.DlssNrInterPassPairedArea.value_or_default())
+                    guided.DirectResolveFlags |= 256u; // share across adjacent Area P100 contributions
             }
             if (!shader.DispatchPassAux2(cmdList, guided, originalPassBase, currentAnswer, nr.colorCopy,
                                          nullptr, nullptr, lowField, nr.interPassWorking, nullptr))
