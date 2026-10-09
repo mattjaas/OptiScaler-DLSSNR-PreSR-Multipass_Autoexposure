@@ -2121,6 +2121,98 @@ float4 DownsampleMaybeClampProxy(float4 raw, bool fused)
     return float4(saturate(SanitizeFinite3(rgb, 0.5)), raw.a);
 }
 
+
+// v7 experimental: share the *completed* native-P100 guided reconstructions
+// between all 8x8 working-resolution pixels in this compute thread group.
+//
+// The source footprint for 8 adjacent output texels at P50-P90 is at most
+// 17x17 native texels. The 20x20 tile leaves margin for integer rounding,
+// but the dynamic extent is computed with the SAME Area edges as Mode 28.
+// The shader only enters this branch if the entire group fits the tile.
+// Crucially, every lane reaches the group barrier, including idle lanes at
+// partial output groups along the bottom/right screen edges.
+//
+// Work per tile is (native guided samples in union) instead of
+// sum(native guided samples for every reduced output pixel).
+// Floating point original P100 edits and independent Area weights survive:
+// shared storage is float4, never FP16, so no extra early quantization.
+static const uint kInterPassTilePitch = 20u;
+groupshared float4 gInterPassCorrectedTile[20u * 20u];
+
+bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
+{
+    uint nativeW, nativeH;
+    gOriginal.GetDimensions(nativeW, nativeH);
+    const uint2 outBegin = groupId.xy * 8u;
+    const uint2 outEnd = min(outBegin + 8u, uint2(gWidth, gHeight));
+    if (nativeW == 0u || nativeH == 0u || any(outBegin >= outEnd))
+        return false;
+
+    const float2 nativeSize = float2(nativeW, nativeH);
+    const float2 workSize = float2(gWidth, gHeight);
+    const int2 first = int2(floor(float2(outBegin) * nativeSize / workSize));
+    const int2 limit = int2(ceil(float2(outEnd) * nativeSize / workSize));
+    const int2 tileSize = limit - first;
+
+    // Uniform per-group guard: unexpected dimensions use the original Mode
+    // 28 Area path rather than ever indexing outside groupshared memory.
+    if (any(tileSize <= 0) || any(tileSize > int2(kInterPassTilePitch, kInterPassTilePitch)))
+        return false;
+
+    const uint tileCount = (uint)tileSize.x * (uint)tileSize.y;
+    const uint lane = localId.y * 8u + localId.x;
+    [loop] for (uint index = lane; index < tileCount; index += 64u)
+    {
+        const uint x = index % (uint)tileSize.x;
+        const uint y = index / (uint)tileSize.x;
+        const int2 p100 = first + int2((int)x, (int)y);
+        // Same v3 radius-one reconstruction used by regular Fused Area:
+        // guided+bilinear reuse, P100 guide and frequency/shadow shaping.
+        gInterPassCorrectedTile[y * kInterPassTilePitch + x] =
+            InterPassCorrectedP100LoadDynamic(p100);
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    if (id.x >= gWidth || id.y >= gHeight)
+        return true; // All lanes already participated in the barrier.
+
+    // Mathematically identical Area footprint, integration order and alpha
+    // selection to Mode 28, replacing ONLY repeated reconstructed-P100 loads.
+    const float x0 = ((float)id.x * (float)nativeW) / (float)gWidth;
+    const float x1 = ((float)(id.x + 1u) * (float)nativeW) / (float)gWidth;
+    const float y0 = ((float)id.y * (float)nativeH) / (float)gHeight;
+    const float y1 = ((float)(id.y + 1u) * (float)nativeH) / (float)gHeight;
+    const float area = max((x1 - x0) * (y1 - y0), 1e-8);
+    const int i0 = (int)floor(x0);
+    const int i1 = (int)ceil(x1) - 1;
+    const int j0 = (int)floor(y0);
+    const int j1 = (int)ceil(y1) - 1;
+
+    float4 acc = 0.0;
+    [loop] for (int j = j0; j <= j1; ++j)
+    {
+        const float wy = max(min(y1, (float)j + 1.0) - max(y0, (float)j), 0.0);
+        [loop] for (int i = i0; i <= i1; ++i)
+        {
+            const float wx = max(min(x1, (float)i + 1.0) - max(x0, (float)i), 0.0);
+            const int2 localP100 = int2(i, j) - first;
+            // A valid tile's group bounds encompass every output footprint.
+            const float4 corrected = gInterPassCorrectedTile[
+                (uint)localP100.y * kInterPassTilePitch + (uint)localP100.x];
+            acc += corrected * (wx * wy);
+        }
+    }
+    float4 corrected = acc / area;
+    const int acx = clamp((int)floor(((float)id.x + 0.5) * (float)nativeW / (float)gWidth),
+                          0, (int)nativeW - 1);
+    const int acy = clamp((int)floor(((float)id.y + 0.5) * (float)nativeH / (float)gHeight),
+                          0, (int)nativeH - 1);
+    corrected.a = gOriginal.Load(int3(acx, acy, 0)).a;
+    corrected.rgb = saturate(SanitizeFinite3(corrected.rgb, 0.5));
+    gTarget[id.xy] = corrected;
+    return true;
+}
+
 groupshared float4 gExposureReduce[64];
 groupshared float4 gFinalColorReduceOriginal[64];
 groupshared float4 gFinalColorReduceNr[64];
@@ -2327,6 +2419,15 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             gTarget[uint2(0, 0)] = float4(SanitizeFinite3(smoothed, previous), valid ? 1.0 : 0.0);
         }
         return;
+    }
+
+    // Group-wide v7 must run BEFORE the per-thread bounds return, otherwise
+    // partial edge groups would deadlock at GroupMemoryBarrierWithGroupSync.
+    // The dispatch bit is set only for valid Fused+Area+radius-one geometry.
+    if (gMode == 28u && (gDirectResolveFlags & 2048u) != 0u)
+    {
+        if (InterPassTiledFusedArea(id, groupId, groupThreadId))
+            return;
     }
 
     if (id.x >= gWidth || id.y >= gHeight)
