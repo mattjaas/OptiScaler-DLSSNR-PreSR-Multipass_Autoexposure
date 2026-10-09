@@ -273,6 +273,7 @@ auto DlssNr_Dx12::State::ReleaseResources() -> void
     nr.interPassModeInitialized = false;
     nr.interPassWarned = false;
     nr.interPassFusedReferenceWarned = false;
+    nr.interPassGeometryValid = false;
 
     ReleaseSupersamplers();
     nr.proxyDownScaler = Scaler::Count;
