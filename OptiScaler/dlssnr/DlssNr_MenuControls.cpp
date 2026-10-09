@@ -1120,6 +1120,14 @@ void RenderModel(Config* config)
         int interPass = (int) std::min(config->DlssNrInterPassReconstruction.value_or_default(), 2u);
         if (ImGui::Combo("Inter-pass reconstruction", &interPass, interPassNames, IM_ARRAYSIZE(interPassNames)))
             config->DlssNrInterPassReconstruction = (uint32_t) interPass;
+        if (interPass != 0)
+        {
+            Checkbox("Exact optimized inter-pass", config->DlssNrInterPassExactOptimized);
+            HelpMarker("OFF = reference shader. ON = cheaper guided weights, shared NR50/proxy taps "
+                       "for exact P50 Area fused reconstruction and a zero-cost low-band bypass "
+                       "when effective high/mid and low gains match. The image formula is preserved; "
+                       "tiny FP rounding differences are possible. Compare GPU ms with both settings.");
+        }
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
                    "feeds the corrected working-resolution image to the next NR pass. Final transfer remains unchanged.");
         HelpMarker("Inter-pass frequency shaping uses the currently selected guided residual gains once per transition. "
