@@ -1153,6 +1153,29 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
         auto guided = MakeInterPassConstants(pass, DlssNrMode_InterPassGuidedP100, width, height);
         guided.Transfer = 0u; // signed residual = Ncurrent - immutable Boriginal
+
+        // v6 classical P100 output optimization. Bit 10 switches only this
+        // shader stage, leaving v5 Downsample+Clamp fusion independent.
+        // The two otherwise unused fields carry working texture dimensions;
+        // no additional GPU resource, upload, allocation or sync is needed.
+        // Larger bilateral radii and unoptimized cases retain the v5 path.
+        if (cfg.DlssNrInterPassClassicSharedStencil.value_or_default() &&
+            (guided.DirectResolveFlags & 16u) != 0u &&
+            guided.ResidualHistoryValid == 1u &&
+            guided.ResidualConfidenceSensitivity > 0.0f &&
+            modelWidth > 0u && modelHeight > 0u &&
+            originalPassBase->GetDesc().Width == modelWidth &&
+            originalPassBase->GetDesc().Height == modelHeight &&
+            currentAnswer->GetDesc().Width == modelWidth &&
+            currentAnswer->GetDesc().Height == modelHeight &&
+            nr.colorCopy->GetDesc().Width == width &&
+            nr.colorCopy->GetDesc().Height == height)
+        {
+            guided.DirectDetailMode = modelWidth;
+            guided.DirectResolveUpscaler = modelHeight;
+            guided.DirectResolveFlags |= 1024u;
+        }
+
         if (!shader.DispatchPassAux2(cmdList, guided, originalPassBase, currentAnswer, nr.colorCopy,
                                      nullptr, nullptr, lowField, nr.interPassP100, nullptr))
             return false;
