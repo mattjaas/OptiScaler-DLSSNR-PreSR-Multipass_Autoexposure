@@ -1056,6 +1056,19 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         guided.MvScaleY = shaping.low;
         guided.GuideWidth = shaping.active ? 1u : 0u;
         guided.GuideHeight = cfg.DlssNrGuidedResidualShadowGate.value_or_default() ? 1u : 0u;
+        // Only inter-pass Mode 27/28 reads these flags. Bit 4 uses cheaper weights
+        // and shared P50 Area candidate loads; bit 5 removes an identically-zero
+        // low-band contribution, including the small low texture dispatch.
+        // Off remains the byte-for-byte original inter-pass shader path.
+        if (cfg.DlssNrInterPassExactOptimized.value_or_default())
+        {
+            guided.DirectResolveFlags = 16u;
+            if (shaping.active && shaping.high == shaping.low)
+            {
+                guided.GuideWidth = 0u;
+                guided.DirectResolveFlags |= 32u; // shader still applies high gain
+            }
+        }
 
         float shadowLow = cfg.DlssNrGuidedResidualShadowLow.value_or_default();
         float shadowHigh = cfg.DlssNrGuidedResidualShadowHigh.value_or_default();
