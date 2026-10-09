@@ -2038,9 +2038,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         // becomes visible as a coarse moving pattern in the final P100 resolve.
         //
         // Keep the SAME signed raw-domain residual and output dimensions, but use
-        // an overlapping separable 6-tap binomial reconstruction kernel. The taps
-        // are 1/2 of one output pixel apart in source space; hardware bilinear
-        // sampling makes the 6x6 footprint economical without another GPU pass.
+        // an overlapping separable 8-tap positive-window reconstruction kernel. Its
+        // taps are 1/4 of one output pixel apart in source space; spacing them
+        // by two P50 pixels at P50->mip3 also rejects high-frequency comb aliases
+        // that wider regularly-spaced taps would fold into E_low. Hardware bilinear
+        // filtering handles each tap without another GPU pass.
         // Nonnegative normalized weights preserve constant/DC edits and darkening.
         uint srcW, srcH;
         uint modelW, modelH;
@@ -2055,17 +2057,19 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const float2 srcSize = float2(srcW, srcH);
         const float2 footprint = srcSize / float2(gWidth, gHeight);
         const float2 srcCenter = (float2(id.xy) + 0.5) * footprint;
-        const float2 tapStep = 0.5 * footprint;
-        static const float weights[6] = { 1.0, 5.0, 10.0, 10.0, 5.0, 1.0 };
+        const float2 tapStep = 0.25 * footprint;
+        // Symmetric positive weights sum to 100; tuned to reject frequencies
+        // above the low-field Nyquist without any negative-lobe ringing.
+        static const float weights[8] = { 7.0, 11.0, 15.0, 17.0, 17.0, 15.0, 11.0, 7.0 };
 
         float3 sum = 0.0;
-        [unroll] for (uint y = 0u; y < 6u; ++y)
+        [unroll] for (uint y = 0u; y < 8u; ++y)
         {
-            const float sy = clamp(srcCenter.y + ((float) y - 2.5) * tapStep.y,
+            const float sy = clamp(srcCenter.y + ((float) y - 3.5) * tapStep.y,
                                    0.5, srcSize.y - 0.5) / srcSize.y;
-            [unroll] for (uint x = 0u; x < 6u; ++x)
+            [unroll] for (uint x = 0u; x < 8u; ++x)
             {
-                const float sx = clamp(srcCenter.x + ((float) x - 2.5) * tapStep.x,
+                const float sx = clamp(srcCenter.x + ((float) x - 3.5) * tapStep.x,
                                        0.5, srcSize.x - 0.5) / srcSize.x;
                 const float2 uv = float2(sx, sy);
                 const float3 modelTap = gModel.SampleLevel(gLinear, uv, 0).rgb;
@@ -2076,8 +2080,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                 sum += SanitizeFinite3(residualTap, 0.0) * (weights[x] * weights[y]);
             }
         }
-        // sum(weights) = 32 in each dimension, total weight = 1024.
-        gTarget[id.xy] = float4(sum * (1.0 / 1024.0), 1.0);
+        // sum(weights) = 100 in each dimension, total weight = 10000.
+        gTarget[id.xy] = float4(sum * (1.0 / 10000.0), 1.0);
         return;
     }
 
