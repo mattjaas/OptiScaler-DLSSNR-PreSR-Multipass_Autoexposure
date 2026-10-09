@@ -2122,6 +2122,11 @@ float4 DownsampleMaybeClampProxy(float4 raw, bool fused)
 }
 
 
+// v7.1 isolation: build two independently compiled binaries from this source.
+// Default DXIL has NO cooperative tile, shared allocation or early condition.
+// Only the separately compiled -D DLSSNR_TILED_FUSED=1 binary owns v7 code.
+// Both binaries retain identical root-signature bindings and constants.
+#ifdef DLSSNR_TILED_FUSED
 // v7 experimental: share the *completed* native-P100 guided reconstructions
 // between all 8x8 working-resolution pixels in this compute thread group.
 //
@@ -2212,6 +2217,7 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
     gTarget[id.xy] = corrected;
     return true;
 }
+#endif // DLSSNR_TILED_FUSED
 
 groupshared float4 gExposureReduce[64];
 groupshared float4 gFinalColorReduceOriginal[64];
@@ -2421,6 +2427,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         return;
     }
 
+#ifdef DLSSNR_TILED_FUSED
     // Group-wide v7 must run BEFORE the per-thread bounds return, otherwise
     // partial edge groups would deadlock at GroupMemoryBarrierWithGroupSync.
     // The dispatch bit is set only for valid Fused+Area+radius-one geometry.
@@ -2429,6 +2436,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         if (InterPassTiledFusedArea(id, groupId, groupThreadId))
             return;
     }
+#endif // DLSSNR_TILED_FUSED
 
     if (id.x >= gWidth || id.y >= gHeight)
         return;
