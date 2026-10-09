@@ -2032,10 +2032,16 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
 
     if (gMode == 18)
     {
-        // Capture-derived low-frequency residual for P100-guided shaping. At exact P50 this output is
-        // 1/8 in each dimension (1920x1080 -> 240x135), and the area mean is algebraically the same
-        // positive-lobe 8x8 box result as three ideal 2x2 mip reductions. Average E50 in decoded
-        // model/proxy space; signed FP16 output preserves darkening as well as brightening.
+        // Low-frequency residual for P100-guided shaping. The old non-overlapping 8x8
+        // box reduction has weak stop-band rejection and can fold P50 detail into
+        // the 1/8-resolution field. With high/mid suppressed, that folded detail
+        // becomes visible as a coarse moving pattern in the final P100 resolve.
+        //
+        // Keep the SAME signed raw-domain residual and output dimensions, but use
+        // an overlapping separable 6-tap binomial reconstruction kernel. The taps
+        // are 1/2 of one output pixel apart in source space; hardware bilinear
+        // sampling makes the 6x6 footprint economical without another GPU pass.
+        // Nonnegative normalized weights preserve constant/DC edits and darkening.
         uint srcW, srcH;
         uint modelW, modelH;
         gSource.GetDimensions(srcW, srcH);
@@ -2046,27 +2052,32 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             return;
         }
 
-        const uint x0 = (id.x * srcW) / gWidth;
-        const uint x1 = max(((id.x + 1u) * srcW) / gWidth, x0 + 1u);
-        const uint y0 = (id.y * srcH) / gHeight;
-        const uint y1 = max(((id.y + 1u) * srcH) / gHeight, y0 + 1u);
+        const float2 srcSize = float2(srcW, srcH);
+        const float2 footprint = srcSize / float2(gWidth, gHeight);
+        const float2 srcCenter = (float2(id.xy) + 0.5) * footprint;
+        const float2 tapStep = 0.5 * footprint;
+        static const float weights[6] = { 1.0, 5.0, 10.0, 10.0, 5.0, 1.0 };
 
         float3 sum = 0.0;
-        uint count = 0u;
-        [loop] for (uint y = y0; y < min(y1, srcH); ++y)
+        [unroll] for (uint y = 0u; y < 6u; ++y)
         {
-            [loop] for (uint x = x0; x < min(x1, srcW); ++x)
+            const float sy = clamp(srcCenter.y + ((float) y - 2.5) * tapStep.y,
+                                   0.5, srcSize.y - 0.5) / srcSize.y;
+            [unroll] for (uint x = 0u; x < 6u; ++x)
             {
-                const int2 p = int2(x, y);
-                const float3 proxyLow = gSource.Load(int3(p, 0)).rgb;
-                const float3 modelLow = gModel.Load(int3(p, 0)).rgb;
-                const float3 residualLow =
-                    gTransfer != 0u ? modelLow : modelLow - proxyLow;
-                sum += SanitizeFinite3(residualLow, 0.0);
-                ++count;
+                const float sx = clamp(srcCenter.x + ((float) x - 2.5) * tapStep.x,
+                                       0.5, srcSize.x - 0.5) / srcSize.x;
+                const float2 uv = float2(sx, sy);
+                const float3 modelTap = gModel.SampleLevel(gLinear, uv, 0).rgb;
+                // Temporal modes 9/10 already contain the signed residual; other
+                // modes still compute N-P in exactly the original texture domain.
+                const float3 residualTap = gTransfer != 0u
+                    ? modelTap : modelTap - gSource.SampleLevel(gLinear, uv, 0).rgb;
+                sum += SanitizeFinite3(residualTap, 0.0) * (weights[x] * weights[y]);
             }
         }
-        gTarget[id.xy] = float4(count != 0u ? sum / (float) count : 0.0, 1.0);
+        // sum(weights) = 32 in each dimension, total weight = 1024.
+        gTarget[id.xy] = float4(sum * (1.0 / 1024.0), 1.0);
         return;
     }
 
