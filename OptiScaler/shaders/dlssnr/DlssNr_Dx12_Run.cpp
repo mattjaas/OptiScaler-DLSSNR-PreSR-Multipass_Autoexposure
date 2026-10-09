@@ -1180,10 +1180,16 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         const auto workingDesc = originalPassBase->GetDesc();
         const bool matchingScratchFormat =
             nr.passClamp->GetDesc().Format == workingDesc.Format;
+        // Known floating formats only: the fused shader emulates the first
+        // UAV write's FP16 rounding, whereas normalized/integer formats use
+        // different quantization rules and must retain the reference path.
+        const bool supportedFloatFormat =
+            workingDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT ||
+            workingDesc.Format == DXGI_FORMAT_R32G32B32A32_FLOAT;
         if (cfg.DlssNrInterPassDownsampleClamp.value_or_default() &&
             cfg.DlssNrInterPassExactOptimized.value_or_default() &&
             localDownscale && exactScaler == Scaler::Count &&
-            matchingScratchFormat)
+            matchingScratchFormat && supportedFloatFormat)
         {
             if (!EnsureInterPassScratch(nr.interPassWorking, workingDesc.Format,
                                         modelWidth, modelHeight, interPassWorkingReadable))
