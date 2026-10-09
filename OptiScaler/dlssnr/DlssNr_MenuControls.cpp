@@ -1146,6 +1146,18 @@ void RenderModel(Config* config)
                 }
                 Checkbox("Share bilinear + guided P50 taps (v2)", config->DlssNrInterPassSharedBilinear);
                 Checkbox("Dynamic shared taps (all resolutions)", config->DlssNrInterPassDynamicSharedTaps);
+                if (interPass == 2 && config->DlssNrInterPassDynamicSharedTaps.value_or_default())
+                {
+                    Checkbox("Fused: tiled P100 reconstruction (v7)", config->DlssNrInterPassTiledFusedArea);
+                    HelpMarker("Experimental: Fused + Area + Guided radius 1, fractional P51-P90. "
+                               "Each 8x8 workgroup reconstructs each native P100 guided pixel "
+                               "once and reuses the finished float4 in groupshared memory across "
+                               "Area output pixels. No extra dispatch or FP16 quantization; "
+                               "preserves per-pixel P100 guide, shadow/frequency shaping and "
+                               "original Area coverage and alpha. P50 stays on the v2 fast path. "
+                               "The slower v4 paired path must be OFF. "
+                               "OFF restores v3 for measured GPU A/B; GPU occupancy may differ.");
+                }
                 if (config->DlssNrInterPassDynamicSharedTaps.value_or_default())
                 {
                     Checkbox("Pair adjacent P100 Area taps (v4)", config->DlssNrInterPassPairedArea);
