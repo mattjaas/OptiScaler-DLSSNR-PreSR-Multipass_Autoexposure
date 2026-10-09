@@ -4,6 +4,7 @@
 #include <atomic>
 #include <list>
 #include "precompile/DlssNr_Shader.h"
+#include "precompile/dlssnr_tiled_Shader.h"
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
 #include "precompile/dlssnr_spatial_Shader.h"
@@ -156,7 +157,31 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
 {
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
-    return DispatchCompute(InCmdList, InConstants, _pipelineState, InSource, InModel, InOriginal, InMotion,
+    // v7.1: the ordinary PSO is compiled WITHOUT the v7 cooperative shader,
+    // so it is unaffected by 6.4KB group shared memory, barriers or branching.
+    // Compile optional PSO only upon the very first explicitly enabled tiled
+    // Fused request, never while inter-pass is disabled.
+    ID3D12PipelineState* pipeline = _pipelineState;
+    if (InConstants.Mode == DlssNrMode_InterPassGuidedWorking &&
+        InConstants.Transfer == 0u &&
+        (InConstants.DirectResolveFlags & 2048u) != 0u)
+    {
+        if (!_tiledFusedPipelineAttempted)
+        {
+            _tiledFusedPipelineAttempted = true;
+            if (!CreateComputePipeline(_device, &_tiledFusedPipelineState, dlssnr_tiled_cso,
+                                       sizeof(dlssnr_tiled_cso), nullptr))
+            {
+                _tiledFusedPipelineState = nullptr;
+                LOG_WARN("[{0}] v7 tiled Fused PSO creation failed; using normal Fused path", _name);
+            }
+        }
+        if (_tiledFusedPipelineState != nullptr)
+            pipeline = _tiledFusedPipelineState;
+        // If creation fails, standard PSO ignores bit 11, naturally falling
+        // back to the previous Area reconstruction without corrupting output.
+    }
+    return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion,
                            InPrevEdit, InAux2, OutTarget, OutKeep, immutableSlot);
 }
 
@@ -345,6 +370,11 @@ DlssNr_Dx12::~DlssNr_Dx12()
     {
         _residualPipelineState->Release();
         _residualPipelineState = nullptr;
+    }
+    if (_tiledFusedPipelineState != nullptr)
+    {
+        _tiledFusedPipelineState->Release();
+        _tiledFusedPipelineState = nullptr;
     }
     if (_spatialPipelineState != nullptr)
     {
