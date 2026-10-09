@@ -2026,6 +2026,24 @@ float4 ExperimentNrArtifactControl(float2 uv)
 
 #include "dlssnr_resize.hlsli"
 
+
+// v5 classical inter-pass: downsample + ClampProxy in the SAME dispatch.
+// Mode 32 applies the exact Mode 8 operation on the downsampled RGB.
+// The reference first stores the downsample to the scratch UAV, then reloads
+// it for ClampProxy. If the scratch is RGBA16_FLOAT, round-trip RGB through
+// binary16 here before sanitization so the two-stage path and the fused path
+// agree even for out-of-range finite values that overflow to FP16 infinity.
+// Alpha is preserved; final UAV storage performs its normal format rounding.
+float4 DownsampleMaybeClampProxy(float4 raw, bool fused)
+{
+    if (!fused)
+        return raw;
+    float3 rgb = raw.rgb;
+    if ((gDirectResolveFlags & 512u) != 0u)
+        rgb = f16tof32(f32tof16(rgb));
+    return float4(saturate(SanitizeFinite3(rgb, 0.5)), raw.a);
+}
+
 groupshared float4 gExposureReduce[64];
 groupshared float4 gFinalColorReduceOriginal[64];
 groupshared float4 gFinalColorReduceNr[64];
@@ -2918,15 +2936,16 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         return;
     }
 
-    if (gMode == 2)
+    if (gMode == 2 || gMode == 32)
     {
+        const bool fusedClamp = gMode == 32;
         uint srcW, srcH;
         gSource.GetDimensions(srcW, srcH);
 
         // Nothing to do when the sizes already agree.
         if (srcW == gWidth && srcH == gHeight)
         {
-            gTarget[id.xy] = gSource.Load(int3(id.xy, 0));
+            gTarget[id.xy] = DownsampleMaybeClampProxy(gSource.Load(int3(id.xy, 0)), fusedClamp);
             return;
         }
 
@@ -2940,19 +2959,19 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             const int2 center = int2(clamp(floor(sampleUv * float2(srcW, srcH)), 0.0,
                                            float2(srcW - 1, srcH - 1)));
             sampled.a = DownsampleLoadClamped(center, srcW, srcH).a;
-            gTarget[id.xy] = sampled;
+            gTarget[id.xy] = DownsampleMaybeClampProxy(sampled, fusedClamp);
             return;
         }
         if (filter == 4u)
         {
             const int2 center = int2(clamp(floor(sampleUv * float2(srcW, srcH)), 0.0,
                                            float2(srcW - 1, srcH - 1)));
-            gTarget[id.xy] = DownsampleLoadClamped(center, srcW, srcH);
+            gTarget[id.xy] = DownsampleMaybeClampProxy(DownsampleLoadClamped(center, srcW, srcH), fusedClamp);
             return;
         }
         if (filter == 11u)
         {
-            gTarget[id.xy] = DownsampleSsimSharp(sampleUv, srcW, srcH, gWidth, gHeight);
+            gTarget[id.xy] = DownsampleMaybeClampProxy(DownsampleSsimSharp(sampleUv, srcW, srcH, gWidth, gHeight), fusedClamp);
             return;
         }
 
@@ -2990,7 +3009,8 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         const int acx = clamp((int) floor(((float) id.x + 0.5) * (float) srcW / (float) gWidth), 0, (int) srcW - 1);
         const int acy = clamp((int) floor(((float) id.y + 0.5) * (float) srcH / (float) gHeight), 0, (int) srcH - 1);
 
-        gTarget[id.xy] = float4(acc / area, gSource.Load(int3(acx, acy, 0)).a);
+        gTarget[id.xy] = DownsampleMaybeClampProxy(
+            float4(acc / area, gSource.Load(int3(acx, acy, 0)).a), fusedClamp);
         return;
     }
 
