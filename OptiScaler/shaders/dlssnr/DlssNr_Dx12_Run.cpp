@@ -1359,6 +1359,24 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 guided.DirectResolveFlags |= 128u;
                 if (cfg.DlssNrInterPassPairedArea.value_or_default())
                     guided.DirectResolveFlags |= 256u; // share across adjacent Area P100 contributions
+                // v7: only intermediate fractional scales. Preserve exact P50
+                // 2x2 fast path and every non-Area/radius>1 fallback.
+                // One workgroup writes a single 8x8 output tile and cooperates
+                // on its native P100 Area footprint without allocating scratch.
+                const bool workingScaleTiled = workScale > 0.505f && workScale <= 0.90f;
+                const bool eligibleTiledDims =
+                    width > modelWidth && height > modelHeight &&
+                    width < 2u * modelWidth && height < 2u * modelHeight;
+                if (cfg.DlssNrInterPassTiledFusedArea.value_or_default() &&
+                    !cfg.DlssNrInterPassPairedArea.value_or_default() &&
+                    workingScaleTiled && eligibleTiledDims &&
+                    originalPassBase->GetDesc().Width == modelWidth &&
+                    originalPassBase->GetDesc().Height == modelHeight &&
+                    currentAnswer->GetDesc().Width == modelWidth &&
+                    currentAnswer->GetDesc().Height == modelHeight &&
+                    nr.colorCopy->GetDesc().Width == width &&
+                    nr.colorCopy->GetDesc().Height == height)
+                    guided.DirectResolveFlags |= 2048u;
             }
             if (!shader.DispatchPassAux2(cmdList, guided, originalPassBase, currentAnswer, nr.colorCopy,
                                          nullptr, nullptr, lowField, nr.interPassWorking, nullptr))
