@@ -2349,10 +2349,13 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                     const float wx = max(min(x1, (float) i + 1.0) - max(x0, (float) i), 0.0);
                     // The scale-independent path is purely a source-tap reuse:
                     // same P100 contributions and Area coverage as the reference.
+                    const bool dynamicShared = (gDirectResolveFlags & 128u) != 0u &&
+                        gResidualHistoryValidUnused == 1u && gResidualConfidenceUnused > 0.0 &&
+                        sourceW == gWidth && sourceH == gHeight &&
+                        answerW == gWidth && answerH == gHeight;
                     const float4 sampleCorrected =
-                        ((gDirectResolveFlags & 128u) != 0u && gResidualHistoryValidUnused == 1u)
-                        ? InterPassCorrectedP100LoadDynamic(int2(i, j))
-                        : InterPassCorrectedP100Load(int2(i, j));
+                        dynamicShared ? InterPassCorrectedP100LoadDynamic(int2(i, j))
+                                      : InterPassCorrectedP100Load(int2(i, j));
                     acc += sampleCorrected * (wx * wy);
                 }
             }
