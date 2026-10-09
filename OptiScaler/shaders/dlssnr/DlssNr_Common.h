@@ -67,7 +67,10 @@ enum DlssNrMode : uint32_t
     // Reduce paired statistics, derive correction and temporally smooth it entirely on the GPU.
     DlssNrMode_FinalColourReduce = 30,
     // Apply global chromaticity plus Saturation/Vibrance recovery to the already composed NR output.
-    DlssNrMode_FinalColourApply = 31
+    DlssNrMode_FinalColourApply = 31,
+    // v5 classical inter-pass: same downfilter as Mode 2, but clamp/sanitize
+    // directly to the working input, avoiding the extra ClampProxy dispatch.
+    DlssNrMode_DownsampleClampProxy = 32
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
