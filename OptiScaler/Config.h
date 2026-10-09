@@ -573,6 +573,10 @@ class Config
     // v2 P50/Area/radius=1 exact-stencil specialization; ON by default for optimized inter-pass.
     // Preserving the v1 path as a controllable A/B reference for GPU timing and image inspection.
     CustomOptional<bool> DlssNrInterPassSharedBilinear { true };
+    // Extend fused Area guided/bilinear reuse to any working scale (including P66).
+    // Cached geometry scalars update only when actual native/model dimensions change.
+    // OFF retains v2 as the A/B performance and quality reference.
+    CustomOptional<bool> DlssNrInterPassDynamicSharedTaps { true };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
