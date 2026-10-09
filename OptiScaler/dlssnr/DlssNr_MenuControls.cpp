@@ -1136,13 +1136,6 @@ void RenderModel(Config* config)
                                "uses the original texel positions and positive bilateral weights. "
                                "Automatically falls back to v5 if radius is 2/3 or guide strength is zero. "
                                "OFF restores the previous v5 P100 reconstruction shader.");
-                    Checkbox("Classic: shared P100 guided stencil (v6)",
-                             config->DlssNrInterPassClassicSharedStencil);
-                    HelpMarker("A/B for the first classical P100-guided stage: reuse its 3x3 "
-                               "radius-one source/model taps for guided bilateral and bilinear. "
-                               "Works for arbitrary working resolutions including P65/P66. "
-                               "For radius 2/3 or disabled guide strength, v5 remains in use. "
-                               "OFF restores the original v5 P100-guided shader.");
                     Checkbox("Classic: fuse downsample + clamp (v5)", config->DlssNrInterPassDownsampleClamp);
                     HelpMarker("Classical P100 -> working-res reconstruction: combines the local Area, "
                                "Bilinear, Point or SSIM Sharp downsample and ClampProxy into ONE compute "
