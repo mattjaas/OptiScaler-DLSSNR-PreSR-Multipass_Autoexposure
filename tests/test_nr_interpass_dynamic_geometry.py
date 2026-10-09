@@ -74,9 +74,19 @@ def main():
         nw, nh = 39, 27
         ww = max(1, round(nw * percent / 100))
         wh = max(1, round(nh * percent / 100))
-        native = [[[rng.random() for _ in range(3)] for _ in range(nw)] for _ in range(nh)]
         proxy = [[[rng.random() for _ in range(3)] for _ in range(ww)] for _ in range(wh)]
         model = [[[rng.random() for _ in range(3)] for _ in range(ww)] for _ in range(wh)]
+        # Guide and reduced proxy belong to the SAME scene. This also
+        # prevents all Gaussian weights underflowing to zero in Python
+        # at capture-calibrated sigma_r=0.015.
+        native = []
+        for y in range(nh):
+            row = []
+            for x in range(nw):
+                sx = max(0, min(ww - 1, math.floor((x + 0.5) * ww / nw)))
+                sy = max(0, min(wh - 1, math.floor((y + 0.5) * wh / nh)))
+                row.append([proxy[sy][sx][c] + rng.uniform(-0.002, 0.002) for c in range(3)])
+            native.append(row)
         for sy in (0.015, 0.1, 1.0):
             for py in (0, wh // 2, wh - 1):
                 for px in (0, ww // 2, ww - 1):
