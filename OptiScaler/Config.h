@@ -577,6 +577,9 @@ class Config
     // Cached geometry scalars update only when actual native/model dimensions change.
     // OFF retains v2 as the A/B performance and quality reference.
     CustomOptional<bool> DlssNrInterPassDynamicSharedTaps { true };
+    // v4: reuse overlapping P100 radius-one source stencils between adjacent
+    // native texels in the fused Area reducer. OFF retains the v3 A/B path.
+    CustomOptional<bool> DlssNrInterPassPairedArea { true };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
