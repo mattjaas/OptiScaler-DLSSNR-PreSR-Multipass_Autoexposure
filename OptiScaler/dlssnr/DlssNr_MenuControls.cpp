@@ -1127,6 +1127,15 @@ void RenderModel(Config* config)
             {
                 Checkbox("Share bilinear + guided P50 taps (v2)", config->DlssNrInterPassSharedBilinear);
                 Checkbox("Dynamic shared taps (all resolutions)", config->DlssNrInterPassDynamicSharedTaps);
+                if (config->DlssNrInterPassDynamicSharedTaps.value_or_default())
+                {
+                    Checkbox("Pair adjacent P100 Area taps (v4)", config->DlssNrInterPassPairedArea);
+                    HelpMarker("Experimental fused Area optimization for variable working scales: "
+                               "two horizontal P100 pixels reuse their overlapping 3x3 P50/P65 "
+                               "guided-residual source taps, preserving separate edge-aware weights "
+                               "and original Area integration. OFF restores dynamic v3 immediately. "
+                               "Compare image motion and GPU time at P65/P75; performance depends on GPU.");
+                }
                 HelpMarker("Fused + Area + guided radius 1: for arbitrary Resolution including P66, "
                            "reuse the 3x3 guided residual samples for the bilinear estimator. "
                            "The exact P50 v2 fast path remains preferred. Native/work geometry "
