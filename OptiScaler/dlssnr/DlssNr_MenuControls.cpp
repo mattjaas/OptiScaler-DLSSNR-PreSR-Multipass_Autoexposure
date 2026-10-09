@@ -1126,6 +1126,13 @@ void RenderModel(Config* config)
             if (config->DlssNrInterPassExactOptimized.value_or_default())
             {
                 Checkbox("Share bilinear + guided P50 taps (v2)", config->DlssNrInterPassSharedBilinear);
+                Checkbox("Dynamic shared taps (all resolutions)", config->DlssNrInterPassDynamicSharedTaps);
+                HelpMarker("Fused + Area + guided radius 1: for arbitrary Resolution including P66, "
+                           "reuse the 3x3 guided residual samples for the bilinear estimator. "
+                           "The exact P50 v2 fast path remains preferred. Native/work geometry "
+                           "ratios are cached on the CPU and rebuilt only if dimensions change. "
+                           "Per-pixel coordinates and image-dependent weights still run each frame. "
+                           "OFF retains previous v2 for A/B quality and GPU timing.");
                 HelpMarker("Additional optimization for Fused + Area + exact P50 + guided radius 1: "
                            "the same nine P50 residual samples reconstruct both the four bilinear "
                            "and four guided P100 edits. OFF uses optimized v1 for A/B timing. "
