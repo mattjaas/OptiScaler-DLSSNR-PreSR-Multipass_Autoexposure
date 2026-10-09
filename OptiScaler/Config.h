@@ -587,6 +587,9 @@ class Config
     // bilateral and bilinear, without the v4 cross-pixel register pressure.
     // A/B OFF is the previous v5 P100-guided shader.
     CustomOptional<bool> DlssNrInterPassClassicSharedStencil { true };
+    // v7 experimental: cooperatively reconstruct each native P100 texel once
+    // per 8x8 working output tile in Fused Area. OFF keeps v3/v4 path.
+    CustomOptional<bool> DlssNrInterPassTiledFusedArea { false };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
