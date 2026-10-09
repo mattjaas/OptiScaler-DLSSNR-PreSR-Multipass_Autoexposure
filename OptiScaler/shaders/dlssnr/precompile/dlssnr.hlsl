@@ -951,6 +951,81 @@ float4 InterPassCorrectedP100Bilinear(float2 uvq)
     return lerp(a, b, f.y);
 }
 
+
+// Scale-independent inter-pass guided reconstruction for Area downsampling.
+//
+// The geometry ratio (working/native) is computed and cached on the CPU when
+// the ACTUAL texture dimensions change. No shader reload, GPU lookup table,
+// resource upload, or per-frame geometry preparation is required.
+// Pixel positions depend on the current output coordinate and still must be
+// evaluated by the GPU; all colour-dependent bilateral weights remain per frame.
+//
+// For radius=1 the bilinear 2x2 residual footprint is ALWAYS contained in
+// the 3x3 guided footprint around round(sourcePos), at arbitrary fractional
+// scale and along frame edges. One set of source/model Loads therefore serves
+// both the guided and bilinear estimators without changing their sample set.
+// Off uses InterPassCorrectedP100Load as the original A/B reference.
+float4 InterPassCorrectedP100LoadDynamic(int2 p)
+{
+    uint nativeW, nativeH;
+    gOriginal.GetDimensions(nativeW, nativeH);
+    if (nativeW == 0u || nativeH == 0u)
+        return float4(0.5, 0.5, 0.5, 1.0);
+
+    p = clamp(p, int2(0, 0), int2((int) nativeW - 1, (int) nativeH - 1));
+    const float4 native = gOriginal.Load(int3(p, 0));
+    const float2 uvq = (float2(p) + 0.5) / float2(nativeW, nativeH);
+    const float2 geometryScale = float2(asfloat(gResidualMotionBaseXUnused),
+                                        asfloat(gResidualMotionBaseYUnused));
+    const float2 sourcePos = (float2(p) + 0.5) * geometryScale - 0.5;
+    const int2 roundedBase = int2(floor(sourcePos + 0.5));
+    const int2 bilinearBase = int2(floor(sourcePos));
+    const float2 fracPos = frac(sourcePos);
+
+    uint srcW, srcH;
+    gSource.GetDimensions(srcW, srcH);
+    const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
+    const float spatialSigma = max(abs(gResidualScale), 1e-4);
+    const float rangeFactor = (0.7213475204444817 / 3.0) / (rangeSigma * rangeSigma);
+    const float spatialFactor = 0.7213475204444817 / (spatialSigma * spatialSigma);
+    float3 weighted = 0.0;
+    float weightSum = 0.0;
+    float3 bilinear = 0.0;
+
+    [unroll] for (int oy = -1; oy <= 1; ++oy)
+    {
+        [unroll] for (int ox = -1; ox <= 1; ++ox)
+        {
+            const int2 logical = roundedBase + int2(ox, oy);
+            const int2 coord = clamp(logical, int2(0, 0),
+                                     int2((int) srcW - 1, (int) srcH - 1));
+            const float3 proxyCandidate = gSource.Load(int3(coord, 0)).rgb;
+            const float3 residual = gModel.Load(int3(coord, 0)).rgb - proxyCandidate;
+
+            // Use UNCLAMPED logical texel positions for bilinear membership;
+            // otherwise a duplicated clamped edge texel would be added twice.
+            // Samples themselves are clamped in exactly the same way as the
+            // texture's linear CLAMP sampler.
+            const float wx = logical.x == bilinearBase.x ? 1.0 - fracPos.x :
+                             (logical.x == bilinearBase.x + 1 ? fracPos.x : 0.0);
+            const float wy = logical.y == bilinearBase.y ? 1.0 - fracPos.y :
+                             (logical.y == bilinearBase.y + 1 ? fracPos.y : 0.0);
+            bilinear += residual * (wx * wy);
+
+            const float3 delta = proxyCandidate - native.rgb;
+            const float2 deltaSpatial = float2(coord) - sourcePos;
+            const float w = exp2(-(dot(delta, delta) * rangeFactor +
+                                   dot(deltaSpatial, deltaSpatial) * spatialFactor));
+            weighted += residual * w;
+            weightSum += w;
+        }
+    }
+    const float3 guided = weightSum > 1e-8 ? weighted / weightSum : bilinear;
+    const float3 editRaw = lerp(bilinear, guided, saturate(gResidualConfidenceUnused));
+    const float3 edit = InterPassShapeEditAt(editRaw, uvq, native.rgb);
+    return float4(SanitizeFinite3(native.rgb + edit, native.rgb), native.a);
+}
+
  // Exact 2:1 P100->P50 Area case. All four P100 centres share the same
  // nearest P50 source texel and thus exactly the same (2*r+1)^2 source
  // candidates. Load that neighbourhood ONCE, then evaluate the four
@@ -2272,7 +2347,13 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                 [loop] for (int i = i0; i <= i1; ++i)
                 {
                     const float wx = max(min(x1, (float) i + 1.0) - max(x0, (float) i), 0.0);
-                    acc += InterPassCorrectedP100Load(int2(i, j)) * (wx * wy);
+                    // The scale-independent path is purely a source-tap reuse:
+                    // same P100 contributions and Area coverage as the reference.
+                    const float4 sampleCorrected =
+                        ((gDirectResolveFlags & 128u) != 0u && gResidualHistoryValidUnused == 1u)
+                        ? InterPassCorrectedP100LoadDynamic(int2(i, j))
+                        : InterPassCorrectedP100Load(int2(i, j));
+                    acc += sampleCorrected * (wx * wy);
                 }
             }
             corrected = acc / area;
