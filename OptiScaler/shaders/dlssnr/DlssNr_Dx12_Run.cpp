@@ -974,6 +974,29 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     const bool interPassActive =
         configuredInterPassMode != 0u && effectivePasses > 1u && workScale < 0.999f && !spatial;
 
+    // Cache only dimension-dependent scale geometry on the CPU. A change to the
+    // slider that rounds to the same actual texture dimensions costs nothing.
+    // Bilateral range weights depend on the current frame and are NOT cached.
+    // Shader sampling patterns are derived from pixel coordinates; a persistent
+    // GPU lookup texture would add bandwidth and defeat the intended saving.
+    if (interPassActive && cfg.DlssNrInterPassExactOptimized.value_or_default() &&
+        cfg.DlssNrInterPassDynamicSharedTaps.value_or_default() &&
+        width != 0u && height != 0u && modelWidth != 0u && modelHeight != 0u &&
+        (!nr.interPassGeometryValid ||
+         nr.interPassGeometryNativeW != width || nr.interPassGeometryNativeH != height ||
+         nr.interPassGeometryWorkW != modelWidth || nr.interPassGeometryWorkH != modelHeight))
+    {
+        nr.interPassGeometryNativeW = width;
+        nr.interPassGeometryNativeH = height;
+        nr.interPassGeometryWorkW = modelWidth;
+        nr.interPassGeometryWorkH = modelHeight;
+        nr.interPassGeometryRatioX = static_cast<float>(modelWidth) / static_cast<float>(width);
+        nr.interPassGeometryRatioY = static_cast<float>(modelHeight) / static_cast<float>(height);
+        nr.interPassGeometryValid = true;
+        LOG_DEBUG("DLSS-NR inter-pass dynamic geometry: {}x{} -> {}x{}",
+                  width, height, modelWidth, modelHeight);
+    }
+
     // Keep the encoded base immutable; ping-pong model outputs and compose the final delta once.
     // Inter-pass residuals are ALWAYS Ncurrent-originalPassBase, never Ncurrent-previousCorrected.
     ID3D12Resource* const originalPassBase = modelInput;
@@ -1244,6 +1267,19 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             guided.Width = modelWidth;
             guided.Height = modelHeight;
             guided.Transfer = proxyFilter;
+            // Use the all-scale path only for the Area mode and radius-one
+            // guided reconstruction. The exact P50 2x2 specialization in HLSL
+            // has priority. External filters and larger radius keep v2 math.
+            if (proxyFilter == 0u && nr.interPassGeometryValid &&
+                cfg.DlssNrInterPassDynamicSharedTaps.value_or_default() &&
+                (guided.DirectResolveFlags & 16u) != 0u &&
+                guided.ResidualHistoryValid == 1u &&
+                guided.ResidualConfidenceSensitivity > 0.0f)
+            {
+                std::memcpy(&guided.ResidualMotionBaseX, &nr.interPassGeometryRatioX, sizeof(float));
+                std::memcpy(&guided.ResidualMotionBaseY, &nr.interPassGeometryRatioY, sizeof(float));
+                guided.DirectResolveFlags |= 128u;
+            }
             if (!shader.DispatchPassAux2(cmdList, guided, originalPassBase, currentAnswer, nr.colorCopy,
                                          nullptr, nullptr, lowField, nr.interPassWorking, nullptr))
                 return false;
