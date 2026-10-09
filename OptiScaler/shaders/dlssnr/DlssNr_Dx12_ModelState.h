@@ -35,6 +35,16 @@ struct ModelStateDx12
     bool interPassModeInitialized = false;
     bool interPassWarned = false;
     bool interPassFusedReferenceWarned = false;
+    // CPU-only cache of dimension-dependent geometry (NOT image-dependent weights).
+    // New dimensions invalidate and rebuild the two ratios once; no GPU upload
+    // texture, shader recompilation or synchronization is required.
+    unsigned int interPassGeometryNativeW = 0;
+    unsigned int interPassGeometryNativeH = 0;
+    unsigned int interPassGeometryWorkW = 0;
+    unsigned int interPassGeometryWorkH = 0;
+    float interPassGeometryRatioX = 0.0f;
+    float interPassGeometryRatioY = 0.0f;
+    bool interPassGeometryValid = false;
 
     // The frame as the upscaler wrote it. The resolve adds the model's edit to this rather than
     // reconstructing it by inverting the tone curve, which is what turned every light in the frame into
