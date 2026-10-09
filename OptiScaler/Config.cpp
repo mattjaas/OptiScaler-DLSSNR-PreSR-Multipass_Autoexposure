@@ -526,6 +526,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrInterPassReconstruction.set_from_config(readUInt("DlssNr", "InterPassReconstruction"));
             DlssNrInterPassExactOptimized.set_from_config(readBool("DlssNr", "InterPassExactOptimized"));
             DlssNrInterPassSharedBilinear.set_from_config(readBool("DlssNr", "InterPassSharedBilinear"));
+            DlssNrInterPassDynamicSharedTaps.set_from_config(readBool("DlssNr", "InterPassDynamicSharedTaps"));
             DlssNrWhitePointScale.set_from_config(readFloat("DlssNr", "WhitePointScale"));
             DlssNrReplaceDetailStrength.set_from_config(readFloat("DlssNr", "ReplaceDetailStrength"));
             DlssNrResidualConfidenceSensitivity.set_from_config(readFloat("DlssNr", "ResidualConfidenceSensitivity"));
@@ -1696,6 +1697,8 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetBoolValue(Instance()->DlssNrInterPassExactOptimized.value_for_config()).c_str());
         ini.SetValue("DlssNr", "InterPassSharedBilinear",
                      GetBoolValue(Instance()->DlssNrInterPassSharedBilinear.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "InterPassDynamicSharedTaps",
+                     GetBoolValue(Instance()->DlssNrInterPassDynamicSharedTaps.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ReplaceDetailStrength",
                      GetFloatValue(Instance()->DlssNrReplaceDetailStrength.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ResidualConfidenceSensitivity",
