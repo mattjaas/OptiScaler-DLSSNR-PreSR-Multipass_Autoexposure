@@ -34,8 +34,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-low-band-antialias-v1
-  cancel-in-progress: true
+  group: nr-low-band-antialias-v1-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   build:
