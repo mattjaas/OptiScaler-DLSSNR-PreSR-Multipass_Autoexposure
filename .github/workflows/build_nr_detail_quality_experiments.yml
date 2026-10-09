@@ -1,9 +1,9 @@
-name: Build NR tiled Fused Area v7
+name: Build NR isolated tiled PSO v7.1
 
 on:
   push:
     branches:
-      - codex/nr-interpass-tiled-fused-v7
+      - codex/nr-interpass-tiled-isolated-pso-v7-1
     paths:
       - OptiScaler/Config.h
       - OptiScaler/Config.cpp
@@ -15,6 +15,7 @@ on:
       - OptiScaler/dlssnr/DlssNr_Status.cpp
       - OptiScaler/dlssnr/DlssNr_AnalysisCapture.h
       - OptiScaler/shaders/dlssnr/DlssNr_Common.h
+      - OptiScaler/shaders/dlssnr/DlssNr_Dx12.h
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_DeferredSr.cpp
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Status.cpp
@@ -93,6 +94,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python "..\..\shader_tools\create_header.py" "DlssNr_Shader.cso" "DlssNr_Shader.h" "DlssNr_cso"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Separate v7 PSO: ONLY this variant includes cooperative GPU tile memory.
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_Shader.cso" "dlssnr_tiled_Shader.h" "dlssnr_tiled_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Detect accidental identical shader variants; the tiled shader must differ.
+          $mainHash = (Get-FileHash "DlssNr_Shader.cso" -Algorithm SHA256).Hash
+          $tileHash = (Get-FileHash "dlssnr_tiled_Shader.cso" -Algorithm SHA256).Hash
+          if ($mainHash -eq $tileHash) { throw "Tiled and normal shader binary are identical" }
+          Write-Host "Normal DXIL SHA256: $mainHash"
+          Write-Host "Tiled DXIL SHA256: $tileHash"
           Pop-Location
 
       - name: Set up MSBuild
@@ -100,13 +112,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-tiled-fused-v7-20261010"
+        run: ./package_release.ps1 -Version "nr-interpass-tiled-isolated-pso-v7.1-20261010"
 
       - name: Upload test package
         uses: actions/upload-artifact@v4
         with:
           name: OptiScaler-NR-interpass-tiled-fused-v7-20261010
-          path: release/OptiScaler-NR-nr-interpass-tiled-fused-v7-20261010.zip
+          path: release/OptiScaler-NR-nr-interpass-tiled-isolated-pso-v7.1-20261010.zip
           if-no-files-found: error
 
       - name: Publish compiled ZIP as experimental GitHub Release
@@ -114,26 +126,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-tiled-fused-v7-20261010"
-          $archive = "release/OptiScaler-NR-nr-interpass-tiled-fused-v7-20261010.zip"
+          $tag = "nr-interpass-tiled-isolated-pso-v7.1-20261010"
+          $archive = "release/OptiScaler-NR-nr-interpass-tiled-isolated-pso-v7.1-20261010.zip"
           if (-not (Test-Path $archive)) { throw "Release ZIP missing: $archive" }
           $notes = @"
-          Experimental build from commit $env:GITHUB_SHA of codex/nr-interpass-tiled-fused-v7.
+          Experimental build from commit $env:GITHUB_SHA of codex/nr-interpass-tiled-isolated-pso-v7-1.
 
-          Retains all experimental v1-v6 optimized inter-pass settings.
-          v7 Fused+Area cooperative groupshared reconstruction:
-          an 8x8 working output block reconstructs each native P100 guide
-          only once into an FP32 shared tile. Original Area coverage and
-          summation order are preserved. Reuses existing v3 bilinear/guided
-          shared-stencil math including shaping and shadow gate.
-          Automatically uses v2 at P50 and falls back for filters != Area,
-          guided radius 2/3, zero guide strength, v4 paired mode, or
-          unsupported geometry. Separate experimental A/B toggle defaults OFF
-          until GPU timings and image stability are measured.
-          Classical v5 downsample+clamp and v6 P100 stencil remain unchanged
-          because classic already materializes each P100 result only once.
-          Tests include P51-P90 geometry and clipped edge workgroups,
-          DXC HLSL compilation and Windows Release build.
-          GPU timing and image equivalence remain unverified in game.
+          v7.1 isolates the original v7 cooperative Fused+Area tiled shader
+          from the normal all-mode DLSS NR compute shader. Compiles two
+          different DXIL blobs with the same constant layout, root signature
+          and resource table.
+          The standard CSMain has NO v7 group memory, barrier or early branch,
+          so off-interpass and classic paths cannot reserve those resources.
+          The tiled PSO is created lazily only when Tiled v7 is enabled and
+          actually selected, with transparent standard-Fused fallback if
+          tiled PSO initialization fails.
+          Preserves P50 Fused fast path and all Classic v5/v6 optimizations.
+          Does not change numerical reconstruction, Area, guided weight,
+          temporal, frequency shaping or shadow gate math from v7.
+          v7 tiled Fused ON/OFF still selectable; A/B GPU testing required.
+          Regression parity tests + both DXC compiles + Win64 Release tested.
           "@
-          gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR - tiled P100 Fused Area v7 (experimental)" --notes $notes --prerelease
+          gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR - isolated standard and tiled PSOs v7.1 (experimental)" --notes $notes --prerelease
