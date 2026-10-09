@@ -832,14 +832,70 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
     return lerp(bilinearResidual, guided, saturate(gResidualConfidenceUnused));
 }
 
+
 #ifndef VK_MODE
-float3 InterPassGuidedEditAt(float2 uvq, float3 nativeGuide)
+// Faster formulation of the same positive-weight guided reconstruction. The reference
+// function above is deliberately kept unchanged for the OFF / A-B test path.
+// One exp2 of the sum replaces two exp2 and a multiply; only FP rounding differs.
+float3 P100GuidedResidualAtOptimized(float2 uvq, float3 nativeGuide)
 {
-    float3 guidedEditRaw = P100GuidedResidualAt(uvq, nativeGuide);
+    uint srcW, srcH;
+    gSource.GetDimensions(srcW, srcH);
+    if (srcW == 0u || srcH == 0u)
+        return 0.0;
+
+    const float3 bilinearResidual = GuidedResidualBilinear(uvq);
+    const float guideStrength = saturate(gResidualConfidenceUnused);
+    if (guideStrength <= 0.0)
+        return bilinearResidual;
+
+    const int radius = (int) clamp(gResidualHistoryValidUnused, 1u, 3u);
+    const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
+    const float spatialSigma = max(abs(gResidualScale), 1e-4);
+    const float invRange2 = 1.0 / (rangeSigma * rangeSigma);
+    const float invSpatial2 = 1.0 / (spatialSigma * spatialSigma);
+    const float gaussianExp2 = 0.7213475204444817;
+    const float2 sourcePos = uvq * float2(srcW, srcH) - 0.5;
+    const int2 base = int2(floor(sourcePos + 0.5));
+
+    float3 weighted = 0.0;
+    float weightSum = 0.0;
+    [loop] for (int oy = -radius; oy <= radius; ++oy)
+    {
+        [loop] for (int ox = -radius; ox <= radius; ++ox)
+        {
+            const int2 p = clamp(base + int2(ox, oy), int2(0, 0), int2((int) srcW - 1, (int) srcH - 1));
+            const float3 proxyCandidate = gSource.Load(int3(p, 0)).rgb;
+            const float3 modelCandidate = gModel.Load(int3(p, 0)).rgb;
+            const float3 residual = gTransfer == 9u ? modelCandidate : modelCandidate - proxyCandidate;
+            const float3 colourDelta = proxyCandidate - nativeGuide;
+            const float rangeDistance2 = dot(colourDelta, colourDelta) * (1.0 / 3.0);
+            const float2 spatialDelta = float2(p) - sourcePos;
+            const float spatialDistance2 = dot(spatialDelta, spatialDelta);
+            const float w = exp2(-gaussianExp2 *
+                                 (rangeDistance2 * invRange2 + spatialDistance2 * invSpatial2));
+            weighted += residual * w;
+            weightSum += w;
+        }
+    }
+    const float3 guided = weightSum > 1e-8 ? weighted / weightSum : bilinearResidual;
+    return lerp(bilinearResidual, guided, guideStrength);
+}
+#endif
+
+#ifndef VK_MODE
+// Apply identical frequency shaping and shadow confidence to a supplied guided edit.
+// Bit 5 skips the low field ONLY when low gain equals the high/mid gain exactly.
+float3 InterPassShapeEditAt(float3 guidedEditRaw, float2 uvq, float3 nativeGuide)
+{
     if (gGuideWidth != 0u)
     {
         const float3 lowEditRaw = gAux2.SampleLevel(gLinear, saturate(uvq), 0).rgb;
         guidedEditRaw = gMvScaleX * guidedEditRaw + (gMvScaleY - gMvScaleX) * lowEditRaw;
+    }
+    else if ((gDirectResolveFlags & 32u) != 0u)
+    {
+        guidedEditRaw *= gMvScaleX;
     }
 
     if (gGuideHeight != 0u)
@@ -856,6 +912,14 @@ float3 InterPassGuidedEditAt(float2 uvq, float3 nativeGuide)
         guidedEditRaw *= lerp(saturate(shadowFloor), 1.0, smoothstep(lo, hi, y));
     }
     return SanitizeFinite3(guidedEditRaw, 0.0);
+}
+
+float3 InterPassGuidedEditAt(float2 uvq, float3 nativeGuide)
+{
+    const float3 guidedEditRaw = (gDirectResolveFlags & 16u) != 0u
+        ? P100GuidedResidualAtOptimized(uvq, nativeGuide)
+        : P100GuidedResidualAt(uvq, nativeGuide);
+    return InterPassShapeEditAt(guidedEditRaw, uvq, nativeGuide);
 }
 
 float4 InterPassCorrectedP100Load(int2 p)
@@ -886,6 +950,85 @@ float4 InterPassCorrectedP100Bilinear(float2 uvq)
                           InterPassCorrectedP100Load(p0 + int2(1, 1)), f.x);
     return lerp(a, b, f.y);
 }
+
+ // Exact 2:1 P100->P50 Area case. All four P100 centres share the same
+ // nearest P50 source texel and thus exactly the same (2*r+1)^2 source
+ // candidates. Load that neighbourhood ONCE, then evaluate the four
+ // independent P100 guides using the reference weights/normalization.
+ // No P100 intermediate and no extra dispatch or GPU scratch allocation.
+float4 InterPassCorrectedAreaP50Optimized(int2 outP, uint2 nativeSize)
+{
+    const float2 nativeSizeF = float2(nativeSize);
+    const int2 srcBase = outP;
+    float4 originals[4];
+    float3 bilinear[4];
+    float3 weighted[4];
+    float weightSum[4];
+    float2 uvList[4];
+    const float guideStrength = saturate(gResidualConfidenceUnused);
+
+    [unroll] for (uint k = 0u; k < 4u; ++k)
+    {
+        const int2 nativeP = outP * 2 + int2(k & 1u, k >> 1u);
+        const float2 uvq = (float2(nativeP) + 0.5) / nativeSizeF;
+        uvList[k] = uvq;
+        originals[k] = gOriginal.Load(int3(nativeP, 0));
+        // Identical bilinear fallback to GuidedResidualBilinear for Transfer=0.
+        bilinear[k] = gModel.SampleLevel(gLinear, uvq, 0).rgb -
+                      gSource.SampleLevel(gLinear, uvq, 0).rgb;
+        weighted[k] = 0.0;
+        weightSum[k] = 0.0;
+    }
+
+    if (guideStrength > 0.0)
+    {
+        const int radius = (int) clamp(gResidualHistoryValidUnused, 1u, 3u);
+        const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
+        const float spatialSigma = max(abs(gResidualScale), 1e-4);
+        const float invRange2 = 1.0 / (rangeSigma * rangeSigma);
+        const float invSpatial2 = 1.0 / (spatialSigma * spatialSigma);
+        const float gaussianExp2 = 0.7213475204444817;
+
+        [loop] for (int oy = -radius; oy <= radius; ++oy)
+        {
+            [loop] for (int ox = -radius; ox <= radius; ++ox)
+            {
+                const int2 sampleP = clamp(srcBase + int2(ox, oy), int2(0, 0),
+                                           int2((int) gWidth - 1, (int) gHeight - 1));
+                const float3 proxyCandidate = gSource.Load(int3(sampleP, 0)).rgb;
+                const float3 residual = gModel.Load(int3(sampleP, 0)).rgb - proxyCandidate;
+                [unroll] for (uint k = 0u; k < 4u; ++k)
+                {
+                    // At native=2*working, P100 centres project exactly to
+                    // sourcePos = outP + { -0.25, +0.25 } on each axis.
+                    const float2 sourcePos = float2(outP) +
+                        float2((k & 1u) != 0u ? 0.25 : -0.25,
+                               (k & 2u) != 0u ? 0.25 : -0.25);
+                    const float3 colourDelta = proxyCandidate - originals[k].rgb;
+                    const float rangeDistance2 = dot(colourDelta, colourDelta) * (1.0 / 3.0);
+                    const float2 spatialDelta = float2(sampleP) - sourcePos;
+                    const float spatialDistance2 = dot(spatialDelta, spatialDelta);
+                    const float w = exp2(-gaussianExp2 *
+                                         (rangeDistance2 * invRange2 + spatialDistance2 * invSpatial2));
+                    weighted[k] += residual * w;
+                    weightSum[k] += w;
+                }
+            }
+        }
+    }
+
+    float3 correctedSum = 0.0;
+    [unroll] for (uint k = 0u; k < 4u; ++k)
+    {
+        const float3 guided = weightSum[k] > 1e-8 ? weighted[k] / weightSum[k] : bilinear[k];
+        const float3 edit = InterPassShapeEditAt(lerp(bilinear[k], guided, guideStrength),
+                                                uvList[k], originals[k].rgb);
+        correctedSum += SanitizeFinite3(originals[k].rgb + edit, originals[k].rgb);
+    }
+    // The reference Area branch explicitly restores centre-sample alpha.
+    return float4(correctedSum * 0.25, originals[3].a);
+}
+
 #endif
 
 float3 ExperimentFinalModelAt(float2 uvq)
@@ -1984,7 +2127,17 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
 
         const float2 sampleUv = (float2(id.xy) + 0.5) / float2(gWidth, gHeight);
         float4 corrected = 0.0;
-        if (gTransfer == 1u)
+        uint sourceW, sourceH, answerW, answerH;
+        gSource.GetDimensions(sourceW, sourceH);
+        gModel.GetDimensions(answerW, answerH);
+        if ((gDirectResolveFlags & 16u) != 0u && gTransfer == 0u &&
+            nativeW == 2u * gWidth && nativeH == 2u * gHeight &&
+            sourceW == gWidth && sourceH == gHeight &&
+            answerW == gWidth && answerH == gHeight)
+        {
+            corrected = InterPassCorrectedAreaP50Optimized(int2(id.xy), uint2(nativeW, nativeH));
+        }
+        else if (gTransfer == 1u)
         {
             corrected = InterPassCorrectedP100Bilinear(sampleUv);
         }
