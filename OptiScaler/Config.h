@@ -570,6 +570,9 @@ class Config
     // Optional faster shader implementation of the SAME P100-guided inter-pass reconstruction.
     // False = original reference; true = optimized shared-tap fused P50 Area path and cheaper weights.
     CustomOptional<bool> DlssNrInterPassExactOptimized { false };
+    // v2 P50/Area/radius=1 exact-stencil specialization; ON by default for optimized inter-pass.
+    // Preserving the v1 path as a controllable A/B reference for GPU timing and image inspection.
+    CustomOptional<bool> DlssNrInterPassSharedBilinear { true };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
