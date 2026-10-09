@@ -1123,6 +1123,15 @@ void RenderModel(Config* config)
         if (interPass != 0)
         {
             Checkbox("Exact optimized inter-pass", config->DlssNrInterPassExactOptimized);
+            if (config->DlssNrInterPassExactOptimized.value_or_default())
+            {
+                Checkbox("Share bilinear + guided P50 taps (v2)", config->DlssNrInterPassSharedBilinear);
+                HelpMarker("Additional optimization for Fused + Area + exact P50 + guided radius 1: "
+                           "the same nine P50 residual samples reconstruct both the four bilinear "
+                           "and four guided P100 edits. OFF uses optimized v1 for A/B timing. "
+                           "The 0.25/0.75 bilinear weights preserve the reconstruction within "
+                           "floating-point rounding; other scales and filters fall back to v1.");
+            }
             HelpMarker("OFF = reference shader. ON = cheaper guided weights, shared NR50/proxy taps "
                        "for exact P50 Area fused reconstruction and a zero-cost low-band bypass "
                        "when effective high/mid and low gains match. The image formula is preserved; "
