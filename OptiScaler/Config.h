@@ -583,6 +583,10 @@ class Config
     // v5 classical P100->working path: local downsample + ClampProxy in one dispatch.
     // OFF retains the exact old two-dispatch classical path for A/B testing.
     CustomOptional<bool> DlssNrInterPassDownsampleClamp { true };
+    // v6 classic P100-guided radius-one: reuse the 3x3 stencil for both
+    // bilateral and bilinear, without the v4 cross-pixel register pressure.
+    // A/B OFF is the previous v5 P100-guided shader.
+    CustomOptional<bool> DlssNrInterPassClassicSharedStencil { true };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
