@@ -579,7 +579,10 @@ class Config
     CustomOptional<bool> DlssNrInterPassDynamicSharedTaps { true };
     // v4: reuse overlapping P100 radius-one source stencils between adjacent
     // native texels in the fused Area reducer. OFF retains the v3 A/B path.
-    CustomOptional<bool> DlssNrInterPassPairedArea { true };
+    CustomOptional<bool> DlssNrInterPassPairedArea { false }; // v4 slower at measured P65; opt-in only.
+    // v5 classical P100->working path: local downsample + ClampProxy in one dispatch.
+    // OFF retains the exact old two-dispatch classical path for A/B testing.
+    CustomOptional<bool> DlssNrInterPassDownsampleClamp { true };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
