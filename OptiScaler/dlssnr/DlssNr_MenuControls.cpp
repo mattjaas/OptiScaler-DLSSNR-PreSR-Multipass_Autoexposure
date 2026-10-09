@@ -1127,6 +1127,15 @@ void RenderModel(Config* config)
             {
                 if (interPass == 1)
                 {
+                    Checkbox("Classic: shared P100 guided stencil (v6)",
+                             config->DlssNrInterPassClassicSharedStencil);
+                    HelpMarker("A/B v6 optimization of the *first* classical inter-pass stage: "
+                               "each native P100 pixel reuses the same radius-one 3x3 source/model "
+                               "loads for its bilateral weights and bilinear fallback. "
+                               "Works at arbitrary working resolutions including P65/P66; "
+                               "uses the original texel positions and positive bilateral weights. "
+                               "Automatically falls back to v5 if radius is 2/3 or guide strength is zero. "
+                               "OFF restores the previous v5 P100 reconstruction shader.");
                     Checkbox("Classic: fuse downsample + clamp (v5)", config->DlssNrInterPassDownsampleClamp);
                     HelpMarker("Classical P100 -> working-res reconstruction: combines the local Area, "
                                "Bilinear, Point or SSIM Sharp downsample and ClampProxy into ONE compute "
