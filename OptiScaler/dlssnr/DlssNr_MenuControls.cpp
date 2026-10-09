@@ -1125,6 +1125,16 @@ void RenderModel(Config* config)
             Checkbox("Exact optimized inter-pass", config->DlssNrInterPassExactOptimized);
             if (config->DlssNrInterPassExactOptimized.value_or_default())
             {
+                if (interPass == 1)
+                {
+                    Checkbox("Classic: fuse downsample + clamp (v5)", config->DlssNrInterPassDownsampleClamp);
+                    HelpMarker("Classical P100 -> working-res reconstruction: combines the local Area, "
+                               "Bilinear, Point or SSIM Sharp downsample and ClampProxy into ONE compute "
+                               "dispatch and writes directly into the next NR pass input. "
+                               "Preserves alpha, input range and intermediate FP16 quantization. "
+                               "External Output Scaling filters retain their original pipeline. "
+                               "OFF restores the original two-dispatch path for A/B GPU measurements.");
+                }
                 Checkbox("Share bilinear + guided P50 taps (v2)", config->DlssNrInterPassSharedBilinear);
                 Checkbox("Dynamic shared taps (all resolutions)", config->DlssNrInterPassDynamicSharedTaps);
                 if (config->DlssNrInterPassDynamicSharedTaps.value_or_default())
@@ -1134,6 +1144,7 @@ void RenderModel(Config* config)
                                "two horizontal P100 pixels reuse their overlapping 3x3 P50/P65 "
                                "guided-residual source taps, preserving separate edge-aware weights "
                                "and original Area integration. OFF restores dynamic v3 immediately. "
+                               "Measured 0.41 ms slower at P65 on the tested GPU, so defaults OFF. "
                                "Compare image motion and GPU time at P65/P75; performance depends on GPU.");
                 }
                 HelpMarker("Fused + Area + guided radius 1: for arbitrary Resolution including P66, "
