@@ -62,6 +62,10 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     // dlssnr.hlsl blob is never regenerated (a current dxc produces materially different DXIL
     // from the committed one). Null on backends/builds where the residual shader is absent.
     ID3D12PipelineState* _residualPipelineState = nullptr;
+    // v7.1: separate, lazily-created compute PSO containing v7 groupshared.
+    // The standard PSO has no tiled code and is used for every other mode.
+    ID3D12PipelineState* _tiledFusedPipelineState = nullptr;
+    bool _tiledFusedPipelineAttempted = false;
     ID3D12PipelineState* _finishedColorPipelineState = nullptr;
     ID3D12PipelineState* _spatialPipelineState = nullptr;
     ID3D12PipelineState* _spatialGuidesPipelineState = nullptr;
