@@ -1122,6 +1122,83 @@ void InterPassCorrectedDynamicPair(int2 p0, out float4 result0, out float4 resul
     result1 = float4(SanitizeFinite3(native1.rgb + edit1, native1.rgb), native1.a);
 }
 
+
+// v6 classic inter-pass P100 reconstruction: one radius-one 3x3 source
+// stencil serves the guided bilateral estimator AND its bilinear fallback.
+//
+// Unlike the v4 paired-area experiment, each GPU thread owns exactly ONE
+// native P100 pixel. This keeps the register footprint small and preserves
+// the normal fullscreen P100 dispatch layout (no separate scratch/queue).
+// Precomputed working dimensions arrive through two otherwise-unused
+// parameters, avoiding GetDimensions inside each P100 thread. The original
+// geometry formula uvq * workingSize - 0.5 is retained exactly; in
+// particular, it does not substitute a rounded resolution percentage.
+//
+// Each bilinear logical sample has its own coordinate before border
+// clamping, so corner duplicates still receive the hardware CLAMP weights.
+// Every guided sample uses the CLAMPED texel position for its spatial
+// distance, just like the v1 exact-optimized reference.
+float4 InterPassCorrectedClassicSharedStencil(int2 nativeP)
+{
+    const float4 native = gOriginal.Load(int3(nativeP, 0));
+    const float2 uvq = (float2(nativeP) + 0.5) / float2(gWidth, gHeight);
+    const uint srcW = gDirectDetailMode;           // set only for mode 27 + v6
+    const uint srcH = gDirectResolveUpscaler;      // set only for mode 27 + v6
+    const float2 sourcePos = uvq * float2(srcW, srcH) - 0.5;
+    const int2 sourceBase = int2(floor(sourcePos + 0.5));
+    const int2 bilinearBase = int2(floor(sourcePos));
+    const float2 fracPos = frac(sourcePos);
+
+    // Bilinear candidates are inside the same 3x3 stencil for every
+    // fractional source position. Replacing per-tap coordinate comparisons
+    // with two separable three-element weight sets reduces shader ALU.
+    // A >= 0.5 fractional coordinate shifts the rounded stencil right/down.
+    const bool movedX = sourceBase.x != bilinearBase.x;
+    const bool movedY = sourceBase.y != bilinearBase.y;
+    const float3 weightsX = movedX
+        ? float3(1.0 - fracPos.x, fracPos.x, 0.0)
+        : float3(0.0, 1.0 - fracPos.x, fracPos.x);
+    const float3 weightsY = movedY
+        ? float3(1.0 - fracPos.y, fracPos.y, 0.0)
+        : float3(0.0, 1.0 - fracPos.y, fracPos.y);
+
+    const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
+    const float spatialSigma = max(abs(gResidualScale), 1e-4);
+    const float rangeFactor = (0.7213475204444817 / 3.0) / (rangeSigma * rangeSigma);
+    const float spatialFactor = 0.7213475204444817 / (spatialSigma * spatialSigma);
+
+    float3 weighted = 0.0, bilinear = 0.0;
+    float weightSum = 0.0;
+    [unroll] for (int oy = -1; oy <= 1; ++oy)
+    {
+        const int sampleY = clamp(sourceBase.y + oy, 0, (int)srcH - 1);
+        const float dy = (float)sampleY - sourcePos.y;
+        const float dy2 = dy * dy;
+        const float wy = weightsY[oy + 1];
+        [unroll] for (int ox = -1; ox <= 1; ++ox)
+        {
+            const int sampleX = clamp(sourceBase.x + ox, 0, (int)srcW - 1);
+            const int2 sampleP = int2(sampleX, sampleY);
+            const float3 proxyCandidate = gSource.Load(int3(sampleP, 0)).rgb;
+            const float3 residual = gModel.Load(int3(sampleP, 0)).rgb - proxyCandidate;
+            bilinear += residual * (weightsX[ox + 1] * wy);
+
+            const float3 colourDelta = proxyCandidate - native.rgb;
+            const float dx = (float)sampleX - sourcePos.x;
+            const float w = exp2(-(dot(colourDelta, colourDelta) * rangeFactor +
+                                   (dx * dx + dy2) * spatialFactor));
+            weighted += residual * w;
+            weightSum += w;
+        }
+    }
+
+    const float3 guided = weightSum > 1e-8 ? weighted / weightSum : bilinear;
+    const float3 editRaw = lerp(bilinear, guided, saturate(gResidualConfidenceUnused));
+    const float3 shapedEdit = InterPassShapeEditAt(editRaw, uvq, native.rgb);
+    const float3 corrected = SanitizeFinite3(native.rgb + shapedEdit, native.rgb);
+    return float4(corrected, native.a);
+}
+
  // Exact 2:1 P100->P50 Area case. All four P100 centres share the same
  // nearest P50 source texel and thus exactly the same (2*r+1)^2 source
  // candidates. Load that neighbourhood ONCE, then evaluate the four
@@ -2397,7 +2474,12 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     {
         // Reference inter-pass path: materialize C100 = P100 + shaped Guided(Ncurrent-Boriginal, P100).
         // Do not clamp here; the selected P100->working filter runs next, followed by ClampProxy.
-        gTarget[id.xy] = InterPassCorrectedP100Load(int2(id.xy));
+        // Bit 10: standalone v6 A/B. Only selected when exact optimized
+        // mode, radius=1, nonzero guide strength and equal source/model dims.
+        // OFF remains the byte-for-byte v5 P100 guided shader path.
+        gTarget[id.xy] = (gDirectResolveFlags & 1024u) != 0u
+            ? InterPassCorrectedClassicSharedStencil(int2(id.xy))
+            : InterPassCorrectedP100Load(int2(id.xy));
         return;
     }
 
