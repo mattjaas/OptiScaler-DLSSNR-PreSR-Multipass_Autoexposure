@@ -91,7 +91,7 @@ jobs:
           Experimental build from commit $env:GITHUB_SHA of codex/nr-low-band-antialias-v1.
 
           Replaced Mode 18's non-overlapping box reduction of signed E_low with
-          an overlapping 6x6 binomial antialias kernel (bilinear hardware taps).
+          an overlapping 8x8 positive-window antialias kernel (bilinear hardware taps).
           No new fullscreen pass; frequency sliders, high/low gains and
           temporal DLAA carrier behavior are unchanged.
 
