@@ -1163,9 +1163,59 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         // Ground-truth leg: use the exact filter that built the original reduced proxy. External Output
         // Scaling filters are reused when available; failed external dispatch falls back to Area exactly
         // like EncodeWorkingInput does.
-        MakeModelWritable(nr.passClamp);
         const uint32_t proxyFilter = InterPassProxyFilter();
         const Scaler exactScaler = InterPassExactScaler(proxyFilter);
+
+        // v5 classical P100->working-res optimization: the local downsample
+        // followed by ClampProxy is one compute dispatch writing directly to
+        // the final inter-pass working texture. Skip passClamp UAV write, its
+        // SRV transition and the full-screen ClampProxy dispatch.
+        //
+        // External scaler filters need their own pipelines, so preserve the
+        // existing two-dispatch/clamp path (also for unknown filter values).
+        // A/B is independently controlled from the fused P100-guided path.
+        const bool localDownscale =
+            proxyFilter == 0u || proxyFilter == 1u ||
+            proxyFilter == 4u || proxyFilter == 11u;
+        const auto workingDesc = originalPassBase->GetDesc();
+        const bool matchingScratchFormat =
+            nr.passClamp->GetDesc().Format == workingDesc.Format;
+        if (cfg.DlssNrInterPassDownsampleClamp.value_or_default() &&
+            cfg.DlssNrInterPassExactOptimized.value_or_default() &&
+            localDownscale && exactScaler == Scaler::Count &&
+            matchingScratchFormat)
+        {
+            if (!EnsureInterPassScratch(nr.interPassWorking, workingDesc.Format,
+                                        modelWidth, modelHeight, interPassWorkingReadable))
+                return false;
+            if (interPassWorkingReadable)
+            {
+                Barrier(cmdList, nr.interPassWorking, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                interPassWorkingReadable = false;
+            }
+
+            DlssNrConstants down {};
+            down.Mode = DlssNrMode_DownsampleClampProxy;
+            down.Width = modelWidth;
+            down.Height = modelHeight;
+            down.Transfer = proxyFilter;
+            // The unfused path rounds Downsample to its UAV format BEFORE
+            // Mode 8 sanitization. Emulate that intermediate R16G16B16A16
+            // conversion inside the shader for matching FP16 behaviour.
+            if (workingDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
+                down.DirectResolveFlags = 512u;
+            if (!shader.DispatchPass(cmdList, down, nr.interPassP100, nullptr, nullptr,
+                                     nullptr, nullptr, nr.interPassWorking, nullptr))
+                return false;
+
+            Barrier(cmdList, nr.interPassWorking, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            interPassWorkingReadable = true;
+            return true;
+        }
+
+        MakeModelWritable(nr.passClamp);
         bool downscaled = false;
         if (exactScaler != Scaler::Count && nr.proxyDown && nr.proxyDownScaler == exactScaler)
             downscaled = nr.proxyDown->DispatchResources(cmdList, nr.interPassP100, nr.passClamp);
@@ -1183,7 +1233,6 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             return false;
         MakeModelReadable(nr.passClamp);
 
-        const auto workingDesc = originalPassBase->GetDesc();
         if (!EnsureInterPassScratch(nr.interPassWorking, workingDesc.Format, modelWidth, modelHeight,
                                     interPassWorkingReadable))
             return false;
