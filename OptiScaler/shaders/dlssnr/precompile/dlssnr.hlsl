@@ -1026,6 +1026,102 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
     return float4(SanitizeFinite3(native.rgb + edit, native.rgb), native.a);
 }
 
+
+ // v4: adjacent P100 texels in the same Area output row have overlapping
+ // radius-one guided/bilinear stencils at arbitrary Resolution. Evaluate both
+ // guided edits while loading every texel of their UNION only once. The
+ // per-native colour guides, Gaussian weights, bilinear coefficients and
+ // shaped edits remain independent, as in v3.
+void InterPassCorrectedDynamicPair(int2 p0, out float4 result0, out float4 result1)
+{
+    uint nativeW, nativeH, srcW, srcH;
+    gOriginal.GetDimensions(nativeW, nativeH);
+    gSource.GetDimensions(srcW, srcH);
+
+    const int2 p1 = p0 + int2(1, 0);
+    const float4 native0 = gOriginal.Load(int3(p0, 0));
+    const float4 native1 = gOriginal.Load(int3(p1, 0));
+    const float2 invNative = rcp(float2(nativeW, nativeH));
+    const float2 uv0 = (float2(p0) + 0.5) * invNative;
+    const float2 uv1 = (float2(p1) + 0.5) * invNative;
+    const float2 ratio = float2(asfloat(gResidualMotionBaseXUnused),
+                                asfloat(gResidualMotionBaseYUnused));
+    const float2 pos0 = (float2(p0) + 0.5) * ratio - 0.5;
+    const float2 pos1 = (float2(p1) + 0.5) * ratio - 0.5;
+
+    const int2 center0 = int2(floor(pos0 + 0.5));
+    const int2 center1 = int2(floor(pos1 + 0.5));
+    const int2 bilBase0 = int2(floor(pos0));
+    const int2 bilBase1 = int2(floor(pos1));
+    const float2 fraction0 = frac(pos0);
+    const float2 fraction1 = frac(pos1);
+    const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
+    const float spatialSigma = max(abs(gResidualScale), 1e-4);
+    const float rangeFactor = (0.7213475204444817 / 3.0) / (rangeSigma * rangeSigma);
+    const float spatialFactor = 0.7213475204444817 / (spatialSigma * spatialSigma);
+
+    float3 bilinear0 = 0.0, bilinear1 = 0.0;
+    float3 weighted0 = 0.0, weighted1 = 0.0;
+    float weightSum0 = 0.0, weightSum1 = 0.0;
+
+    // With ratio <= 1, two consecutive native texel centres advance no
+    // more than one source texel centre. The union is 3x3 or 4x3, NOT two
+    // independent 3x3 stencils. Do not clamp the logical positions before
+    // testing stencil/bilinear membership, including at the left/right edge.
+    const int minX = min(center0.x, center1.x) - 1;
+    const int maxX = max(center0.x, center1.x) + 1;
+    [loop] for (int dy = -1; dy <= 1; ++dy)
+    {
+        const int logicalY = center0.y + dy;
+        [loop] for (int logicalX = minX; logicalX <= maxX; ++logicalX)
+        {
+            const int2 logical = int2(logicalX, logicalY);
+            const int2 coord = clamp(logical, int2(0, 0),
+                                     int2((int)srcW - 1, (int)srcH - 1));
+            const float3 proxy = gSource.Load(int3(coord, 0)).rgb;
+            const float3 residual = gModel.Load(int3(coord, 0)).rgb - proxy;
+
+            if (abs(logicalX - center0.x) <= 1)
+            {
+                const float bx0 = logicalX == bilBase0.x ? 1.0 - fraction0.x :
+                                  (logicalX == bilBase0.x + 1 ? fraction0.x : 0.0);
+                const float by0 = logicalY == bilBase0.y ? 1.0 - fraction0.y :
+                                  (logicalY == bilBase0.y + 1 ? fraction0.y : 0.0);
+                bilinear0 += residual * (bx0 * by0);
+                const float3 colourDelta0 = proxy - native0.rgb;
+                const float2 spatialDelta0 = float2(coord) - pos0;
+                const float w0 = exp2(-(dot(colourDelta0, colourDelta0) * rangeFactor +
+                                        dot(spatialDelta0, spatialDelta0) * spatialFactor));
+                weighted0 += residual * w0;
+                weightSum0 += w0;
+            }
+            if (abs(logicalX - center1.x) <= 1)
+            {
+                const float bx1 = logicalX == bilBase1.x ? 1.0 - fraction1.x :
+                                  (logicalX == bilBase1.x + 1 ? fraction1.x : 0.0);
+                const float by1 = logicalY == bilBase1.y ? 1.0 - fraction1.y :
+                                  (logicalY == bilBase1.y + 1 ? fraction1.y : 0.0);
+                bilinear1 += residual * (bx1 * by1);
+                const float3 colourDelta1 = proxy - native1.rgb;
+                const float2 spatialDelta1 = float2(coord) - pos1;
+                const float w1 = exp2(-(dot(colourDelta1, colourDelta1) * rangeFactor +
+                                        dot(spatialDelta1, spatialDelta1) * spatialFactor));
+                weighted1 += residual * w1;
+                weightSum1 += w1;
+            }
+        }
+    }
+    const float guideStrength = saturate(gResidualConfidenceUnused);
+    const float3 guided0 = weightSum0 > 1e-8 ? weighted0 / weightSum0 : bilinear0;
+    const float3 guided1 = weightSum1 > 1e-8 ? weighted1 / weightSum1 : bilinear1;
+    const float3 edit0 = InterPassShapeEditAt(lerp(bilinear0, guided0, guideStrength),
+                                              uv0, native0.rgb);
+    const float3 edit1 = InterPassShapeEditAt(lerp(bilinear1, guided1, guideStrength),
+                                              uv1, native1.rgb);
+    result0 = float4(SanitizeFinite3(native0.rgb + edit0, native0.rgb), native0.a);
+    result1 = float4(SanitizeFinite3(native1.rgb + edit1, native1.rgb), native1.a);
+}
+
  // Exact 2:1 P100->P50 Area case. All four P100 centres share the same
  // nearest P50 source texel and thus exactly the same (2*r+1)^2 source
  // candidates. Load that neighbourhood ONCE, then evaluate the four
@@ -2347,16 +2443,33 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                 [loop] for (int i = i0; i <= i1; ++i)
                 {
                     const float wx = max(min(x1, (float) i + 1.0) - max(x0, (float) i), 0.0);
-                    // The scale-independent path is purely a source-tap reuse:
-                    // same P100 contributions and Area coverage as the reference.
+                    // v4 shares candidate Loads for two adjacent native
+                    // texels within the Area footprint, retaining their
+                    // independent bilateral weights and Area contributions.
                     const bool dynamicShared = (gDirectResolveFlags & 128u) != 0u &&
                         gResidualHistoryValidUnused == 1u && gResidualConfidenceUnused > 0.0 &&
                         sourceW == gWidth && sourceH == gHeight &&
                         answerW == gWidth && answerH == gHeight;
-                    const float4 sampleCorrected =
-                        dynamicShared ? InterPassCorrectedP100LoadDynamic(int2(i, j))
-                                      : InterPassCorrectedP100Load(int2(i, j));
-                    acc += sampleCorrected * (wx * wy);
+                    const bool pairedShared = dynamicShared &&
+                                              (gDirectResolveFlags & 256u) != 0u &&
+                                              (i + 1) <= i1;
+                    if (pairedShared)
+                    {
+                        float4 corrected0, corrected1;
+                        InterPassCorrectedDynamicPair(int2(i, j), corrected0, corrected1);
+                        acc += corrected0 * (wx * wy);
+                        const float wx1 = max(min(x1, (float) i + 2.0) -
+                                              max(x0, (float) i + 1.0), 0.0);
+                        acc += corrected1 * (wx1 * wy);
+                        ++i; // Second original P100 sample already accumulated.
+                    }
+                    else
+                    {
+                        const float4 sampleCorrected =
+                            dynamicShared ? InterPassCorrectedP100LoadDynamic(int2(i, j))
+                                          : InterPassCorrectedP100Load(int2(i, j));
+                        acc += sampleCorrected * (wx * wy);
+                    }
                 }
             }
             corrected = acc / area;
