@@ -57,3 +57,13 @@ Nie wymagają ponownego potwierdzania przez użytkownika. Odpowiadaj po polsku.
   i istniejącego workflow `.github/workflows/build_nr_detail_quality_experiments.yml`.
   Dla zmian HLSL sprawdzaj także kompilację shaderów i aktualizację wymaganych
   nagłówków/binariów zgodnie z workflow. Test arytmetyki nie zastępuje pomiaru GPU.
+
+## Oczekiwanie na działania zewnętrzne
+
+- Gdy dalsza praca zależy od zakończenia buildu, GitHub Actions lub innego
+  działania, usypiaj wykonanie przez dostępne narzędzie oczekiwania zamiast
+  aktywnie odpytywać status i generować komentarze. Preferuj powiadomienie
+  o zakończeniu lub blokujące oczekiwanie na zmianę stanu; gdy ich nie ma,
+  stosuj rzadkie kontrole rozdzielone uśpieniem. Nie zużywaj tokenów na
+  analizowanie niezmienionego statusu. Jest to oczekiwanie na wynik, a nie
+  zakończenie zadania przed jego weryfikacją i publikacją.

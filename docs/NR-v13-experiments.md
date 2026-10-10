@@ -66,6 +66,54 @@ inter-pass pomoże rozdzielić wpływ NGX od kosztu rekonstrukcji.
 
 ## Dane i decyzje
 
+### Kolejne kandydaty zachowujące jakość (audyt 2026-10-10)
+
+Poniższe propozycje nie zostały wdrożone ani zmierzone. Bazą kolejnych
+eksperymentów powinien być Mode28 v13, a nie kombinacja nieskutecznych zmian
+v11/v12. Każdy kandydat wymaga oddzielnego A/B, kontroli wynikowego DXIL
+i porównania wyjścia, obejmującego HDR, alfę i częściowe kafle na krawędziach.
+
+1. **RGB zamiast RGBA w kaflu gotowej rekonstrukcji.**
+   `InterPassTiledFusedArea` przechowuje `float4 gInterPassCorrectedTile`,
+   sumuje `float4 acc`, lecz przed zapisem zastępuje `corrected.a` odczytem
+   z `gOriginal`. Alfa pośrednia nie wpływa na RGB. Wariant `float3` kafla
+   i akumulatora może usunąć martwą składową, zachowując kolejność sumowania
+   i mnożenia RGB oraz istniejący końcowy odczyt alfy. Nominalny rozmiar kafla
+   16×16 maleje z 4096 do 3072 bajtów, czyli o 25%; nie jest to pomiar
+   przyspieszenia ani gwarancja takiej alokacji w skompilowanym shaderze.
+   Sprawdzić, czy kompilator już usunął martwą składową, rzeczywistą alokację,
+   banki LDS i rejestry. Wariant 20×20 nominalnie 6400 → 4800 bajtów.
+
+2. **Izolowane Weights + Mode28 dla Linear20.**
+   Obecny v10 wymaga Compact16; poniżej progu rzeczywistych wymiarów 60%
+   wybór Weights kieruje tiled Linear do v9 Linear20. Osobny shader 20×20
+   z compile-time weights ON/cache OFF i stałym Mode28 pozwoli sprawdzić
+   korzyść usunięcia obsługi flag podczas wykonania oraz nieużywanej pamięci
+   source/model. Zachować oryginalny algorytm, adresy, kolejność działań,
+   granice tiled i fallback. Nie rozszerzać Compact16 na footprint, który
+   nie mieści się w jego pamięci. Porównać także Weights OFF, ponieważ
+   specjalizacja nie gwarantuje przewagi samego sposobu obliczania wag.
+
+3. **Dalsza specjalizacja stałych opcji rekonstrukcji.**
+   Mode28 wyeliminował nieużywane tryby; kolejnym krokiem może być osobny PSO
+   dla dokładnych, częstych ustawień, np. guide strength równego 1, jeśli
+   wynikowy DXIL nadal wykonuje mieszanie z bilinear mimo tej wartości.
+   `InterPassCorrectedP100LoadDynamicInternal` oblicza obie estymaty
+   i `lerp(bilinear, guided, saturate(gResidualConfidenceUnused))`.
+   Nie usuwać całego bilinear: pozostaje on fallbackiem przy małym weightSum.
+   Zachować kolejność arytmetyki i zachowanie dla wartości niefinitywnych;
+   uproszczenie lerp dla t=1 może zmienić zaokrąglenie. Najpierw sprawdzić
+   DXIL, następnie porównać wynik bitowo. Odrzucić wariant, jeśli zmienia
+   wynik lub zwiększa presję rejestrów. PSO tworzyć i przechowywać w cache,
+   nie kompilować per klatka.
+
+Priorytet: kandydat 1 dla P65, kandydat 2 dla 55–59%, następnie kandydat 3
+po analizie kompilacji. Nie powtarzać bez nowej przesłanki source/model LDS
+cache ani Quad Fill, które w dotychczasowych pomiarach były wolniejsze.
+Nie zastępować FP32 przez FP16 ani exp2 przez aproksymację w eksperymentach
+deklarujących identyczne wyniki. Dla każdego zaakceptowanego wariantu
+zweryfikować shadery/testy/workflow i dopiero potem rzeczywiste czasy GPU.
+
 Pełne 25 konfiguracji, metryki surowych 4000 próbek, trendy i block bootstrap:
 [NR-v12-20261010-analysis.md](NR-v12-20261010-analysis.md).
 
