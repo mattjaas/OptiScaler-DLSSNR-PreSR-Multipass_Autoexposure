@@ -1,4 +1,4 @@
-#include <pch.h>
+#include "pch.h"
 #include "DlssNr_Status.h"
 #include "DlssNr_Benchmark.h"
 #include <d3d12.h>
@@ -90,6 +90,7 @@ namespace
 {
 struct BenchmarkConfig
 {
+    bool enabled;
     float scale;
     uint32_t passes, radius, proxyFilter, upscaledFilter, debug;
     bool unlock, spatial;
@@ -125,6 +126,7 @@ unsigned benchmarkNativeW = 0, benchmarkNativeH = 0, benchmarkWorkW = 0,
 BenchmarkConfig TakeBenchmarkConfig(const Config& c)
 {
     return {
+        c.DlssNrEnabled.value_or_default(),
         c.DlssNrWorkingScale.value_or_default(),
         c.DlssNrPasses.value_or_default(),
         c.DlssNrGuidedResidualRadius.value_or_default(),
@@ -153,6 +155,7 @@ BenchmarkConfig TakeBenchmarkConfig(const Config& c)
 }
 void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
 {
+    c.DlssNrEnabled = v.enabled;
     c.DlssNrWorkingScale = v.scale;
     c.DlssNrPasses = v.passes;
     c.DlssNrGuidedResidualRadius = v.radius;
