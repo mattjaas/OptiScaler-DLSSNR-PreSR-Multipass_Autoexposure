@@ -30,7 +30,10 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          python -c 'import pathlib, subprocess; p = pathlib.Path("OptiScaler/shaders/dlssnr/precompile/dlssnr_v6_1_audit.hlsl"); p.write_bytes(subprocess.check_output(["git", "show", "nr-interpass-classic-guided-stencil-v6.1-20261010:OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl"]))'
+          # PowerShell's native Python -c quoting on Windows strips nested
+          # double quotes; Git pipes UTF-8 source directly instead.
+          git show nr-interpass-classic-guided-stencil-v6.1-20261010:OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl |
+            Set-Content -Encoding UTF8 "OptiScaler/shaders/dlssnr/precompile/dlssnr_v6_1_audit.hlsl"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Push-Location "OptiScaler/shaders/dlssnr/precompile"
           & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect "dlssnr_v6_1_audit.hlsl" -Fo "nr_v61_audit.cso" -Fc "nr_v61_audit.ll"
