@@ -1161,10 +1161,11 @@ void RenderModel(Config* config)
                         HelpMarker("Works with BOTH linear and 2D strided loads. For eligible native/work "
                                    "ratios <= 5/3 chooses 16x16, otherwise 20x20. "
                                    "Linear 16x16 is the new v9 A/B variant.");
-                        Checkbox("Fused: precompute separable bilinear weights (v9)",
+                        Checkbox("Fused: isolated bilinear weights (v10)",
                                  config->DlssNrInterPassV9Weights);
-                        HelpMarker("Experimental: reuses separable bilinear weights as in Classic v6. "
-                                   "Available in v9 tiled linear PSOs for GPU cost and parity A/B.");
+                        HelpMarker("v10 P65 Linear16: separate compiled weights-only DXIL. The source/model "
+                                   "groupshared arrays and cache branches are completely absent. "
+                                   "Other tiled configurations retain the v9 A/B implementation.");
                     }
                     HelpMarker("Experimental: Fused + Area + Guided radius 1, fractional P51-P90. "
                                "Each 8x8 workgroup reconstructs each native P100 guided pixel "
@@ -1175,11 +1176,12 @@ void RenderModel(Config* config)
                                "The slower v4 paired path must be OFF. "
                                "OFF restores v3 for measured GPU A/B; GPU occupancy may differ.");
                 }
-                Checkbox("Classic/Fused: shared source-model tile (v9)",
+                Checkbox("Classic/Fused: compact source-model cache (v10)",
                          config->DlssNrInterPassV9SourceCache);
-                HelpMarker("Experimental radius-one shared source/model tap preload with isolated shaders. "
-                           "Works for Classic and Fused tiled linear; P50 Fused keeps its dedicated path. "
-                           "May be slower due to LDS/barriers. Default OFF.");
+                HelpMarker("v10 Classic: separate cache-only RGB FP32 12x12 tile shader; v10 Fused "
+                           "P65 Linear16: independent 16x16 source/model RGB FP32 cache shader. "
+                           "No dynamic source/model fallback in either optimized kernel. "
+                           "Other tiled variants retain v9 for A/B. May be slower than texture cache; default OFF.");
                 if (config->DlssNrInterPassDynamicSharedTaps.value_or_default())
                 {
                     Checkbox("Pair adjacent P100 Area taps (v4)", config->DlssNrInterPassPairedArea);
