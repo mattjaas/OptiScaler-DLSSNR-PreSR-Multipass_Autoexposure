@@ -965,7 +965,14 @@ float4 InterPassCorrectedP100Bilinear(float2 uvq)
 // scale and along frame edges. One set of source/model Loads therefore serves
 // both the guided and bilinear estimators without changing their sample set.
 // Off uses InterPassCorrectedP100Load as the original A/B reference.
+#ifdef DLSSNR_TILED_V9
+// Separate v9 tiled DXIL owns this optional FP32 source/model cache.
+static const uint kV9SourcePitch = 24u;
+groupshared float4 gV9Source[24 * 24], gV9Model[24 * 24];
+float4 InterPassCorrectedP100LoadDynamicInternal(int2 p, bool v9Weights, bool v9Cache, int2 v9Origin)
+#else
 float4 InterPassCorrectedP100LoadDynamic(int2 p)
+#endif
 {
     uint nativeW, nativeH;
     gOriginal.GetDimensions(nativeW, nativeH);
@@ -991,7 +998,14 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
     float3 weighted = 0.0;
     float weightSum = 0.0;
     float3 bilinear = 0.0;
-
+#ifdef DLSSNR_TILED_V9
+    const bool movedX = roundedBase.x != bilinearBase.x;
+    const bool movedY = roundedBase.y != bilinearBase.y;
+    const float3 weightsX = movedX ? float3(1.0 - fracPos.x, fracPos.x, 0.0)
+                                   : float3(0.0, 1.0 - fracPos.x, fracPos.x);
+    const float3 weightsY = movedY ? float3(1.0 - fracPos.y, fracPos.y, 0.0)
+                                   : float3(0.0, 1.0 - fracPos.y, fracPos.y);
+#endif
     [unroll] for (int oy = -1; oy <= 1; ++oy)
     {
         [unroll] for (int ox = -1; ox <= 1; ++ox)
@@ -999,8 +1013,19 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
             const int2 logical = roundedBase + int2(ox, oy);
             const int2 coord = clamp(logical, int2(0, 0),
                                      int2((int) srcW - 1, (int) srcH - 1));
+#ifdef DLSSNR_TILED_V9
+            const int2 localCache = coord - v9Origin;
+            const float3 proxyCandidate = v9Cache
+                ? gV9Source[localCache.y * kV9SourcePitch + localCache.x].rgb
+                : gSource.Load(int3(coord, 0)).rgb;
+            const float3 modelCandidate = v9Cache
+                ? gV9Model[localCache.y * kV9SourcePitch + localCache.x].rgb
+                : gModel.Load(int3(coord, 0)).rgb;
+            const float3 residual = modelCandidate - proxyCandidate;
+#else
             const float3 proxyCandidate = gSource.Load(int3(coord, 0)).rgb;
             const float3 residual = gModel.Load(int3(coord, 0)).rgb - proxyCandidate;
+#endif
 
             // Use UNCLAMPED logical texel positions for bilinear membership;
             // otherwise a duplicated clamped edge texel would be added twice.
@@ -1010,7 +1035,11 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
                              (logical.x == bilinearBase.x + 1 ? fracPos.x : 0.0);
             const float wy = logical.y == bilinearBase.y ? 1.0 - fracPos.y :
                              (logical.y == bilinearBase.y + 1 ? fracPos.y : 0.0);
+#ifdef DLSSNR_TILED_V9
+            bilinear += residual * (v9Weights ? weightsX[ox + 1] * weightsY[oy + 1] : wx * wy);
+#else
             bilinear += residual * (wx * wy);
+#endif
 
             const float3 delta = proxyCandidate - native.rgb;
             const float2 deltaSpatial = float2(coord) - sourcePos;
@@ -1025,7 +1054,12 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
     const float3 edit = InterPassShapeEditAt(editRaw, uvq, native.rgb);
     return float4(SanitizeFinite3(native.rgb + edit, native.rgb), native.a);
 }
-
+#ifdef DLSSNR_TILED_V9
+float4 InterPassCorrectedP100LoadDynamic(int2 p)
+{
+    return InterPassCorrectedP100LoadDynamicInternal(p, false, false, int2(0, 0));
+}
+#endif
 
  // v4: adjacent P100 texels in the same Area output row have overlapping
  // radius-one guided/bilinear stencils at arbitrary Resolution. Evaluate both
@@ -2170,6 +2204,37 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
     // 28 Area path rather than ever indexing outside groupshared memory.
     if (any(tileSize <= 0) || any(tileSize > int2(kInterPassTilePitch, kInterPassTilePitch)))
         return false;
+#ifdef DLSSNR_TILED_V9
+    int2 sourceOrigin = 0;
+    const bool useV9Cache = (gDirectResolveFlags & 32768u) != 0u;
+    const bool useV9Weights = (gDirectResolveFlags & 16384u) != 0u;
+    if (useV9Cache)
+    {
+        uint srcW, srcH;
+        gSource.GetDimensions(srcW, srcH);
+        if (srcW == 0u || srcH == 0u) return false;
+        const float2 ratio = float2(asfloat(gResidualMotionBaseXUnused),
+                                     asfloat(gResidualMotionBaseYUnused));
+        const int2 firstBase = int2(floor((float2(first) + 0.5) * ratio));
+        const int2 lastBase = int2(floor((float2(limit - 1) + 0.5) * ratio));
+        sourceOrigin = clamp(firstBase - 1, int2(0, 0), int2(srcW, srcH) - 1);
+        const int2 sourceEnd = clamp(lastBase + 1, int2(0, 0), int2(srcW, srcH) - 1);
+        const int2 cacheSize = sourceEnd - sourceOrigin + 1;
+        if (any(cacheSize <= 0) || any(cacheSize > 24)) return false;
+        const uint count = (uint)(cacheSize.x * cacheSize.y);
+        const uint lane = localId.y * 8u + localId.x;
+        [loop] for (uint n = lane; n < count; n += 64u)
+        {
+            const uint sx = n % (uint)cacheSize.x;
+            const uint sy = n / (uint)cacheSize.x;
+            const int2 cp = sourceOrigin + int2(sx, sy);
+            const uint addr = sy * kV9SourcePitch + sx;
+            gV9Source[addr] = gSource.Load(int3(cp, 0));
+            gV9Model[addr] = gModel.Load(int3(cp, 0));
+        }
+        GroupMemoryBarrierWithGroupSync();
+    }
+#endif
 
 #ifdef DLSSNR_TILED_STRIDED
     // v8: two-dimensional 8x8 workgroup stripes. Each lane exclusively owns
@@ -2182,7 +2247,11 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
         {
             const int2 p100 = first + int2((int)tileX, (int)tileY);
             gInterPassCorrectedTile[tileY * kInterPassTilePitch + tileX] =
+                #ifdef DLSSNR_TILED_V9
+                InterPassCorrectedP100LoadDynamicInternal(p100, useV9Weights, useV9Cache, sourceOrigin);
+#else
                 InterPassCorrectedP100LoadDynamic(p100);
+#endif
         }
     }
 #else
@@ -2197,7 +2266,11 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
         // Same v3 radius-one reconstruction used by regular Fused Area:
         // guided+bilinear reuse, P100 guide and frequency/shadow shaping.
         gInterPassCorrectedTile[y * kInterPassTilePitch + x] =
-            InterPassCorrectedP100LoadDynamic(p100);
+            #ifdef DLSSNR_TILED_V9
+                InterPassCorrectedP100LoadDynamicInternal(p100, useV9Weights, useV9Cache, sourceOrigin);
+#else
+                InterPassCorrectedP100LoadDynamic(p100);
+#endif
     }
 #endif
     GroupMemoryBarrierWithGroupSync();
