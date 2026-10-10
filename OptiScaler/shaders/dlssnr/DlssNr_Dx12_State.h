@@ -131,6 +131,7 @@ struct DlssNr_Dx12::State
     std::unique_ptr<DlssNrGpuTime> ngxTime;
     std::optional<double> lastNgxTime;
     std::optional<double> lastGpuTime;
+    UINT64 lastBenchmarkGpuSampleSequence = 0;
 
     // Writes matched before/after frames on request, so comparisons stop depending on video.
     capture::FrameCapture captureFrames;
