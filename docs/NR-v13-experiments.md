@@ -1,5 +1,69 @@
 # NR v12: wnioski i eksperymenty v13
 
+## Wyniki v13 z 2026-10-10, 12:36:10 i obserwacja granicy 60%
+
+[Pełna analiza v13](NR-v13-20261010-analysis.md) obejmuje 28 konfiguracji
+i 4480 surowych próbek. Warunki zapisane w plikach: RTX 4090, The Last of Us
+Part I, native 3840×2160, sześć passów, Area, radius 1, guide strength 1;
+P65 2496×1404 i P50 1920×1080. Po 90 próbkach rozgrzewki zebrano 160 pomiarów.
+Każda konfiguracja występuje tylko raz. Scena, taktowanie i temperatura nie
+mają rejestrowanego identyfikatora/pomiaru. CSV zawiera żądane ustawienia;
+bez logu gry nie potwierdza utworzenia i użycia każdego eksperymentalnego PSO.
+
+Referencja P65 Weights v10: mediana 37,25978 ms, średnia 37,27059 ms,
+P95 37,53984 ms, SD 0,16639 ms. Są to czasy całego przedziału GPU NR,
+obejmującego NGX i inter-pass, a nie czasy pojedynczego shadera.
+
+| Wariant P65 | Mediana | Δ mediana vs Weights | Δ średnia | Δ P95 | SD |
+|---|---:|---:|---:|---:|---:|
+| Area v13 | 37,25978 ms | 0,00000 ms | -0,00388 ms | +0,12698 ms | 0,22762 ms |
+| Mode28 v13 | 37,06573 ms | -0,19405 ms | -0,16391 ms | +0,06758 ms | 0,26759 ms |
+| Both v13 | 37,09952 ms | -0,16026 ms | -0,16047 ms | -0,06042 ms | 0,23743 ms |
+
+Mode28 i Both mają ujemne przedziały block bootstrap różnicy mediany dla
+bloków 8/16/32, ale odnoszą się one tylko do tej sesji. Mode28 daje najniższy
+typowy czas; Both ma korzystniejszy P95. Sam Area nie wykazuje zysku mediany
+i pogarsza P95. W Both korzyść pochodzi przede wszystkim ze specjalizacji
+Mode28; pojedynczy sweep nie dowodzi, że dodatkowe Area pomaga. Pozostawiamy
+eksperymenty opcjonalne, bez zmiany domyślnego toru renderowania.
+
+Wcześniejsze korzystne mediany v12 nie powtórzyły się: Interior/Axes/Both
+są teraz o 0,05376 / 0,04915 / 0,04966 ms wolniejsze od Weights v10.
+Wnioski ze starszej sesji poniżej mają charakter historyczny. Weights nadal
+skraca medianę względem Linear16 w P65: 37,30637 → 37,25978 ms (-0,04659 ms),
+średnią o 0,04769 ms i P95 o 0,05939 ms. P50 Fused optimized ma medianę
+26,17344 ms wobec 25,54010 ms bez inter-pass (różnica 0,63334 ms).
+
+Użytkownik zaobserwował spowolnienie po włączeniu opcji „isolated bilinear
+weights” poniżej około 60% i przyspieszenie powyżej; dokładnego punktu zmiany
+nie mierzył. To obserwacja z ręcznej próby, oddzielna od dostarczonego CSV.
+Automatyczny benchmark mierzy Weights wyłącznie w P65; P50 nie ma osobnej
+pary Weights OFF/ON, więc te pliki nie potwierdzają progu wydajności.
+
+Kod wyjaśnia istotną zmianę ścieżki przy tej granicy:
+
+- `DlssNr_Dx12_Run.cpp`: Compact16 wymaga `nativeWidth * 3 <= modelWidth * 5`
+  i analogicznie dla wysokości, czyli co najmniej 60% **rzeczywistych wymiarów
+  na obu osiach**. Zaokrąglenie rozdzielczości może rozdzielić wartość suwaka
+  od tej kwalifikacji. Wymagane są także pozostałe warunki Area/tiled.
+- `DlssNr_Dx12.cpp`: izolowane Weights v10 wymaga Compact16 i wyłączonego
+  strided. Poniżej tej geometrii flaga Weights pozostaje ustawiona, ale przy
+  aktywnym tiled i bez strided wybierane jest starsze v9 Linear20 z obsługą
+  flag podczas wykonania. Przy strided jest to odpowiedni wariant v9 strided.
+- Tiled kwalifikuje się tylko dla `workScale > 0.505` i `<= 0.90`, oraz
+  odpowiednich rzeczywistych wymiarów. P50 korzysta z innej specjalizacji.
+  Samo zaznaczenie Weights nie dowodzi wykonania izolowanego v10.
+
+Granica 60% dotyczy zatem zmiany geometrii i PSO, a nie udowodnionej granicy
+zysku. Zmiana PSO jest wiarygodnym wyjaśnieniem obserwacji, ale przyczyny
+spowolnienia nie potwierdzono pomiarem etapów/profilerem. Nie dodajemy
+automatycznego wyłączania Weights na podstawie przybliżonego progu.
+Dalsza weryfikacja: stała scena i ustawienia, rzeczywiste wymiary zapisane
+przy każdej skali, Weights OFF/ON dla 55/58/59/60/61/62/65%, rozgrzewka
+i wielokrotne A/B lub ABBA, kontrola logu PSO oraz mediany, P95 i zmienności
+całego NR. W razie zmiany znaku zagęścić skale wokół granicy. Pomiar oddzielnego
+inter-pass pomoże rozdzielić wpływ NGX od kosztu rekonstrukcji.
+
 ## Dane i decyzje
 
 Pełne 25 konfiguracji, metryki surowych 4000 próbek, trendy i block bootstrap:

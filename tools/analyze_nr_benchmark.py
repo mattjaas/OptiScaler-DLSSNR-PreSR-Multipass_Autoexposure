@@ -8,13 +8,16 @@ import numpy as np
 
 
 def analyze(summary, raw, output):
+    version = summary.name.split("-")[1]
+    assert version in ("v12", "v13"), version
+    experiments = ("v12", "v13") if version == "v13" else ("v12",)
     rows = list(csv.DictReader(summary.open(encoding="utf-8-sig")))
     samples = {}
     for row in csv.DictReader(raw.open(encoding="utf-8-sig")):
         key = (int(row["scale_percent"]), row["variant"])
         samples.setdefault(key, []).append((int(row["sample_index"]), float(row["total_nr_gpu_ms"])))
     assert len(rows) == len(samples)
-    lines = ["# Analiza benchmarku NR v12", "",
+    lines = [f"# Analiza benchmarku NR {version}", "",
              "RTX 4090, The Last of Us Part I, native 3840×2160; P50 1920×1080, P65 2496×1404; 6 passów, Area, radius 1, guide strength 1.0. 90 warmup + 160 pomiarów na konfigurację. Jeden sekwencyjny sweep. Czas całego przedziału GPU NR, obejmujący NGX, inter-pass i zależności kolejek.", "",
              f"Zweryfikowano {len(rows)} konfiguracji i {sum(len(v) for v in samples.values())} próbek; indeksy bez luk i duplikatów. Metryki podsumowania zgodne z raw do 0,000006 ms. SD populacyjne, P5/P95 nearest-rank, trimmed mean po odrzuceniu 10% z każdego końca. Trend: średnia ostatnich 40 minus pierwszych 40 próbek. Autokorelacja lag-1.", ""]
     stats = {}
@@ -45,7 +48,7 @@ def analyze(summary, raw, output):
     refname = "Linear 16 + isolated weights v10"
     ref,rd = stats[(65,refname)]
     linear = stats[(65,"Tiled linear 16")][1]
-    lines += ["## Porównanie v12", "", "Δ = wariant minus referencja; ujemna wartość oznacza krótszy czas.", "", "| Wariant | Δ median v10 | Δ mean v10 | Δ P95 v10 | Δ median Linear16 | Δ mean Linear16 | Δ P95 Linear16 | SD/v10 |", "|---|---:|---:|---:|---:|---:|---:|---:|"]
+    lines += ["## Porównanie " + ", ".join(experiments), "", "Δ = wariant minus referencja; ujemna wartość oznacza krótszy czas.", "", "| Wariant | Δ median v10 | Δ mean v10 | Δ P95 v10 | Δ median Linear16 | Δ mean Linear16 | Δ P95 Linear16 | SD/v10 |", "|---|---:|---:|---:|---:|---:|---:|---:|"]
     rng = np.random.default_rng(1213)
     def bootstrap(x, block):
         starts = rng.integers(0,len(x),(10000,int(np.ceil(len(x)/block))))
@@ -53,7 +56,7 @@ def analyze(summary, raw, output):
         return np.median(x[idx.reshape(10000,-1)[:,:len(x)]],axis=1)
     boot = []
     for (scale,name),(x,d) in stats.items():
-        if scale != 65 or "v12" not in name: continue
+        if scale != 65 or not any(v in name for v in experiments): continue
         vals = [d[k]-rd[k] for k in ("median_ms","mean_ms","p95_ms")]
         vals += [d[k]-linear[k] for k in ("median_ms","mean_ms","p95_ms")]
         vals += [d["stddev_ms"]/rd["stddev_ms"]]
@@ -65,7 +68,7 @@ def analyze(summary, raw, output):
     lines += ["", "## Niepewność", "", "Circular moving-block bootstrap: 10000 niezależnych resamplingów na wariant, seed 1213. Przedziały opisują zmienność wewnątrz dostarczonego sweepu. Nie obejmują dryfu między konfiguracjami, temperatury/taktowania, zmian sceny ani różnic między sesjami.", ""] + boot
     lines += ["", "## Przebieg w czasie", "", "Średnie kolejnych bloków po 40 próbek; ms. Indeksy są lokalne dla konfiguracji, bez absolutnego czasu klatki.", "", "| Wariant | 0–39 | 40–79 | 80–119 | 120–159 |", "|---|---:|---:|---:|---:|"]
     for (scale,name),(x,d) in stats.items():
-        if scale == 65 and ("v12" in name or name in ("No inter-pass", refname, "Tiled linear 16")):
+        if scale == 65 and (any(v in name for v in experiments) or name in ("No inter-pass", refname, "Tiled linear 16")):
             lines.append("| "+name+" | "+" | ".join(f"{x[i:i+40].mean():.5f}" for i in range(0,160,40))+" |")
     lines += ["", "## Pochodzenie", ""]
     for path in (summary,raw,summary.with_suffix('.txt')):
