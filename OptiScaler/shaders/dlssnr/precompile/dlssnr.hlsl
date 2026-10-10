@@ -1016,6 +1016,30 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
     const float3 weightsY = movedY ? float3(1.0 - fracPos.y, fracPos.y, 0.0)
                                    : float3(0.0, 1.0 - fracPos.y, fracPos.y);
 #endif
+#ifdef DLSSNR_TILED_V12_INTERIOR
+    // v12 isolated experiment A: one interior test per reconstructed native
+    // P100 pixel instead of nine unconditional clamp operations.
+    // At native border, retain EXACT v10 per-tap clamp semantics.
+    const bool v12Interior = all(roundedBase > int2(0, 0)) &&
+                             all(roundedBase < (int2(srcW, srcH) - int2(1, 1)));
+#endif
+#ifdef DLSSNR_TILED_V12_AXES
+    // v12 isolated experiment B: six scalar coordinate clamps replace nine
+    // 2D clamps; preserve the original (clamped) float2 for bilateral spatial
+    // distance and the original unclamped logical coordinate for bilinear taps.
+    // This is independent of the v11 spatial-distance hoist, which was neutral.
+    const int3 v12RawX = roundedBase.x + int3(-1, 0, 1);
+    const int3 v12RawY = roundedBase.y + int3(-1, 0, 1);
+    #ifdef DLSSNR_TILED_V12_INTERIOR
+        const int3 v12SampleX = v12Interior ? v12RawX :
+                                  clamp(v12RawX, 0, (int)srcW - 1);
+        const int3 v12SampleY = v12Interior ? v12RawY :
+                                  clamp(v12RawY, 0, (int)srcH - 1);
+    #else
+        const int3 v12SampleX = clamp(v12RawX, 0, (int)srcW - 1);
+        const int3 v12SampleY = clamp(v12RawY, 0, (int)srcH - 1);
+    #endif
+#endif
 #ifdef DLSSNR_TILED_V11_SPATIAL
     // v11 isolated A/B: each clamped component is shared by three 3x3 taps.
     // Keep the original dot(float2,float2) and exp2 expression/order.
@@ -1031,8 +1055,16 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
         [unroll] for (int ox = -1; ox <= 1; ++ox)
         {
             const int2 logical = roundedBase + int2(ox, oy);
+#if defined(DLSSNR_TILED_V12_AXES)
+            const int2 coord = int2(v12SampleX[ox + 1], v12SampleY[oy + 1]);
+#elif defined(DLSSNR_TILED_V12_INTERIOR)
+            const int2 coord = v12Interior ? logical :
+                                 clamp(logical, int2(0, 0),
+                                       int2((int) srcW - 1, (int) srcH - 1));
+#else
             const int2 coord = clamp(logical, int2(0, 0),
                                      int2((int) srcW - 1, (int) srcH - 1));
+#endif
 #if defined(DLSSNR_TILED_V10_CACHE)
             const int2 localCache = coord - v9Origin;
             const uint cacheIndex = localCache.y * kV9SourcePitch + localCache.x;
