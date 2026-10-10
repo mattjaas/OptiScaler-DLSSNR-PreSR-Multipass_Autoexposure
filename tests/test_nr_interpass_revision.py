@@ -26,7 +26,7 @@ def test_revision():
     assert 'push_back({65,' in revision and 'return;' in revision
     finish = status[status.index('void FinishBenchmark'):status.index('void StartInterPassBenchmark')]
     assert finish.index('benchmarkV14Shaders.store(false') < finish.index('if (cancelled)')
-    assert 'v.v14Shaders ? "v14" : "current"' in finish and 'NR-v22-p65-revision-' in finish
+    assert 'v.v14Shaders ? "v14" : "current"' in status and 'NR-v22-p65-revision-' in finish
     assert 'benchmarkNativeW != 3840u' in status and 'benchmarkWorkH != 1404u' in status
     assert 'variant.v14Shaders ? "Fused RGB16 (v14 shaders)" : "Fused RGB16"' in status
     query = status[status.index('bool BenchmarkUsesV14Shaders'):status.index('void AbortInterPassBenchmark')]

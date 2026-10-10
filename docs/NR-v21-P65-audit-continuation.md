@@ -1,5 +1,21 @@
 # Kontynuacja audytu P65 — stan 2026-10-11
 
+## Aktualizacja v23: profil Guide16 dodany
+
+Na prośbę użytkownika dodano **Compare Optimized / v14 Guide16 at 65% (CSV)**.
+Szczegóły: [NR-v23-P65-guide16-benchmark.md](NR-v23-P65-guide16-benchmark.md).
+Off + oba reference + current RGB16 / rzeczywisty Guide16 / Guide16 / current,
+siedem okien, tylko 4K→P65, niezależna rozgrzewka i reset historii. W B zmienia
+się tylko inter-pass PSO; standard/main oraz CPU/NGX/resolve są bieżące w obu.
+Exact historical hash potwierdzony w oryginalnym DLL v14. Guide16 leniwy,
+bez produkcyjnej zmiany selekcji. Nieodpowiednia geometria/guide/fallback
+anuluje test. Raport `NR-v23-p65-guide16-*`, przywracanie ustawień na końcu.
+GPU bit parity Guide16 versus current RGB16: PASS, 102 porównania,
+84 688 704 RGBA, RTX4090, FP16/FP32, full P65, brzegi/HDR/non-finite/shaping.
+Python i dotychczasowe retained arithmetic PASS. Build/release do sprawdzenia
+przed zakończeniem zadania, a następnie potrzebny nowy pomiar w grze.
+Poniższe wcześniejsze checkpointy opisują poprzednie etapy.
+
 ## Nowsza wskazówka: screeny v14 nie używają RGB16
 
 Użytkownik ponownie uruchomił v14: ekran pokazuje Off 35,75 ms i Fused

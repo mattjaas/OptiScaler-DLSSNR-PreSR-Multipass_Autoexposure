@@ -1,4 +1,4 @@
-name: Build NR v22 P65 historical shader comparison
+name: Build NR v23 P65 screenshot Guide16 comparison
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v22-${{ github.ref }}
+  group: nr-interpass-v23-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -51,6 +51,8 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
           python tests/test_nr_benchmark_cases.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/test_nr_interpass_guide16.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tests/test_nr_interpass_revision.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -90,15 +92,23 @@ jobs:
           cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/interpass_revision_parity.cpp /Fe:artifacts/nr-v20/interpass_revision_parity.exe /Fo:artifacts/nr-v20/interpass_revision_parity.obj /link d3d12.lib dxgi.lib"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Compile Guide16 parity fixture
+        shell: powershell
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $vcvars = Join-Path $vs "VC/Auxiliary/Build/vcvars64.bat"
+          cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/interpass_guide16_parity.cpp /Fe:artifacts/nr-v20/interpass_guide16_parity.exe /Fo:artifacts/nr-v20/interpass_guide16_parity.obj /link d3d12.lib dxgi.lib"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v22-p65-revision-20261011"
+        run: ./package_release.ps1 -Version "nr-interpass-v23-p65-guide16-20261011"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v22-p65-revision-20261011
-          path: release/OptiScaler-NR-nr-interpass-v22-p65-revision-20261011.zip
+          name: OptiScaler-NR-interpass-v23-p65-guide16-20261011
+          path: release/OptiScaler-NR-nr-interpass-v23-p65-guide16-20261011.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -107,21 +117,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v22-p65-revision-20261011"
-          $archive = "release/OptiScaler-NR-nr-interpass-v22-p65-revision-20261011.zip"
+          $tag = "nr-interpass-v23-p65-guide16-20261011"
+          $archive = "release/OptiScaler-NR-nr-interpass-v23-p65-guide16-20261011.zip"
           $notes = @"
-          Focused P65 regression comparison from $env:GITHUB_SHA.
-          New button: Compare current / v14 Optimized at 65% (CSV).
+          Focused P65 screenshot Guide16 comparison from $env:GITHUB_SHA.
+          New button: Compare Optimized / v14 Guide16 at 65% (CSV).
           Only 4K -> 2496x1404, six passes, Area/radius-one/guide-one.
-          Off, both references, then current / archived v14 / v14 / current, seven windows.
-          Same current CPU/NGX pipeline and user Enlargement/shaping settings in both revisions.
-          Archived standard+RGB16 are the verified v14 release DXIL, not recompiled approximations.
-          Lazy benchmark-only PSOs; independent history reset and warmup on revision changes.
-          Geometry mismatch or PSO failure cancels the report rather than accepting a fallback.
-          CSV contains whole-NR GPU times, actual paths, shader revision, P95, SD and window medians.
-          Historical missing config is not reconstructed; this controls shader changes in the same scene.
-          Production Optimized policy and Fast experimental quality mode remain available.
-          No measured in-game regression verdict until the new CSV is supplied.
+          Off, both references, then current RGB16 / v14 Guide16 / Guide16 / current, seven windows.
+          Same current standard shader, CPU/NGX pipeline and user Enlargement/shaping in both routes.
+          Only inter-pass changes to exact archived v14 Guide16 DXIL, verified in the v14 release DLL.
+          Screenshot route: RGB OFF, compact16/isolated weights/exact guide-one ON.
+          Lazy benchmark-only PSO; independent history reset and warmup on route changes.
+          Invalid geometry/guide strength or PSO failure cancels rather than accepting a fallback.
+          Reports NR-v23-p65-guide16-* contain whole-NR GPU timing, actual path, P95, SD and window medians.
+          Existing v22 RGB16 revision comparison remains available separately.
+          Production Optimized policy and shaders stay unchanged. No performance verdict until game reports arrive.
           "@
           $ErrorActionPreference = "Continue"
           gh release view $tag --json id 1>$null 2>$null
@@ -130,8 +140,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v22 - P65 historical shader comparison" --notes $notes --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v23 - P65 screenshot Guide16 comparison" --notes $notes --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v22 - P65 historical shader comparison" --notes $notes --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v23 - P65 screenshot Guide16 comparison" --notes $notes --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

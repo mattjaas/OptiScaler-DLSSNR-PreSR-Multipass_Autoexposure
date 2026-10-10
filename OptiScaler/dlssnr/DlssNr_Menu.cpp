@@ -298,6 +298,18 @@ void RenderMenu(Config* config, float menuResScale)
             const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
                                       !ReadStatus(Backend::Vulkan).running;
             ImGui::BeginDisabled(!canBenchmark);
+            if (ImGui::Button("Compare Optimized / v14 Guide16 at 65% (CSV)"))
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                              DlssNr::InterPassBenchmarkProfile::GuideP65);
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Screenshot settings check: current RGB16 / v14 Guide16 RGBA / Guide16 / current. "
+                                  "Only 4K -> 2496x1404, six passes, Area / radius 1 / guide 1. "
+                                  "7 windows with Off and both references; independent warmup. "
+                                  "Preserves Enlargement, shaping and current main shader. "
+                                  "Guide16 has RGB OFF, compact16 and isolated weights ON, exact guide-one ON. "
+                                  "Keep the scene static; settings restored. Invalid geometry or PSO cancels the test.");
+            ImGui::BeginDisabled(!canBenchmark);
             if (ImGui::Button("Compare current / v14 Optimized at 65% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
                                               DlssNr::InterPassBenchmarkProfile::RevisionP65);

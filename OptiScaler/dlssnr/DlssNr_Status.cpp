@@ -110,9 +110,11 @@ struct BenchmarkVariant
     std::string path;
     double historicalGain = 0.0;
     bool v14Shaders = false;
+    bool v14Guide16 = false;
 };
 std::atomic<int> benchmarkOverride { -1 };
 std::atomic<bool> benchmarkV14Shaders { false };
+std::atomic<bool> benchmarkV14Guide16 { false };
 std::string benchmarkPath;
 std::mutex benchmarkMutex;
 std::atomic<bool> benchmarkActive { false };
@@ -127,6 +129,15 @@ std::string benchmarkSetup;
 std::string benchmarkAdapterInfo;
 unsigned benchmarkNativeW = 0, benchmarkNativeH = 0, benchmarkWorkW = 0,
          benchmarkWorkH = 0, benchmarkEffectivePasses = 0;
+
+bool IsFocusedP65(InterPassBenchmarkProfile profile)
+{
+    return profile == InterPassBenchmarkProfile::RevisionP65 || profile == InterPassBenchmarkProfile::GuideP65;
+}
+const char* BenchmarkShaderRevision(const BenchmarkVariant& v)
+{
+    return v.v14Guide16 ? "v14-guide16" : v.v14Shaders ? "v14" : "current";
+}
 
 BenchmarkConfig TakeBenchmarkConfig(const Config& c)
 {
@@ -176,6 +187,7 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
         c.DlssNrTransfer = 9u; // Temporal DLAA residual + P100-guided, as requested.
     benchmarkOverride.store(v.forcedPath, std::memory_order_relaxed);
     benchmarkV14Shaders.store(v.v14Shaders, std::memory_order_relaxed);
+    benchmarkV14Guide16.store(v.v14Guide16, std::memory_order_relaxed);
     benchmarkPath.clear();
 }
 void AddBenchmarkScale(int scale, InterPass::Path expected, double historicalGain)
@@ -216,6 +228,23 @@ void AddLowBenchmarkScale(int scale)
 void BuildBenchmarkVariants()
 {
     benchmarkVariants.clear();
+    if (benchmarkProfile == InterPassBenchmarkProfile::GuideP65)
+    {
+        const auto add = [&](int mode, bool guide16, const char* name)
+        {
+            benchmarkVariants.push_back({65, mode, -1, name, {}});
+            benchmarkVariants.back().v14Guide16 = guide16;
+            benchmarkVariants.back().historicalGain = std::numeric_limits<double>::quiet_NaN();
+        };
+        add(0, false, "No inter-pass");
+        add(1, false, "Classic reference");
+        add(2, false, "Fused reference");
+        add(3, false, "Inter-pass optimized");
+        add(3, true, "v14 Guide16 (screenshot settings)");
+        add(3, true, "v14 Guide16 (screenshot settings)");
+        add(3, false, "Inter-pass optimized");
+        return; // Single new hypothesis, never appended to the regular sweep.
+    }
     if (benchmarkProfile == InterPassBenchmarkProfile::RevisionP65)
     {
         const auto add = [&](int mode, bool v14, const char* name)
@@ -298,6 +327,7 @@ void FinishBenchmark(bool cancelled)
         return;
     benchmarkOverride.store(-1, std::memory_order_relaxed);
     benchmarkV14Shaders.store(false, std::memory_order_relaxed);
+    benchmarkV14Guide16.store(false, std::memory_order_relaxed);
     RestoreBenchmarkConfig(*Config::Instance(), savedBenchmarkConfig);
     benchmarkProgress.active = false;
     if (cancelled)
@@ -314,7 +344,8 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::RevisionP65 ? "NR-v22-p65-revision-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::GuideP65 ? "NR-v23-p65-guide16-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::RevisionP65 ? "NR-v22-p65-revision-" :
                              benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v21-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
@@ -342,7 +373,7 @@ void FinishBenchmark(bool cancelled)
             if (v.samples.empty()) continue;
             for (size_t i = 0; i < v.samples.size(); ++i)
                 individual << v.percent << ',' << '"' << v.name << '"' << ',' << window << ',' << i << ','
-                           << v.samples[i] << ",\"" << v.path << "\"," << (v.v14Shaders ? "v14" : "current") << '\n';
+                           << v.samples[i] << ",\"" << v.path << "\"," << BenchmarkShaderRevision(v) << '\n';
             auto it = std::find_if(combined.begin(), combined.end(), [&](const auto& existing)
                 { return existing.percent == v.percent && std::string(existing.name) == v.name; });
             if (it == combined.end()) combined.push_back(v);
@@ -368,7 +399,7 @@ void FinishBenchmark(bool cancelled)
             if (std::string(v.name) == "Inter-pass optimized") optimized[v.percent] = medianOf(v);
             if (std::string(v.name) == "Expected path control" ||
                 ((benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
-                  benchmarkProfile == InterPassBenchmarkProfile::RevisionP65) &&
+                  IsFocusedP65(benchmarkProfile)) &&
                  std::string(v.name) == "Inter-pass optimized"))
             {
                 expected[v.percent] = medianOf(v);
@@ -400,10 +431,22 @@ void FinishBenchmark(bool cancelled)
                 out << (i ? "|" : "") << windows[i];
             const auto range = std::minmax_element(windows.begin(), windows.end());
             out << "\"," << *range.second - *range.first << ',' << optimized.at(v.percent) - median << ','
-                << (v.v14Shaders ? "v14" : "current") << '\n';
+                << BenchmarkShaderRevision(v) << '\n';
         }
         description << "OptiScaler six-pass inter-pass GPU comparison\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::RevisionP65 ?
+                    << (benchmarkProfile == InterPassBenchmarkProfile::GuideP65 ?
+                        "P65 Guide16 profile: only 3840x2160 -> 2496x1404, six passes.\n"
+                        "Off and both references; current Optimized RGB16 A / v14 Guide16 RGBA B / B / A.\n"
+                        "5 configurations / 7 windows, independent warmup and history reset on route changes.\n"
+                        "Current standard shader, CPU/NGX/resolve and user transfer/shaping/encoding in both routes.\n"
+                        "Only the inter-pass PSO changes: this is not the entire v14 DLL.\n"
+                        "Screenshot route: Exact/shared/dynamic/tiled/compact16/isolated weights/guide-one ON; RGB OFF.\n"
+                        "Guide16 uses RGBA 16x16 LDS, isolated weights and compile-time Mode28; guide strength must be 1.\n"
+                        "Archived source: c88b3c565a272c06cab3abef0a02ef2047d5fcc4.\n"
+                        "Guide16 SHA256=f55dadbcf9b48e11d7e623843e28606f6bd0d37ae136d6ceb87084eed8f48c3a\n"
+                        "gain_vs_optimized_median_ms is positive when Guide16 is faster; no invented historical gain.\n"
+                        "delta_vs_expected_path_ms compares with current Optimized; route equality is not quality equality.\n" :
+                        benchmarkProfile == InterPassBenchmarkProfile::RevisionP65 ?
                         "P65 revision profile: only 3840x2160 -> 2496x1404, six passes.\n"
                         "Off and both references; current Optimized A / v14 standard+RGB16 B / B / A.\n"
                         "5 configurations / 7 windows, independent warmup and history reset on revision changes.\n"
@@ -428,7 +471,7 @@ void FinishBenchmark(bool cancelled)
                         "Regular profile: P50/P59/P65 plus current rounded percentage when different.\n")
                     << "Off, Classic reference and Fused reference retained.\n"
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
-                        benchmarkProfile == InterPassBenchmarkProfile::RevisionP65 ? "" :
+                        IsFocusedP65(benchmarkProfile) ? "" :
                         "All scales: expected path A / automatic B / B / A plus alternate retained path.\n")
                     << "Manual window inspection=" << benchmarkInspectEachWindow << "; held-frame samples excluded.\n"
                     << "Measured low controls: P33/P41 Classic; P40/P42/P45/P49 RGB20. Unmeasured scales are predictions.\n"
@@ -440,10 +483,10 @@ void FinishBenchmark(bool cancelled)
                     << "Area, radius 1, guide strength 1, 6 passes; user shadow/frequency shaping unchanged.\n"
                     << "GPU adapter: " << benchmarkAdapterInfo << "\n"
                     << "User settings at start: " << benchmarkSetup << "\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::RevisionP65 ? "" :
+                    << (IsFocusedP65(benchmarkProfile) ? "" :
                         "Historical gain is last RTX4090/4K/guide-one v16/v18/v19 result vs Fused reference, not absolute time.\n")
                     << "Historical values do not apply to other scenes/GPUs/settings. Current control is decisive.\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::RevisionP65 ? "" :
+                    << (IsFocusedP65(benchmarkProfile) ? "" :
                         "Automatic should match the independent forced control in ABBA; compare the alternate and references too.\n")
                     << "Controls describe measured 4K geometry. Other dimensions, especially rounded P40, may select differently.\n"
                     << "RGB20 below 50 is a guarded PSO: oversized groups use direct reconstruction with isolated weights.\n"
@@ -497,7 +540,7 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, I
                      ", shaping=" + std::to_string(c.DlssNrGuidedResidualShaping.value_or_default()) +
                      ", shadow gate=" + std::to_string(c.DlssNrGuidedResidualShadowGate.value_or_default());
     ApplyBenchmarkVariant(c, benchmarkVariants.front());
-    if (profile == InterPassBenchmarkProfile::RevisionP65)
+    if (IsFocusedP65(profile))
     {
         // Record the effective settings that older reports omitted, after applying P65.
         std::ostringstream settings;
@@ -574,14 +617,15 @@ void BenchmarkGpuSample(double rawGpuMs, bool modelRunning)
         return;
     }
     auto& variant = benchmarkVariants[benchmarkIndex];
-    if (benchmarkProfile == InterPassBenchmarkProfile::RevisionP65 &&
+    if (IsFocusedP65(benchmarkProfile) &&
         (benchmarkNativeW != 3840u || benchmarkNativeH != 2160u ||
          benchmarkWorkW != 2496u || benchmarkWorkH != 1404u ||
          (variant.mode == 3 && benchmarkPath !=
-             (variant.v14Shaders ? "Fused RGB16 (v14 shaders)" : "Fused RGB16"))))
+             (variant.v14Guide16 ? "Fused Guide16 RGBA (v14)" :
+              variant.v14Shaders ? "Fused RGB16 (v14 shaders)" : "Fused RGB16"))))
     {
         FinishBenchmark(true);
-        benchmarkProgress.message = "Cancelled: P65 comparison requires 4K -> 2496x1404 and a valid RGB16 PSO; settings restored.";
+        benchmarkProgress.message = "Cancelled: P65 comparison requires 4K -> 2496x1404 and the requested PSO; settings restored.";
         return;
     }
     const auto& first = benchmarkVariants.front();
@@ -625,6 +669,10 @@ int BenchmarkInterPassOverride()
 bool BenchmarkUsesV14Shaders()
 {
     return benchmarkActive.load(std::memory_order_relaxed) && benchmarkV14Shaders.load(std::memory_order_relaxed);
+}
+bool BenchmarkUsesV14Guide16()
+{
+    return benchmarkActive.load(std::memory_order_relaxed) && benchmarkV14Guide16.load(std::memory_order_relaxed);
 }
 void AbortInterPassBenchmark(const char* reason)
 {

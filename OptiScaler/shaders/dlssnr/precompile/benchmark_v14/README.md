@@ -14,6 +14,14 @@ Optimized choices. Do not recompile them from the current HLSL.
 The adjacent headers embed exactly these bytes. The test
 `tests/test_nr_interpass_revision.py` checks the hashes and header equality.
 Existing production shaders continue to be compiled by `compile_nr_interpass.ps1`.
+
+The v23 screenshot profile additionally embeds `guide16.cso` and `guide16.h`:
+SHA256 `f55dadbcf9b48e11d7e623843e28606f6bd0d37ae136d6ceb87084eed8f48c3a`.
+Exact bytes were also verified in the v14 release DLL. This is **RGBA 16x16**,
+isolated weights, compile-time Mode28 and exact guide-one eligibility, RGB OFF.
+It is not the RGB16 historical control. V23 swaps only this inter-pass PSO;
+the standard shader remains current in both ABBA routes. The old standard
+and RGB16 blobs are used only by the separate v22 revision profile.
 The archived standard shader has the same constant buffer and descriptor layout.
 The RGB16 shader uses compile-time Mode28 / isolated weights / RGB tile / pitch16,
 the historical winner, not wide tiles or pair loads.

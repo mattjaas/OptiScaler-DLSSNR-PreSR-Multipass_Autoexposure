@@ -981,7 +981,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     DlssNr::BenchmarkReportInterPassPath(DlssNr::InterPass::Name(interPassPath));
     // Give both shader revisions the same history reset and independent warmup.
     const uint32_t interPassHistoryKey = static_cast<uint32_t>(interPassPath) |
-                                        (DlssNr::BenchmarkUsesV14Shaders() ? 0x100u : 0u);
+                                        (DlssNr::BenchmarkUsesV14Shaders() ? 0x100u : 0u) |
+                                        (DlssNr::BenchmarkUsesV14Guide16() ? 0x200u : 0u);
     if (!nr.interPassModeInitialized)
     {
         nr.interPassMode = interPassHistoryKey;

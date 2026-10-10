@@ -10,6 +10,7 @@
 #include "precompile/dlssnr_interpass_fast_Shader.h"
 #include "precompile/benchmark_v14/standard.h"
 #include "precompile/benchmark_v14/rgb16.h"
+#include "precompile/benchmark_v14/guide16.h"
 
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -205,6 +206,32 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
         (flags & 2048u) != 0u)
     {
         const unsigned index = (flags & 8192u) != 0u ? 0u : 1u;
+        if (DlssNr::BenchmarkUsesV14Guide16())
+        {
+            if (index != 0u || InConstants.ResidualConfidenceSensitivity != 1.0f)
+            {
+                DlssNr::AbortInterPassBenchmark("P65 Guide16 requires compact16 geometry and exactly guide strength 1.");
+                return false;
+            }
+            if (!_benchmarkV14Guide16Attempted)
+            {
+                _benchmarkV14Guide16Attempted = true;
+                CreateComputePipeline(_device, &_benchmarkV14Guide16, nr_benchmark_v14_guide16,
+                                      sizeof(nr_benchmark_v14_guide16), nullptr);
+            }
+            if (!_benchmarkV14Guide16)
+            {
+                DlssNr::AbortInterPassBenchmark("Archived Guide16 PSO creation failed; no fallback timing accepted.");
+                return false;
+            }
+            auto guideConstants = InConstants;
+            // Mirror the screenshot's legacy route bits; specialization is in the archived blob.
+            guideConstants.DirectResolveFlags |= 16384u | 16777216u;
+            guideConstants.DirectResolveFlags &= ~4194304u; // RGB tile OFF.
+            DlssNr::BenchmarkReportInterPassPath("Fused Guide16 RGBA (v14)");
+            return DispatchCompute(InCmdList, guideConstants, _benchmarkV14Guide16, InSource, InModel, InOriginal,
+                                   InMotion, InPrevEdit, InAux2, OutTarget, OutKeep, immutableSlot);
+        }
         if (historical)
         {
             if (index != 0u)
@@ -427,6 +454,7 @@ DlssNr_Dx12::~DlssNr_Dx12()
     if (_interPassFastPipeline) _interPassFastPipeline->Release();
     if (_benchmarkV14Standard) _benchmarkV14Standard->Release();
     if (_benchmarkV14Rgb16) _benchmarkV14Rgb16->Release();
+    if (_benchmarkV14Guide16) _benchmarkV14Guide16->Release();
     if (_spatialPipelineState != nullptr)
     {
         _spatialPipelineState->Release();

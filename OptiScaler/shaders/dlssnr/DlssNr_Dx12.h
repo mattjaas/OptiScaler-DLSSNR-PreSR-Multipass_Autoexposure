@@ -67,6 +67,8 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool _interPassFastAttempted = false;
     ID3D12PipelineState* _benchmarkV14Standard = nullptr;
     ID3D12PipelineState* _benchmarkV14Rgb16 = nullptr;
+    ID3D12PipelineState* _benchmarkV14Guide16 = nullptr;
+    bool _benchmarkV14Guide16Attempted = false;
     bool _benchmarkV14Attempted = false;
     bool EnsureBenchmarkV14Pipelines();
     ID3D12PipelineState* _finishedColorPipelineState = nullptr;
