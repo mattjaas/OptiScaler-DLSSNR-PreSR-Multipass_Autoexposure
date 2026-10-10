@@ -47,8 +47,8 @@ def test_spatial_same_texels():
         dy = [float(p) - source_y for p in y]
         for j in range(3):
             for i in range(3):
-                px = max(0, min(w-1, bx+i))
-                py = max(0, min(h-1, by+j))
+                px = max(0, min(w-1, bx+i-1))
+                py = max(0, min(h-1, by+j-1))
                 assert dx[i] == float(px) - source_x
                 assert dy[j] == float(py) - source_y
                 old = (float(px)-source_x)**2 + (float(py)-source_y)**2
