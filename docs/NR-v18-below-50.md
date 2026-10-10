@@ -129,3 +129,24 @@ fixture i runner wydajności. Nie dodano nowych PSO ani przełączników renderi
 Do ostatecznego rozstrzygnięcia wyboru produkcyjnego potrzebny jest raport
 NR-v18-low z gry. Po jego analizie progi automatu można ustawić na podstawie
 zmierzonego czasu całego NR, a nie samego komponentu.
+
+## Paczka i publikacja
+
+Źródło paczki: bb08c2beade6088d1409431a5a4a9986bfc3fff3,
+gałąź codex/nr-interpass-v13-bounded-area.
+[Build 38076805006](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38076805006)
+zakończył się sukcesem: arytmetyka, test planu/polityki, kompilacja trzech
+shaderów i wszystkich fixture GPU, pełna kompilacja DLL oraz publikacja.
+
+[ZIP v18](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v18-low-scale-20261010/OptiScaler-NR-nr-interpass-v18-low-scale-20261010.zip),
+131 087 254 bajty.
+
+- ZIP SHA256: e50adfb8b5e5d314ac8675840f4cc142a81743a38ea818c7af0a584f1fc0d7cd
+- DLL SHA256: ae17e77053e995d89c18717b241fb52486b11b819992b39be33d099bd9b29218
+- Pobrany ZIP: CRC i wszystkie 62 wpisy SHA256SUMS.txt poprawne.
+  DLL Windows x64 zawiera nowy przycisk i kandydaturę RGB20 guarded oraz
+  trzy bloby identyczne z lokalnie sprawdzonymi shaderami. Nie zawiera
+  36 wcześniejszych blobów inter-pass.
+
+Lokalnie usunięty przez Bitdefender package_release.ps1 pozostawiono poza
+commitem. Nie przywracano go z kwarantanny; Actions używał wersji repozytorium.
