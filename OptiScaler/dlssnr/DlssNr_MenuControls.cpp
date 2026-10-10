@@ -1149,6 +1149,23 @@ void RenderModel(Config* config)
                 if (interPass == 2 && config->DlssNrInterPassDynamicSharedTaps.value_or_default())
                 {
                     Checkbox("Fused: tiled P100 reconstruction (v7)", config->DlssNrInterPassTiledFusedArea);
+                    if (config->DlssNrInterPassTiledFusedArea.value_or_default())
+                    {
+                        Checkbox("Fused: 2D strided tile loads (v8)", config->DlssNrInterPassTiledStridedLoads);
+                        HelpMarker("GPU A/B: replaces the runtime integer divide/modulo of v7's "
+                                   "linear group assignment with independent 8x8 2D thread stripes. "
+                                   "Same reconstructed P100 texels, Area weights, FP32 tile and barrier. "
+                                   "OFF retains the original 20x20 v7.1 shader/PSO.");
+                        if (config->DlssNrInterPassTiledStridedLoads.value_or_default())
+                        {
+                            Checkbox("Fused: compact 16x16 shared tile (v8)",
+                                     config->DlssNrInterPassTiledCompact16);
+                            HelpMarker("Compare 16x16 (4096B groupshared) vs 20x20 (6400B). "
+                                       "Available only if native/work dimension ratio <= 5/3 in "
+                                       "both axes, e.g. P65/P75. Other ratios automatically "
+                                       "select the 20x20 strided variant. OFF restores 20x20.");
+                        }
+                    }
                     HelpMarker("Experimental: Fused + Area + Guided radius 1, fractional P51-P90. "
                                "Each 8x8 workgroup reconstructs each native P100 guided pixel "
                                "once and reuses the finished float4 in groupshared memory across "
