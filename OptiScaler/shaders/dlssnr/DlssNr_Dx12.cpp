@@ -13,6 +13,9 @@
 #include "precompile/dlssnr_tiled_v9_strided20_Shader.h"
 #include "precompile/dlssnr_tiled_v9_strided16_Shader.h"
 #include "precompile/dlssnr_classic_cache_Shader.h"
+#include "precompile/dlssnr_tiled_v10_weights_Shader.h"
+#include "precompile/dlssnr_tiled_v10_cache_Shader.h"
+#include "precompile/dlssnr_tiled_v10_both_Shader.h"
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
 #include "precompile/dlssnr_spatial_Shader.h"
@@ -187,7 +190,28 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
         const bool compact = (flags & 8192u) != 0u;
         const bool strided = (flags & 4096u) != 0u;
         const bool v9 = (flags & (16384u | 32768u)) != 0u;
-        if (v9)
+        if (v9 && compact && !strided)
+        {
+            // Fully compile-time specialized: NO dormant source LDS in weights-only DXIL.
+            const uint32_t index = ((flags & 16384u) != 0u ? 1u : 0u) +
+                                   ((flags & 32768u) != 0u ? 2u : 0u) - 1u;
+            const void* const blobs[] = { dlssnr_tiled_v10_weights_cso,
+                                          dlssnr_tiled_v10_cache_cso,
+                                          dlssnr_tiled_v10_both_cso };
+            const size_t sizes[] = { sizeof(dlssnr_tiled_v10_weights_cso),
+                                     sizeof(dlssnr_tiled_v10_cache_cso),
+                                     sizeof(dlssnr_tiled_v10_both_cso) };
+            if (!_tiledV10PipelineAttempted[index])
+            {
+                _tiledV10PipelineAttempted[index] = true;
+                if (!CreateComputePipeline(_device, &_tiledV10PipelineState[index],
+                                           blobs[index], sizes[index], nullptr))
+                    LOG_WARN("[{0}] v10 isolated PSO {1} unavailable", _name, index);
+            }
+            if (_tiledV10PipelineState[index])
+                pipeline = _tiledV10PipelineState[index];
+        }
+        if (v9 && pipeline == _pipelineState)
         {
             // (compact, strided) -> [linear20, linear16, strided20, strided16].
             const uint32_t index = (compact ? 1u : 0u) + (strided ? 2u : 0u);
@@ -465,6 +489,14 @@ DlssNr_Dx12::~DlssNr_Dx12()
     {
         _tiledCompactLinearPipelineState->Release();
         _tiledCompactLinearPipelineState = nullptr;
+    }
+    for (auto*& state : _tiledV10PipelineState)
+    {
+        if (state)
+        {
+            state->Release();
+            state = nullptr;
+        }
     }
     for (auto*& state : _tiledV9PipelineState)
     {
