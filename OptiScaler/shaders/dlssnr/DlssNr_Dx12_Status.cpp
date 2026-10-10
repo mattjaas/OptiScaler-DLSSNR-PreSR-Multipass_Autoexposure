@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "DlssNr_Dx12_State.h"
+#include <dlssnr/DlssNr_Benchmark.h>
 
 auto DlssNr_Dx12::State::ReportSkipOnce(const char* reason) -> void
 {
@@ -130,7 +131,17 @@ void DlssNr_Dx12::State::EndGpuTiming(ID3D12GraphicsCommandList* cmdList)
         std::min(Config::Instance()->DlssNrGpuTimeAverageWindowMs.value_or_default(), 9999u);
 
     if (rawGpu)
+    {
         lastGpuTime = gpuTime->ReadGpuTime(averageWindowMs);
+        // ReadGpuTime() repeats its last value until a fence completes. The
+        // benchmark consumes each completed timestamp sequence only ONCE.
+        const UINT64 sequence = gpuTime->LastCompletedSequence();
+        if (sequence != lastBenchmarkGpuSampleSequence)
+        {
+            lastBenchmarkGpuSampleSequence = sequence;
+            DlssNr::BenchmarkGpuSample(*rawGpu, modelRunning);
+        }
+    }
     if (rawNgx)
         lastNgxTime = rawNgx;
 
