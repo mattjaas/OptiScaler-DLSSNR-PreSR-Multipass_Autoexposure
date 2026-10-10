@@ -131,8 +131,71 @@ alfa, NaN, cienie/shaping, nieparzyste wymiary i niepełne grupy. RGB20
 poniżej P50 porównuje się bitowo z tą samą sprawdzoną specjalizacją isolated
 weights/Mode28 bez kafla, z wyjątkiem payloadu NaN; matematyka i precyzja
 nie uległy zmianie. Użyto identycznych shaderów z v18, ponieważ zmiana
-polityki nie zmienia DXIL. Wydajność automatu v20 w całej grze pozostaje
-do sprawdzenia przez przygotowany benchmark ABBA.
+polityki nie zmienia DXIL. Wydajność automatu v20 w całej grze potwierdza
+dostarczony później raport ABBA opisany poniżej.
+
+## Potwierdzenie automatu w grze: NR-v20-low-20261010-230734
+
+Źródła: NR-v20-low-20261010-230734.csv, .samples.csv i .txt dostarczone
+przez użytkownika. TLOU Part I, RTX 4090, native 3840×2160, sześć przebiegów,
+Area/radius 1/guide strength 1. Te same warunki benchmarku: 90 świeżych
+próbek rozgrzewki na każde okno, 160 pomiarów na okno; automat oraz
+wymuszony oczekiwany tor po 320 próbek w ABBA. Alternatywny tor i referencje
+po 160. Mierzony jest cały NR z NGX, przejściami i overlapem.
+Taktowanie i temperatura nie były kontrolowane.
+
+| Skala / working | Actual selected_path automatu | Automat mediana ms | Wymuszony zwycięzca mediana ms | Automat minus kontrola ms | Zysk automatu wobec alternatywnego zoptymalizowanego toru ms |
+|---|---|---:|---:|---:|---:|
+| 33% / 1267×713 | Classic optimized | 18,89638 | 18,90150 | −0,00512 | 0,46285 |
+| 40% / 1536×864 | Fused RGB20 | 20,59469 | 20,58598 | +0,00871 | 0,55654 |
+| 41% / 1574×886 | Classic optimized | 21,81376 | 21,83526 | −0,02150 | 0,51302 |
+| 42% / 1613×907 | Fused RGB20 | 22,07232 | 22,07795 | −0,00563 | 0,41677 |
+| 49% / 1882×1058 | Fused RGB20 | 26,85645 | 26,86669 | −0,01024 | 0,48486 |
+
+Różnice w tabeli obliczono z zaokrąglonych median CSV; zapisane bezpośrednio
+kolumny delta mogą różnić się o 0,00001 ms. Przy P33/P41 alternatywą jest RGB20,
+przy P40/P42/P49 Classic optimized. Wszystkie pięć automatów ma
+path_matches_control=1 i rzeczywistą ścieżkę identyczną z wymuszoną kontrolą.
+Nie raportowano Mixed routes ani zmiany na awaryjny PSO. Jednolite zabezpieczenie
+footprintu grup w RGB20 nadal może używać bezpośredniego Mode28, szczególnie
+przy P42; zgodność PSO nie oznacza LDS w każdej grupie.
+
+| Skala | Mediany okien automatu ms | Mediany okien kontroli ms | SD automat / kontrola ms | P95 automat / kontrola ms |
+|---|---|---|---|---|
+| 33% | 18,89280 / 18,90406 | 18,89126 / 18,90611 | 0,05820 / 0,05732 | 18,99930 / 18,99930 |
+| 40% | 20,59315 / 20,59469 | 20,59162 / 20,57728 | 0,08738 / 0,08700 | 20,77286 / 20,74419 |
+| 41% | 21,79379 / 21,82605 | 21,84346 / 21,83322 | 0,10231 / 0,09400 | 22,00678 / 22,03341 |
+| 42% | 22,07744 / 22,06874 | 22,07488 / 22,07898 | 0,13225 / 0,13665 | 22,38259 / 22,37645 |
+| 49% | 26,84518 / 26,86054 | 26,85747 / 26,87130 | 0,21010 / 0,20853 | 27,22202 / 27,26298 |
+
+Największa bezwzględna różnica median automat/kontrola wynosi 0,02150 ms;
+największa dodatnia różnica 0,00871 ms przy P40. Jest to poziom obserwowanej
+zmienności; pomiar nie wskazuje istotnej straty GPU po automatycznym wyborze.
+P95 również pozostaje blisko kontroli (różnice od −0,04096 do +0,02867 ms).
+Nie interpretujemy niewielkich ujemnych delta jako dodatkowej optymalizacji:
+automat i kontrola wybierają ten sam shader i tor.
+
+Zyski automatu względem Fused reference: P33 1,76487 ms, P40 1,55648 ms,
+P41 2,69722 ms, P42 3,25478 ms, P49 3,04333 ms. Względem Classic reference:
+0,70605 / 1,29587 / 0,77926 / 1,22419 / 1,33939 ms. Wszystkie alternatywne
+zoptymalizowane tory pozostają wolniejsze. Różnice wobec historycznej
+oszczędności względem Fused reference mieszczą się poniżej 0,065 ms.
+
+Audyt surowych danych: 30 konfiguracji, 40 okien, 6400 dodatnich skończonych
+próbek GPU; każde okno ma dokładnie indeksy 0..159. Potwierdzono kolejność
+ostatnich czterech okien na skalę jako kontrola/automat/automat/kontrola,
+320 próbek każdej kontroli i automatu oraz zgodność median, średnich, P95,
+populacyjnego SD i median osobnych okien z podsumowaniem. Native, working
+i liczba przebiegów są zgodne z profilem. SHA256 źródeł:
+
+- CSV: 2928e65ddfb4af9959a533c62b92656e163f94607e1edfb541f33314aba65254
+- samples.csv: 910439e857d91517b682f307951bff34453a4c2924c65c46a011d2e86bd9fed0
+- TXT: c6c2f9833a01745f6aebabbac32fe0f18de7deda6ddf3e940032686bafd2e4fe
+
+Weryfikacja v20 poniżej 50% jest zakończona dla tych pięciu skal i warunków.
+Nie ma podstaw do kolejnej zmiany kodu ani ponownego wykonywania tego samego
+zestawu. To nie rozszerza dowodu na niezmierzone ułamkowe skale ani inne GPU,
+sceny i ustawienia; istniejąca reguła oraz rutynowy benchmark pozostają.
 
 ## Paczka i publikacja
 
