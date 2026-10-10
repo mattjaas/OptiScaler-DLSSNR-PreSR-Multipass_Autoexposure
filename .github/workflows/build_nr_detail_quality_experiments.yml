@@ -323,7 +323,13 @@ jobs:
           improved diagnostics, and original settings restoration.
           A/B GPU speed and motion-image parity to verify in game.
           "@
-          if (gh release view $tag 2>$null) {
+          # Windows PowerShell 5 treats native stderr as a terminating error
+          # under Stop, including the expected "release not found" response.
+          $ErrorActionPreference = "Continue"
+          gh release view $tag --json id 1>$null 2>$null
+          $releaseExists = $LASTEXITCODE -eq 0
+          $ErrorActionPreference = "Stop"
+          if ($releaseExists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release archive replacement failed" }
             gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v13 - Area and Mode28 benchmark" --notes $notes --prerelease

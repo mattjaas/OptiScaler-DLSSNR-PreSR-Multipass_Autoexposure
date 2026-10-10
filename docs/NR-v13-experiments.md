@@ -158,6 +158,22 @@ powtarzalności na tej samej scenie i ustawieniach, z kolejnymi sweepami lub
 manualnym A/B/ABBA, oraz capture obrazu na krawędziach, SDR/HDR i w ruchu.
 Nie zmieniono wymaganego pojedynczego sweepu w automatycznym benchmarku.
 
+Windows Release z kodu `3110ec78e0620644c04841e37349bff0b2d75e65`:
+[Actions 38044111847](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38044111847)
+zakończone SUCCESS. Pobrany ZIP przeszedł CRC i SHA256SUMS dla 62 plików.
+Potwierdzono x64 PE, etykietę benchmarku v13 i obecność wszystkich trzech
+nowych DXIL oraz standard/v10/v12 w rzeczywistej `OptiScaler.dll`.
+
+- ZIP: `OptiScaler-NR-nr-interpass-v13-bounded-area-20261010.zip`, 135276981 B.
+- ZIP SHA-256: `7302a09aa8107f4a9f73199b275c932647fcaeae4aafe4bf109b4901c5c525f3`.
+- DLL SHA-256: `d9bfeb833c586e34abda7b83745d1e46ea9de97b2fdc8bc82d7dec1497a623ab`.
+
+Osobna poprawka publikacji: PowerShell 5 z `ErrorActionPreference=Stop`
+przerywał na oczekiwanym `gh release view` / `release not found`, zanim
+wykonał gałąź tworzącą Release. Teraz probe działa pod Continue, wynik
+jest sprawdzany przez LASTEXITCODE, a operacje publikacji wracają do Stop.
+Nie zmienia to zbudowanego kodu ani shaderów.
+
 Największy kolejny potencjał: izolowanie trybów/danych PSO (obecny eksperyment),
 profilowanie realnych rejestrów i zależności, a dopiero później hoisting
 geometrii/dimensions między rekonstruowanymi texelami. `exp2` i jakość pozostają
