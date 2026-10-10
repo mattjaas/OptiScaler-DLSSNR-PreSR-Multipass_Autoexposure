@@ -1,0 +1,87 @@
+name: Audit NR standard DXIL versus v6.1
+on:
+  push:
+    branches:
+      - codex/nr-standard-baseline-dxil-audit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout with v6.1 tags and shader compiler
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Initialize DXC shader tools
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
+          git show-ref --verify refs/tags/nr-interpass-classic-guided-stencil-v6.1-20261010
+
+      - name: Compile original v6.1 and current standard NR with identical DXC
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          python -c 'import pathlib, subprocess; p = pathlib.Path("OptiScaler/shaders/dlssnr/precompile/dlssnr_v6_1_audit.hlsl"); p.write_bytes(subprocess.check_output(["git", "show", "nr-interpass-classic-guided-stencil-v6.1-20261010:OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl"]))'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Push-Location "OptiScaler/shaders/dlssnr/precompile"
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect "dlssnr_v6_1_audit.hlsl" -Fo "nr_v61_audit.cso" -Fc "nr_v61_audit.ll"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect "dlssnr.hlsl" -Fo "nr_v8_standard_audit.cso" -Fc "nr_v8_standard_audit.ll"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $oldHash = (Get-FileHash "nr_v61_audit.cso" -Algorithm SHA256).Hash
+          $newHash = (Get-FileHash "nr_v8_standard_audit.cso" -Algorithm SHA256).Hash
+          $oldBytes = (Get-Item "nr_v61_audit.cso").Length
+          $newBytes = (Get-Item "nr_v8_standard_audit.cso").Length
+          $binaryEqual = $oldHash -eq $newHash
+          Write-Host "v6.1 SHA256: $oldHash ($oldBytes bytes)"
+          Write-Host "v8 standard SHA256: $newHash ($newBytes bytes)"
+          Write-Host "DXIL_BINARY_EQUAL=$binaryEqual"
+
+          # Stronger than mere source-token parity: compare complete DXIL IR
+          # without metadata that can encode only the source file name.
+          $oldIR = Get-Content "nr_v61_audit.ll"
+          $newIR = Get-Content "nr_v8_standard_audit.ll"
+          function NormalizeIR($lines) {
+            $lines | Where-Object { $_ -notmatch '^\s*;\s*(Source|Input|Output).*File' -and $_ -notmatch '^source_filename\s*=' } |
+                ForEach-Object { $_ -replace 'nr_v61_audit.hlsl|nr_v8_standard_audit.hlsl|dlssnr.hlsl', 'shader.hlsl' }
+          }
+          $normalizedOld = @(NormalizeIR $oldIR)
+          $normalizedNew = @(NormalizeIR $newIR)
+          $diff = @(Compare-Object -ReferenceObject $normalizedOld -DifferenceObject $normalizedNew -SyncWindow 5)
+          Write-Host "Normalized assembly differences: $($diff.Count)"
+          if ($diff.Count -gt 0) {
+              $diff | Select-Object -First 40 | Format-Table -AutoSize | Out-String | Write-Host
+          }
+          $oldOps = @([regex]::Matches(($oldIR -join "`n"), '@dx\.op\.[A-Za-z0-9_.]+') | ForEach-Object {$_.Value})
+          $newOps = @([regex]::Matches(($newIR -join "`n"), '@dx\.op\.[A-Za-z0-9_.]+') | ForEach-Object {$_.Value})
+          Write-Host "v6.1 DXIL dx.op occurrence count: $($oldOps.Count)"
+          Write-Host "v8 DXIL dx.op occurrence count: $($newOps.Count)"
+          Add-Content $env:GITHUB_STEP_SUMMARY "## Standard DLSS NR v6.1 vs v8 DXIL audit"
+          Add-Content $env:GITHUB_STEP_SUMMARY "| Check | Result |"
+          Add-Content $env:GITHUB_STEP_SUMMARY "|---|---|"
+          Add-Content $env:GITHUB_STEP_SUMMARY "| DXIL SHA256 equal (same DXC) | $binaryEqual |"
+          Add-Content $env:GITHUB_STEP_SUMMARY "| v6.1 blob bytes | $oldBytes |"
+          Add-Content $env:GITHUB_STEP_SUMMARY "| v8 blob bytes | $newBytes |"
+          Add-Content $env:GITHUB_STEP_SUMMARY "| Normalized disassembly differences | $($diff.Count) |"
+          Add-Content $env:GITHUB_STEP_SUMMARY "| v6.1 dx.op occurrences | $($oldOps.Count) |"
+          Add-Content $env:GITHUB_STEP_SUMMARY "| v8 dx.op occurrences | $($newOps.Count) |"
+          Pop-Location
+
+      - name: Upload DXIL audit disassembly and blobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: nr-standard-v61-v8-dxil-audit
+          path: |
+            OptiScaler/shaders/dlssnr/precompile/nr_v61_audit.cso
+            OptiScaler/shaders/dlssnr/precompile/nr_v8_standard_audit.cso
+            OptiScaler/shaders/dlssnr/precompile/nr_v61_audit.ll
+            OptiScaler/shaders/dlssnr/precompile/nr_v8_standard_audit.ll
