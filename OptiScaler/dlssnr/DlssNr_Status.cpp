@@ -1,6 +1,9 @@
 #include <pch.h>
 #include "DlssNr_Status.h"
 #include "DlssNr_Benchmark.h"
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include <wrl/client.h>
 #include <Config.h>
 #include <Util.h>
 
@@ -101,6 +104,7 @@ struct BenchmarkVariant
     bool exact, tiled, strided, compact, weights, cache;
     const char* name;
     std::vector<double> samples;
+    unsigned nativeW = 0, nativeH = 0, workW = 0, workH = 0, effectivePasses = 0;
 };
 std::mutex benchmarkMutex;
 std::atomic<bool> benchmarkActive { false };
@@ -110,6 +114,9 @@ std::vector<BenchmarkVariant> benchmarkVariants;
 unsigned benchmarkIndex = 0, benchmarkWarm = 0;
 unsigned benchmarkWarmup = 90, benchmarkSamples = 160;
 std::string benchmarkSetup;
+std::string benchmarkAdapterInfo;
+unsigned benchmarkNativeW = 0, benchmarkNativeH = 0, benchmarkWorkW = 0,
+         benchmarkWorkH = 0, benchmarkEffectivePasses = 0;
 
 BenchmarkConfig TakeBenchmarkConfig(const Config& c)
 {
@@ -243,16 +250,32 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        name << "NR-v9-" << std::put_time(&local, "%Y%m%d-%H%M%S");
+        name << "NR-v10-" << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
         const auto info = directory / (name.str() + ".txt");
+        const auto raw = directory / (name.str() + ".samples.csv");
         std::ofstream out(csv);
+        std::ofstream individual(raw);
         std::ofstream description(info);
-        if (!out || !description)
+        if (!out || !description || !individual)
             throw std::runtime_error("Cannot create benchmark report.");
         out << "scale_percent,variant,mode,exact,tiled,strided,compact,weights,source_cache,"
-               "samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms\n";
+               "native_width,native_height,work_width,work_height,effective_passes,"
+               "samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,delta_vs_off_median_ms\n";
+        individual << "scale_percent,variant,sample_index,total_nr_gpu_ms\n";
         out << std::fixed << std::setprecision(5);
+        individual << std::fixed << std::setprecision(6);
+        double baseline50 = 0.0, baseline65 = 0.0;
+        for (const auto& v : benchmarkVariants)
+        {
+            if (v.mode != 0 || v.samples.empty())
+                continue;
+            auto sorted = v.samples;
+            std::sort(sorted.begin(), sorted.end());
+            const size_t n = sorted.size();
+            const double median = n % 2 ? sorted[n/2] : (sorted[n/2 - 1] + sorted[n/2]) * 0.5;
+            (v.percent == 50 ? baseline50 : baseline65) = median;
+        }
         for (const auto& v : benchmarkVariants)
         {
             if (v.samples.empty())
@@ -266,12 +289,18 @@ void FinishBenchmark(bool cancelled)
             const size_t n = sorted.size();
             const double median = n % 2 ? sorted[n/2] : (sorted[n/2-1] + sorted[n/2]) * 0.5;
             const double p95 = sorted[std::min(n-1, size_t(std::ceil(n * 0.95))-1)];
+            const double baseline = v.percent == 50 ? baseline50 : baseline65;
             out << v.percent << ',' << '"' << v.name << '"' << ',' << v.mode << ',' << v.exact << ','
                 << v.tiled << ',' << v.strided << ',' << v.compact << ',' << v.weights << ',' << v.cache
-                << ',' << n << ',' << mean << ',' << median << ',' << p95 << ','
-                << sorted.front() << ',' << sorted.back() << ',' << std::sqrt(variance/n) << '\n';
+                << ',' << v.nativeW << ',' << v.nativeH << ',' << v.workW << ',' << v.workH << ','
+                << v.effectivePasses << ',' << n << ',' << mean << ',' << median << ',' << p95 << ','
+                << sorted.front() << ',' << sorted.back() << ',' << std::sqrt(variance/n)
+                << ',' << median - baseline << '\n';
+            for (size_t i = 0; i < v.samples.size(); ++i)
+                individual << v.percent << ',' << '"' << v.name << '"' << ',' << i << ',' << v.samples[i] << '\n';
         }
-        description << "OptiScaler DLSS NR v9 automatic six-pass GPU benchmark\n"
+        description << "OptiScaler DLSS NR v10 automatic six-pass GPU benchmark\n"
+                    << "ONE measurement per configuration: no ABBA and no repeated sweeps.\n"
                     << "P50 and P65 only; all variants: 6 passes, Area, radius 1, "
                        "dynamic/shared bilinear ON, paired OFF, shadow/frequency shaping left unchanged.\n"
                     << "Each case has " << benchmarkWarmup << " fresh warmup timestamps, then "
@@ -280,12 +309,22 @@ void FinishBenchmark(bool cancelled)
                     << "Elapsed GPU NR interval includes NGX passes, inter-pass, queue waits/overlap; "
                        "not isolated shader time.\n"
                     << "Original user settings restored after benchmark.\n"
-                    << "Ensure static game scene, consistent GPU clocks, and compare median/variance.\n"
+                    << "GPU adapter: " << (benchmarkAdapterInfo.empty() ? "unavailable" : benchmarkAdapterInfo) << "\n"
+                    << "Source cache: v10 Linear16 Fused uses 16x16 float3 FP32 source/model arrays; "
+                       "v10 Classic uses 12x12 float3 FP32 arrays. "
+                       "Actual LDS allocation/register occupancy require external GPU profiler.\n"
+                    << "No new inter-pass GPU timestamp pairs: isolated inter-pass time is not measured. "
+                       "The delta_vs_off_median_ms column compares full NR intervals at the same scale.\n"
+                    << "Do not assume same GPU clocks/temperature: not measured. "
+                       "Maintain a static game scene and examine the raw distribution.\n"
+                    << "Actual native/working dimensions and effective pass count: CSV per case.\n"
                     << "User settings at start: " << benchmarkSetup << "\n"
-                    << "CSV: " << csv.filename().string() << "\n";
+                    << "Summary CSV: " << csv.filename().string() << "\n"
+                    << "Raw samples CSV: " << raw.filename().string() << "\n";
         out.flush();
+        individual.flush();
         description.flush();
-        if (!out || !description)
+        if (!out || !description || !individual)
             throw std::runtime_error("Benchmark file write failed.");
         benchmarkProgress.message = std::string("Saved: ") + csv.string();
     }
@@ -313,6 +352,8 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples)
     benchmarkSamples = std::clamp(measuredSamples, 40u, 2000u);
     benchmarkIndex = benchmarkWarm = 0;
     BuildBenchmarkVariants();
+    benchmarkAdapterInfo.clear();
+    benchmarkNativeW = benchmarkNativeH = benchmarkWorkW = benchmarkWorkH = benchmarkEffectivePasses = 0;
     benchmarkSetup = "guide strength=" + std::to_string(savedBenchmarkConfig.strength) +
                      ", source scale=" + std::to_string(savedBenchmarkConfig.scale);
     ApplyBenchmarkVariant(c, benchmarkVariants.front());
@@ -340,10 +381,22 @@ void BenchmarkGpuSample(double rawGpuMs, bool modelRunning)
     if (!benchmarkActive.load() || !modelRunning || !std::isfinite(rawGpuMs) ||
         rawGpuMs <= 0.0 || rawGpuMs > 1000.0)
         return;
+    // Do not accidentally benchmark a partially prepared six-feature chain.
+    if (benchmarkEffectivePasses != 6u || benchmarkNativeW == 0u || benchmarkWorkW == 0u)
+    {
+        benchmarkProgress.message = "Waiting for all 6 DLSS NR features and actual texture dimensions.";
+        return;
+    }
+    auto& variant = benchmarkVariants[benchmarkIndex];
+    variant.nativeW = benchmarkNativeW;
+    variant.nativeH = benchmarkNativeH;
+    variant.workW = benchmarkWorkW;
+    variant.workH = benchmarkWorkH;
+    variant.effectivePasses = benchmarkEffectivePasses;
     if (benchmarkWarm < benchmarkWarmup)
         ++benchmarkWarm;
     else
-        benchmarkVariants[benchmarkIndex].samples.push_back(rawGpuMs);
+        variant.samples.push_back(rawGpuMs);
     if (benchmarkVariants[benchmarkIndex].samples.size() == benchmarkSamples)
     {
         if (++benchmarkIndex == benchmarkVariants.size())
@@ -355,6 +408,58 @@ void BenchmarkGpuSample(double rawGpuMs, bool modelRunning)
         ApplyBenchmarkVariant(*Config::Instance(), benchmarkVariants[benchmarkIndex]);
     }
     UpdateBenchmarkProgress();
+}
+
+void BenchmarkReportGeometry(unsigned nativeW, unsigned nativeH, unsigned workW, unsigned workH,
+                             unsigned effectivePasses)
+{
+    if (!benchmarkActive.load(std::memory_order_relaxed))
+        return;
+    std::lock_guard lock(benchmarkMutex);
+    benchmarkNativeW = nativeW;
+    benchmarkNativeH = nativeH;
+    benchmarkWorkW = workW;
+    benchmarkWorkH = workH;
+    benchmarkEffectivePasses = effectivePasses;
+}
+void BenchmarkReportDevice(ID3D12Device* device)
+{
+    if (!benchmarkActive.load(std::memory_order_relaxed) || !device)
+        return;
+    std::lock_guard lock(benchmarkMutex);
+    if (!benchmarkAdapterInfo.empty())
+        return;
+    Microsoft::WRL::ComPtr<IDXGIFactory4> factory;
+    Microsoft::WRL::ComPtr<IDXGIAdapter1> adapter;
+    const auto luid = device->GetAdapterLuid();
+    if (FAILED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) ||
+        FAILED(factory->EnumAdapterByLuid(luid, IID_PPV_ARGS(&adapter))))
+    {
+        benchmarkAdapterInfo = "DXGI adapter unavailable";
+        return;
+    }
+    DXGI_ADAPTER_DESC1 desc {};
+    if (FAILED(adapter->GetDesc1(&desc)))
+    {
+        benchmarkAdapterInfo = "DXGI adapter description unavailable";
+        return;
+    }
+    char displayName[512] {};
+    WideCharToMultiByte(CP_UTF8, 0, desc.Description, -1, displayName,
+                        static_cast<int>(sizeof(displayName)), nullptr, nullptr);
+    std::ostringstream details;
+    details << displayName << " VendorID=0x" << std::hex << desc.VendorId
+            << " DeviceID=0x" << desc.DeviceId << std::dec
+            << " DedicatedVRAM_MB=" << (desc.DedicatedVideoMemory / (1024 * 1024))
+            << " LUID=" << luid.HighPart << ":" << luid.LowPart;
+    LARGE_INTEGER version {};
+    if (SUCCEEDED(adapter->CheckInterfaceSupport(__uuidof(IDXGIDevice), &version)))
+        details << " DXGI_driver_version=" << HIWORD(version.HighPart) << "."
+                << LOWORD(version.HighPart) << "."
+                << HIWORD(version.LowPart) << "." << LOWORD(version.LowPart);
+    else
+        details << " DXGI_driver_version=unavailable";
+    benchmarkAdapterInfo = details.str();
 }
 
 std::optional<double> LastGpuTime() { return ReadStatus(Backend::Dx12).gpuTime; }
