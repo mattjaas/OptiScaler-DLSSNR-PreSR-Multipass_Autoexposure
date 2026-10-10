@@ -98,3 +98,20 @@ fallback do wariantu bez tej specjalizacji.
 Do pomiaru zysku utrzymać stałą scenę i ustawienia, sprawdzić log PSO,
 porównać medianę, średnią, P95 i zmienność. Jeden sweep jest użyteczny do
 wstępnego wyboru; potwierdzenie drobnego zysku wymaga wielokrotnego A/B/ABBA.
+
+## Zweryfikowana paczka Windows
+
+[Build Release Windows](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38047569410)
+z commita `c88b3c565a272c06cab3abef0a02ef2047d5fcc4` zakończył się sukcesem.
+Obejmował testy inter-pass, kompilację dawnych i siedmiu nowych shaderów,
+kontrolę LDS/unikalności/hashów, kompilację harnessu DX12, pełny build i ZIP.
+W CI harness został skompilowany; test na urządzeniu wykonano lokalnie na RTX 4090.
+
+[Pobierz ZIP v14](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v14-rgb-linear20-20261010/OptiScaler-NR-nr-interpass-v14-rgb-linear20-20261010.zip).
+Pobrany asset ma 135 502 909 bajtów; jego SHA-256 zgadza się z digestem GitHub:
+`db04278b1aece02fe05e87b8623dfb756308e096e10c8579e08f15594258e949`.
+Sprawdzono CRC ZIP, wszystkie 62 wpisy SHA256SUMS, PE x64, etykietę benchmarku
+v14 oraz obecność dokładnych 15 blobów standard/v10/v12/v13/v14 w DLL.
+DLL SHA-256: `a7ea793a74da61f4de576f5c0e6a7feee1693b9406e804345760862d01805850`.
+Skrypt pakowania pozostaje lokalnie w kwarantannie; nie przywracano go ani
+nie włączano jego usunięcia do commita. Paczka pochodzi z czystego checkoutu CI.
