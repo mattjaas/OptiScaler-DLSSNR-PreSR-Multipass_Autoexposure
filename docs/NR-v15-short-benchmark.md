@@ -96,3 +96,20 @@ P59 Fused reference nie był mierzony w dostarczonym szerokim v14. Dodano go
 do nowego zestawu jako wymaganą bazę; jego zysku/kosztu nie estymowano.
 Pojedynczy sweep nie dowodzi powtarzalności małych różnic. Wnioski dla tej
 RTX 4090 nie są automatycznie uniwersalne dla wszystkich GPU i scen.
+
+## Weryfikacja i paczka v15
+
+[Build Windows Release](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38049823524)
+z `e591fc0015e5576a31094c00f1978c5f0633d14f` zakończył się sukcesem.
+Wszystkie kontrole inter-pass oraz test manifestu 14 przypadków przeszły.
+Pełny build, kompilacja shaderów i pakowanie również zaliczone.
+
+[Pobierz ZIP v15](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v15-short-benchmark-20261010/OptiScaler-NR-nr-interpass-v15-short-benchmark-20261010.zip).
+Sprawdzono CRC, wszystkie 62 pliki SHA256SUMS, Windows PE x64, etykietę menu
+14 przypadków i 15 dokładnych blobów standard/v10/v12/v13/v14 w DLL.
+Ich bajty są zgodne ze zweryfikowaną paczką v14. Nie zmieniono GPU shaderów.
+Paczka ma 135 501 080 bajtów; SHA-256 zgadza się z digestem assetu GitHub:
+`90572d5677e1d285179926ab13d2e5d2d96c76b9f4c8e7f9cfd112c26281fa2e`.
+DLL SHA-256: `bd8a6c0adf60720fce4823f113b8cc0c2fe2987dfe3876d46396922c062379ae`.
+Lokalnego usunięcia `package_release.ps1` przez kwarantannę nie publikowano;
+build pochodzi z czystego checkoutu GitHub Actions.
