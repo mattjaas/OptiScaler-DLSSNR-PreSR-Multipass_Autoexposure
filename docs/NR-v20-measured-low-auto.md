@@ -133,3 +133,24 @@ weights/Mode28 bez kafla, z wyjątkiem payloadu NaN; matematyka i precyzja
 nie uległy zmianie. Użyto identycznych shaderów z v18, ponieważ zmiana
 polityki nie zmienia DXIL. Wydajność automatu v20 w całej grze pozostaje
 do sprawdzenia przez przygotowany benchmark ABBA.
+
+## Paczka i publikacja
+
+Źródło paczki: dba469345e26b79530f8eae1035af29a82cbbad7,
+gałąź codex/nr-interpass-v13-bounded-area.
+[Build 38085143645](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38085143645)
+zakończył się sukcesem: testy arytmetyki, benchmark, wykonany test C++ polityki,
+kompilacja trzech shaderów i fixture GPU, pełna DLL, pakowanie oraz publikacja.
+
+[ZIP v20](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v20-measured-low-auto-20261010/OptiScaler-NR-nr-interpass-v20-measured-low-auto-20261010.zip),
+131 090 935 bajtów.
+
+- ZIP SHA256: d4e8897f428142e7ef3ec2733641ecf5e2dc0604a43a9ffa92e95c6e67ecafd0
+- DLL SHA256: 6cd09aacff621963774ee175fffe6f7c56204056a8879c6e70fb0426c5417dd2
+- Pobrany ZIP: CRC i wszystkie 62 wpisy SHA256SUMS.txt poprawne.
+- DLL Windows x64 zawiera cztery tryby inter-pass, nowe przyciski weryfikacji
+  i prefiksy raportów. Trzy DXIL są identyczne z shaderami v18 użytymi
+  w lokalnym rozszerzonym teście GPU. Nie zawiera 36 odrzuconych blobów inter-pass.
+
+Lokalnie usunięty przez Bitdefender package_release.ps1 pozostawiono poza
+commitem. Nie przywracano go z kwarantanny; Actions użył wersji repozytorium.
