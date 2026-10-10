@@ -33,3 +33,15 @@ Poniżej tylko diagnostyczny pomiar shadera, **nie rezultat gry ani całego NR**
 Surowe próbki: `docs/NR-v16-GPU-smoke.samples.csv`. Powtórzenie: skompiluj runner, uruchom `v16_parity.exe <shader-dir> --hardware` (poprawność) lub dodaj `--timing` (diagnostyczne ABBA). Workflow kompiluje runner i wszystkie siedem nowych PSO; lokalna kontrola GPU jest oddzielna od kompilacji CI.
 
 LDS: pair16 3072 B, wide/both16 5376 B; pair20 4800 B, wide/both20 8160 B; Mode18 0 B. Prefabrykowane nagłówki/binarne eksperymenty generuje workflow oraz `tools/compile_nr_v16.ps1`, zgodnie z dotychczasową strukturą repozytorium.
+
+## Gotowa paczka i publikacja
+
+Źródło buildu: `7d1a639d63aab42bdb8bbc1cd5d4dc9d4bfb3898`, gałąź `codex/nr-interpass-v13-bounded-area`. [Build 38051955534](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38051955534) zakończył się sukcesem: testy, kompilacja siedmiu nowych shaderów i runnera, pełny build DLL i publikacja release.
+
+[ZIP v16](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v16-wide-pair-low-20261010/OptiScaler-NR-nr-interpass-v16-wide-pair-low-20261010.zip), 135 742 676 bajtów.
+
+- ZIP SHA256: `b37d25b081390127ae22f620b6fca1cd2a757bdeacfb459d70595f6c0e1aa10d`
+- DLL SHA256: `4355e757836d7d6e7cf3ac9f461bcdb4ed83ff864f43aa3f2dd217197e301d25`
+- Po pobraniu potwierdzono CRC całego ZIP, wszystkie 62 wpisy `SHA256SUMS.txt`, format Windows x64 DLL, tekst nowego benchmarku oraz 19 referencyjnych/nowych blobów DXIL identycznych z lokalnie sprawdzonymi shaderami, w tym wszystkie siedem PSO v16.
+
+Lokalne usunięcie `package_release.ps1` przez Bitdefender pozostało poza commitem. Nie przywracano pliku z kwarantanny. GitHub Actions korzystał z istniejącego skryptu w repozytorium.
