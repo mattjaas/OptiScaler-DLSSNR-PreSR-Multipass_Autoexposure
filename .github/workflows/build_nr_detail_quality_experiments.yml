@@ -173,6 +173,11 @@ jobs:
           )
           if (($v10Hashes | Sort-Object -Unique).Count -ne 4) { throw "v10 isolated variants must differ" }
           Write-Host "v10 baseline/weights/cache/both DXIL SHA256: $v10Hashes"
+          # Classic v10: no dormant fallback/source-cache branch, FP32 RGB only.
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_CLASSIC_SOURCE_CACHE=1 -D DLSSNR_CLASSIC_CACHE_V10=1 "dlssnr.hlsl" -Fo "dlssnr_classic_v10_cache_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_classic_v10_cache_Shader.cso" "dlssnr_classic_v10_cache_Shader.h" "dlssnr_classic_v10_cache_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           # Detect accidental identical shader variants; the tiled shader must differ.
           $mainHash = (Get-FileHash "DlssNr_Shader.cso" -Algorithm SHA256).Hash
           $tileHash = (Get-FileHash "dlssnr_tiled_Shader.cso" -Algorithm SHA256).Hash
