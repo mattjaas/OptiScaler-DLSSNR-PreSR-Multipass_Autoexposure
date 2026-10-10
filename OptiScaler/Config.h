@@ -593,6 +593,9 @@ class Config
     // Independent experimental A/B controls for v8 tiled Fused (v7.1 remains OFF/OFF).
     CustomOptional<bool> DlssNrInterPassTiledStridedLoads { false };
     CustomOptional<bool> DlssNrInterPassTiledCompact16 { false };
+    // v9: independent A/B controls. Compacted tiles no longer require Strided.
+    CustomOptional<bool> DlssNrInterPassV9Weights { false };
+    CustomOptional<bool> DlssNrInterPassV9SourceCache { false };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
