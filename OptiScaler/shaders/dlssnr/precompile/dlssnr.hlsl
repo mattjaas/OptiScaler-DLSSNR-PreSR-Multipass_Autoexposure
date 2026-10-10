@@ -2141,8 +2141,15 @@ float4 DownsampleMaybeClampProxy(float4 raw, bool fused)
 // sum(native guided samples for every reduced output pixel).
 // Floating point original P100 edits and independent Area weights survive:
 // shared storage is float4, never FP16, so no extra early quantization.
-static const uint kInterPassTilePitch = 20u;
-groupshared float4 gInterPassCorrectedTile[20u * 20u];
+// Compile-time independent variants (no runtime branching on the GPU):
+//   legacy v7: 20x20, linear index with runtime modulo/division
+//   v8 strided: 20x20, 2D thread-strided fills
+//   v8 compact: 16x16, 2D fills; selected only on provably fitting scales
+#ifndef DLSSNR_TILED_PITCH
+#define DLSSNR_TILED_PITCH 20
+#endif
+static const uint kInterPassTilePitch = DLSSNR_TILED_PITCH;
+groupshared float4 gInterPassCorrectedTile[DLSSNR_TILED_PITCH * DLSSNR_TILED_PITCH];
 
 bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
 {
@@ -2164,6 +2171,22 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
     if (any(tileSize <= 0) || any(tileSize > int2(kInterPassTilePitch, kInterPassTilePitch)))
         return false;
 
+#ifdef DLSSNR_TILED_STRIDED
+    // v8: two-dimensional 8x8 workgroup stripes. Each lane exclusively owns
+    // (x mod 8, y mod 8) P100 texels, eliminating runtime % tileWidth and
+    // / tileWidth from every expensive reconstruction. No warp ballot,
+    // extra barrier, scratch UAV or per-pixel change in floating-point order.
+    [loop] for (uint tileY = localId.y; tileY < (uint)tileSize.y; tileY += 8u)
+    {
+        [loop] for (uint tileX = localId.x; tileX < (uint)tileSize.x; tileX += 8u)
+        {
+            const int2 p100 = first + int2((int)tileX, (int)tileY);
+            gInterPassCorrectedTile[tileY * kInterPassTilePitch + tileX] =
+                InterPassCorrectedP100LoadDynamic(p100);
+        }
+    }
+#else
+    // Exact v7.1 A/B baseline retained without modification.
     const uint tileCount = (uint)tileSize.x * (uint)tileSize.y;
     const uint lane = localId.y * 8u + localId.x;
     [loop] for (uint index = lane; index < tileCount; index += 64u)
@@ -2176,6 +2199,7 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
         gInterPassCorrectedTile[y * kInterPassTilePitch + x] =
             InterPassCorrectedP100LoadDynamic(p100);
     }
+#endif
     GroupMemoryBarrierWithGroupSync();
 
     if (id.x >= gWidth || id.y >= gHeight)
