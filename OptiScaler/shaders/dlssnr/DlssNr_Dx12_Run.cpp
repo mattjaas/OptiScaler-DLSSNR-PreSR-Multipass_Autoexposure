@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "DlssNr_Dx12_State.h"
+#include <dlssnr/DlssNr_Benchmark.h>
 
 namespace
 {
@@ -955,6 +956,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         loggedEffective = effectivePasses;
         LOG_INFO("DLSS-NR model passes: configured {}, effective {}", requestedPasses, effectivePasses);
     }
+
+    DlssNr::BenchmarkReportGeometry(width, height, modelWidth, modelHeight, effectivePasses);
+    DlssNr::BenchmarkReportDevice(device);
 
     const uint32_t configuredInterPassMode =
         std::min(cfg.DlssNrInterPassReconstruction.value_or_default(), 2u);
