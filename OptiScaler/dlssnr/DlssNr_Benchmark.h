@@ -20,6 +20,8 @@ struct BenchmarkProgress
 };
 void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples);
 void CancelInterPassBenchmark();
+int BenchmarkInterPassOverride(); // -1 outside benchmark, no user-facing implementation switches.
+void BenchmarkReportInterPassPath(const char* path);
 BenchmarkProgress ReadInterPassBenchmark();
 void BenchmarkGpuSample(double rawGpuMs, bool modelRunning);
 void BenchmarkReportGeometry(unsigned nativeW, unsigned nativeH, unsigned workW, unsigned workH,

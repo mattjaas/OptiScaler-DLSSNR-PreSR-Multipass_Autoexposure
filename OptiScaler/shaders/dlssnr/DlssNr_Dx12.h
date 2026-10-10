@@ -58,46 +58,11 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     uint32_t _numThreadsY = 8;
 
     // ResidualAcrossRR v2: a second compute PSO built from dlssnr_residual.hlsl's own blob,
-    // reusing this class's root signature and descriptor table. Kept separate so the main
-    // dlssnr.hlsl blob is never regenerated (a current dxc produces materially different DXIL
-    // from the committed one). Null on backends/builds where the residual shader is absent.
+    // reusing this class's root signature and descriptor table independently of the main shader.
+    // Null on backends/builds where the residual shader is absent.
     ID3D12PipelineState* _residualPipelineState = nullptr;
-    // v7.1: separate, lazily-created compute PSO containing v7 groupshared.
-    // The standard PSO has no tiled code and is used for every other mode.
-    ID3D12PipelineState* _tiledFusedPipelineState = nullptr;
-    bool _tiledFusedPipelineAttempted = false;
-    // v8 optional PSOs are also isolated from the standard and v7 binaries.
-    // Neither is instantiated unless the respective UI option is selected.
-    ID3D12PipelineState* _tiledStridedPipelineState = nullptr;
-    bool _tiledStridedPipelineAttempted = false;
-    ID3D12PipelineState* _tiledCompactPipelineState = nullptr;
-    bool _tiledCompactPipelineAttempted = false;
-    // v9 experimental variants are separate PSOs; other paths remain byte-identical.
-    ID3D12PipelineState* _tiledCompactLinearPipelineState = nullptr;
-    bool _tiledCompactLinearPipelineAttempted = false;
-    ID3D12PipelineState* _tiledV9PipelineState[4] {};
-    bool _tiledV9PipelineAttempted[4] {};
-    // v10: three independent P65 Linear 16x16 PSOs. The default uses v9 Linear16.
-    ID3D12PipelineState* _tiledV10PipelineState[3] {};
-    bool _tiledV10PipelineAttempted[3] {};
-    // v11 spatial/quadfill/both: three independent P65 Linear16+Weights PSOs.
-    ID3D12PipelineState* _tiledV11PipelineState[3] {};
-    bool _tiledV11PipelineAttempted[3] {};
-    // v12: separate interior/axes/both PSOs, lazy init, v10 reference untouched.
-    ID3D12PipelineState* _tiledV12PipelineState[3] {};
-    bool _tiledV12PipelineAttempted[3] {};
-    ID3D12PipelineState* _tiledV13PipelineState[3] {};
-    bool _tiledV13PipelineAttempted[3] {};
-    ID3D12PipelineState* _tiledV16PipelineState[6] {};
-    bool _tiledV16PipelineAttempted[6] {};
-    ID3D12PipelineState* _v16LowPipelineState = nullptr;
-    bool _v16LowPipelineAttempted = false;
-    ID3D12PipelineState* _tiledV14PipelineState[7] {};
-    bool _tiledV14PipelineAttempted[7] {};
-    ID3D12PipelineState* _classicCachePipelineState = nullptr;
-    bool _classicCachePipelineAttempted = false;
-    ID3D12PipelineState* _classicV10CachePipelineState = nullptr;
-    bool _classicV10CachePipelineAttempted = false;
+    ID3D12PipelineState* _interPassRgbPipeline[2] {};
+    bool _interPassRgbAttempted[2] {};
     ID3D12PipelineState* _finishedColorPipelineState = nullptr;
     ID3D12PipelineState* _spatialPipelineState = nullptr;
     ID3D12PipelineState* _spatialGuidesPipelineState = nullptr;
@@ -107,7 +72,7 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
                          ID3D12PipelineState* pipeline, ID3D12Resource* source, ID3D12Resource* model,
                          ID3D12Resource* original, ID3D12Resource* motion, ID3D12Resource* previousEdit,
                          ID3D12Resource* auxiliary2, ID3D12Resource* target, ID3D12Resource* keep,
-                         uint32_t* immutableSlot, uint32_t groupWidth = 8);
+                         uint32_t* immutableSlot);
 
   public:
     DlssNr_Dx12(std::string InName, ID3D12Device* InDevice);

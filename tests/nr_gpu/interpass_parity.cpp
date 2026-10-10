@@ -1,8 +1,9 @@
 #include "pch.h"
 #include "../../OptiScaler/shaders/dlssnr/DlssNr_Common.h"
+#include <iomanip>
 
-// Standalone DX12 fixture runner; WARP in CI, optional hardware locally.
-// Checks compiled shader output, not GPU performance or temporal NGX quality.
+// Standalone DX12 fixture runner; hardware parity is verified locally, compilation in CI.
+// Checks compiled output; optional --timing is an isolated cleanup smoke, not temporal NGX quality.
 using Microsoft::WRL::ComPtr;
 void check(HRESULT hr) { if (FAILED(hr)) throw std::runtime_error("DX12 HRESULT=" + std::to_string(hr)); }
 struct Runner
@@ -93,14 +94,14 @@ struct Runner
         ComPtr<ID3D12PipelineState> p; check(device->CreateComputePipelineState(&d,IID_PPV_ARGS(&p))); return p;
     }
     std::vector<uint32_t> run(ID3D12PipelineState* pso, UINT nw, UINT nh, UINT ww, UINT wh,
-                              const DlssNrConstants& constants, int fixture, bool half)
+                              const DlssNrConstants& constants, int fixture, bool half, UINT groupWidth=8, UINT sourceW=0, UINT sourceH=0, double* gpuMs=nullptr)
     {
         begin(); std::vector<ComPtr<ID3D12Resource>> keep;
         std::mt19937 rng(1414 + fixture);
         auto cpu = heap->GetCPUDescriptorHandleForHeapStart();
         std::array<ComPtr<ID3D12Resource>,3> inputs;
         for (int n=0; n<3; ++n) {
-            UINT w=n==2?nw:ww, h=n==2?nh:wh;
+            UINT w=n==2?nw:(sourceW?sourceW:ww), h=n==2?nh:(sourceH?sourceH:wh);
             D3D12_RESOURCE_DESC d{}; d.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
             d.Width=w; d.Height=h; d.DepthOrArraySize=d.MipLevels=1; d.SampleDesc.Count=1;
             d.Format=DXGI_FORMAT_R32G32B32A32_FLOAT;
@@ -146,7 +147,25 @@ struct Runner
         list->SetComputeRootSignature(root.Get()); ID3D12DescriptorHeap* heaps[]={heap.Get()}; list->SetDescriptorHeaps(1,heaps);
         list->SetComputeRootDescriptorTable(0,heap->GetGPUDescriptorHandleForHeapStart());
         list->SetComputeRootConstantBufferView(1,cb->GetGPUVirtualAddress()); list->SetPipelineState(pso);
-        list->Dispatch((ww+7)/8,(wh+7)/8,1);
+        ComPtr<ID3D12QueryHeap> queries;
+        ComPtr<ID3D12Resource> times;
+        if (gpuMs) {
+            D3D12_QUERY_HEAP_DESC q{}; q.Type=D3D12_QUERY_HEAP_TYPE_TIMESTAMP; q.Count=2;
+            check(device->CreateQueryHeap(&q,IID_PPV_ARGS(&queries)));
+            times=buffer(16,D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);
+            list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0);
+        }
+        for (int repeat=0;repeat<(gpuMs?8:1);++repeat) {
+            list->Dispatch((ww+groupWidth-1)/groupWidth,(wh+7)/8,1);
+            if (gpuMs) {
+                D3D12_RESOURCE_BARRIER b{}; b.Type=D3D12_RESOURCE_BARRIER_TYPE_UAV;
+                b.UAV.pResource=target.Get(); list->ResourceBarrier(1,&b);
+            }
+        }
+        if (gpuMs) {
+            list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,1);
+            list->ResolveQueryData(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0,2,times.Get(),0);
+        }
         barrier(target.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_COPY_SOURCE);
         D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{}; UINT64 bytes;
         device->GetCopyableFootprints(&d,0,1,0,&fp,nullptr,nullptr,&bytes);
@@ -158,68 +177,99 @@ struct Runner
         const UINT pixelWords=half?2:4;
         std::vector<uint32_t> result(ww*wh*pixelWords); check(read->Map(0,nullptr,&mapped));
         for (UINT y=0;y<wh;++y) std::memcpy(result.data()+y*ww*pixelWords,static_cast<char*>(mapped)+y*fp.Footprint.RowPitch,ww*pixelWords*4);
-        read->Unmap(0,nullptr); return result;
+        read->Unmap(0,nullptr);
+        if (gpuMs) {
+            UINT64 frequency; check(queue->GetTimestampFrequency(&frequency));
+            UINT64* stamps; check(times->Map(0,nullptr,reinterpret_cast<void**>(&stamps)));
+            *gpuMs=double(stamps[1]-stamps[0])*1000.0/double(frequency)/8.0;
+            times->Unmap(0,nullptr);
+        }
+        return result;
     }
 };
-int main(int argc,char** argv)
+int main(int argc, char** argv)
 {
     try {
-        if (argc<2) throw std::runtime_error("Usage: v14_parity shader-dir [--hardware]");
-        Runner runner(argc>2 && std::string(argv[2])=="--hardware");
-        const std::string names[]={"dlssnr_tiled_v13_mode28","dlssnr_tiled_v9_linear20",
-          "dlssnr_tiled_v14_rgb16","dlssnr_tiled_v14_guide16","dlssnr_tiled_v14_both16",
-          "dlssnr_tiled_v14_weights20","dlssnr_tiled_v14_rgb20","dlssnr_tiled_v14_guide20","dlssnr_tiled_v14_both20"};
-        std::vector<ComPtr<ID3D12PipelineState>> psos;
-        for (auto& name:names) psos.push_back(runner.pipeline(argv[1],name));
-        UINT64 checked=0; int fixtures=0;
-        for (auto dims: {std::pair<UINT,UINT>{65,37},{127,73},{17,11}})
-        for (int scale: {55,59,60,61,65,75,90,25})
-        for (int stress=0;stress<4;++stress)
-        for (float guide : {0.35f,1.0f})
-        for (bool half : {false,true}) {
-            UINT nw=dims.first, nh=dims.second, ww=std::max(1u,nw*scale/100), wh=std::max(1u,nh*scale/100);
-            DlssNrConstants c{}; c.Mode=28; c.Width=ww; c.Height=wh; c.ResidualHistoryValid=1;
-            c.ResidualScale=0.7f; c.ResidualBlend=stress==2?0.00001f:0.2f; c.ResidualConfidenceSensitivity=guide;
-            float rx=float(ww)/nw, ry=float(wh)/nh;
-            std::memcpy(&c.ResidualMotionBaseX,&rx,4); std::memcpy(&c.ResidualMotionBaseY,&ry,4);
-            c.DirectResolveFlags=16|64|128|2048|16384;
-            if (stress==1) { c.DirectResolveFlags|=32; c.MvScaleX=1.37f; }
-            if (stress==3) { c.GuideWidth=1; c.MvScaleX=1.13f; c.MvScaleY=0.71f; }
-            if (stress==2) {
-                c.GuideHeight=1;
-                float low=0.02f,high=0.08f,floor=0.15f;
-                std::memcpy(&c.ExposureSourceWidth,&low,4); std::memcpy(&c.ExposureSourceHeight,&high,4);
+        if (argc < 3) throw std::runtime_error("Usage: interpass_parity new-dir v16-reference-dir [--hardware] [--timing]");
+        Runner runner(argc > 3 && std::string(argv[3]) == "--hardware");
+        auto current = runner.pipeline(argv[1], "DlssNr");
+        auto rgb16 = runner.pipeline(argv[1], "dlssnr_interpass_rgb16");
+        auto rgb20 = runner.pipeline(argv[1], "dlssnr_interpass_rgb20");
+        auto previous = runner.pipeline(argv[2], "DlssNr");
+        auto previous16 = runner.pipeline(argv[2], "dlssnr_tiled_v14_rgb16");
+        auto previous20 = runner.pipeline(argv[2], "dlssnr_tiled_v14_rgb20");
+        if (argc > 4 && std::string(argv[4]) == "--timing")
+        {
+            std::ofstream out("NR-interpass-cleanup.samples.csv");
+            if (!out) throw std::runtime_error("Cannot open timing CSV");
+            out << "scale_percent,variant,window,gpu_ms\n" << std::setprecision(9);
+            for (int scale : {50,59,65})
+            {
+                const UINT nw=1920,nh=1080,ww=nw*scale/100,wh=nh*scale/100;
+                DlssNrConstants c{};c.Mode=28;c.Width=ww;c.Height=wh;c.ResidualHistoryValid=1;
+                c.ResidualScale=1.2f;c.ResidualBlend=0.015f;c.ResidualConfidenceSensitivity=1.0f;
+                c.DirectResolveFlags=16|64|128;
+                const float rx=float(ww)/nw,ry=float(wh)/nh;
+                std::memcpy(&c.ResidualMotionBaseX,&rx,4);std::memcpy(&c.ResidualMotionBaseY,&ry,4);
+                if (scale!=50)c.DirectResolveFlags|=2048;
+                if (scale==65)c.DirectResolveFlags|=8192;
+                auto* a=scale==50?previous.Get():scale==59?previous20.Get():previous16.Get();
+                auto* b=scale==50?current.Get():scale==59?rgb20.Get():rgb16.Get();
+                double ms;
+                runner.run(a,nw,nh,ww,wh,c,0,true,8,0,0,&ms);
+                runner.run(b,nw,nh,ww,wh,c,0,true,8,0,0,&ms);
+                for (int block=0;block<3;++block) for (int k : {0,1,1,0})
+                {
+                    runner.run(k?b:a,nw,nh,ww,wh,c,0,true,8,0,0,&ms);
+                    out << scale << ',' << (k?"v17":"previous") << ',' << block << ',' << ms << '\n';
+                }
+            }
+            out.flush();
+            if (!out) throw std::runtime_error("Timing CSV write failed");
+            return 0;
+        }
+        UINT64 checked = 0; unsigned fixtures = 0;
+        for (auto dims : {std::pair<UINT,UINT>{65,37},{127,73},{17,11},{64,40}})
+        for (int scale : {25,40,50,51,55,59,60,61,65,90,95,99})
+        for (int stress = 0; stress < 4; ++stress)
+        for (float guide : {0.35f, 1.0f})
+        for (bool half : {false, true})
+        for (int variant = 0; variant < 6; ++variant) {
+            UINT nw=dims.first,nh=dims.second,ww=std::max(1u,nw*scale/100),wh=std::max(1u,nh*scale/100);
+            DlssNrConstants c{};c.Mode=variant<2?27:28;c.Width=variant<2?nw:ww;c.Height=variant<2?nh:wh;
+            c.ResidualHistoryValid=1;c.ResidualScale=0.7f;c.ResidualBlend=stress==2?0.00001f:0.2f;
+            c.ResidualConfidenceSensitivity=guide;
+            c.DirectDetailMode=ww;c.DirectResolveUpscaler=wh;
+            float rx=float(ww)/nw,ry=float(wh)/nh;
+            std::memcpy(&c.ResidualMotionBaseX,&rx,4);std::memcpy(&c.ResidualMotionBaseY,&ry,4);
+            c.DirectResolveFlags=(variant==0 || variant==2)?0:16|64|128;
+            if (variant==1)c.DirectResolveFlags|=1024;
+            if (variant>=4)c.DirectResolveFlags|=2048;
+            if (stress==1 && c.DirectResolveFlags){c.DirectResolveFlags|=32;c.MvScaleX=1.37f;}
+            if (stress==3){c.GuideWidth=1;c.MvScaleX=1.13f;c.MvScaleY=0.71f;}
+            if (stress==2){
+                c.GuideHeight=1;float low=0.02f,high=0.08f,floor=0.15f;
+                std::memcpy(&c.ExposureSourceWidth,&low,4);std::memcpy(&c.ExposureSourceHeight,&high,4);
                 std::memcpy(&c.ExposurePadding,&floor,4);
             }
-            auto ref20=runner.run(psos[1].Get(),nw,nh,ww,wh,c,stress,half);
-            auto ref16=runner.run(psos[0].Get(),nw,nh,ww,wh,c,stress,half);
-            for (int i=2;i<9;++i) {
-                if (guide!=1.0f && (i==3 || i==4 || i==7 || i==8)) continue;
-                auto actual=runner.run(psos[i].Get(),nw,nh,ww,wh,c,stress,half);
-                // Scale25 forces the common Mode28 fallback; it is outside CPU
-                // eligibility. Compare its v10 math to the matching v13 reference,
-                // not to the older v9 fallback with different compiler branching.
-                const auto& expected=(i<5 || scale==25)?ref16:ref20;
-                for (size_t k=0;k<actual.size();++k) if (actual[k]!=expected[k]) {
-                    // NaN payloads are not image values; alpha must otherwise match bitwise.
-                    bool nanA=(actual[k]&0x7fffffff)>0x7f800000, nanB=(expected[k]&0x7fffffff)>0x7f800000;
-                    if (!half && nanA && nanB) continue;
-                    if (half) {
-                        bool equal=true;
-                        for (int shift:{0,16}) {
-                            uint32_t a=(actual[k]>>shift)&0xffff, b=(expected[k]>>shift)&0xffff;
-                            if (a!=b && !((a&0x7fff)>0x7c00 && (b&0x7fff)>0x7c00)) equal=false;
-                        }
-                        if (equal) continue;
+            auto* a=variant==4?rgb16.Get():variant==5?rgb20.Get():current.Get();
+            auto* b=variant==4?previous16.Get():variant==5?previous20.Get():previous.Get();
+            auto actual=runner.run(a,nw,nh,c.Width,c.Height,c,stress,half,8,ww,wh);
+            auto expected=runner.run(b,nw,nh,c.Width,c.Height,c,stress,half,8,ww,wh);
+            for (size_t k=0;k<actual.size();++k) if (actual[k]!=expected[k]) {
+                bool equal=true;
+                if (half) {
+                    for (int shift:{0,16}) {
+                        uint32_t x=(actual[k]>>shift)&0xffff,y=(expected[k]>>shift)&0xffff;
+                        if (x!=y && !((x&0x7fff)>0x7c00 && (y&0x7fff)>0x7c00))equal=false;
                     }
-                    std::cerr << names[i] << " mismatch scale="<<scale<<" stress="<<stress<<" component="<<k
-                              <<" expected=0x"<<std::hex<<expected[k]<<" actual=0x"<<actual[k]<<std::dec<<"\n";
-                    return 1;
-                }
-                checked+=actual.size()*(half?2:1); ++fixtures;
+                } else equal=(actual[k]&0x7fffffff)>0x7f800000 && (expected[k]&0x7fffffff)>0x7f800000;
+                if (!equal){std::cerr<<"Mismatch variant="<<variant<<" scale="<<scale<<" stress="<<stress
+                    <<" half="<<half<<" component="<<k<<" expected="<<std::hex<<expected[k]<<" actual="<<actual[k]<<"\n";return 1;}
             }
+            checked+=actual.size()*(half?2:1);++fixtures;
         }
-        std::cout<<"Compiled DXIL parity PASS: "<<fixtures<<" comparisons, "<<checked<<" RGBA components\n";
+        std::cout<<"Retained inter-pass compiled parity PASS: "<<fixtures<<" comparisons, "<<checked<<" RGBA components\n";
         return 0;
-    } catch (const std::exception& e) { std::cerr<<e.what()<<"\n"; return 1; }
+    } catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}
 }

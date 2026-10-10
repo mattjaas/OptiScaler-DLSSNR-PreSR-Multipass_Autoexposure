@@ -565,54 +565,8 @@ class Config
     // Sequential layers with independent histories; up to 30 when unlocked.
     CustomOptional<uint32_t> DlssNrPasses { 1 };
     // Between-pass reconstruction only changes the input to the next NR feature. Final transfer stays independent.
-    // 0 Off, 1 P100-guided -> P100 -> working-res, 2 P100-guided fused -> working-res.
+    // 0 Off, 1 P100-guided -> P100 -> working-res, 2 P100-guided fused -> working-res, 3 Optimized (automatic path).
     CustomOptional<uint32_t> DlssNrInterPassReconstruction { 0 };
-    // Optional faster shader implementation of the SAME P100-guided inter-pass reconstruction.
-    // False = original reference; true = optimized shared-tap fused P50 Area path and cheaper weights.
-    CustomOptional<bool> DlssNrInterPassExactOptimized { false };
-    // v2 P50/Area/radius=1 exact-stencil specialization; ON by default for optimized inter-pass.
-    // Preserving the v1 path as a controllable A/B reference for GPU timing and image inspection.
-    CustomOptional<bool> DlssNrInterPassSharedBilinear { true };
-    // Extend fused Area guided/bilinear reuse to any working scale (including P66).
-    // Cached geometry scalars update only when actual native/model dimensions change.
-    // OFF retains v2 as the A/B performance and quality reference.
-    CustomOptional<bool> DlssNrInterPassDynamicSharedTaps { true };
-    // v4: reuse overlapping P100 radius-one source stencils between adjacent
-    // native texels in the fused Area reducer. OFF retains the v3 A/B path.
-    CustomOptional<bool> DlssNrInterPassPairedArea { false }; // v4 slower at measured P65; opt-in only.
-    // v5 classical P100->working path: local downsample + ClampProxy in one dispatch.
-    // OFF retains the exact old two-dispatch classical path for A/B testing.
-    CustomOptional<bool> DlssNrInterPassDownsampleClamp { true };
-    // v6 classic P100-guided radius-one: reuse the 3x3 stencil for both
-    // bilateral and bilinear, without the v4 cross-pixel register pressure.
-    // A/B OFF is the previous v5 P100-guided shader.
-    CustomOptional<bool> DlssNrInterPassClassicSharedStencil { true };
-    // v7 experimental: cooperatively reconstruct each native P100 texel once
-    // per 8x8 working output tile in Fused Area. OFF keeps v3/v4 path.
-    CustomOptional<bool> DlssNrInterPassTiledFusedArea { false };
-    // Independent experimental A/B controls for v8 tiled Fused (v7.1 remains OFF/OFF).
-    CustomOptional<bool> DlssNrInterPassTiledStridedLoads { false };
-    CustomOptional<bool> DlssNrInterPassTiledCompact16 { false };
-    // v9: independent A/B controls. Compacted tiles no longer require Strided.
-    CustomOptional<bool> DlssNrInterPassV9Weights { false };
-    CustomOptional<bool> DlssNrInterPassV9SourceCache { false };
-    // v11 isolated fast-path experiments; never enabled by default.
-    CustomOptional<bool> DlssNrInterPassV11Spatial { false };
-    CustomOptional<bool> DlssNrInterPassV11QuadFill { false };
-    // v12: independent 3x3 source-addressing experiments, default disabled.
-    CustomOptional<bool> DlssNrInterPassV12Interior { false };
-    CustomOptional<bool> DlssNrInterPassV12Axes { false };
-    // v13: isolated bounded Area integration on the v10 weights reference.
-    CustomOptional<bool> DlssNrInterPassV13Area { false };
-    CustomOptional<bool> DlssNrInterPassV13Mode28 { false };
-    CustomOptional<bool> DlssNrInterPassV14GuideOne { false };
-    CustomOptional<bool> DlssNrInterPassV14Linear20 { false };
-    CustomOptional<bool> DlssNrInterPassV14RgbTile { false };
-    CustomOptional<bool> DlssNrInterPassV16WideTile { false };
-    CustomOptional<bool> DlssNrInterPassV16PairLoads { false };
-    CustomOptional<bool> DlssNrInterPassV16LowShader { false };
-
-
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
     CustomOptional<float> DlssNrReplaceDetailStrength { 0.0f };

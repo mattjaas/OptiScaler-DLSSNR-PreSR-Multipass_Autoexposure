@@ -1,4 +1,4 @@
-name: Build NR v16 wide tiles paired loads and Mode18
+name: Build NR v17 automatic inter-pass optimized
 
 on:
   push:
@@ -9,64 +9,27 @@ on:
       - OptiScaler/Config.h
       - OptiScaler/Config.cpp
       - OptiScaler.ini
-      - OptiScaler/dlssnr/PassProfiles.h
-      - OptiScaler/dlssnr/DlssNr_Menu.cpp
-      - OptiScaler/dlssnr/DlssNr_MenuControls.cpp
-      - OptiScaler/dlssnr/DlssNr_Status.h
-      - OptiScaler/dlssnr/DlssNr_Status.cpp
-      - OptiScaler/dlssnr/DlssNr_Benchmark.h
-      - OptiScaler/dlssnr/DlssNr_BenchmarkCases.h
-      - OptiScaler/dlssnr/DlssNr_AnalysisCapture.h
-      - OptiScaler/shaders/dlssnr/DlssNr_Common.h
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12.h
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12.h
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_DeferredSr.cpp
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Status.cpp
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_FinishedQueue.cpp
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_ModelState.h
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Resources.cpp
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_State.h
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Encode.cpp
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp
-      - OptiScaler/shaders/dlssnr/DlssNr_Dx12_Enlarge.cpp
-      - OptiScaler/shaders/dlssnr/DlssNr_Upscaler_Dx12.h
-      - OptiScaler/shaders/dlssnr/DlssNr_Upscaler_Dx12.cpp
-      - OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl
-      - tests/test_nr_interpass_shared_bilinear.py
-      - tests/test_nr_interpass_dynamic_geometry.py
-      - tests/test_nr_interpass_paired_area.py
-      - tests/test_nr_interpass_classic_downsample_clamp.py
-      - tests/test_nr_interpass_classic_guided_stencil.py
-      - tests/test_nr_interpass_tiled_fused_area.py
-      - tests/test_nr_interpass_tiled_v8.py
-      - tests/test_nr_interpass_v9.py
-      - tests/test_nr_interpass_v10.py
-      - tests/test_nr_interpass_v11.py
-      - tests/test_nr_interpass_v12.py
-      - tests/test_nr_interpass_v13.py
-      - tests/test_nr_interpass_v14.py
+      - OptiScaler/dlssnr/**
+      - OptiScaler/shaders/dlssnr/**
+      - tests/test_nr_interpass_*.py
       - tests/test_nr_benchmark_cases.py
       - tests/nr_gpu/**
-      - tools/compile_nr_v14.ps1
-      - tools/compile_nr_v16.ps1
-      - tests/test_nr_interpass_v16.py
-      - OptiScaler/shaders/dlssnr/precompile/dlssnr_v16_pair.hlsli
-      - OptiScaler/shaders/dlssnr/DlssNr_GpuTime.h
+      - tools/compile_nr_interpass.ps1
       - .github/workflows/build_nr_detail_quality_experiments.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v16-${{ github.ref }}
+  group: nr-interpass-v17-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: windows-latest
     steps:
-      - name: Checkout experiment branch
+      - name: Checkout task branch
         uses: actions/checkout@v6
         with:
           ref: ${{ github.sha }}
@@ -80,291 +43,73 @@ jobs:
           git submodule sync --recursive
           git submodule update --init --recursive --force
 
-      - name: Verify shared P50 bilateral / bilinear arithmetic
-        shell: powershell
-        run: python tests/test_nr_interpass_shared_bilinear.py
-
-      - name: Verify arbitrary Resolution P50-P97 guided and Area parity
-        shell: powershell
-        run: python tests/test_nr_interpass_dynamic_geometry.py
-
-      - name: Verify paired P100 Area guided reconstruction on 13 scales
-        shell: powershell
-        run: python tests/test_nr_interpass_paired_area.py
-
-      - name: Verify classical fused downsample-clamp FP16 and FP32 arithmetic
-        shell: powershell
-        run: python tests/test_nr_interpass_classic_downsample_clamp.py
-
-      - name: Verify v6 classical P100 guided stencil arithmetic
-        shell: powershell
-        run: python tests/test_nr_interpass_classic_guided_stencil.py
-
-      - name: Verify v7 tiled Fused Area parity and partial edge groups
-        shell: powershell
-        run: python tests/test_nr_interpass_tiled_fused_area.py
-
-      - name: Verify v8 strided mapping and compact tile geometry
-        shell: powershell
-        run: python tests/test_nr_interpass_tiled_v8.py
-
-      - name: Verify v9 shared source cache bounds and bilinear parity
-        shell: powershell
-        run: python tests/test_nr_interpass_v9.py
-
-      - name: Verify v10 compile-time isolation, P50/P65 cache footprints and test manifest
-        shell: powershell
-        run: python tests/test_nr_interpass_v10.py
-
-      - name: Verify v11 spatial-hoist math and non-overlapping quadrant fill
-        shell: powershell
-        run: python tests/test_nr_interpass_v11.py
-
-      - name: Verify v12 exact 3x3 address and Gaussian-distance parity
-        shell: powershell
-        run: python tests/test_nr_interpass_v12.py
-
-      - name: Verify v13 Area sample order, FP32 boundaries and config restoration
-        shell: powershell
-        run: python tests/test_nr_interpass_v13.py
-
-      - name: Rebuild NR detail experiment shader
+      - name: Verify retained arithmetic and benchmark
         shell: powershell
         run: |
-          Push-Location "OptiScaler/shaders/dlssnr/precompile"
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect "dlssnr.hlsl" -Fo "DlssNr_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "DlssNr_Shader.cso" "DlssNr_Shader.h" "DlssNr_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # Separate v7 PSO: ONLY this variant includes cooperative GPU tile memory.
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_Shader.cso" "dlssnr_tiled_Shader.h" "dlssnr_tiled_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # v8 variant 1: same 20x20 tile as v7.1, new 2D thread-strided fill.
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_STRIDED=1 -D DLSSNR_TILED_PITCH=20 "dlssnr.hlsl" -Fo "dlssnr_tiled_strided_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_strided_Shader.cso" "dlssnr_tiled_strided_Shader.h" "dlssnr_tiled_strided_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # v8 variant 2: 16x16 (4096B) when checked actual native/work ratio <= 5/3.
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_STRIDED=1 -D DLSSNR_TILED_PITCH=16 "dlssnr.hlsl" -Fo "dlssnr_tiled_compact_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_compact_Shader.cso" "dlssnr_tiled_compact_Shader.h" "dlssnr_tiled_compact_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # v9 independent Linear 16 and radius-one cached/weighted shaders.
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 "dlssnr.hlsl" -Fo "dlssnr_tiled_linear16_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_linear16_Shader.cso" "dlssnr_tiled_linear16_Shader.h" "dlssnr_tiled_linear16_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_V9=1 -D DLSSNR_TILED_PITCH=20 "dlssnr.hlsl" -Fo "dlssnr_tiled_v9_linear20_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v9_linear20_Shader.cso" "dlssnr_tiled_v9_linear20_Shader.h" "dlssnr_tiled_v9_linear20_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_V9=1 -D DLSSNR_TILED_PITCH=16 "dlssnr.hlsl" -Fo "dlssnr_tiled_v9_linear16_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v9_linear16_Shader.cso" "dlssnr_tiled_v9_linear16_Shader.h" "dlssnr_tiled_v9_linear16_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_V9=1 -D DLSSNR_TILED_STRIDED=1 -D DLSSNR_TILED_PITCH=20 "dlssnr.hlsl" -Fo "dlssnr_tiled_v9_strided20_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v9_strided20_Shader.cso" "dlssnr_tiled_v9_strided20_Shader.h" "dlssnr_tiled_v9_strided20_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_V9=1 -D DLSSNR_TILED_STRIDED=1 -D DLSSNR_TILED_PITCH=16 "dlssnr.hlsl" -Fo "dlssnr_tiled_v9_strided16_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v9_strided16_Shader.cso" "dlssnr_tiled_v9_strided16_Shader.h" "dlssnr_tiled_v9_strided16_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_CLASSIC_SOURCE_CACHE=1 "dlssnr.hlsl" -Fo "dlssnr_classic_cache_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_classic_cache_Shader.cso" "dlssnr_classic_cache_Shader.h" "dlssnr_classic_cache_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # v10: 16x16 LINEAR specialized PSOs: weights-only never declares source LDS.
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v10_weights_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v10_weights_Shader.cso" "dlssnr_tiled_v10_weights_Shader.h" "dlssnr_tiled_v10_weights_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_CACHE=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v10_cache_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v10_cache_Shader.cso" "dlssnr_tiled_v10_cache_Shader.h" "dlssnr_tiled_v10_cache_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V10_CACHE=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v10_both_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v10_both_Shader.cso" "dlssnr_tiled_v10_both_Shader.h" "dlssnr_tiled_v10_both_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $v10Hashes = @(
-            (Get-FileHash "dlssnr_tiled_linear16_Shader.cso" -Algorithm SHA256).Hash,
-            (Get-FileHash "dlssnr_tiled_v10_weights_Shader.cso" -Algorithm SHA256).Hash,
-            (Get-FileHash "dlssnr_tiled_v10_cache_Shader.cso" -Algorithm SHA256).Hash,
-            (Get-FileHash "dlssnr_tiled_v10_both_Shader.cso" -Algorithm SHA256).Hash
-          )
-          if (($v10Hashes | Sort-Object -Unique).Count -ne 4) { throw "v10 isolated variants must differ" }
-          Write-Host "v10 baseline/weights/cache/both DXIL SHA256: $v10Hashes"
-          # Classic v10: no dormant fallback/source-cache branch, FP32 RGB only.
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_CLASSIC_SOURCE_CACHE=1 -D DLSSNR_CLASSIC_CACHE_V10=1 "dlssnr.hlsl" -Fo "dlssnr_classic_v10_cache_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_classic_v10_cache_Shader.cso" "dlssnr_classic_v10_cache_Shader.h" "dlssnr_classic_v10_cache_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # v11: independent radius-one weights-only source cache OFF.
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V11_SPATIAL=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v11_spatial_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v11_spatial_Shader.cso" "dlssnr_tiled_v11_spatial_Shader.h" "dlssnr_tiled_v11_spatial_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V11_QUADFILL=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v11_quadfill_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v11_quadfill_Shader.cso" "dlssnr_tiled_v11_quadfill_Shader.h" "dlssnr_tiled_v11_quadfill_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V11_SPATIAL=1 -D DLSSNR_TILED_V11_QUADFILL=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v11_both_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v11_both_Shader.cso" "dlssnr_tiled_v11_both_Shader.h" "dlssnr_tiled_v11_both_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          # Catch dead-code variants that accidentally compile to the same DXIL.
-          $v11Hashes = @(
-            (Get-FileHash "dlssnr_tiled_v10_weights_Shader.cso" -Algorithm SHA256).Hash,
-            (Get-FileHash "dlssnr_tiled_v11_spatial_Shader.cso" -Algorithm SHA256).Hash,
-            (Get-FileHash "dlssnr_tiled_v11_quadfill_Shader.cso" -Algorithm SHA256).Hash,
-            (Get-FileHash "dlssnr_tiled_v11_both_Shader.cso" -Algorithm SHA256).Hash
-          )
-          if (($v11Hashes | Sort-Object -Unique).Count -ne 4) { throw "v11 variants must compile to unique DXIL" }
-          Write-Host "v10 weights / v11 spatial / quadfill / both DXIL SHA256: $v11Hashes"
-          # v12 independent 16x16 Linear + Weights PSOs: each combination is
-          # compiled separately; v10/v11, Classic and standard shader untouched.
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V12_INTERIOR=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v12_interior_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v12_interior_Shader.cso" "dlssnr_tiled_v12_interior_Shader.h" "dlssnr_tiled_v12_interior_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V12_AXES=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v12_axes_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v12_axes_Shader.cso" "dlssnr_tiled_v12_axes_Shader.h" "dlssnr_tiled_v12_axes_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V12_INTERIOR=1 -D DLSSNR_TILED_V12_AXES=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v12_both_Shader.cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v12_both_Shader.cso" "dlssnr_tiled_v12_both_Shader.h" "dlssnr_tiled_v12_both_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $v12Hashes = @(
-            (Get-FileHash "dlssnr_tiled_v10_weights_Shader.cso" -Algorithm SHA256).Hash,
-            (Get-FileHash "dlssnr_tiled_v12_interior_Shader.cso" -Algorithm SHA256).Hash,
-            (Get-FileHash "dlssnr_tiled_v12_axes_Shader.cso" -Algorithm SHA256).Hash,
-            (Get-FileHash "dlssnr_tiled_v12_both_Shader.cso" -Algorithm SHA256).Hash
-          )
-          if (($v12Hashes | Sort-Object -Unique).Count -ne 4) { throw "v12 variants must compile to unique DXIL" }
-          Write-Host "v10 weights/v12 interior/axes/both DXIL SHA256: $v12Hashes"
-          if ($v12Hashes[0] -ne "40C5297A43E201B0816E01E368A36913FC672638C5FBA0D67C069733A3923A4E") {
-            throw "v10 weights reference changed"
+          foreach ($test in @("shared_bilinear", "dynamic_geometry", "classic_downsample_clamp", "classic_guided_stencil", "tiled_fused_area")) {
+            python "tests/test_nr_interpass_${test}.py"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V13_AREA=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v13_area_Shader.cso"
+          python tests/test_nr_benchmark_cases.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v13_area_Shader.cso" "dlssnr_tiled_v13_area_Shader.h" "dlssnr_tiled_v13_area_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $v13Hash = (Get-FileHash "dlssnr_tiled_v13_area_Shader.cso" -Algorithm SHA256).Hash
-          if ($v12Hashes -contains $v13Hash) { throw "v13 Area must be a distinct DXIL" }
-          Write-Host "v13 bounded Area DXIL SHA256: $v13Hash"
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V13_MODE28=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v13_mode28_Shader.cso" -Fc "dlssnr_tiled_v13_mode28.asm"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v13_mode28_Shader.cso" "dlssnr_tiled_v13_mode28_Shader.h" "dlssnr_tiled_v13_mode28_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V13_MODE28=1 -D DLSSNR_TILED_V13_AREA=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v13_both_Shader.cso" -Fc "dlssnr_tiled_v13_both.asm"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v13_both_Shader.cso" "dlssnr_tiled_v13_both_Shader.h" "dlssnr_tiled_v13_both_cso"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $v13Hashes = @($v12Hashes[0], $v13Hash,
-            (Get-FileHash "dlssnr_tiled_v13_mode28_Shader.cso" -Algorithm SHA256).Hash,
-            (Get-FileHash "dlssnr_tiled_v13_both_Shader.cso" -Algorithm SHA256).Hash)
-          if (($v13Hashes | Sort-Object -Unique).Count -ne 4) { throw "v13 variants must compile to unique DXIL" }
-          foreach ($asm in @("dlssnr_tiled_v13_mode28.asm", "dlssnr_tiled_v13_both.asm")) {
-            $lds = @(Select-String -Path $asm -Pattern 'addrspace\(3\) global')
-            if ($lds.Count -ne 1 -or $lds[0].Line -notmatch '\[1024 x float\]') {
-              throw "Mode28 DXIL must retain only the 4 KiB corrected tile LDS"
-            }
-          }
-          Write-Host "v10/v13 Area/Mode28/Both DXIL SHA256: $v13Hashes"
-          # Detect accidental identical shader variants; the tiled shader must differ.
-          $mainHash = (Get-FileHash "DlssNr_Shader.cso" -Algorithm SHA256).Hash
-          $tileHash = (Get-FileHash "dlssnr_tiled_Shader.cso" -Algorithm SHA256).Hash
-          if ($mainHash -eq $tileHash) { throw "Tiled and normal shader binary are identical" }
-          if ($mainHash -ne "5599EE0B01FC50B9BEA4C2D02C8BFC1CE24287E9867DBC9FA0158DB883BAB9FC") {
-            throw "Standard NR shader regressed relative to proven v6.1/v8 DXIL"
-          }
-          $stridedHash = (Get-FileHash "dlssnr_tiled_strided_Shader.cso" -Algorithm SHA256).Hash
-          $compactHash = (Get-FileHash "dlssnr_tiled_compact_Shader.cso" -Algorithm SHA256).Hash
-          if ($tileHash -eq $stridedHash -or $stridedHash -eq $compactHash) {
-            throw "v8 compile variants must have distinct DXIL blobs"
-          }
-          Write-Host "Strided 20 DXIL SHA256: $stridedHash"
-          Write-Host "Compact 16 DXIL SHA256: $compactHash"
-          Write-Host "Normal DXIL SHA256: $mainHash"
-          Write-Host "Tiled DXIL SHA256: $tileHash"
-          Pop-Location
 
-      - name: Compile and validate seven isolated v14 PSOs
+      - name: Compile standard shader and two retained RGB PSOs
         shell: powershell
-        run: ./tools/compile_nr_v14.ps1
-
-      - name: Compile and validate v16 PSOs and routing
-        shell: powershell
-        run: |
-          ./tools/compile_nr_v16.ps1
-          python tests/test_nr_interpass_v16.py
-
-      - name: Verify v14 RGB arithmetic, exact guide-one blend and PSO routing
-        shell: powershell
-        run: python tests/test_nr_interpass_v14.py
-
-      - name: Verify short benchmark scales, baselines and active controls
-        shell: powershell
-        run: python tests/test_nr_benchmark_cases.py
+        run: ./tools/compile_nr_interpass.ps1
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Compile standalone DX12 parity fixture runner
+      - name: Run production policy tests and compile GPU parity fixture
         shell: powershell
         run: |
           $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           if (-not $vs) { throw "C++ toolchain missing" }
           $vcvars = Join-Path $vs "VC/Auxiliary/Build/vcvars64.bat"
-          New-Item -ItemType Directory -Force -Path artifacts/nr-v14 | Out-Null
-          cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/v16_parity.cpp /Fe:artifacts/nr-v14/v16_parity.exe /Fo:artifacts/nr-v14/v16_parity.obj /link d3d12.lib dxgi.lib"
+          New-Item -ItemType Directory -Force -Path artifacts/nr-v17 | Out-Null
+          cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/interpass_policy.cpp /Fe:artifacts/nr-v17/interpass_policy.exe /Fo:artifacts/nr-v17/interpass_policy.obj"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & ./artifacts/nr-v17/interpass_policy.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/interpass_parity.cpp /Fe:artifacts/nr-v17/interpass_parity.exe /Fo:artifacts/nr-v17/interpass_parity.obj /link d3d12.lib dxgi.lib"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v16-wide-pair-low-20261010"
+        run: ./package_release.ps1 -Version "nr-interpass-v17-auto-optimized-20261010"
 
-      - name: Upload test package
+      - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v15-short-benchmark-20261010
-          path: release/OptiScaler-NR-nr-interpass-v16-wide-pair-low-20261010.zip
+          name: OptiScaler-NR-interpass-v17-auto-optimized-20261010
+          path: release/OptiScaler-NR-nr-interpass-v17-auto-optimized-20261010.zip
           if-no-files-found: error
 
-      - name: Publish compiled ZIP as experimental GitHub Release (best effort)
-        continue-on-error: true # Repo Actions token may lack Releases write despite contents:write.
+      - name: Publish experimental GitHub Release
+        continue-on-error: true
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v16-wide-pair-low-20261010"
-          $archive = "release/OptiScaler-NR-nr-interpass-v16-wide-pair-low-20261010.zip"
-          if (-not (Test-Path $archive)) { throw "Release ZIP missing: $archive" }
+          $tag = "nr-interpass-v17-auto-optimized-20261010"
+          $archive = "release/OptiScaler-NR-nr-interpass-v17-auto-optimized-20261010.zip"
           $notes = @"
-          Inter-pass v16 from $env:GITHUB_SHA.
-          Independent 16x8 output tiles, register-local paired P100 reads and dedicated Mode18.
-          All new options OFF by default; same FP32 math, filter, shaping and original alpha.
-          Six tiled combinations plus a Mode18 PSO; earlier reference shaders retained.
-          Benchmark uses up to 17 cases at P50/P59/P65 with off/Fused baselines and v14 RGB controls.
-          Inactive Mode18 cases omitted; compares wide/pair separately and together.
-          Hardware parity passed on RTX 4090; in-game performance still requires measurement.
+          Automatic inter-pass optimized from $env:GITHUB_SHA.
+          Four UI modes: Off, Classic reference, Fused reference, Inter-pass optimized.
+          Actual dimensions select P50 fused or RGB20/RGB16; other settings use exact classic filters.
+          Slow experimental PSOs and switches removed; only two lazy RGB PSOs retained.
+          Verification: P50/P59/P65 plus current percentage when different, references and ABBA automatic/control.
+          Hardware bitwise parity passed on RTX 4090. New in-game timing must be measured with this benchmark.
           "@
-          # Windows PowerShell 5 treats native stderr as a terminating error
-          # under Stop, including the expected "release not found" response.
           $ErrorActionPreference = "Continue"
           gh release view $tag --json id 1>$null 2>$null
-          $releaseExists = $LASTEXITCODE -eq 0
+          $exists = $LASTEXITCODE -eq 0
           $ErrorActionPreference = "Stop"
-          if ($releaseExists) {
+          if ($exists) {
             gh release upload $tag $archive --clobber
-            if ($LASTEXITCODE -ne 0) { throw "Release archive replacement failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v16 - wide tiles paired loads and Mode18" --notes $notes --prerelease
-            if ($LASTEXITCODE -ne 0) { throw "Release update failed" }
+            if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v17 - automatic inter-pass optimized" --notes $notes --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v16 - wide tiles paired loads and Mode18" --notes $notes --prerelease
-            if ($LASTEXITCODE -ne 0) { throw "Release creation failed" }
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v17 - automatic inter-pass optimized" --notes $notes --prerelease
           }
+          if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

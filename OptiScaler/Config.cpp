@@ -523,30 +523,12 @@ bool Config::Reload(std::filesystem::path iniPath)
             else
                 DlssNrScalingDownscaler.reset();
             DlssNrPasses.set_from_config(readUInt("DlssNr", "Passes"));
-            DlssNrInterPassReconstruction.set_from_config(readUInt("DlssNr", "InterPassReconstruction"));
-            DlssNrInterPassExactOptimized.set_from_config(readBool("DlssNr", "InterPassExactOptimized"));
-            DlssNrInterPassSharedBilinear.set_from_config(readBool("DlssNr", "InterPassSharedBilinear"));
-            DlssNrInterPassDynamicSharedTaps.set_from_config(readBool("DlssNr", "InterPassDynamicSharedTaps"));
-            DlssNrInterPassPairedArea.set_from_config(readBool("DlssNr", "InterPassPairedArea"));
-            DlssNrInterPassDownsampleClamp.set_from_config(readBool("DlssNr", "InterPassDownsampleClamp"));
-            DlssNrInterPassClassicSharedStencil.set_from_config(readBool("DlssNr", "InterPassClassicSharedStencil"));
-            DlssNrInterPassTiledFusedArea.set_from_config(readBool("DlssNr", "InterPassTiledFusedArea"));
-            DlssNrInterPassTiledStridedLoads.set_from_config(readBool("DlssNr", "InterPassTiledStridedLoads"));
-            DlssNrInterPassTiledCompact16.set_from_config(readBool("DlssNr", "InterPassTiledCompact16"));
-            DlssNrInterPassV9Weights.set_from_config(readBool("DlssNr", "InterPassV9Weights"));
-            DlssNrInterPassV9SourceCache.set_from_config(readBool("DlssNr", "InterPassV9SourceCache"));
-            DlssNrInterPassV11Spatial.set_from_config(readBool("DlssNr", "InterPassV11Spatial"));
-            DlssNrInterPassV11QuadFill.set_from_config(readBool("DlssNr", "InterPassV11QuadFill"));
-            DlssNrInterPassV12Interior.set_from_config(readBool("DlssNr", "InterPassV12Interior"));
-            DlssNrInterPassV12Axes.set_from_config(readBool("DlssNr", "InterPassV12Axes"));
-            DlssNrInterPassV13Area.set_from_config(readBool("DlssNr", "InterPassV13Area"));
-            DlssNrInterPassV13Mode28.set_from_config(readBool("DlssNr", "InterPassV13Mode28"));
-            DlssNrInterPassV14GuideOne.set_from_config(readBool("DlssNr", "InterPassV14GuideOne"));
-            DlssNrInterPassV14Linear20.set_from_config(readBool("DlssNr", "InterPassV14Linear20"));
-            DlssNrInterPassV16WideTile.set_from_config(readBool("DlssNr", "InterPassV16WideTile"));
-            DlssNrInterPassV16PairLoads.set_from_config(readBool("DlssNr", "InterPassV16PairLoads"));
-            DlssNrInterPassV16LowShader.set_from_config(readBool("DlssNr", "InterPassV16LowShader"));
-            DlssNrInterPassV14RgbTile.set_from_config(readBool("DlssNr", "InterPassV14RgbTile"));
+            // Migrate old optimized selections once; removed experiment keys are not runtime controls.
+            auto interPassMode = readUInt("DlssNr", "InterPassReconstruction");
+            if (readBool("DlssNr", "InterPassExactOptimized").value_or(false) &&
+                interPassMode.value_or(0u) > 0u && interPassMode.value_or(0u) < 3u)
+                interPassMode = 3u;
+            DlssNrInterPassReconstruction.set_from_config(interPassMode);
             DlssNrWhitePointScale.set_from_config(readFloat("DlssNr", "WhitePointScale"));
             DlssNrReplaceDetailStrength.set_from_config(readFloat("DlssNr", "ReplaceDetailStrength"));
             DlssNrResidualConfidenceSensitivity.set_from_config(readFloat("DlssNr", "ResidualConfidenceSensitivity"));
@@ -1713,52 +1695,12 @@ bool Config::SaveIni(std::filesystem::path destination)
         ini.SetValue("DlssNr", "Passes", GetIntValue(Instance()->DlssNrPasses.value_for_config()).c_str());
         ini.SetValue("DlssNr", "InterPassReconstruction",
                      GetIntValue(Instance()->DlssNrInterPassReconstruction.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassExactOptimized",
-                     GetBoolValue(Instance()->DlssNrInterPassExactOptimized.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassSharedBilinear",
-                     GetBoolValue(Instance()->DlssNrInterPassSharedBilinear.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassDynamicSharedTaps",
-                     GetBoolValue(Instance()->DlssNrInterPassDynamicSharedTaps.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassPairedArea",
-                     GetBoolValue(Instance()->DlssNrInterPassPairedArea.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassDownsampleClamp",
-                     GetBoolValue(Instance()->DlssNrInterPassDownsampleClamp.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassClassicSharedStencil",
-                     GetBoolValue(Instance()->DlssNrInterPassClassicSharedStencil.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassTiledFusedArea",
-                     GetBoolValue(Instance()->DlssNrInterPassTiledFusedArea.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassTiledStridedLoads",
-                     GetBoolValue(Instance()->DlssNrInterPassTiledStridedLoads.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassTiledCompact16",
-                     GetBoolValue(Instance()->DlssNrInterPassTiledCompact16.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV9Weights",
-                     GetBoolValue(Instance()->DlssNrInterPassV9Weights.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV9SourceCache",
-                     GetBoolValue(Instance()->DlssNrInterPassV9SourceCache.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV11Spatial",
-                     GetBoolValue(Instance()->DlssNrInterPassV11Spatial.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV11QuadFill",
-                     GetBoolValue(Instance()->DlssNrInterPassV11QuadFill.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV12Interior",
-                     GetBoolValue(Instance()->DlssNrInterPassV12Interior.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV12Axes",
-                     GetBoolValue(Instance()->DlssNrInterPassV12Axes.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV13Area",
-                     GetBoolValue(Instance()->DlssNrInterPassV13Area.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV16WideTile",
-                     GetBoolValue(Instance()->DlssNrInterPassV16WideTile.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV16PairLoads",
-                     GetBoolValue(Instance()->DlssNrInterPassV16PairLoads.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV16LowShader",
-                     GetBoolValue(Instance()->DlssNrInterPassV16LowShader.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV14RgbTile",
-                     GetBoolValue(Instance()->DlssNrInterPassV14RgbTile.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV14Linear20",
-                     GetBoolValue(Instance()->DlssNrInterPassV14Linear20.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV14GuideOne",
-                     GetBoolValue(Instance()->DlssNrInterPassV14GuideOne.value_for_config()).c_str());
-        ini.SetValue("DlssNr", "InterPassV13Mode28",
-                     GetBoolValue(Instance()->DlssNrInterPassV13Mode28.value_for_config()).c_str());
+        CSimpleIniA::TNamesDepend interPassKeys;
+        ini.GetAllKeys("DlssNr", interPassKeys);
+        for (const auto& key : interPassKeys)
+            if (std::strncmp(key.pItem, "InterPass", 9) == 0 &&
+                std::strcmp(key.pItem, "InterPassReconstruction") != 0)
+                ini.DeleteValue("DlssNr", key.pItem, nullptr);
         ini.SetValue("DlssNr", "ReplaceDetailStrength",
                      GetFloatValue(Instance()->DlssNrReplaceDetailStrength.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ResidualConfidenceSensitivity",

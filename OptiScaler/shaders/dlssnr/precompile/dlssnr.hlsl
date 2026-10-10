@@ -1,5 +1,5 @@
 
-#ifdef VK_MODE
+#if defined(VK_MODE)
 [[vk::binding(0, 0)]]
 cbuffer Params : register(b0, space0)
 #else
@@ -48,10 +48,7 @@ cbuffer Params : register(b0)
     uint gDirectResolveFlags;
 };
 
-#ifdef DLSSNR_V16_MODE18
-#define gMode 18u
-#endif
-#ifdef DLSSNR_TILED_V13_MODE28
+#if defined(DLSSNR_INTERPASS_MODE28)
 // Isolated PSO selected only for Mode 28. Keep the constant-buffer layout
 // unchanged, but let DXC eliminate unrelated modes and their groupshared
 // reductions. The complete Mode 28 fallback remains available.
@@ -60,21 +57,9 @@ cbuffer Params : register(b0)
 
 float3 InterPassGuideBlend(float3 bilinear, float3 guided, float strength)
 {
-#ifdef DLSSNR_TILED_V14_GUIDE_ONE
-    // Even precise (guided-bilinear)+bilinear differed by one ULP on RTX 4090.
-    // Retain the EXACT runtime lerp expression and driver contraction behavior.
-    // Only eligibility branches below are specialized, never the blend math.
-    return lerp(bilinear, guided, saturate(gResidualConfidenceUnused));
-#else
     return lerp(bilinear, guided, strength);
-#endif
 }
 
-#ifdef DLSSNR_TILED_V14_GUIDE_ONE
-// Defined AFTER the blend helper so its cbuffer read and arithmetic survive.
-// CPU requires exactly 1; only branches outside that helper see a constant.
-#define gResidualConfidenceUnused 1.0
-#endif
 
 // Hue-preserving gamut compression toward the D65 neutral axis.
 // Adapted from clshortfuse/RenoDX (https://github.com/clshortfuse/renodx).
@@ -244,36 +229,36 @@ float3 HueOkLab(float3 incorrect, float3 correct)
 // files, so b0 and t0 do not collide; Vulkan has one number line per descriptor set, and dxc's default
 // mapping would put both at binding 0. The numbers below are the order the pass binds them in, and
 // DlssNr_Vk's descriptor set layout has to agree with them entry for entry.
-#ifdef VK_MODE
+#if defined(VK_MODE)
 [[vk::binding(1, 0)]]
 #endif
 Texture2D<float4>   gSource   : register(t0);  // encode: the frame. resolve: the proxy.
-#ifdef VK_MODE
+#if defined(VK_MODE)
 [[vk::binding(2, 0)]]
 #endif
 Texture2D<float4>   gModel    : register(t1);  // resolve: what the model returned.
-#ifdef VK_MODE
+#if defined(VK_MODE)
 [[vk::binding(3, 0)]]
 #endif
 Texture2D<float4>   gOriginal : register(t2);  // resolve: the untouched frame.
-#ifdef VK_MODE
+#if defined(VK_MODE)
 [[vk::binding(4, 0)]]
 #endif
 Texture2D<float4>   gMotion   : register(t3);  // resolve, accumulating: the game's motion vectors.
-#ifndef VK_MODE
+#if !defined(VK_MODE)
 Texture2D<float4>   gAux      : register(t4);  // DX12 Direct NR: packed P50.rgb + NR retention gate.
 Texture2D<float4>   gAux2     : register(t5);  // DX12 Direct NR: selected full-resolution P50 reconstruction.
 #endif
 
-#ifdef VK_MODE
+#if defined(VK_MODE)
 [[vk::binding(5, 0)]]
 #endif
 RWTexture2D<float4> gTarget   : register(u0);  // encode: the proxy. resolve: the frame.
-#ifdef VK_MODE
+#if defined(VK_MODE)
 [[vk::binding(6, 0)]]
 #endif
 RWTexture2D<float4> gKeep     : register(u1);  // encode: the untouched copy. unused by the resolve.
-#ifdef VK_MODE
+#if defined(VK_MODE)
 [[vk::binding(7, 0)]]
 #endif
 SamplerState        gLinear   : register(s0);  // so the edit can be read at a different size
@@ -605,7 +590,7 @@ float3 CubeScaleResidual(float3 P, float3 T)
     return P + saturate(alpha) * d;
 }
 
-#ifndef VK_MODE
+#if !defined(VK_MODE)
 float DirectDetailGateAt(int2 p)
 {
     const int2 lo = int2(0, 0);
@@ -861,7 +846,7 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
 }
 
 
-#ifndef VK_MODE
+#if !defined(VK_MODE)
 // Faster formulation of the same positive-weight guided reconstruction. The reference
 // function above is deliberately kept unchanged for the OFF / A-B test path.
 // One exp2 of the sum replaces two exp2 and a multiply; only FP rounding differs.
@@ -911,7 +896,7 @@ float3 P100GuidedResidualAtOptimized(float2 uvq, float3 nativeGuide)
 }
 #endif
 
-#ifndef VK_MODE
+#if !defined(VK_MODE)
 // Apply identical frequency shaping and shadow confidence to a supplied guided edit.
 // Bit 5 skips the low field ONLY when low gain equals the high/mid gain exactly.
 float3 InterPassShapeEditAt(float3 guidedEditRaw, float2 uvq, float3 nativeGuide)
@@ -995,22 +980,7 @@ float4 InterPassCorrectedP100Bilinear(float2 uvq)
 // Off uses InterPassCorrectedP100Load as the original A/B reference.
 // v10 specialization is compile-time: disabled options have zero LDS and
 // no conditionals/register lifetime. v9 variants remain available as A/B control.
-#if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10_CACHE)
-    #if defined(DLSSNR_TILED_V10_CACHE)
-        // Native P65 8x8 workgroup reuses a <=16x16 working-space source union.
-        // Float3 retains full FP32 RGB while avoiding the original float4 cache.
-        static const uint kV9SourcePitch = 16u;
-        groupshared float3 gV9Source[16 * 16], gV9Model[16 * 16];
-    #else
-        static const uint kV9SourcePitch = 24u;
-        groupshared float4 gV9Source[24 * 24], gV9Model[24 * 24];
-    #endif
-#endif
-#if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10)
-float4 InterPassCorrectedP100LoadDynamicInternal(int2 p, bool v9Weights, bool v9Cache, int2 v9Origin)
-#else
 float4 InterPassCorrectedP100LoadDynamic(int2 p)
-#endif
 {
     uint nativeW, nativeH;
     gOriginal.GetDimensions(nativeW, nativeH);
@@ -1036,7 +1006,7 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
     float3 weighted = 0.0;
     float weightSum = 0.0;
     float3 bilinear = 0.0;
-#if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10_WEIGHTS)
+#if defined(DLSSNR_INTERPASS_WEIGHTS)
     const bool movedX = roundedBase.x != bilinearBase.x;
     const bool movedY = roundedBase.y != bilinearBase.y;
     const float3 weightsX = movedX ? float3(1.0 - fracPos.x, fracPos.x, 0.0)
@@ -1044,99 +1014,34 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
     const float3 weightsY = movedY ? float3(1.0 - fracPos.y, fracPos.y, 0.0)
                                    : float3(0.0, 1.0 - fracPos.y, fracPos.y);
 #endif
-#ifdef DLSSNR_TILED_V12_INTERIOR
-    // v12 isolated experiment A: one interior test per reconstructed native
-    // P100 pixel instead of nine unconditional clamp operations.
-    // At native border, retain EXACT v10 per-tap clamp semantics.
-    const bool v12Interior = all(roundedBase > int2(0, 0)) &&
-                             all(roundedBase < (int2(srcW, srcH) - int2(1, 1)));
-#endif
-#ifdef DLSSNR_TILED_V12_AXES
-    // v12 isolated experiment B: six scalar coordinate clamps replace nine
-    // 2D clamps; preserve the original (clamped) float2 for bilateral spatial
-    // distance and the original unclamped logical coordinate for bilinear taps.
-    // This is independent of the v11 spatial-distance hoist, which was neutral.
-    const int3 v12RawX = roundedBase.x + int3(-1, 0, 1);
-    const int3 v12RawY = roundedBase.y + int3(-1, 0, 1);
-    #ifdef DLSSNR_TILED_V12_INTERIOR
-        const int3 v12SampleX = v12Interior ? v12RawX :
-                                  clamp(v12RawX, 0, (int)srcW - 1);
-        const int3 v12SampleY = v12Interior ? v12RawY :
-                                  clamp(v12RawY, 0, (int)srcH - 1);
-    #else
-        const int3 v12SampleX = clamp(v12RawX, 0, (int)srcW - 1);
-        const int3 v12SampleY = clamp(v12RawY, 0, (int)srcH - 1);
-    #endif
-#endif
-#ifdef DLSSNR_TILED_V11_SPATIAL
-    // v11 isolated A/B: each clamped component is shared by three 3x3 taps.
-    // Keep the original dot(float2,float2) and exp2 expression/order.
-    // Only eliminate duplicate int->float conversion and coordinate subtraction.
-    // Weights, range guidance, spatial geometry and border clamping are unchanged.
-    const int3 sx = clamp(roundedBase.x + int3(-1, 0, 1), 0, (int)srcW - 1);
-    const int3 sy = clamp(roundedBase.y + int3(-1, 0, 1), 0, (int)srcH - 1);
-    const float3 spatialDeltaX = float3(sx) - sourcePos.x;
-    const float3 spatialDeltaY = float3(sy) - sourcePos.y;
-#endif
     [unroll] for (int oy = -1; oy <= 1; ++oy)
     {
         [unroll] for (int ox = -1; ox <= 1; ++ox)
         {
             const int2 logical = roundedBase + int2(ox, oy);
-#if defined(DLSSNR_TILED_V12_AXES)
-            const int2 coord = int2(v12SampleX[ox + 1], v12SampleY[oy + 1]);
-#elif defined(DLSSNR_TILED_V12_INTERIOR)
-            const int2 coord = v12Interior ? logical :
-                                 clamp(logical, int2(0, 0),
-                                       int2((int) srcW - 1, (int) srcH - 1));
-#else
             const int2 coord = clamp(logical, int2(0, 0),
                                      int2((int) srcW - 1, (int) srcH - 1));
-#endif
-#if defined(DLSSNR_TILED_V10_CACHE)
-            const int2 localCache = coord - v9Origin;
-            const uint cacheIndex = localCache.y * kV9SourcePitch + localCache.x;
-            const float3 proxyCandidate = gV9Source[cacheIndex];
-            const float3 modelCandidate = gV9Model[cacheIndex];
-            const float3 residual = modelCandidate - proxyCandidate;
-#elif defined(DLSSNR_TILED_V9)
-            const int2 localCache = coord - v9Origin;
-            const float3 proxyCandidate = v9Cache
-                ? gV9Source[localCache.y * kV9SourcePitch + localCache.x].rgb
-                : gSource.Load(int3(coord, 0)).rgb;
-            const float3 modelCandidate = v9Cache
-                ? gV9Model[localCache.y * kV9SourcePitch + localCache.x].rgb
-                : gModel.Load(int3(coord, 0)).rgb;
-            const float3 residual = modelCandidate - proxyCandidate;
-#else
             const float3 proxyCandidate = gSource.Load(int3(coord, 0)).rgb;
             const float3 residual = gModel.Load(int3(coord, 0)).rgb - proxyCandidate;
-#endif
 
             // Use UNCLAMPED logical texel positions for bilinear membership;
             // otherwise a duplicated clamped edge texel would be added twice.
             // Samples themselves are clamped in exactly the same way as the
             // texture's linear CLAMP sampler.
-#if !defined(DLSSNR_TILED_V10_WEIGHTS)
+#if !defined(DLSSNR_INTERPASS_WEIGHTS)
             const float wx = logical.x == bilinearBase.x ? 1.0 - fracPos.x :
                              (logical.x == bilinearBase.x + 1 ? fracPos.x : 0.0);
             const float wy = logical.y == bilinearBase.y ? 1.0 - fracPos.y :
                              (logical.y == bilinearBase.y + 1 ? fracPos.y : 0.0);
 #endif
-#if defined(DLSSNR_TILED_V10_WEIGHTS)
+#if defined(DLSSNR_INTERPASS_WEIGHTS)
             bilinear += residual * (weightsX[ox + 1] * weightsY[oy + 1]);
-#elif defined(DLSSNR_TILED_V9)
-            bilinear += residual * (v9Weights ? weightsX[ox + 1] * weightsY[oy + 1] : wx * wy);
 #else
             bilinear += residual * (wx * wy);
 #endif
 
             const float3 delta = proxyCandidate - native.rgb;
-#ifdef DLSSNR_TILED_V11_SPATIAL
-            const float2 deltaSpatial = float2(spatialDeltaX[ox + 1], spatialDeltaY[oy + 1]);
-#else
             const float2 deltaSpatial = float2(coord) - sourcePos;
-#endif
             const float w = exp2(-(dot(delta, delta) * rangeFactor +
                                    dot(deltaSpatial, deltaSpatial) * spatialFactor));
             weighted += residual * w;
@@ -1148,137 +1053,9 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
     const float3 edit = InterPassShapeEditAt(editRaw, uvq, native.rgb);
     return float4(SanitizeFinite3(native.rgb + edit, native.rgb), native.a);
 }
-#include "dlssnr_v16_pair.hlsli"
-
-#if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10)
-float4 InterPassCorrectedP100LoadDynamic(int2 p)
-{
-    return InterPassCorrectedP100LoadDynamicInternal(p, false, false, int2(0, 0));
-}
-#endif
-
- // v4: adjacent P100 texels in the same Area output row have overlapping
- // radius-one guided/bilinear stencils at arbitrary Resolution. Evaluate both
- // guided edits while loading every texel of their UNION only once. The
- // per-native colour guides, Gaussian weights, bilinear coefficients and
- // shaped edits remain independent, as in v3.
-void InterPassCorrectedDynamicPair(int2 p0, out float4 result0, out float4 result1)
-{
-    uint nativeW, nativeH, srcW, srcH;
-    gOriginal.GetDimensions(nativeW, nativeH);
-    gSource.GetDimensions(srcW, srcH);
-
-    const int2 p1 = p0 + int2(1, 0);
-    const float4 native0 = gOriginal.Load(int3(p0, 0));
-    const float4 native1 = gOriginal.Load(int3(p1, 0));
-    const float2 invNative = rcp(float2(nativeW, nativeH));
-    const float2 uv0 = (float2(p0) + 0.5) * invNative;
-    const float2 uv1 = (float2(p1) + 0.5) * invNative;
-    const float2 ratio = float2(asfloat(gResidualMotionBaseXUnused),
-                                asfloat(gResidualMotionBaseYUnused));
-    const float2 pos0 = (float2(p0) + 0.5) * ratio - 0.5;
-    const float2 pos1 = (float2(p1) + 0.5) * ratio - 0.5;
-
-    const int2 center0 = int2(floor(pos0 + 0.5));
-    const int2 center1 = int2(floor(pos1 + 0.5));
-    const int2 bilBase0 = int2(floor(pos0));
-    const int2 bilBase1 = int2(floor(pos1));
-    const float2 fraction0 = frac(pos0);
-    const float2 fraction1 = frac(pos1);
-    const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
-    const float spatialSigma = max(abs(gResidualScale), 1e-4);
-    const float rangeFactor = (0.7213475204444817 / 3.0) / (rangeSigma * rangeSigma);
-    const float spatialFactor = 0.7213475204444817 / (spatialSigma * spatialSigma);
-
-    float3 bilinear0 = 0.0, bilinear1 = 0.0;
-    float3 weighted0 = 0.0, weighted1 = 0.0;
-    float weightSum0 = 0.0, weightSum1 = 0.0;
-
-    // With ratio <= 1, two consecutive native texel centres advance no
-    // more than one source texel centre. The union is 3x3 or 4x3, NOT two
-    // independent 3x3 stencils. Do not clamp the logical positions before
-    // testing stencil/bilinear membership, including at the left/right edge.
-    const int minX = min(center0.x, center1.x) - 1;
-    const int maxX = max(center0.x, center1.x) + 1;
-    [loop] for (int dy = -1; dy <= 1; ++dy)
-    {
-        const int logicalY = center0.y + dy;
-        [loop] for (int logicalX = minX; logicalX <= maxX; ++logicalX)
-        {
-            const int2 logical = int2(logicalX, logicalY);
-            const int2 coord = clamp(logical, int2(0, 0),
-                                     int2((int)srcW - 1, (int)srcH - 1));
-            const float3 proxy = gSource.Load(int3(coord, 0)).rgb;
-            const float3 residual = gModel.Load(int3(coord, 0)).rgb - proxy;
-
-            if (abs(logicalX - center0.x) <= 1)
-            {
-                const float bx0 = logicalX == bilBase0.x ? 1.0 - fraction0.x :
-                                  (logicalX == bilBase0.x + 1 ? fraction0.x : 0.0);
-                const float by0 = logicalY == bilBase0.y ? 1.0 - fraction0.y :
-                                  (logicalY == bilBase0.y + 1 ? fraction0.y : 0.0);
-                bilinear0 += residual * (bx0 * by0);
-                const float3 colourDelta0 = proxy - native0.rgb;
-                const float2 spatialDelta0 = float2(coord) - pos0;
-                const float w0 = exp2(-(dot(colourDelta0, colourDelta0) * rangeFactor +
-                                        dot(spatialDelta0, spatialDelta0) * spatialFactor));
-                weighted0 += residual * w0;
-                weightSum0 += w0;
-            }
-            if (abs(logicalX - center1.x) <= 1)
-            {
-                const float bx1 = logicalX == bilBase1.x ? 1.0 - fraction1.x :
-                                  (logicalX == bilBase1.x + 1 ? fraction1.x : 0.0);
-                const float by1 = logicalY == bilBase1.y ? 1.0 - fraction1.y :
-                                  (logicalY == bilBase1.y + 1 ? fraction1.y : 0.0);
-                bilinear1 += residual * (bx1 * by1);
-                const float3 colourDelta1 = proxy - native1.rgb;
-                const float2 spatialDelta1 = float2(coord) - pos1;
-                const float w1 = exp2(-(dot(colourDelta1, colourDelta1) * rangeFactor +
-                                        dot(spatialDelta1, spatialDelta1) * spatialFactor));
-                weighted1 += residual * w1;
-                weightSum1 += w1;
-            }
-        }
-    }
-    const float guideStrength = saturate(gResidualConfidenceUnused);
-    const float3 guided0 = weightSum0 > 1e-8 ? weighted0 / weightSum0 : bilinear0;
-    const float3 guided1 = weightSum1 > 1e-8 ? weighted1 / weightSum1 : bilinear1;
-    const float3 edit0 = InterPassShapeEditAt(InterPassGuideBlend(bilinear0, guided0, guideStrength),
-                                              uv0, native0.rgb);
-    const float3 edit1 = InterPassShapeEditAt(InterPassGuideBlend(bilinear1, guided1, guideStrength),
-                                              uv1, native1.rgb);
-    result0 = float4(SanitizeFinite3(native0.rgb + edit0, native0.rgb), native0.a);
-    result1 = float4(SanitizeFinite3(native1.rgb + edit1, native1.rgb), native1.a);
-}
 
 
-// v6 classic inter-pass P100 reconstruction: one radius-one 3x3 source
-// stencil serves the guided bilateral estimator AND its bilinear fallback.
-//
-// Unlike the v4 paired-area experiment, each GPU thread owns exactly ONE
-// native P100 pixel. This keeps the register footprint small and preserves
-// the normal fullscreen P100 dispatch layout (no separate scratch/queue).
-// Precomputed working dimensions arrive through two otherwise-unused
-// parameters, avoiding GetDimensions inside each P100 thread. The original
-// geometry formula uvq * workingSize - 0.5 is retained exactly; in
-// particular, it does not substitute a rounded resolution percentage.
-//
-// Each bilinear logical sample has its own coordinate before border
-// clamping, so corner duplicates still receive the hardware CLAMP weights.
-// Every guided sample uses the CLAMPED texel position for its spatial
-// distance, just like the v1 exact-optimized reference.
-#ifdef DLSSNR_CLASSIC_SOURCE_CACHE
-static const uint kClassicCachePitch = 12u;
-#if defined(DLSSNR_CLASSIC_CACHE_V10)
-groupshared float3 gClassicSource[12 * 12], gClassicModel[12 * 12];
-#else
-groupshared float4 gClassicSource[12 * 12], gClassicModel[12 * 12];
-#endif
-float4 InterPassCorrectedClassicSharedStencilInternal(int2 nativeP, bool cacheOn, int2 origin)
-#else
 float4 InterPassCorrectedClassicSharedStencil(int2 nativeP)
-#endif
 {
     const float4 native = gOriginal.Load(int3(nativeP, 0));
     const float2 uvq = (float2(nativeP) + 0.5) / float2(gWidth, gHeight);
@@ -1319,24 +1096,8 @@ float4 InterPassCorrectedClassicSharedStencil(int2 nativeP)
         {
             const int sampleX = clamp(sourceBase.x + ox, 0, (int)srcW - 1);
             const int2 sampleP = int2(sampleX, sampleY);
-#ifdef DLSSNR_CLASSIC_SOURCE_CACHE
-            const int2 indexP = sampleP - origin;
-#if defined(DLSSNR_CLASSIC_CACHE_V10)
-            const float3 proxyCandidate = gClassicSource[indexP.y * kClassicCachePitch + indexP.x];
-            const float3 modelCandidate = gClassicModel[indexP.y * kClassicCachePitch + indexP.x];
-#else
-            const float3 proxyCandidate = cacheOn
-                ? gClassicSource[indexP.y * kClassicCachePitch + indexP.x].rgb
-                : gSource.Load(int3(sampleP, 0)).rgb;
-            const float3 modelCandidate = cacheOn
-                ? gClassicModel[indexP.y * kClassicCachePitch + indexP.x].rgb
-                : gModel.Load(int3(sampleP, 0)).rgb;
-#endif
-            const float3 residual = modelCandidate - proxyCandidate;
-#else
             const float3 proxyCandidate = gSource.Load(int3(sampleP, 0)).rgb;
             const float3 residual = gModel.Load(int3(sampleP, 0)).rgb - proxyCandidate;
-#endif
             bilinear += residual * (weightsX[ox + 1] * wy);
 
             const float3 colourDelta = proxyCandidate - native.rgb;
@@ -1355,47 +1116,6 @@ float4 InterPassCorrectedClassicSharedStencil(int2 nativeP)
     return float4(corrected, native.a);
 }
 
-#ifdef DLSSNR_CLASSIC_SOURCE_CACHE
-float4 InterPassCorrectedClassicSharedStencil(int2 p)
-{
-    return InterPassCorrectedClassicSharedStencilInternal(p, false, int2(0, 0));
-}
-// Native tile is 8x8, so the union of radius-one source taps fits in 12x12
-// for every working/native ratio <= 1. The group (including edge lanes)
-// uniformly preloads source AND model, then barriers before native reconstruction.
-bool InterPassClassicCacheFill(uint3 groupId, uint3 localId, out int2 origin)
-{
-    const uint2 begin = groupId.xy * 8u;
-    const uint2 end = min(begin + 8u, uint2(gWidth, gHeight));
-    origin = int2(0, 0);
-    const uint2 srcDim = uint2(gDirectDetailMode, gDirectResolveUpscaler);
-    if (any(begin >= end) || any(srcDim == 0u)) return false;
-    const float2 ratio = float2(srcDim) / float2(gWidth, gHeight);
-    const int2 firstBase = int2(floor((float2(begin) + 0.5) * ratio));
-    const int2 lastBase = int2(floor((float2(end - 1u) + 0.5) * ratio));
-    origin = clamp(firstBase - 2, int2(0, 0), int2(srcDim) - 1);
-    const int2 upper = clamp(lastBase + 2, int2(0, 0), int2(srcDim) - 1);
-    const int2 size = upper - origin + 1;
-    if (any(size <= 0) || any(size > 12)) return false;
-    const uint count = (uint)(size.x * size.y);
-    const uint lane = localId.y * 8u + localId.x;
-    [loop] for (uint n = lane; n < count; n += 64u)
-    {
-        const uint x = n % (uint)size.x, y = n / (uint)size.x;
-        const int2 p = origin + int2(x, y);
-        const uint offset = y * kClassicCachePitch + x;
-#if defined(DLSSNR_CLASSIC_CACHE_V10)
-        gClassicSource[offset] = gSource.Load(int3(p, 0)).rgb;
-        gClassicModel[offset] = gModel.Load(int3(p, 0)).rgb;
-#else
-        gClassicSource[offset] = gSource.Load(int3(p, 0));
-        gClassicModel[offset] = gModel.Load(int3(p, 0));
-#endif
-    }
-    GroupMemoryBarrierWithGroupSync();
-    return true;
-}
-#endif
 
  // Exact 2:1 P100->P50 Area case. All four P100 centres share the same
  // nearest P50 source texel and thus exactly the same (2*r+1)^2 source
@@ -2320,12 +2040,11 @@ float4 DownsampleMaybeClampProxy(float4 raw, bool fused)
 }
 
 
-// v7.1 isolation: build two independently compiled binaries from this source.
-// Default DXIL has NO cooperative tile, shared allocation or early condition.
-// Only the separately compiled -D DLSSNR_TILED_FUSED=1 binary owns v7 code.
-// Both binaries retain identical root-signature bindings and constants.
-#ifdef DLSSNR_TILED_FUSED
-// v7 experimental: share the *completed* native-P100 guided reconstructions
+// Only the two separately compiled RGB variants own the cooperative tile.
+// The standard shader has no inter-pass LDS allocation.
+// All variants retain identical root-signature bindings and constants.
+#if defined(DLSSNR_TILED_FUSED)
+// Share the completed native-P100 guided reconstructions
 // between all 8x8 working-resolution pixels in this compute thread group.
 //
 // The source footprint for 8 adjacent output texels at P50-P90 is at most
@@ -2337,37 +2056,22 @@ float4 DownsampleMaybeClampProxy(float4 raw, bool fused)
 //
 // Work per tile is (native guided samples in union) instead of
 // sum(native guided samples for every reduced output pixel).
-// Floating point original P100 edits and independent Area weights survive:
-// shared storage is float4, never FP16, so no extra early quantization.
-// Compile-time independent variants (no runtime branching on the GPU):
-//   legacy v7: 20x20, linear index with runtime modulo/division
-//   v8 strided: 20x20, 2D thread-strided fills
-//   v8 compact: 16x16, 2D fills; selected only on provably fitting scales
-#ifndef DLSSNR_TILED_PITCH
+// Shared RGB storage remains FP32; original alpha is loaded after integration.
+// Compile-time 16x16 or 20x20 pitch, selected only on provably fitting scales.
+#if !defined(DLSSNR_TILED_PITCH)
 #define DLSSNR_TILED_PITCH 20
 #endif
-#ifndef DLSSNR_TILE_HEIGHT
-#define DLSSNR_TILE_HEIGHT DLSSNR_TILED_PITCH
-#endif
-#ifndef DLSSNR_GROUP_X
-#define DLSSNR_GROUP_X 8
-#endif
 static const uint kInterPassTilePitch = DLSSNR_TILED_PITCH;
-#ifdef DLSSNR_TILED_V14_RGB
 #define DLSSNR_TILE_VALUE float3
 float3 InterPassTileValue(float4 value) { return value.rgb; }
-#else
-#define DLSSNR_TILE_VALUE float4
-float4 InterPassTileValue(float4 value) { return value; }
-#endif
-groupshared DLSSNR_TILE_VALUE gInterPassCorrectedTile[DLSSNR_TILED_PITCH * DLSSNR_TILE_HEIGHT];
+groupshared DLSSNR_TILE_VALUE gInterPassCorrectedTile[DLSSNR_TILED_PITCH * DLSSNR_TILED_PITCH];
 
 bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
 {
     uint nativeW, nativeH;
     gOriginal.GetDimensions(nativeW, nativeH);
-    const uint2 outBegin = groupId.xy * uint2(DLSSNR_GROUP_X, 8);
-    const uint2 outEnd = min(outBegin + uint2(DLSSNR_GROUP_X, 8), uint2(gWidth, gHeight));
+    const uint2 outBegin = groupId.xy * uint2(8, 8);
+    const uint2 outEnd = min(outBegin + uint2(8, 8), uint2(gWidth, gHeight));
     if (nativeW == 0u || nativeH == 0u || any(outBegin >= outEnd))
         return false;
 
@@ -2379,120 +2083,12 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
 
     // Uniform per-group guard: unexpected dimensions use the original Mode
     // 28 Area path rather than ever indexing outside groupshared memory.
-    if (any(tileSize <= 0) || any(tileSize > int2(kInterPassTilePitch, DLSSNR_TILE_HEIGHT)))
+    if (any(tileSize <= 0) || any(tileSize > int2(kInterPassTilePitch, DLSSNR_TILED_PITCH)))
         return false;
-#if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10)
-    int2 sourceOrigin = 0;
-    #if defined(DLSSNR_TILED_V10)
-        #if defined(DLSSNR_TILED_V10_CACHE)
-            static const bool useV9Cache = true;
-        #else
-            static const bool useV9Cache = false;
-        #endif
-        #if defined(DLSSNR_TILED_V10_WEIGHTS)
-            static const bool useV9Weights = true;
-        #else
-            static const bool useV9Weights = false;
-        #endif
-    #else
-        const bool useV9Cache = (gDirectResolveFlags & 32768u) != 0u;
-        const bool useV9Weights = (gDirectResolveFlags & 16384u) != 0u;
-    #endif
-#endif
-#if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10_CACHE)
-    if (useV9Cache)
-    {
-        uint srcW, srcH;
-        gSource.GetDimensions(srcW, srcH);
-        if (srcW == 0u || srcH == 0u) return false;
-        const float2 ratio = float2(asfloat(gResidualMotionBaseXUnused),
-                                     asfloat(gResidualMotionBaseYUnused));
-        const int2 firstBase = int2(floor((float2(first) + 0.5) * ratio));
-        const int2 lastBase = int2(floor((float2(limit - 1) + 0.5) * ratio));
-        sourceOrigin = clamp(firstBase - 2, int2(0, 0), int2(srcW, srcH) - 1);
-        const int2 sourceEnd = clamp(lastBase + 2, int2(0, 0), int2(srcW, srcH) - 1);
-        const int2 cacheSize = sourceEnd - sourceOrigin + 1;
-        if (any(cacheSize <= 0) || any(cacheSize > int2(kV9SourcePitch, kV9SourcePitch))) return false;
-        const uint count = (uint)(cacheSize.x * cacheSize.y);
-        const uint lane = localId.y * 8u + localId.x;
-        [loop] for (uint n = lane; n < count; n += 64u)
-        {
-            const uint sx = n % (uint)cacheSize.x;
-            const uint sy = n / (uint)cacheSize.x;
-            const int2 cp = sourceOrigin + int2(sx, sy);
-            const uint addr = sy * kV9SourcePitch + sx;
-#ifdef DLSSNR_TILED_V10_CACHE
-            gV9Source[addr] = gSource.Load(int3(cp, 0)).rgb;
-            gV9Model[addr] = gModel.Load(int3(cp, 0)).rgb;
-#else
-            gV9Source[addr] = gSource.Load(int3(cp, 0));
-            gV9Model[addr] = gModel.Load(int3(cp, 0));
-#endif
-        }
-        GroupMemoryBarrierWithGroupSync();
-    }
-#endif
-
-#ifdef DLSSNR_TILED_V16_PAIR
-    const uint pairsPerRow = ((uint)tileSize.x + 1u) / 2u;
-    const uint lane = localId.y * DLSSNR_GROUP_X + localId.x;
-    [loop] for (uint index = lane; index < pairsPerRow * (uint)tileSize.y; index += DLSSNR_GROUP_X * 8u)
-    {
-        const uint x = (index % pairsPerRow) * 2u;
-        const uint y = index / pairsPerRow;
-        const bool second = x + 1u < (uint)tileSize.x;
-        float4 a, b;
-        InterPassV16Pair(first + int2(x, y), second, a, b);
-        gInterPassCorrectedTile[y * kInterPassTilePitch + x] = InterPassTileValue(a);
-        if (second) gInterPassCorrectedTile[y * kInterPassTilePitch + x + 1u] = InterPassTileValue(b);
-    }
-#elif defined(DLSSNR_TILED_V11_QUADFILL)
-    // v11: static four 8x8 quadrants for the <=16x16 native tile.
-    // Replace per-texel modulo/division with at most four fixed coordinate
-    // evaluations per lane, with bounds checks for partial edge groups.
-    // No new LDS, no dispatch, no extra barrier, and each native P100 texel
-    // is reconstructed exactly once at the same position as the baseline.
-    [unroll] for (uint tileYStep = 0u; tileYStep != 2u; ++tileYStep)
-    {
-        const uint tileY = localId.y + tileYStep * 8u;
-        if (tileY < (uint)tileSize.y)
-        {
-            [unroll] for (uint tileXStep = 0u; tileXStep != 2u; ++tileXStep)
-            {
-                const uint tileX = localId.x + tileXStep * 8u;
-                if (tileX < (uint)tileSize.x)
-                {
-                    const int2 p100 = first + int2((int)tileX, (int)tileY);
-                    gInterPassCorrectedTile[tileY * kInterPassTilePitch + tileX] =
-                        InterPassTileValue(InterPassCorrectedP100LoadDynamicInternal(
-                            p100, useV9Weights, useV9Cache, sourceOrigin));
-                }
-            }
-        }
-    }
-#elif defined(DLSSNR_TILED_STRIDED)
-    // v8: two-dimensional 8x8 workgroup stripes. Each lane exclusively owns
-    // (x mod 8, y mod 8) P100 texels, eliminating runtime % tileWidth and
-    // / tileWidth from every expensive reconstruction. No warp ballot,
-    // extra barrier, scratch UAV or per-pixel change in floating-point order.
-    [loop] for (uint tileY = localId.y; tileY < (uint)tileSize.y; tileY += 8u)
-    {
-        [loop] for (uint tileX = localId.x; tileX < (uint)tileSize.x; tileX += 8u)
-        {
-            const int2 p100 = first + int2((int)tileX, (int)tileY);
-            gInterPassCorrectedTile[tileY * kInterPassTilePitch + tileX] =
-                #if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10)
-                InterPassTileValue(InterPassCorrectedP100LoadDynamicInternal(p100, useV9Weights, useV9Cache, sourceOrigin));
-#else
-                InterPassTileValue(InterPassCorrectedP100LoadDynamic(p100));
-#endif
-        }
-    }
-#else
-    // Exact v7.1 A/B baseline retained without modification.
+    // Linear cooperative fill keeps the original integration math.
     const uint tileCount = (uint)tileSize.x * (uint)tileSize.y;
-    const uint lane = localId.y * DLSSNR_GROUP_X + localId.x;
-    [loop] for (uint index = lane; index < tileCount; index += DLSSNR_GROUP_X * 8u)
+    const uint lane = localId.y * 8u + localId.x;
+    [loop] for (uint index = lane; index < tileCount; index += 64u)
     {
         const uint x = index % (uint)tileSize.x;
         const uint y = index / (uint)tileSize.x;
@@ -2500,13 +2096,8 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
         // Same v3 radius-one reconstruction used by regular Fused Area:
         // guided+bilinear reuse, P100 guide and frequency/shadow shaping.
         gInterPassCorrectedTile[y * kInterPassTilePitch + x] =
-            #if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10)
-                InterPassTileValue(InterPassCorrectedP100LoadDynamicInternal(p100, useV9Weights, useV9Cache, sourceOrigin));
-#else
                 InterPassTileValue(InterPassCorrectedP100LoadDynamic(p100));
-#endif
     }
-#endif
     GroupMemoryBarrierWithGroupSync();
 
     if (id.x >= gWidth || id.y >= gHeight)
@@ -2525,34 +2116,6 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
     const int j1 = (int)ceil(y1) - 1;
 
     DLSSNR_TILE_VALUE acc = 0.0;
-#ifdef DLSSNR_TILED_V13_AREA
-    // Isolated v13: compact eligibility guarantees a footprint <=3x3.
-    // Guard per output against unexpected dimensions/float boundary rounding;
-    // returning false resumes the exact non-tiled Mode 28 implementation.
-    // Every lane has already reached the group barrier before this return.
-    if (i1 - i0 > 2 || j1 - j0 > 2)
-        return false;
-    [unroll] for (int row = 0; row < 3; ++row)
-    {
-        const int j = j0 + row;
-        if (j <= j1)
-        {
-            const float wy = max(min(y1, (float)j + 1.0) - max(y0, (float)j), 0.0);
-            [unroll] for (int column = 0; column < 3; ++column)
-            {
-                const int i = i0 + column;
-                if (i <= i1)
-                {
-                    const float wx = max(min(x1, (float)i + 1.0) - max(x0, (float)i), 0.0);
-                    const int2 localP100 = int2(i, j) - first;
-                    const DLSSNR_TILE_VALUE sample = gInterPassCorrectedTile[
-                        (uint)localP100.y * kInterPassTilePitch + (uint)localP100.x];
-                    acc += sample * (wx * wy);
-                }
-            }
-        }
-    }
-#else
     [loop] for (int j = j0; j <= j1; ++j)
     {
         const float wy = max(min(y1, (float)j + 1.0) - max(y0, (float)j), 0.0);
@@ -2566,12 +2129,7 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
             acc += corrected * (wx * wy);
         }
     }
-#endif
-#ifdef DLSSNR_TILED_V14_RGB
     float4 corrected = float4(acc / area, 0.0);
-#else
-    float4 corrected = acc / area;
-#endif
     const int acx = clamp((int)floor(((float)id.x + 0.5) * (float)nativeW / (float)gWidth),
                           0, (int)nativeW - 1);
     const int acy = clamp((int)floor(((float)id.y + 0.5) * (float)nativeH / (float)gHeight),
@@ -2581,16 +2139,13 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
     gTarget[id.xy] = corrected;
     return true;
 }
-#endif // DLSSNR_TILED_FUSED
+#endif
 
 groupshared float4 gExposureReduce[64];
 groupshared float4 gFinalColorReduceOriginal[64];
 groupshared float4 gFinalColorReduceNr[64];
 
-#ifndef DLSSNR_GROUP_X
-#define DLSSNR_GROUP_X 8
-#endif
-[numthreads(DLSSNR_GROUP_X, 8, 1)]
+[numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
 {
     const uint lane = groupThreadId.y * 8u + groupThreadId.x;
@@ -2794,7 +2349,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         return;
     }
 
-#ifdef DLSSNR_TILED_FUSED
+#if defined(DLSSNR_TILED_FUSED)
     // Group-wide v7 must run BEFORE the per-thread bounds return, otherwise
     // partial edge groups would deadlock at GroupMemoryBarrierWithGroupSync.
     // The dispatch bit is set only for valid Fused+Area+radius-one geometry.
@@ -2803,12 +2358,6 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         if (InterPassTiledFusedArea(id, groupId, groupThreadId))
             return;
     }
-#endif // DLSSNR_TILED_FUSED
-#ifdef DLSSNR_CLASSIC_SOURCE_CACHE
-    int2 classicCacheOrigin = int2(0, 0);
-    bool classicCacheOn = false;
-    if (gMode == 27u && (gDirectResolveFlags & (1024u | 32768u)) == (1024u | 32768u))
-        classicCacheOn = InterPassClassicCacheFill(groupId, groupThreadId, classicCacheOrigin);
 #endif
 
     if (id.x >= gWidth || id.y >= gHeight)
@@ -2951,7 +2500,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         return;
     }
 
-#ifndef VK_MODE
+#if !defined(VK_MODE)
     if (gMode == 27)
     {
         // Reference inter-pass path: materialize C100 = P100 + shaped Guided(Ncurrent-Boriginal, P100).
@@ -2959,15 +2508,9 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         // Bit 10: standalone v6 A/B. Only selected when exact optimized
         // mode, radius=1, nonzero guide strength and equal source/model dims.
         // OFF remains the byte-for-byte v5 P100 guided shader path.
-#ifdef DLSSNR_CLASSIC_SOURCE_CACHE
-        gTarget[id.xy] = (gDirectResolveFlags & 1024u) != 0u
-            ? InterPassCorrectedClassicSharedStencilInternal(int2(id.xy), classicCacheOn, classicCacheOrigin)
-            : InterPassCorrectedP100Load(int2(id.xy));
-#else
         gTarget[id.xy] = (gDirectResolveFlags & 1024u) != 0u
             ? InterPassCorrectedClassicSharedStencil(int2(id.xy))
             : InterPassCorrectedP100Load(int2(id.xy));
-#endif
         return;
     }
 
@@ -3031,33 +2574,15 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                 [loop] for (int i = i0; i <= i1; ++i)
                 {
                     const float wx = max(min(x1, (float) i + 1.0) - max(x0, (float) i), 0.0);
-                    // v4 shares candidate Loads for two adjacent native
-                    // texels within the Area footprint, retaining their
-                    // independent bilateral weights and Area contributions.
+                    // Reuse each native pixel's bilinear and guided stencil.
                     const bool dynamicShared = (gDirectResolveFlags & 128u) != 0u &&
                         gResidualHistoryValidUnused == 1u && gResidualConfidenceUnused > 0.0 &&
                         sourceW == gWidth && sourceH == gHeight &&
                         answerW == gWidth && answerH == gHeight;
-                    const bool pairedShared = dynamicShared &&
-                                              (gDirectResolveFlags & 256u) != 0u &&
-                                              (i + 1) <= i1;
-                    if (pairedShared)
-                    {
-                        float4 corrected0, corrected1;
-                        InterPassCorrectedDynamicPair(int2(i, j), corrected0, corrected1);
-                        acc += corrected0 * (wx * wy);
-                        const float wx1 = max(min(x1, (float) i + 2.0) -
-                                              max(x0, (float) i + 1.0), 0.0);
-                        acc += corrected1 * (wx1 * wy);
-                        ++i; // Second original P100 sample already accumulated.
-                    }
-                    else
-                    {
                         const float4 sampleCorrected =
                             dynamicShared ? InterPassCorrectedP100LoadDynamic(int2(i, j))
                                           : InterPassCorrectedP100Load(int2(i, j));
                         acc += sampleCorrected * (wx * wy);
-                    }
                 }
             }
             corrected = acc / area;
@@ -3434,7 +2959,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         gTarget[id.xy] = float4(NrEncodeResizeField(NrPairedResizeField(int2(id.xy), int2(gWidth, gHeight))), 1);
         return;
     }
-#ifndef VK_MODE
+#if !defined(VK_MODE)
     if (gMode == 13)
     {
         // Compatibility fallback for non-FP16 model outputs: preserve the old combined carrier+gate pass.
@@ -3678,7 +3203,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     // frame, and its edit is enlarged here while the frame underneath stays untouched.
     float4 proxySample = gSource.SampleLevel(gLinear, cmpUv, 0);
     float4 modelSample;
-#ifndef VK_MODE
+#if !defined(VK_MODE)
     if (gTransfer == 7u)
         modelSample = DirectSpatialSample(cmpUv);
     else
@@ -3772,7 +3297,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         proxyLuma = dot(proxy, kLuma);
     }
 
-#ifndef VK_MODE
+#if !defined(VK_MODE)
     if ((gTransfer == 8u || gTransfer == 9u) && modelRanSmall)
     {
         // Build the exact native proxy the encoder would have shown at P100. It is only a guide/base;
@@ -3971,7 +3496,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         result *= exp2(clamp(gReplaceDetailStrength, 0.0, 2.0) * clamp(contrast, -1.0, 1.0));
     }
 
-#ifndef VK_MODE
+#if !defined(VK_MODE)
     // Direct NR detail recovery. gAux2 is the selected full-resolution reconstruction of P50.
     // Full-lost-detail needs no gate texture at all. NR-gated mode samples only gAux.a.
     if (gDirectDetailMode != 0)

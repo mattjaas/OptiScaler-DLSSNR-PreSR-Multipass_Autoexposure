@@ -85,7 +85,7 @@ void RequestStyleAnalysisCapture()
 }
 
 
-// v9 six-pass A/B engine. Runs on the NR render thread, driven by fresh,
+// Six-pass ABBA engine. Runs on the NR render thread, driven by fresh,
 // fence-completed GPU timestamps. UI is only needed to arm or cancel it.
 // Warmup includes the delayed query-ring samples from the previous variant.
 // The test does NOT claim to measure isolated dispatch durations.
@@ -99,28 +99,18 @@ struct BenchmarkConfig
     bool unlock, spatial;
     float strength;
     uint32_t mode;
-    bool exact, shared, dynamic, paired, downClamp, classicStencil;
-    bool tiled, strided, compact, weights, cache;
-    bool v11Spatial, v11QuadFill;
-    bool v12Interior, v12Axes;
-    bool v13Area, v13Mode28;
-    bool v14RgbTile, v14Linear20, v14GuideOne;
-    bool v16WideTile, v16PairLoads, v16LowShader;
 };
 struct BenchmarkVariant
 {
-    int percent, mode;
-    bool exact, tiled, strided, compact, weights, cache;
+    int percent, mode, forcedPath;
     const char* name;
     std::vector<double> samples;
     unsigned nativeW = 0, nativeH = 0, workW = 0, workH = 0, effectivePasses = 0;
-    bool v11Spatial = false, v11QuadFill = false;
-    bool v12Interior = false, v12Axes = false;
-    bool v13Area = false;
-    bool v13Mode28 = false;
-    bool v14RgbTile = false, v14Linear20 = false, v14GuideOne = false;
-    bool v16WideTile = false, v16PairLoads = false, v16LowShader = false;
+    std::string path;
+    double historicalGain = 0.0;
 };
+std::atomic<int> benchmarkOverride { -1 };
+std::string benchmarkPath;
 std::mutex benchmarkMutex;
 std::atomic<bool> benchmarkActive { false };
 BenchmarkProgress benchmarkProgress;
@@ -145,30 +135,7 @@ BenchmarkConfig TakeBenchmarkConfig(const Config& c)
         c.DlssNrDebugView.value_or_default(),
         c.DlssNrUnlockPasses.value_or_default(), c.DlssNrSpatialCompression.value_or_default(),
         c.DlssNrGuidedResidualGuideStrength.value_or_default(),
-        c.DlssNrInterPassReconstruction.value_or_default(),
-        c.DlssNrInterPassExactOptimized.value_or_default(),
-        c.DlssNrInterPassSharedBilinear.value_or_default(),
-        c.DlssNrInterPassDynamicSharedTaps.value_or_default(),
-        c.DlssNrInterPassPairedArea.value_or_default(),
-        c.DlssNrInterPassDownsampleClamp.value_or_default(),
-        c.DlssNrInterPassClassicSharedStencil.value_or_default(),
-        c.DlssNrInterPassTiledFusedArea.value_or_default(),
-        c.DlssNrInterPassTiledStridedLoads.value_or_default(),
-        c.DlssNrInterPassTiledCompact16.value_or_default(),
-        c.DlssNrInterPassV9Weights.value_or_default(),
-        c.DlssNrInterPassV9SourceCache.value_or_default(),
-        c.DlssNrInterPassV11Spatial.value_or_default(),
-        c.DlssNrInterPassV11QuadFill.value_or_default(),
-        c.DlssNrInterPassV12Interior.value_or_default(),
-        c.DlssNrInterPassV12Axes.value_or_default(),
-        c.DlssNrInterPassV13Area.value_or_default(),
-        c.DlssNrInterPassV13Mode28.value_or_default(),
-        c.DlssNrInterPassV14RgbTile.value_or_default(),
-        c.DlssNrInterPassV14Linear20.value_or_default(),
-        c.DlssNrInterPassV14GuideOne.value_or_default(),
-        c.DlssNrInterPassV16WideTile.value_or_default(),
-        c.DlssNrInterPassV16PairLoads.value_or_default(),
-        c.DlssNrInterPassV16LowShader.value_or_default()
+        c.DlssNrInterPassReconstruction.value_or_default()
     };
 }
 void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
@@ -184,30 +151,6 @@ void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
     c.DlssNrSpatialCompression = v.spatial;
     c.DlssNrGuidedResidualGuideStrength = v.strength;
     c.DlssNrInterPassReconstruction = v.mode;
-    c.DlssNrInterPassExactOptimized = v.exact;
-    c.DlssNrInterPassSharedBilinear = v.shared;
-    c.DlssNrInterPassDynamicSharedTaps = v.dynamic;
-    c.DlssNrInterPassPairedArea = v.paired;
-    c.DlssNrInterPassDownsampleClamp = v.downClamp;
-    c.DlssNrInterPassClassicSharedStencil = v.classicStencil;
-    c.DlssNrInterPassTiledFusedArea = v.tiled;
-    c.DlssNrInterPassTiledStridedLoads = v.strided;
-    c.DlssNrInterPassTiledCompact16 = v.compact;
-    c.DlssNrInterPassV9Weights = v.weights;
-    c.DlssNrInterPassV9SourceCache = v.cache;
-    c.DlssNrInterPassV11Spatial = v.v11Spatial;
-    c.DlssNrInterPassV11QuadFill = v.v11QuadFill;
-    c.DlssNrInterPassV12Interior = v.v12Interior;
-    c.DlssNrInterPassV12Axes = v.v12Axes;
-    c.DlssNrInterPassV13Area = v.v13Area;
-    c.DlssNrInterPassV13Mode28 = v.v13Mode28;
-    c.DlssNrInterPassV14RgbTile = v.v14RgbTile;
-    c.DlssNrInterPassV14Linear20 = v.v14Linear20;
-    c.DlssNrInterPassV14GuideOne = v.v14GuideOne;
-    c.DlssNrInterPassV16WideTile = v.v16WideTile;
-    c.DlssNrInterPassV16PairLoads = v.v16PairLoads;
-    c.DlssNrInterPassV16LowShader = v.v16LowShader;
-
 }
 void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
 {
@@ -220,63 +163,43 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     c.DlssNrProxyDownscaleFilter = 0u;
     c.DlssNrUpscaledResidualDownscaleFilter = 0u;
     c.DlssNrGuidedResidualRadius = 1u;
+    c.DlssNrGuidedResidualGuideStrength = 1.0f;
     c.DlssNrInterPassReconstruction = uint32_t(v.mode);
-    c.DlssNrInterPassExactOptimized = v.exact;
-    c.DlssNrInterPassSharedBilinear = true;
-    c.DlssNrInterPassDynamicSharedTaps = true;
-    c.DlssNrInterPassPairedArea = false;
-    c.DlssNrInterPassDownsampleClamp = true;
-    c.DlssNrInterPassClassicSharedStencil = true;
-    c.DlssNrInterPassTiledFusedArea = v.tiled;
-    c.DlssNrInterPassTiledStridedLoads = v.strided;
-    c.DlssNrInterPassTiledCompact16 = v.compact;
-    c.DlssNrInterPassV9Weights = v.weights;
-    c.DlssNrInterPassV9SourceCache = v.cache;
-    c.DlssNrInterPassV11Spatial = v.v11Spatial;
-    c.DlssNrInterPassV11QuadFill = v.v11QuadFill;
-    c.DlssNrInterPassV12Interior = v.v12Interior;
-    c.DlssNrInterPassV12Axes = v.v12Axes;
-    c.DlssNrInterPassV13Area = v.v13Area;
-    c.DlssNrInterPassV13Mode28 = v.v13Mode28;
-    c.DlssNrInterPassV14RgbTile = v.v14RgbTile;
-    c.DlssNrInterPassV14Linear20 = v.v14Linear20;
-    c.DlssNrInterPassV14GuideOne = v.v14GuideOne;
-    c.DlssNrInterPassV16WideTile = v.v16WideTile;
-    c.DlssNrInterPassV16PairLoads = v.v16PairLoads;
-    c.DlssNrInterPassV16LowShader = v.v16LowShader;
-
+    benchmarkOverride.store(v.forcedPath, std::memory_order_relaxed);
+    benchmarkPath.clear();
 }
-void AddBenchmark(int scale, int mode, bool exact, bool tiled, bool strided, bool compact,
-                  bool weights, bool cache, const char* name)
+void AddBenchmarkScale(int scale, InterPass::Path expected, double historicalGain)
 {
-    benchmarkVariants.push_back({ scale, mode, exact, tiled, strided, compact, weights, cache, name, {} });
+    const auto add = [&](int mode, int path, const char* name)
+    {
+        benchmarkVariants.push_back({ scale, mode, path, name, {} });
+        benchmarkVariants.back().historicalGain = historicalGain;
+    };
+    add(0, -1, "No inter-pass");
+    add(1, -1, "Classic reference");
+    add(2, -1, "Fused reference");
+    if (expected != InterPass::Path::ClassicOptimized)
+        add(3, int(InterPass::Path::ClassicOptimized), "Classic optimized control");
+    else
+        add(3, int(InterPass::Path::FusedOptimized), "Fused optimized control");
+    // ABBA checks the same retained winner against automatic selection.
+    add(3, int(expected), "Known winner control");
+    add(3, -1, "Inter-pass optimized");
+    add(3, -1, "Inter-pass optimized");
+    add(3, int(expected), "Known winner control");
 }
 void BuildBenchmarkVariants()
 {
     benchmarkVariants.clear();
-    const auto& cfg = *Config::Instance();
-    for (const auto& v : kInterPassBenchmarkCases)
+    for (const auto& v : kInterPassBenchmarkScales)
+        AddBenchmarkScale(v.percent, v.expected, v.historicalGainVsFusedMs);
+    const int current = std::clamp(int(std::lround(savedBenchmarkConfig.scale * 100.0f)), 25, 99);
+    if (current != 50 && current != 59 && current != 65)
     {
-        if (v.low)
-        {
-            bool active = false;
-            for (unsigned pass = 1; pass < 6; ++pass)
-            {
-                const auto gains = Profiles::EffectiveGuidedResidualGainsForInterPass(
-                    cfg, std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u),
-                    Profiles::PassSettings(cfg, pass).style, float(v.percent) / 100.0f);
-                active |= gains.active && gains.high != gains.low;
-            }
-            if (!active) continue; // No redundant Mode18 row when the dispatch is absent.
-        }
-        AddBenchmark(v.percent, v.mode, v.exact, v.tiled, false, v.compact,
-                     v.weights, false, v.name);
-        benchmarkVariants.back().v13Mode28 = v.mode28;
-        benchmarkVariants.back().v14RgbTile = v.rgb;
-        benchmarkVariants.back().v14Linear20 = v.linear20;
-        benchmarkVariants.back().v16WideTile = v.wide;
-        benchmarkVariants.back().v16PairLoads = v.pair;
-        benchmarkVariants.back().v16LowShader = v.low;
+        const auto expected = current >= 51 && current <= 90
+            ? (current >= 60 ? InterPass::Path::Rgb16 : InterPass::Path::Rgb20)
+            : InterPass::Path::ClassicOptimized;
+        AddBenchmarkScale(current, expected, 0.0);
     }
 }
 void UpdateBenchmarkProgress()
@@ -294,6 +217,7 @@ void FinishBenchmark(bool cancelled)
 {
     if (!benchmarkActive.exchange(false))
         return;
+    benchmarkOverride.store(-1, std::memory_order_relaxed);
     RestoreBenchmarkConfig(*Config::Instance(), savedBenchmarkConfig);
     benchmarkProgress.active = false;
     if (cancelled)
@@ -310,7 +234,7 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        name << "NR-v16-" << std::put_time(&local, "%Y%m%d-%H%M%S");
+        name << "NR-optimized-" << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
         const auto info = directory / (name.str() + ".txt");
         const auto raw = directory / (name.str() + ".samples.csv");
@@ -319,79 +243,83 @@ void FinishBenchmark(bool cancelled)
         std::ofstream description(info);
         if (!out || !description || !individual)
             throw std::runtime_error("Cannot create benchmark report.");
-        out << "scale_percent,variant,mode,exact,tiled,strided,compact,weights,source_cache,v11_spatial,v11_quadfill,v12_interior,v12_axes,v13_area,v13_mode28,v14_rgb_tile,v14_linear20,v14_guide_one,v16_wide_tile,v16_pair_loads,v16_low_shader,"
-               "native_width,native_height,work_width,work_height,effective_passes,"
-               "samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,delta_vs_off_median_ms\n";
-        individual << "scale_percent,variant,sample_index,total_nr_gpu_ms\n";
+        out << "scale_percent,variant,mode,forced_path,selected_path,native_width,native_height,"
+               "work_width,work_height,effective_passes,samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,"
+               "delta_vs_off_median_ms,delta_vs_fused_reference_ms,delta_vs_known_winner_ms,"
+               "historical_gain_vs_fused_ms,actual_gain_vs_fused_ms,path_matches_control\n";
+        individual << "scale_percent,variant,window,sample_index,total_nr_gpu_ms\n";
         out << std::fixed << std::setprecision(5);
         individual << std::fixed << std::setprecision(6);
-        std::map<int, double> baselines;
-        for (const auto& v : benchmarkVariants)
+        std::vector<BenchmarkVariant> combined;
+        for (size_t window = 0; window < benchmarkVariants.size(); ++window)
         {
-            if (v.mode != 0 || v.samples.empty())
-                continue;
-            auto sorted = v.samples;
-            std::sort(sorted.begin(), sorted.end());
-            const size_t n = sorted.size();
-            const double median = n % 2 ? sorted[n/2] : (sorted[n/2 - 1] + sorted[n/2]) * 0.5;
-            baselines[v.percent] = median;
-        }
-        for (const auto& v : benchmarkVariants)
-        {
-            if (v.samples.empty())
-                continue;
-            auto sorted = v.samples;
-            std::sort(sorted.begin(), sorted.end());
-            const double mean = std::accumulate(sorted.begin(), sorted.end(), 0.0) / sorted.size();
-            double variance = 0.0;
-            for (double ms : sorted)
-                variance += (ms - mean) * (ms - mean);
-            const size_t n = sorted.size();
-            const double median = n % 2 ? sorted[n/2] : (sorted[n/2-1] + sorted[n/2]) * 0.5;
-            const double p95 = sorted[std::min(n-1, size_t(std::ceil(n * 0.95))-1)];
-            const double baseline = baselines.at(v.percent);
-            out << v.percent << ',' << '"' << v.name << '"' << ',' << v.mode << ',' << v.exact << ','
-                << v.tiled << ',' << v.strided << ',' << v.compact << ',' << v.weights << ',' << v.cache
-                << ',' << v.v11Spatial << ',' << v.v11QuadFill
-                << ',' << v.v12Interior << ',' << v.v12Axes
-                << ',' << v.v13Area << ',' << v.v13Mode28
-                << ',' << v.v14RgbTile << ',' << v.v14Linear20 << ',' << v.v14GuideOne << ',' << v.v16WideTile << ',' << v.v16PairLoads << ',' << v.v16LowShader
-                << ',' << v.nativeW << ',' << v.nativeH << ',' << v.workW << ',' << v.workH << ','
-                << v.effectivePasses << ',' << n << ',' << mean << ',' << median << ',' << p95 << ','
-                << sorted.front() << ',' << sorted.back() << ',' << std::sqrt(variance/n)
-                << ',' << median - baseline << '\n';
+            const auto& v = benchmarkVariants[window];
+            if (v.samples.empty()) continue;
             for (size_t i = 0; i < v.samples.size(); ++i)
-                individual << v.percent << ',' << '"' << v.name << '"' << ',' << i << ',' << v.samples[i] << '\n';
+                individual << v.percent << ',' << '"' << v.name << '"' << ',' << window << ',' << i << ',' << v.samples[i] << '\n';
+            auto it = std::find_if(combined.begin(), combined.end(), [&](const auto& existing)
+                { return existing.percent == v.percent && std::string(existing.name) == v.name; });
+            if (it == combined.end()) combined.push_back(v);
+            else
+            {
+                it->samples.insert(it->samples.end(), v.samples.begin(), v.samples.end());
+                if (it->path != v.path) it->path = "Mixed routes";
+            }
         }
-        description << "OptiScaler DLSS NR v16 short six-pass GPU benchmark\n"
-                    << "ONE measurement per configuration: no ABBA and no repeated sweeps.\n"
-                    << "P50/P59/P65; all variants: 6 passes, Area, radius 1, "
-                       "dynamic/shared bilinear ON, paired OFF, shadow/frequency shaping left unchanged.\n"
-                    << "Each case has " << benchmarkWarmup << " fresh warmup timestamps, then "
-                    << benchmarkSamples << " fresh measured timestamps.\n"
-                    << "Raw completed DX12 timestamp sample, NOT UI time-window average.\n"
-                    << "Elapsed GPU NR interval includes NGX passes, inter-pass, queue waits/overlap; "
-                       "not isolated shader time.\n"
-                    << "Original user settings restored after benchmark.\n"
-                    << "GPU adapter: " << (benchmarkAdapterInfo.empty() ? "unavailable" : benchmarkAdapterInfo) << "\n"
-                    << "v16 sweep: up to 17 cases (3 P50, 7 P59, 7 P65); inactive Mode18 cases omitted.\n"
-                    << "Per scale: No inter-pass and unoptimized Fused reference retained.\n"
-                    << "P50: Fused optimized. P59/P65: v14 RGB reference, wide tile, paired loads and both combined.\n"
-                    << "P59/P65 Mode18: compared only when saved low/high frequency gains differ.\n"
-                    << "Cache, strided, v11/v12, bounded Area and guide-one excluded from the routine sweep; settings remain available.\n"
-                    << "Configured experiment flags are reported; PSO creation failure logs a warning "
-                       "and may fall back. Check the game log before accepting a speed comparison.\n"
-                    << "Source cache: v10 Linear16 Fused uses 16x16 float3 FP32 source/model arrays; "
-                       "v10 Classic uses 12x12 float3 FP32 arrays. "
-                       "Actual LDS allocation/register occupancy require external GPU profiler.\n"
-                    << "No new inter-pass GPU timestamp pairs: isolated inter-pass time is not measured. "
-                       "The delta_vs_off_median_ms column compares full NR intervals at the same scale.\n"
-                    << "Do not assume same GPU clocks/temperature: not measured. "
-                       "Maintain a static game scene and examine the raw distribution.\n"
-                    << "Actual native/working dimensions and effective pass count: CSV per case.\n"
+        const auto medianOf = [](const BenchmarkVariant& v)
+        {
+            auto sorted = v.samples;
+            std::sort(sorted.begin(), sorted.end());
+            const size_t n = sorted.size();
+            return n % 2 ? sorted[n/2] : (sorted[n/2-1] + sorted[n/2]) * 0.5;
+        };
+        std::map<int, double> off, fused, winner;
+        std::map<int, std::string> winnerPath;
+        for (const auto& v : combined)
+        {
+            if (v.mode == 0) off[v.percent] = medianOf(v);
+            if (v.mode == 2) fused[v.percent] = medianOf(v);
+            if (std::string(v.name) == "Known winner control")
+            {
+                winner[v.percent] = medianOf(v);
+                winnerPath[v.percent] = v.path;
+            }
+        }
+        for (const auto& v : combined)
+        {
+            auto sorted = v.samples;
+            std::sort(sorted.begin(), sorted.end());
+            const size_t n = sorted.size();
+            const double mean = std::accumulate(sorted.begin(), sorted.end(), 0.0) / n;
+            double variance = 0.0;
+            for (double ms : sorted) variance += (ms - mean) * (ms - mean);
+            const double median = medianOf(v);
+            const double p95 = sorted[std::min(n-1, size_t(std::ceil(n * 0.95))-1)];
+            out << v.percent << ',' << '"' << v.name << '"' << ',' << v.mode << ',' << v.forcedPath << ','
+                << '"' << v.path << '"' << ',' << v.nativeW << ',' << v.nativeH << ',' << v.workW << ',' << v.workH << ','
+                << v.effectivePasses << ',' << n << ',' << mean << ',' << median << ',' << p95 << ','
+                << sorted.front() << ',' << sorted.back() << ',' << std::sqrt(variance/n) << ','
+                << median - off.at(v.percent) << ',' << median - fused.at(v.percent) << ','
+                << median - winner.at(v.percent) << ',' << v.historicalGain << ','
+                << fused.at(v.percent) - median << ',' << (v.path == winnerPath.at(v.percent)) << '\n';
+        }
+        description << "OptiScaler automatic inter-pass six-pass GPU verification\n"
+                    << "Scales P50/P59/P65 plus current rounded percentage when different.\n"
+                    << "Off, Classic reference, Fused reference and retained Classic optimized control.\n"
+                    << "Known winner A / automatic Optimized B / B / A; independent warmup for each window.\n"
+                    << "Warmup=" << benchmarkWarmup << ", samples/window=" << benchmarkSamples << "\n"
+                    << "ABBA samples pooled in summary; raw CSV retains window and sample indices.\n"
+                    << "Whole NR GPU interval includes NGX, transitions and overlap, not isolated shader time.\n"
+                    << "Area, radius 1, guide strength 1, 6 passes; user shadow/frequency shaping unchanged.\n"
+                    << "GPU adapter: " << benchmarkAdapterInfo << "\n"
                     << "User settings at start: " << benchmarkSetup << "\n"
-                    << "Summary CSV: " << csv.filename().string() << "\n"
-                    << "Raw samples CSV: " << raw.filename().string() << "\n";
+                    << "Historical gain is last RTX4090/4K/guide-one result vs Fused reference, not absolute time.\n"
+                    << "Historical values do not apply to other scenes/GPUs/settings. Current control is decisive.\n"
+                    << "Optimized should match the control route and time within noise; compare Classic optimized too.\n"
+                    << "Actual geometry rounding may affect compact eligibility at nominal 60%; inspect selected_path.\n"
+                    << "PSO failure reports fallback; no extra per-frame GPU timing outside benchmark.\n"
+                    << "Clocks/temperature uncontrolled. Keep scene fixed, inspect median, P95 and dispersion.\n"
+                    << "Original settings restored, including inter-pass selection.\n";
         out.flush();
         individual.flush();
         description.flush();
@@ -464,6 +392,7 @@ void BenchmarkGpuSample(double rawGpuMs, bool modelRunning)
     variant.workW = benchmarkWorkW;
     variant.workH = benchmarkWorkH;
     variant.effectivePasses = benchmarkEffectivePasses;
+    variant.path = benchmarkPath;
     if (benchmarkWarm < benchmarkWarmup)
         ++benchmarkWarm;
     else
@@ -481,6 +410,16 @@ void BenchmarkGpuSample(double rawGpuMs, bool modelRunning)
     UpdateBenchmarkProgress();
 }
 
+int BenchmarkInterPassOverride()
+{
+    return benchmarkActive.load(std::memory_order_relaxed) ? benchmarkOverride.load(std::memory_order_relaxed) : -1;
+}
+void BenchmarkReportInterPassPath(const char* path)
+{
+    if (!benchmarkActive.load(std::memory_order_relaxed)) return;
+    std::lock_guard lock(benchmarkMutex);
+    benchmarkPath = path;
+}
 void BenchmarkReportGeometry(unsigned nativeW, unsigned nativeH, unsigned workW, unsigned workH,
                              unsigned effectivePasses)
 {

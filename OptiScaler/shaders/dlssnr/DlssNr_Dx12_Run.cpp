@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "DlssNr_Dx12_State.h"
 #include <dlssnr/DlssNr_Benchmark.h>
+#include <dlssnr/DlssNr_InterPassPolicy.h>
 
 namespace
 {
@@ -961,17 +962,33 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     DlssNr::BenchmarkReportDevice(device);
 
     const uint32_t configuredInterPassMode =
-        std::min(cfg.DlssNrInterPassReconstruction.value_or_default(), 2u);
+        std::min(cfg.DlssNrInterPassReconstruction.value_or_default(), 3u);
+    const uint32_t interPassFilter = std::min(
+        workScale < 1.0f && cfg.DlssNrTransfer.value_or_default() == 6u
+            ? cfg.DlssNrUpscaledResidualDownscaleFilter.value_or_default()
+            : cfg.DlssNrProxyDownscaleFilter.value_or_default(), 11u);
+    const float configuredGuide = cfg.DlssNrGuidedResidualGuideStrength.value_or_default();
+    auto interPassPath = DlssNr::InterPass::Select(configuredInterPassMode, width, height, modelWidth, modelHeight,
+        interPassFilter, std::clamp(cfg.DlssNrGuidedResidualRadius.value_or_default(), 1u, 3u),
+        std::isfinite(configuredGuide) ? configuredGuide : 0.75f);
+    if (configuredInterPassMode == 3u)
+    {
+        const auto overridePath = DlssNr::BenchmarkInterPassOverride();
+        if (overridePath >= 0) interPassPath = static_cast<DlssNr::InterPass::Path>(overridePath);
+    }
+    const bool interPassOptimized = DlssNr::InterPass::Optimized(interPassPath);
+    const uint32_t selectedInterPassMode = DlssNr::InterPass::Fused(interPassPath) ? 2u : 1u;
+    DlssNr::BenchmarkReportInterPassPath(DlssNr::InterPass::Name(interPassPath));
     if (!nr.interPassModeInitialized)
     {
-        nr.interPassMode = configuredInterPassMode;
+        nr.interPassMode = static_cast<uint32_t>(interPassPath);
         nr.interPassModeInitialized = true;
     }
-    else if (nr.interPassMode != configuredInterPassMode)
+    else if (nr.interPassMode != static_cast<uint32_t>(interPassPath))
     {
         // The later temporal features now see a different input distribution. Reset history without
         // recreating NGX features; Off <-> Guided and reference <-> fused both start cleanly.
-        nr.interPassMode = configuredInterPassMode;
+        nr.interPassMode = static_cast<uint32_t>(interPassPath);
         nr.reset = true;
     }
 
@@ -983,8 +1000,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     // Bilateral range weights depend on the current frame and are NOT cached.
     // Shader sampling patterns are derived from pixel coordinates; a persistent
     // GPU lookup texture would add bandwidth and defeat the intended saving.
-    if (interPassActive && cfg.DlssNrInterPassExactOptimized.value_or_default() &&
-        cfg.DlssNrInterPassDynamicSharedTaps.value_or_default() &&
+    if (interPassActive && interPassOptimized &&
         width != 0u && height != 0u && modelWidth != 0u && modelHeight != 0u &&
         (!nr.interPassGeometryValid ||
          nr.interPassGeometryNativeW != width || nr.interPassGeometryNativeH != height ||
@@ -1087,11 +1103,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         // and shared P50 Area candidate loads; bit 5 removes an identically-zero
         // low-band contribution, including the small low texture dispatch.
         // Off remains the byte-for-byte original inter-pass shader path.
-        if (cfg.DlssNrInterPassExactOptimized.value_or_default())
+        if (interPassOptimized)
         {
             guided.DirectResolveFlags = 16u;
-            if (cfg.DlssNrInterPassSharedBilinear.value_or_default())
-                guided.DirectResolveFlags |= 64u; // only exact P50/Area/radius 1 branch consumes this
+            guided.DirectResolveFlags |= 64u; // only exact P50/Area/radius 1 branch consumes this
             if (shaping.active && shaping.high == shaping.low)
             {
                 guided.GuideWidth = 0u;
@@ -1163,7 +1178,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         // The two otherwise unused fields carry working texture dimensions;
         // no additional GPU resource, upload, allocation or sync is needed.
         // Larger bilateral radii and unoptimized cases retain the v5 path.
-        if (cfg.DlssNrInterPassClassicSharedStencil.value_or_default() &&
+        if (interPassOptimized &&
             (guided.DirectResolveFlags & 16u) != 0u &&
             guided.ResidualHistoryValid == 1u &&
             guided.ResidualConfidenceSensitivity > 0.0f &&
@@ -1178,8 +1193,6 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             guided.DirectDetailMode = modelWidth;
             guided.DirectResolveUpscaler = modelHeight;
             guided.DirectResolveFlags |= 1024u;
-            if (cfg.DlssNrInterPassV9SourceCache.value_or_default())
-                guided.DirectResolveFlags |= 32768u; // Classic source/model cached PSO
         }
 
         if (!shader.DispatchPassAux2(cmdList, guided, originalPassBase, currentAnswer, nr.colorCopy,
@@ -1215,8 +1228,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         const bool supportedFloatFormat =
             workingDesc.Format == DXGI_FORMAT_R16G16B16A16_FLOAT ||
             workingDesc.Format == DXGI_FORMAT_R32G32B32A32_FLOAT;
-        if (cfg.DlssNrInterPassDownsampleClamp.value_or_default() &&
-            cfg.DlssNrInterPassExactOptimized.value_or_default() &&
+        if (interPassOptimized &&
             localDownscale && exactScaler == Scaler::Count &&
             matchingScratchFormat && supportedFloatFormat)
         {
@@ -1298,11 +1310,11 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             return false;
 
         auto guided = MakeInterPassConstants(pass,
-                                             configuredInterPassMode == 2u
+                                             selectedInterPassMode == 2u
                                                  ? DlssNrMode_InterPassGuidedWorking
                                                  : DlssNrMode_InterPassGuidedP100,
-                                             configuredInterPassMode == 2u ? modelWidth : width,
-                                             configuredInterPassMode == 2u ? modelHeight : height);
+                                             selectedInterPassMode == 2u ? modelWidth : width,
+                                             selectedInterPassMode == 2u ? modelHeight : height);
 
         ID3D12Resource* lowField = nullptr;
         if (guided.GuideWidth != 0u)
@@ -1324,8 +1336,6 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             low.Width = lowW;
             low.Height = lowH;
             low.Transfer = 0u; // ALWAYS current cumulative N - immutable original base.
-            if (cfg.DlssNrInterPassV16LowShader.value_or_default())
-                low.DirectResolveFlags |= 134217728u;
             if (!shader.DispatchPass(cmdList, low, originalPassBase, currentAnswer, nullptr, nullptr, nullptr,
                                      nr.interPassResidualLow, nullptr))
                 return false;
@@ -1337,7 +1347,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
         const uint32_t proxyFilter = InterPassProxyFilter();
         const bool fusedLocalFilter = proxyFilter == 0u || proxyFilter == 1u || proxyFilter == 4u;
-        if (configuredInterPassMode == 2u && fusedLocalFilter)
+        if (selectedInterPassMode == 2u && fusedLocalFilter)
         {
             const auto workingDesc = originalPassBase->GetDesc();
             if (!EnsureInterPassScratch(nr.interPassWorking, workingDesc.Format, modelWidth, modelHeight,
@@ -1357,7 +1367,6 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             // guided reconstruction. The exact P50 2x2 specialization in HLSL
             // has priority. External filters and larger radius keep v2 math.
             if (proxyFilter == 0u && nr.interPassGeometryValid &&
-                cfg.DlssNrInterPassDynamicSharedTaps.value_or_default() &&
                 (guided.DirectResolveFlags & 16u) != 0u &&
                 guided.ResidualHistoryValid == 1u &&
                 guided.ResidualConfidenceSensitivity > 0.0f)
@@ -1365,19 +1374,16 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 std::memcpy(&guided.ResidualMotionBaseX, &nr.interPassGeometryRatioX, sizeof(float));
                 std::memcpy(&guided.ResidualMotionBaseY, &nr.interPassGeometryRatioY, sizeof(float));
                 guided.DirectResolveFlags |= 128u;
-                if (cfg.DlssNrInterPassPairedArea.value_or_default())
-                    guided.DirectResolveFlags |= 256u; // share across adjacent Area P100 contributions
                 // v7: only intermediate fractional scales. Preserve exact P50
                 // 2x2 fast path and every non-Area/radius>1 fallback.
                 // One workgroup writes a single 8x8 output tile and cooperates
                 // on its native P100 Area footprint without allocating scratch.
-                const bool workingScaleTiled = workScale > 0.505f && workScale <= 0.90f;
+                const bool workingScaleTiled = interPassPath == DlssNr::InterPass::Path::Rgb16 ||
+                                               interPassPath == DlssNr::InterPass::Path::Rgb20;
                 const bool eligibleTiledDims =
                     width > modelWidth && height > modelHeight &&
                     width < 2u * modelWidth && height < 2u * modelHeight;
-                if (cfg.DlssNrInterPassTiledFusedArea.value_or_default() &&
-                    !cfg.DlssNrInterPassPairedArea.value_or_default() &&
-                    workingScaleTiled && eligibleTiledDims &&
+                if (workingScaleTiled && eligibleTiledDims &&
                     originalPassBase->GetDesc().Width == modelWidth &&
                     originalPassBase->GetDesc().Height == modelHeight &&
                     currentAnswer->GetDesc().Width == modelWidth &&
@@ -1386,45 +1392,17 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                     nr.colorCopy->GetDesc().Height == height)
                 {
                     guided.DirectResolveFlags |= 2048u;
-                    if (cfg.DlssNrInterPassTiledStridedLoads.value_or_default())
-                        guided.DirectResolveFlags |= 4096u;
-                    // v9: Compact 16x16 is INDEPENDENT of the strided layout.
-                    // Same 5/3 actual-dimension guard as v8, hence no change
-                    // to the native footprint or Area weights.
-                    if (cfg.DlssNrInterPassTiledCompact16.value_or_default() &&
+                    if (interPassPath == DlssNr::InterPass::Path::Rgb16 &&
                         (uint64_t)width * 3u <= (uint64_t)modelWidth * 5u &&
                         (uint64_t)height * 3u <= (uint64_t)modelHeight * 5u)
                         guided.DirectResolveFlags |= 8192u;
-                    if (cfg.DlssNrInterPassV9Weights.value_or_default())
-                        guided.DirectResolveFlags |= 16384u;
-                    if (cfg.DlssNrInterPassV9SourceCache.value_or_default())
-                        guided.DirectResolveFlags |= 32768u;
-                    // v11 flags only affect the explicitly isolated P65 Linear16+Weights PSO.
-                    if (cfg.DlssNrInterPassV11Spatial.value_or_default())
-                        guided.DirectResolveFlags |= 65536u;
-                    if (cfg.DlssNrInterPassV11QuadFill.value_or_default())
-                        guided.DirectResolveFlags |= 131072u;
-                    // v12 flags route ONLY eligible Linear16 + weights/no-cache to isolated DXIL.
-                    if (cfg.DlssNrInterPassV12Interior.value_or_default())
-                        guided.DirectResolveFlags |= 262144u;
-                    if (cfg.DlssNrInterPassV12Axes.value_or_default())
-                        guided.DirectResolveFlags |= 524288u;
-                    if (cfg.DlssNrInterPassV13Area.value_or_default())
-                        guided.DirectResolveFlags |= 1048576u;
-                    if (cfg.DlssNrInterPassV14RgbTile.value_or_default())
-                        guided.DirectResolveFlags |= 4194304u;
-                    if (cfg.DlssNrInterPassV14Linear20.value_or_default())
-                        guided.DirectResolveFlags |= 8388608u;
-                    if (cfg.DlssNrInterPassV14GuideOne.value_or_default())
-                        guided.DirectResolveFlags |= 16777216u;
-                    if (cfg.DlssNrInterPassV16WideTile.value_or_default())
-                        guided.DirectResolveFlags |= 33554432u;
-                    if (cfg.DlssNrInterPassV16PairLoads.value_or_default())
-                        guided.DirectResolveFlags |= 67108864u;
-                    if (cfg.DlssNrInterPassV13Mode28.value_or_default())
-                        guided.DirectResolveFlags |= 2097152u;
+
                 }
             }
+            if ((interPassPath == DlssNr::InterPass::Path::Rgb16 ||
+                 interPassPath == DlssNr::InterPass::Path::Rgb20) &&
+                (guided.DirectResolveFlags & 2048u) == 0u)
+                DlssNr::BenchmarkReportInterPassPath("Fused optimized (geometry fallback)");
             if (!shader.DispatchPassAux2(cmdList, guided, originalPassBase, currentAnswer, nr.colorCopy,
                                          nullptr, nullptr, lowField, nr.interPassWorking, nullptr))
                 return false;
@@ -1434,12 +1412,15 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             return true;
         }
 
-        if (configuredInterPassMode == 2u && !nr.interPassFusedReferenceWarned)
+        if (selectedInterPassMode == 2u && !nr.interPassFusedReferenceWarned)
         {
             nr.interPassFusedReferenceWarned = true;
             LOG_INFO("DLSS-NR inter-pass fused: filter {} is external/non-local; using exact reference reconstruction "
                      "for this filter instead of approximating its kernel.", proxyFilter);
         }
+        if (selectedInterPassMode == 2u)
+            DlssNr::BenchmarkReportInterPassPath(interPassOptimized
+                ? "Classic optimized (filter fallback)" : "Classic reference (filter fallback)");
         return BuildInterPassReference(pass, currentAnswer, lowField);
     };
 

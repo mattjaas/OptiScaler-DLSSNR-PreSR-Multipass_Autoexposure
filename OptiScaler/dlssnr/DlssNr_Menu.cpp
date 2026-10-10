@@ -289,16 +289,17 @@ void RenderMenu(Config* config, float menuResScale)
             const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
                                       !ReadStatus(Backend::Vulkan).running;
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("NR v16: short sweep P50/P59/P65, 15-17 cases (CSV)"))
+            if (ImGui::Button("Verify automatic inter-pass performance (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("DX12, SIX passes; each configuration measured ONCE with warmup and "
-                                  "a single sample window (no ABBA). Saves summary CSV, raw per-frame "
+                ImGui::SetTooltip("DX12, SIX passes; independent warmup for each window and "
+                                  "Area / radius 1 / guide strength 1. "
+                                  "A/B/B/A windows for Optimized versus the known winner. Saves summary CSV, raw per-frame "
                                   "samples CSV and metadata TXT in game/OptiScaler-NR-Benchmarks. "
                                   "Includes GPU adapter, actual texture resolutions and complete-NR overhead. "
-                                  "15-17 cases at 50%, 59%, 65%; off and unoptimized Fused baselines retained. "
-                                  "Keep the scene static. Inactive Mode18 cases skipped. Original configuration restored.");
+                                  "50%, 59%, 65% plus current percentage if different; both references and off retained. "
+                                  "Keep the scene static. Original configuration restored.");
         }
         if (!bench.message.empty())
             ImGui::TextWrapped("%s", bench.message.c_str());

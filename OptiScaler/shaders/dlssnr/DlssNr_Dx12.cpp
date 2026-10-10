@@ -1,46 +1,13 @@
 #include "pch.h"
 #include <dlssnr/DlssNr_StreamlinePicture.h>
+#include <dlssnr/DlssNr_Benchmark.h>
 #include "DlssNr_Dx12_State.h"
 #include <atomic>
 #include <list>
 #include "precompile/DlssNr_Shader.h"
-#include "precompile/dlssnr_tiled_v16_wide16_Shader.h"
-#include "precompile/dlssnr_tiled_v16_pair16_Shader.h"
-#include "precompile/dlssnr_tiled_v16_both16_Shader.h"
-#include "precompile/dlssnr_tiled_v16_wide20_Shader.h"
-#include "precompile/dlssnr_tiled_v16_pair20_Shader.h"
-#include "precompile/dlssnr_tiled_v16_both20_Shader.h"
-#include "precompile/dlssnr_v16_low_Shader.h"
+#include "precompile/dlssnr_interpass_rgb16_Shader.h"
+#include "precompile/dlssnr_interpass_rgb20_Shader.h"
 
-#include "precompile/dlssnr_tiled_Shader.h"
-#include "precompile/dlssnr_tiled_strided_Shader.h"
-#include "precompile/dlssnr_tiled_compact_Shader.h"
-#include "precompile/dlssnr_tiled_linear16_Shader.h"
-#include "precompile/dlssnr_tiled_v9_linear20_Shader.h"
-#include "precompile/dlssnr_tiled_v9_linear16_Shader.h"
-#include "precompile/dlssnr_tiled_v9_strided20_Shader.h"
-#include "precompile/dlssnr_tiled_v9_strided16_Shader.h"
-#include "precompile/dlssnr_classic_cache_Shader.h"
-#include "precompile/dlssnr_tiled_v10_weights_Shader.h"
-#include "precompile/dlssnr_tiled_v10_cache_Shader.h"
-#include "precompile/dlssnr_tiled_v10_both_Shader.h"
-#include "precompile/dlssnr_tiled_v11_spatial_Shader.h"
-#include "precompile/dlssnr_tiled_v11_quadfill_Shader.h"
-#include "precompile/dlssnr_tiled_v11_both_Shader.h"
-#include "precompile/dlssnr_tiled_v12_interior_Shader.h"
-#include "precompile/dlssnr_tiled_v12_axes_Shader.h"
-#include "precompile/dlssnr_tiled_v12_both_Shader.h"
-#include "precompile/dlssnr_tiled_v13_area_Shader.h"
-#include "precompile/dlssnr_tiled_v13_mode28_Shader.h"
-#include "precompile/dlssnr_tiled_v13_both_Shader.h"
-#include "precompile/dlssnr_tiled_v14_rgb16_Shader.h"
-#include "precompile/dlssnr_tiled_v14_guide16_Shader.h"
-#include "precompile/dlssnr_tiled_v14_both16_Shader.h"
-#include "precompile/dlssnr_tiled_v14_weights20_Shader.h"
-#include "precompile/dlssnr_tiled_v14_rgb20_Shader.h"
-#include "precompile/dlssnr_tiled_v14_guide20_Shader.h"
-#include "precompile/dlssnr_tiled_v14_both20_Shader.h"
-#include "precompile/dlssnr_classic_v10_cache_Shader.h"
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
 #include "precompile/dlssnr_spatial_Shader.h"
@@ -182,19 +149,6 @@ bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssN
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
     ID3D12PipelineState* pipeline = _pipelineState;
-    if (InConstants.Mode == DlssNrMode_GuidedResidualLow && InConstants.Transfer == 0u &&
-        (InConstants.DirectResolveFlags & 134217728u) != 0u)
-    {
-        if (!_v16LowPipelineAttempted)
-        {
-            _v16LowPipelineAttempted = true;
-            if (!CreateComputePipeline(_device, &_v16LowPipelineState,
-                                       dlssnr_v16_low_cso, sizeof(dlssnr_v16_low_cso), nullptr))
-                LOG_WARN("[{0}] v16 Mode18 PSO unavailable; retaining reference", _name);
-        }
-        if (_v16LowPipelineState)
-            pipeline = _v16LowPipelineState;
-    }
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion, InPrevEdit,
                            nullptr, OutTarget, OutKeep, immutableSlot);
 }
@@ -207,272 +161,38 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
 {
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
-    // Lazy, isolated PSOs. The standard DXIL and its fast dispatch are unchanged.
+    // Lazy, isolated RGB PSOs; references stay on the standard shader.
     ID3D12PipelineState* pipeline = _pipelineState;
-    uint32_t groupWidth = 8;
-    const auto& flags = InConstants.DirectResolveFlags;
-    if (InConstants.Mode == DlssNrMode_InterPassGuidedP100 &&
-        (flags & (1024u | 32768u)) == (1024u | 32768u))
+    const auto flags = InConstants.DirectResolveFlags;
+    if (InConstants.Mode == DlssNrMode_InterPassGuidedWorking && InConstants.Transfer == 0u &&
+        (flags & 2048u) != 0u)
     {
-        if (!_classicV10CachePipelineAttempted)
+        const unsigned index = (flags & 8192u) != 0u ? 0u : 1u;
+        const void* const blobs[] = { dlssnr_interpass_rgb16_cso, dlssnr_interpass_rgb20_cso };
+        const size_t sizes[] = { sizeof(dlssnr_interpass_rgb16_cso), sizeof(dlssnr_interpass_rgb20_cso) };
+        if (!_interPassRgbAttempted[index])
         {
-            _classicV10CachePipelineAttempted = true;
-            if (!CreateComputePipeline(_device, &_classicV10CachePipelineState,
-                                       dlssnr_classic_v10_cache_cso, sizeof(dlssnr_classic_v10_cache_cso), nullptr))
-                LOG_WARN("[{0}] v10 Classic source/model cache PSO unavailable", _name);
+            _interPassRgbAttempted[index] = true;
+            if (!CreateComputePipeline(_device, &_interPassRgbPipeline[index], blobs[index], sizes[index], nullptr))
+                LOG_WARN("[{0}] inter-pass RGB{1} PSO unavailable; using standard Fused fallback", _name, index ? 20 : 16);
         }
-        if (_classicV10CachePipelineState)
-            pipeline = _classicV10CachePipelineState;
-        // No silent fallback to an old cached shader with different LDS behavior.
-        // If v10 PSO is unavailable, reference v6 stencil is used with unchanged input.
-    }
-    if (InConstants.Mode == DlssNrMode_InterPassGuidedWorking &&
-        InConstants.Transfer == 0u && (flags & 2048u) != 0u)
-    {
-        const bool compact = (flags & 8192u) != 0u;
-        const bool strided = (flags & 4096u) != 0u;
-        const bool v9 = (flags & (16384u | 32768u)) != 0u;
-        // v14 variants preserve v10 reconstruction and always compile Mode28.
-        // GuideOne is eligible only for exactly 1; never approximate user settings.
-        const bool rgb14 = (flags & 4194304u) != 0u;
-        const bool guide14 = (flags & 16777216u) != 0u &&
-                             InConstants.ResidualConfidenceSensitivity == 1.0f;
-        const bool linear20 = !compact && (flags & 8388608u) != 0u;
-        const bool v14 = !strided && (flags & 16384u) != 0u &&
-                         (flags & (32768u | 65536u | 131072u | 262144u | 524288u | 1048576u)) == 0u &&
-                         (compact ? (rgb14 || guide14) : linear20);
-        const bool wide16 = (flags & 33554432u) != 0u;
-        const bool pair16 = (flags & 67108864u) != 0u;
-        if (v14 && rgb14 && !guide14 && (wide16 || pair16))
+        if (_interPassRgbPipeline[index])
         {
-            const uint32_t index = (compact ? 0u : 3u) +
-                                   (wide16 ? 1u : 0u) + (pair16 ? 2u : 0u) - 1u;
-            const void* const blobs[] = { dlssnr_tiled_v16_wide16_cso,
-                                          dlssnr_tiled_v16_pair16_cso,
-                                          dlssnr_tiled_v16_both16_cso,
-                                          dlssnr_tiled_v16_wide20_cso,
-                                          dlssnr_tiled_v16_pair20_cso,
-                                          dlssnr_tiled_v16_both20_cso };
-            const size_t sizes[] = { sizeof(dlssnr_tiled_v16_wide16_cso),
-                                     sizeof(dlssnr_tiled_v16_pair16_cso),
-                                     sizeof(dlssnr_tiled_v16_both16_cso),
-                                     sizeof(dlssnr_tiled_v16_wide20_cso),
-                                     sizeof(dlssnr_tiled_v16_pair20_cso),
-                                     sizeof(dlssnr_tiled_v16_both20_cso) };
-            if (!_tiledV16PipelineAttempted[index])
-            {
-                _tiledV16PipelineAttempted[index] = true;
-                if (!CreateComputePipeline(_device, &_tiledV16PipelineState[index], blobs[index], sizes[index], nullptr))
-                    LOG_WARN("[{0}] v16 PSO {1} unavailable; retaining v14", _name, index);
-                else
-                    LOG_INFO("[{0}] v16 PSO {1} created (wide={2}, pair={3})", _name, index, wide16, pair16);
-            }
-            if (_tiledV16PipelineState[index])
-            {
-                pipeline = _tiledV16PipelineState[index];
-                groupWidth = wide16 ? 16u : 8u;
-            }
+            pipeline = _interPassRgbPipeline[index];
+            DlssNr::BenchmarkReportInterPassPath(index ? "Fused RGB20" : "Fused RGB16");
         }
-        if (v14 && pipeline == _pipelineState)
-        {
-            const uint32_t combination = (rgb14 ? 1u : 0u) + (guide14 ? 2u : 0u);
-            const uint32_t index = compact ? combination - 1u : 3u + combination;
-            const void* const blobs[] = { dlssnr_tiled_v14_rgb16_cso, dlssnr_tiled_v14_guide16_cso,
-                                          dlssnr_tiled_v14_both16_cso, dlssnr_tiled_v14_weights20_cso,
-                                          dlssnr_tiled_v14_rgb20_cso, dlssnr_tiled_v14_guide20_cso,
-                                          dlssnr_tiled_v14_both20_cso };
-            const size_t sizes[] = { sizeof(dlssnr_tiled_v14_rgb16_cso), sizeof(dlssnr_tiled_v14_guide16_cso),
-                                     sizeof(dlssnr_tiled_v14_both16_cso), sizeof(dlssnr_tiled_v14_weights20_cso),
-                                     sizeof(dlssnr_tiled_v14_rgb20_cso), sizeof(dlssnr_tiled_v14_guide20_cso),
-                                     sizeof(dlssnr_tiled_v14_both20_cso) };
-            if (!_tiledV14PipelineAttempted[index])
-            {
-                _tiledV14PipelineAttempted[index] = true;
-                if (!CreateComputePipeline(_device, &_tiledV14PipelineState[index],
-                                           blobs[index], sizes[index], nullptr))
-                    LOG_WARN("[{0}] v14 PSO {1} unavailable; retaining previous path", _name, index);
-                else
-                    LOG_INFO("[{0}] v14 PSO {1} created (pitch={2}, RGB={3}, guideOne={4})",
-                             _name, index, compact ? 16 : 20, rgb14, guide14);
-            }
-            if (_tiledV14PipelineState[index])
-                pipeline = _tiledV14PipelineState[index];
-        }
-        // v13: independent Area loops and constant Mode28 compilation.
-        // Require older experiments OFF so this benchmark isolates one factor.
-        const bool v13 = compact && !strided && (flags & 16384u) != 0u &&
-                             (flags & (32768u | 65536u | 131072u | 262144u | 524288u)) == 0u &&
-                             (flags & (1048576u | 2097152u)) != 0u;
-        if (v13 && pipeline == _pipelineState)
-        {
-            const uint32_t index = ((flags & 1048576u) != 0u ? 1u : 0u) +
-                                   ((flags & 2097152u) != 0u ? 2u : 0u) - 1u;
-            const void* const blobs[] = { dlssnr_tiled_v13_area_cso,
-                                          dlssnr_tiled_v13_mode28_cso,
-                                          dlssnr_tiled_v13_both_cso };
-            const size_t sizes[] = { sizeof(dlssnr_tiled_v13_area_cso),
-                                     sizeof(dlssnr_tiled_v13_mode28_cso),
-                                     sizeof(dlssnr_tiled_v13_both_cso) };
-            if (!_tiledV13PipelineAttempted[index])
-            {
-                _tiledV13PipelineAttempted[index] = true;
-                if (!CreateComputePipeline(_device, &_tiledV13PipelineState[index],
-                                           blobs[index], sizes[index], nullptr))
-                    LOG_WARN("[{0}] v13 optimized PSO {1} unavailable; retaining v10", _name, index);
-            }
-            if (_tiledV13PipelineState[index])
-                pipeline = _tiledV13PipelineState[index];
-        }
-        // v12 experiments are independent of both v10 and v11. v12 takes
-        // priority if the user intentionally enables flags from both versions.
-        // Eligibility is enforced using real tile geometry and v10 weights.
-        const bool v12 = compact && !strided && (flags & 16384u) != 0u &&
-                         (flags & 32768u) == 0u &&
-                         (flags & (262144u | 524288u)) != 0u;
-        if (v12)
-        {
-            const uint32_t index = ((flags & 262144u) != 0u ? 1u : 0u) +
-                                   ((flags & 524288u) != 0u ? 2u : 0u) - 1u;
-            const void* const blobs[] = { dlssnr_tiled_v12_interior_cso,
-                                          dlssnr_tiled_v12_axes_cso,
-                                          dlssnr_tiled_v12_both_cso };
-            const size_t sizes[] = { sizeof(dlssnr_tiled_v12_interior_cso),
-                                     sizeof(dlssnr_tiled_v12_axes_cso),
-                                     sizeof(dlssnr_tiled_v12_both_cso) };
-            if (!_tiledV12PipelineAttempted[index])
-            {
-                _tiledV12PipelineAttempted[index] = true;
-                if (!CreateComputePipeline(_device, &_tiledV12PipelineState[index],
-                                           blobs[index], sizes[index], nullptr))
-                    LOG_WARN("[{0}] v12 interior/axes PSO {1} unavailable; retaining v10", _name, index);
-            }
-            if (_tiledV12PipelineState[index])
-                pipeline = _tiledV12PipelineState[index];
-        }
-        // v11 only for the verified P65 Linear16+Weights configuration.
-        // All other routes, including P50 and cache, remain exactly v10.
-        const bool v11 = compact && !strided && (flags & 16384u) != 0u &&
-                         (flags & 32768u) == 0u &&
-                         (flags & (65536u | 131072u)) != 0u;
-        if (v11 && pipeline == _pipelineState)
-        {
-            const uint32_t index = ((flags & 65536u) != 0u ? 1u : 0u) +
-                                   ((flags & 131072u) != 0u ? 2u : 0u) - 1u;
-            const void* const blobs[] = { dlssnr_tiled_v11_spatial_cso,
-                                          dlssnr_tiled_v11_quadfill_cso,
-                                          dlssnr_tiled_v11_both_cso };
-            const size_t sizes[] = { sizeof(dlssnr_tiled_v11_spatial_cso),
-                                     sizeof(dlssnr_tiled_v11_quadfill_cso),
-                                     sizeof(dlssnr_tiled_v11_both_cso) };
-            if (!_tiledV11PipelineAttempted[index])
-            {
-                _tiledV11PipelineAttempted[index] = true;
-                if (!CreateComputePipeline(_device, &_tiledV11PipelineState[index],
-                                           blobs[index], sizes[index], nullptr))
-                    LOG_WARN("[{0}] v11 optimized PSO {1} unavailable; retaining v10", _name, index);
-            }
-            if (_tiledV11PipelineState[index])
-                pipeline = _tiledV11PipelineState[index];
-        }
-        if (v9 && pipeline == _pipelineState && compact && !strided)
-        {
-            // Fully compile-time specialized: NO dormant source LDS in weights-only DXIL.
-            const uint32_t index = ((flags & 16384u) != 0u ? 1u : 0u) +
-                                   ((flags & 32768u) != 0u ? 2u : 0u) - 1u;
-            const void* const blobs[] = { dlssnr_tiled_v10_weights_cso,
-                                          dlssnr_tiled_v10_cache_cso,
-                                          dlssnr_tiled_v10_both_cso };
-            const size_t sizes[] = { sizeof(dlssnr_tiled_v10_weights_cso),
-                                     sizeof(dlssnr_tiled_v10_cache_cso),
-                                     sizeof(dlssnr_tiled_v10_both_cso) };
-            if (!_tiledV10PipelineAttempted[index])
-            {
-                _tiledV10PipelineAttempted[index] = true;
-                if (!CreateComputePipeline(_device, &_tiledV10PipelineState[index],
-                                           blobs[index], sizes[index], nullptr))
-                    LOG_WARN("[{0}] v10 isolated PSO {1} unavailable", _name, index);
-            }
-            if (_tiledV10PipelineState[index])
-                pipeline = _tiledV10PipelineState[index];
-        }
-        if (v9 && pipeline == _pipelineState)
-        {
-            // (compact, strided) -> [linear20, linear16, strided20, strided16].
-            const uint32_t index = (compact ? 1u : 0u) + (strided ? 2u : 0u);
-            const void* const blobs[] = { dlssnr_tiled_v9_linear20_cso, dlssnr_tiled_v9_linear16_cso,
-                                          dlssnr_tiled_v9_strided20_cso, dlssnr_tiled_v9_strided16_cso };
-            const size_t lengths[] = { sizeof(dlssnr_tiled_v9_linear20_cso),
-                                       sizeof(dlssnr_tiled_v9_linear16_cso),
-                                       sizeof(dlssnr_tiled_v9_strided20_cso),
-                                       sizeof(dlssnr_tiled_v9_strided16_cso) };
-            if (!_tiledV9PipelineAttempted[index])
-            {
-                _tiledV9PipelineAttempted[index] = true;
-                if (!CreateComputePipeline(_device, &_tiledV9PipelineState[index],
-                                           blobs[index], lengths[index], nullptr))
-                    LOG_WARN("[{0}] v9 tiled PSO variant {1} unavailable; falling back to v8", _name, index);
-            }
-            if (_tiledV9PipelineState[index])
-                pipeline = _tiledV9PipelineState[index];
-        }
-        if (pipeline == _pipelineState && compact && strided)
-        {
-            if (!_tiledCompactPipelineAttempted)
-            {
-                _tiledCompactPipelineAttempted = true;
-                if (!CreateComputePipeline(_device, &_tiledCompactPipelineState, dlssnr_tiled_compact_cso,
-                                           sizeof(dlssnr_tiled_compact_cso), nullptr))
-                    LOG_WARN("[{0}] v8 compact tiled PSO unavailable", _name);
-            }
-            if (_tiledCompactPipelineState)
-                pipeline = _tiledCompactPipelineState;
-        }
-        if (pipeline == _pipelineState && compact && !strided)
-        {
-            if (!_tiledCompactLinearPipelineAttempted)
-            {
-                _tiledCompactLinearPipelineAttempted = true;
-                if (!CreateComputePipeline(_device, &_tiledCompactLinearPipelineState,
-                                           dlssnr_tiled_linear16_cso, sizeof(dlssnr_tiled_linear16_cso), nullptr))
-                    LOG_WARN("[{0}] v9 linear16 tiled PSO unavailable", _name);
-            }
-            if (_tiledCompactLinearPipelineState)
-                pipeline = _tiledCompactLinearPipelineState;
-        }
-        if (pipeline == _pipelineState && strided)
-        {
-            if (!_tiledStridedPipelineAttempted)
-            {
-                _tiledStridedPipelineAttempted = true;
-                if (!CreateComputePipeline(_device, &_tiledStridedPipelineState, dlssnr_tiled_strided_cso,
-                                           sizeof(dlssnr_tiled_strided_cso), nullptr))
-                    LOG_WARN("[{0}] v8 strided tiled PSO unavailable", _name);
-            }
-            if (_tiledStridedPipelineState)
-                pipeline = _tiledStridedPipelineState;
-        }
-        if (pipeline == _pipelineState)
-        {
-            if (!_tiledFusedPipelineAttempted)
-            {
-                _tiledFusedPipelineAttempted = true;
-                if (!CreateComputePipeline(_device, &_tiledFusedPipelineState, dlssnr_tiled_cso,
-                                           sizeof(dlssnr_tiled_cso), nullptr))
-                    LOG_WARN("[{0}] v7 tiled PSO unavailable; using untiled reference", _name);
-            }
-            if (_tiledFusedPipelineState)
-                pipeline = _tiledFusedPipelineState;
-        }
+        else
+            DlssNr::BenchmarkReportInterPassPath("Fused optimized (RGB PSO fallback)");
     }
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion,
-                           InPrevEdit, InAux2, OutTarget, OutKeep, immutableSlot, groupWidth);
+                           InPrevEdit, InAux2, OutTarget, OutKeep, immutableSlot);
 }
 
 bool DlssNr_Dx12::DispatchCompute(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,
                                   ID3D12PipelineState* pipeline, ID3D12Resource* InSource, ID3D12Resource* InModel,
                                   ID3D12Resource* InOriginal, ID3D12Resource* InMotion, ID3D12Resource* InPrevEdit,
                                   ID3D12Resource* InAux2, ID3D12Resource* OutTarget, ID3D12Resource* OutKeep,
-                                  uint32_t* immutableSlot, uint32_t groupWidth)
+                                  uint32_t* immutableSlot)
 {
     _state->lifetime.Record(InCmdList);
     if (!_init || !pipeline || !InCmdList || !_device || !InSource || !OutTarget)
@@ -534,7 +254,7 @@ bool DlssNr_Dx12::DispatchCompute(ID3D12GraphicsCommandList* InCmdList, const Dl
     // writes fewer pixels than its source has.
     const UINT dispatchWidth = InConstants.Mode == DlssNrMode_Meter
                                    ? InConstants.Width
-                                   : (InConstants.Width + groupWidth - 1) / groupWidth;
+                                   : (InConstants.Width + _numThreadsX - 1) / _numThreadsX;
     const UINT dispatchHeight = InConstants.Mode == DlssNrMode_Meter
                                     ? InConstants.Height
                                     : (InConstants.Height + _numThreadsY - 1) / _numThreadsY;
@@ -654,89 +374,8 @@ DlssNr_Dx12::~DlssNr_Dx12()
         _residualPipelineState->Release();
         _residualPipelineState = nullptr;
     }
-    if (_tiledFusedPipelineState != nullptr)
-    {
-        _tiledFusedPipelineState->Release();
-        _tiledFusedPipelineState = nullptr;
-    }
-    if (_tiledStridedPipelineState != nullptr)
-    {
-        _tiledStridedPipelineState->Release();
-        _tiledStridedPipelineState = nullptr;
-    }
-    if (_tiledCompactPipelineState != nullptr)
-    {
-        _tiledCompactPipelineState->Release();
-        _tiledCompactPipelineState = nullptr;
-    }
-    if (_tiledCompactLinearPipelineState)
-    {
-        _tiledCompactLinearPipelineState->Release();
-        _tiledCompactLinearPipelineState = nullptr;
-    }
-    for (auto*& state : _tiledV12PipelineState)
-    {
-        if (state)
-        {
-            state->Release();
-            state = nullptr;
-        }
-    }
-    if (_v16LowPipelineState)
-        _v16LowPipelineState->Release();
-    for (auto*& state : _tiledV16PipelineState)
-    {
-        if (state)
-            state->Release();
-    }
-    for (auto*& state : _tiledV14PipelineState)
-    {
-        if (state)
-            state->Release();
-        state = nullptr;
-    }
-    for (auto*& state : _tiledV13PipelineState)
-    {
-        if (state)
-        {
-            state->Release();
-            state = nullptr;
-        }
-    }
-    for (auto*& state : _tiledV11PipelineState)
-    {
-        if (state)
-        {
-            state->Release();
-            state = nullptr;
-        }
-    }
-    for (auto*& state : _tiledV10PipelineState)
-    {
-        if (state)
-        {
-            state->Release();
-            state = nullptr;
-        }
-    }
-    for (auto*& state : _tiledV9PipelineState)
-    {
-        if (state)
-        {
-            state->Release();
-            state = nullptr;
-        }
-    }
-    if (_classicV10CachePipelineState)
-    {
-        _classicV10CachePipelineState->Release();
-        _classicV10CachePipelineState = nullptr;
-    }
-    if (_classicCachePipelineState)
-    {
-        _classicCachePipelineState->Release();
-        _classicCachePipelineState = nullptr;
-    }
+    for (auto*& pipeline : _interPassRgbPipeline)
+        if (pipeline) pipeline->Release();
     if (_spatialPipelineState != nullptr)
     {
         _spatialPipelineState->Release();
