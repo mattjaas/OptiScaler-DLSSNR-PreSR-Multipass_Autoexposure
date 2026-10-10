@@ -1,5 +1,18 @@
 # Kontynuacja audytu P65 — stan 2026-10-11
 
+## Aktualizacja v22
+
+Przygotowano celowany benchmark gry: **Compare current / v14 Optimized at 65% (CSV)**.
+Kod obejmuje tylko P65 i zachowuje bieżący transfer/shaping. Off + oba referencyjne
+tryby, następnie obecny/v14/v14/obecny; siedem okien. Archiwalne standard+RGB16
+są w `precompile/benchmark_v14/`, ze zweryfikowanymi hashami i nagłówkami.
+PSO historyczne są leniwe i ograniczone do tego profilu. Zmiana rewizji resetuje
+historię, błędna geometria lub brak PSO anuluje test. Raport jest
+`NR-v22-p65-revision-*`. Szczegóły: [NR-v22-P65-revision-benchmark.md](NR-v22-P65-revision-benchmark.md).
+Lokalne testy Python/kompilacja bieżących shaderów PASS, GPU Mode18 parity PASS
+(32 porównania / 3520 komponentów). Pomiar nowego profilu w grze pozostaje
+do uruchomienia przez użytkownika. Nie powtarzać wcześniejszych synthetic pomiarów.
+
 Ten plik jest checkpointem na prośbę użytkownika. Dochodzenie nie jest zakończone.
 Nie zmieniono kodu renderowania. Zapisano wyniki i źródła, aby kontynuacja
 nie wymagała ponownego wykonywania gotowych analiz ani pomiarów.

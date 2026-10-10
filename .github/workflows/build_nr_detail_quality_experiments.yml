@@ -1,4 +1,4 @@
-name: Build NR v21 fast inter-pass quality comparison
+name: Build NR v22 P65 historical shader comparison
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v21-${{ github.ref }}
+  group: nr-interpass-v22-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -52,6 +52,8 @@ jobs:
           }
           python tests/test_nr_benchmark_cases.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/test_nr_interpass_revision.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Compile standard shader, retained RGB PSOs and isolated Fast PSO
         shell: powershell
@@ -80,15 +82,23 @@ jobs:
           cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/interpass_fast_timing.cpp /Fe:artifacts/nr-v20/interpass_fast_timing.exe /Fo:artifacts/nr-v20/interpass_fast_timing.obj /link d3d12.lib dxgi.lib"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Compile archived Mode18 parity fixture
+        shell: powershell
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $vcvars = Join-Path $vs "VC/Auxiliary/Build/vcvars64.bat"
+          cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/interpass_revision_parity.cpp /Fe:artifacts/nr-v20/interpass_revision_parity.exe /Fo:artifacts/nr-v20/interpass_revision_parity.obj /link d3d12.lib dxgi.lib"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v21-fast-quality-20261010"
+        run: ./package_release.ps1 -Version "nr-interpass-v22-p65-revision-20261011"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v21-fast-quality-20261010
-          path: release/OptiScaler-NR-nr-interpass-v21-fast-quality-20261010.zip
+          name: OptiScaler-NR-interpass-v22-p65-revision-20261011
+          path: release/OptiScaler-NR-nr-interpass-v22-p65-revision-20261011.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -97,21 +107,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v21-fast-quality-20261010"
-          $archive = "release/OptiScaler-NR-nr-interpass-v21-fast-quality-20261010.zip"
+          $tag = "nr-interpass-v22-p65-revision-20261011"
+          $archive = "release/OptiScaler-NR-nr-interpass-v22-p65-revision-20261011.zip"
           $notes = @"
-          Experimental Fast inter-pass from $env:GITHUB_SHA, after the existing exact Optimized option.
-          Fast reuses the immutable Area proxy and evaluates one guided residual per working pixel.
-          Full 3x3 bilateral weights and frequency/shadow shaping remain; native integration is approximate.
-          Area/radius-one/actual 50-90% only; other settings retain the exact v20 Optimized policy.
-          Separate lazy Fast PSO without LDS, scratch, extra dispatches or per-frame allocations.
-          New comparison: exactly P50/P59/P65, Temporal DLAA residual + P100-guided, six passes.
-          Off, both unoptimized references, Optimized/Fast/Fast/Optimized; 15 configurations / 21 windows.
-          Optional manual holds after each warmed measurement permit visual checks and before/after captures.
-          Whole-NR GPU CSV includes gain vs Optimized, P95, SD, window medians/spread and raw samples.
-          Original settings restored at finish/cancel; regular/Below50/Boundary profiles remain available.
-          Fast intentionally changes quality. Inspect fine detail, edges, shadows and motion in your game.
-          Synthetic shader timing is not a whole-game result or proof of imperceptible quality loss.
+          Focused P65 regression comparison from $env:GITHUB_SHA.
+          New button: Compare current / v14 Optimized at 65% (CSV).
+          Only 4K -> 2496x1404, six passes, Area/radius-one/guide-one.
+          Off, both references, then current / archived v14 / v14 / current, seven windows.
+          Same current CPU/NGX pipeline and user Enlargement/shaping settings in both revisions.
+          Archived standard+RGB16 are the verified v14 release DXIL, not recompiled approximations.
+          Lazy benchmark-only PSOs; independent history reset and warmup on revision changes.
+          Geometry mismatch or PSO failure cancels the report rather than accepting a fallback.
+          CSV contains whole-NR GPU times, actual paths, shader revision, P95, SD and window medians.
+          Historical missing config is not reconstructed; this controls shader changes in the same scene.
+          Production Optimized policy and Fast experimental quality mode remain available.
+          No measured in-game regression verdict until the new CSV is supplied.
           "@
           $ErrorActionPreference = "Continue"
           gh release view $tag --json id 1>$null 2>$null
@@ -120,8 +130,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v21 - Fast inter-pass quality comparison" --notes $notes --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v22 - P65 historical shader comparison" --notes $notes --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v21 - Fast inter-pass quality comparison" --notes $notes --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v22 - P65 historical shader comparison" --notes $notes --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

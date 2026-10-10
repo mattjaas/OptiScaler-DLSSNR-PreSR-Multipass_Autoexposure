@@ -297,6 +297,17 @@ void RenderMenu(Config* config, float menuResScale)
             samples = std::clamp(samples, 40, 2000);
             const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
                                       !ReadStatus(Backend::Vulkan).running;
+            ImGui::BeginDisabled(!canBenchmark);
+            if (ImGui::Button("Compare current / v14 Optimized at 65% (CSV)"))
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                              DlssNr::InterPassBenchmarkProfile::RevisionP65);
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Focused regression check: only 4K -> 2496x1404, six passes, Area / radius 1 / guide 1. "
+                                  "Off and both references, then current / v14 / v14 / current with fresh warmup. "
+                                  "7 windows. Preserves your current Enlargement, shaping and other image settings. "
+                                  "Measures the complete NR interval with the actual v14 shaders or current shaders. "
+                                  "Keep the same scene static; settings restored. Wrong geometry or PSO fallback cancels the test.");
             static bool inspectFastWindows = false;
             static char fastBenchmarkScene[160] = "";
             ImGui::InputText("Fast benchmark scene (optional)", fastBenchmarkScene, sizeof(fastBenchmarkScene));

@@ -187,6 +187,9 @@ jest zgodne z dostarczonym pomiarem, a historyczne około 37,0 ms jest prawdziwe
 Obecny narzut odpowiada v16; przyczyny pozostałych 0,129 ms wobec v14
 nie ustalono. Kod renderowania pozostawiono bez zmian.
 
+Celowany profil opisany poniżej jest już przygotowany w
+[NR v22](NR-v22-P65-revision-benchmark.md); nie ma jeszcze pomiaru z gry.
+
 Jeżeli różnica utrzymuje się w tej samej nieruchomej scenie i ustawieniach,
 rozstrzygający następny pomiar powinien porównać tylko P65: archiwalny PSO
 RGB16 v14 i aktualny PSO RGB16 w tym samym pełnym torze najnowszego NR,

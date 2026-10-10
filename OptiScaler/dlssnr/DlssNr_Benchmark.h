@@ -6,7 +6,7 @@
 struct ID3D12Device;
 namespace DlssNr
 {
-enum class InterPassBenchmarkProfile { Regular, Below50, Boundary, FastQuality };
+enum class InterPassBenchmarkProfile { Regular, Below50, Boundary, FastQuality, RevisionP65 };
 struct BenchmarkProgress
 {
     bool active = false;
@@ -26,6 +26,8 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples,
 void AdvanceInterPassBenchmark();
 void CancelInterPassBenchmark();
 int BenchmarkInterPassOverride(); // -1 outside benchmark, no user-facing implementation switches.
+bool BenchmarkUsesV14Shaders(); // Only the historical windows of the focused P65 benchmark.
+void AbortInterPassBenchmark(const char* reason);
 void BenchmarkReportInterPassPath(const char* path);
 BenchmarkProgress ReadInterPassBenchmark();
 void BenchmarkGpuSample(double rawGpuMs, bool modelRunning);
