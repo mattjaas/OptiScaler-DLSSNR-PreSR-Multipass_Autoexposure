@@ -1194,7 +1194,11 @@ void InterPassCorrectedDynamicPair(int2 p0, out float4 result0, out float4 resul
 // distance, just like the v1 exact-optimized reference.
 #ifdef DLSSNR_CLASSIC_SOURCE_CACHE
 static const uint kClassicCachePitch = 12u;
+#if defined(DLSSNR_CLASSIC_CACHE_V10)
+groupshared float3 gClassicSource[12 * 12], gClassicModel[12 * 12];
+#else
 groupshared float4 gClassicSource[12 * 12], gClassicModel[12 * 12];
+#endif
 float4 InterPassCorrectedClassicSharedStencilInternal(int2 nativeP, bool cacheOn, int2 origin)
 #else
 float4 InterPassCorrectedClassicSharedStencil(int2 nativeP)
@@ -1241,12 +1245,17 @@ float4 InterPassCorrectedClassicSharedStencil(int2 nativeP)
             const int2 sampleP = int2(sampleX, sampleY);
 #ifdef DLSSNR_CLASSIC_SOURCE_CACHE
             const int2 indexP = sampleP - origin;
+#if defined(DLSSNR_CLASSIC_CACHE_V10)
+            const float3 proxyCandidate = gClassicSource[indexP.y * kClassicCachePitch + indexP.x];
+            const float3 modelCandidate = gClassicModel[indexP.y * kClassicCachePitch + indexP.x];
+#else
             const float3 proxyCandidate = cacheOn
                 ? gClassicSource[indexP.y * kClassicCachePitch + indexP.x].rgb
                 : gSource.Load(int3(sampleP, 0)).rgb;
             const float3 modelCandidate = cacheOn
                 ? gClassicModel[indexP.y * kClassicCachePitch + indexP.x].rgb
                 : gModel.Load(int3(sampleP, 0)).rgb;
+#endif
             const float3 residual = modelCandidate - proxyCandidate;
 #else
             const float3 proxyCandidate = gSource.Load(int3(sampleP, 0)).rgb;
@@ -1299,8 +1308,13 @@ bool InterPassClassicCacheFill(uint3 groupId, uint3 localId, out int2 origin)
         const uint x = n % (uint)size.x, y = n / (uint)size.x;
         const int2 p = origin + int2(x, y);
         const uint offset = y * kClassicCachePitch + x;
+#if defined(DLSSNR_CLASSIC_CACHE_V10)
+        gClassicSource[offset] = gSource.Load(int3(p, 0)).rgb;
+        gClassicModel[offset] = gModel.Load(int3(p, 0)).rgb;
+#else
         gClassicSource[offset] = gSource.Load(int3(p, 0));
         gClassicModel[offset] = gModel.Load(int3(p, 0));
+#endif
     }
     GroupMemoryBarrierWithGroupSync();
     return true;
