@@ -596,6 +596,9 @@ class Config
     // v9: independent A/B controls. Compacted tiles no longer require Strided.
     CustomOptional<bool> DlssNrInterPassV9Weights { false };
     CustomOptional<bool> DlssNrInterPassV9SourceCache { false };
+    // v11 isolated fast-path experiments; never enabled by default.
+    CustomOptional<bool> DlssNrInterPassV11Spatial { false };
+    CustomOptional<bool> DlssNrInterPassV11QuadFill { false };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
