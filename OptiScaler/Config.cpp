@@ -537,6 +537,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrInterPassV9SourceCache.set_from_config(readBool("DlssNr", "InterPassV9SourceCache"));
             DlssNrInterPassV11Spatial.set_from_config(readBool("DlssNr", "InterPassV11Spatial"));
             DlssNrInterPassV11QuadFill.set_from_config(readBool("DlssNr", "InterPassV11QuadFill"));
+            DlssNrInterPassV12Interior.set_from_config(readBool("DlssNr", "InterPassV12Interior"));
+            DlssNrInterPassV12Axes.set_from_config(readBool("DlssNr", "InterPassV12Axes"));
             DlssNrWhitePointScale.set_from_config(readFloat("DlssNr", "WhitePointScale"));
             DlssNrReplaceDetailStrength.set_from_config(readFloat("DlssNr", "ReplaceDetailStrength"));
             DlssNrResidualConfidenceSensitivity.set_from_config(readFloat("DlssNr", "ResidualConfidenceSensitivity"));
@@ -1729,6 +1731,10 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetBoolValue(Instance()->DlssNrInterPassV11Spatial.value_for_config()).c_str());
         ini.SetValue("DlssNr", "InterPassV11QuadFill",
                      GetBoolValue(Instance()->DlssNrInterPassV11QuadFill.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "InterPassV12Interior",
+                     GetBoolValue(Instance()->DlssNrInterPassV12Interior.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "InterPassV12Axes",
+                     GetBoolValue(Instance()->DlssNrInterPassV12Axes.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ReplaceDetailStrength",
                      GetFloatValue(Instance()->DlssNrReplaceDetailStrength.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ResidualConfidenceSensitivity",
