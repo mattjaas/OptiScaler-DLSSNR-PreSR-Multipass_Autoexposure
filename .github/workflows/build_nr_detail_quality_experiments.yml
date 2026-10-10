@@ -210,7 +210,8 @@ jobs:
           path: release/OptiScaler-NR-nr-interpass-v10-isolated-single-benchmark-20261010.zip
           if-no-files-found: error
 
-      - name: Publish compiled ZIP as experimental GitHub Release
+      - name: Publish compiled ZIP as experimental GitHub Release (best effort)
+        continue-on-error: true # Repo Actions token may lack Releases write despite contents:write.
         shell: powershell
         env:
           GH_TOKEN: ${{ github.token }}
