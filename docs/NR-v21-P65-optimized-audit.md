@@ -109,7 +109,77 @@ Runner tworzy oba PSO przed pomiarem, instancję `LowFixture(runner,65)`,
 i wywołuje `batch(Path::Rgb16, oldPSO, selectedRGB16, count)` dla kolejnych
 stary / nowy / nowy / stary. Nie zmienia stałych między wariantami.
 
-## Wniosek i zakres dalszej weryfikacji
+## Uzupełnienie: cały tor źródłowy v14 i aktywny shaping
+
+Pierwsza część audytu sprawdzała zachowany RGB16 i jego bezpośrednie otoczenie.
+Po uwadze użytkownika porównano również cały produkcyjny diff od tagu
+`nr-interpass-v14-rgb-linear20-20261010` (`c88b3c56`) do v21 (`3de18608`).
+Zapis stanu kontynuacji, źródeł i narzędzi jest w
+[NR-v21-P65-audit-continuation.md](NR-v21-P65-audit-continuation.md).
+
+### Różnice poza samym RGB16
+
+| Obszar | Wynik porównania v14 → v21 |
+|---|---|
+| Przygotowanie wejść i model NGX | Bez zmian źródłowych; zachowany immutable original base i cumulative answer |
+| Obliczanie gainów i scale correction | `PassProfiles.h` bez zmian; te same per-style gainy i reguły shaping przy takim samym configu |
+| Stałe rekonstrukcji | Radius, sigmy, confidence, gains, shadow gate i dane geometrii zachowane; stare flagi wyboru eksperymentalnego PSO zastąpione wyborem specjalizowanego PSO |
+| Pole low-frequency | Ten sam Mode18 i ceil(work/8); przy nierównych low/high gains ten sam dodatkowy przebieg przed każdą rekonstrukcją |
+| Dispatch i bariery | `DispatchCompute` i nadrzędny `Dispatch` bez zmian; na zachowanym P65 bez dodatkowego przebiegu, kopii i bariery |
+| Zakres timestampów | `DlssNr_Dx12_Status.cpp` bez zmian, ten sam surowy GPU timestamp i jednorazowa konsumpcja zakończonej sekwencji |
+| Reset historii | v14 reagowało na zmianę trybu 0/1/2; obecny kod reaguje na zmianę faktycznie wybranego `Path` |
+| Profil benchmarku | v14 zostawiało bieżący transfer; v21 FastQuality wymusza Transfer=9 |
+| Metadata benchmarku | v14 nie zapisało transferu, sigm, shaping, gains, per-pass ustawień ani shadow gate; v21 zapisuje więcej parametrów, lecz nie pełny config |
+
+v14 nie wymuszało też guide strength, ale dla dostarczonego raportu zapisano
+guide strength 1. Obecny benchmark wymusza 1. Różnica resetu historii może
+wpływać na zachowanie temporalne po zmianie konfiguracji; jej wpływu na
+zgłoszone 0,129 ms po rozgrzewce nie ustalono. Nie należy twierdzić,
+że historyczny transfer albo shaping faktycznie były inne — brak tych danych.
+
+Porównanie funkcji HLSL wykazało zmiany ograniczone do inter-pass i `CSMain`:
+usunięto odrzucone Classic cache / DynamicPair, uproszczono wybór wag/kafli,
+dodano osobny Fast. Wspólne funkcje pozostałych etapów oraz ciała Mode18,
+encode i final resolve są identyczne po pominięciu komentarzy/białych znaków.
+Nie oznacza to identycznego binarnego standardowego shadera: wcześniejsze
+usunięcie eksperymentów i późniejsze dodanie Mode33 zmieniły cały DXIL.
+
+Wszystkie wspólne DLL dostarczone w ZIP v14 i v21 poza OptiScaler.dll są
+identyczne SHA256. Paczki nie zawierają nvngx_dlssnr.dll; nie ustalono z nich
+historycznej wersji prywatnej biblioteki modelu używanej przez grę.
+
+### Dodatkowy pomiar obejmujący low-frequency
+
+Porównano rzeczywiste pary standard+RGB16 v14 i v21 na RTX 4090:
+rezydujące synthetic 4K→2496×1404, wejścia FP32, wyjście/pole low FP16,
+low 312×176, Area, radius 1, guide 1, range sigma 0,015, spatial sigma 3,0.
+Shaping aktywny: bezpośrednie stałe high=0,75 / low=0,74; shadow gate wyłączony.
+To ustawienia fixture, a nie odtworzony historyczny config użytkownika.
+
+Jeden wynik obejmuje pięć przebiegów Mode18, pięć rekonstrukcji Mode28 i bariery.
+Osiem powtórzeń tego fragmentu na timestamp, wynik dzielony przez osiem.
+Trzy ABBA, 90 rozgrzewki i 160 próbek na okno, 960 próbek na wariant.
+Upload, alokacje, PSO, CBV, odczyt i oczekiwanie na fence są poza timestamp.
+
+| Wariant | Mediana pięciu przejść ms | P95 ms | SD ms |
+|---|---:|---:|---:|
+| v14 | 3,113152 | 3,220480 | 0,073269 |
+| v21 | 3,113664 | 3,193856 | 0,064827 |
+
+Różnice median v21 minus v14 w kolejnych blokach:
++0,013312 / +0,001216 / −0,003264 ms. Nie wykazano powtarzalnego spowolnienia
+zmienionych shaderów w tym fixture, również z aktywnym shaping i polem low.
+Wyniku nie mnożyć przez pięć: już obejmuje pięć przejść.
+
+Surowe [1920 próbek](NR-v21-P65-shaped-chain-GPU.samples.csv): 12 okien,
+kompletne indeksy 0..159 bez duplikatów. Runner
+`artifacts/nr-p65-audit/shaped_chain_timing.cpp` pozostaje zapisany lokalnie.
+Nie obejmuje NGX, temporalnego DLAA ani końcowego resolve; używa stałego
+syntetycznego answer dla wszystkich przejść, bez sprzężenia zwrotnego przez
+model NR. Nie zastępuje porównania pełnego toru w grze i nie wyklucza
+regresji zależnej od innych parametrów, sceny albo równoległej pracy GPU.
+
+## Wniosek po rozszerzeniu audytu
 
 Nie ma podstaw do przełączenia produkcyjnego P65 na RGB20, Classic albo
 przybliżony Fast, ani do cofnięcia zachowanych optymalizacji. Zgłoszone 37,3 ms

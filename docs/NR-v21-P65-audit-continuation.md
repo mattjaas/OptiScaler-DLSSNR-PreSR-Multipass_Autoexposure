@@ -4,6 +4,13 @@ Ten plik jest checkpointem na prośbę użytkownika. Dochodzenie nie jest zakoń
 Nie zmieniono kodu renderowania. Zapisano wyniki i źródła, aby kontynuacja
 nie wymagała ponownego wykonywania gotowych analiz ani pomiarów.
 
+Aktualizacja po zapisie checkpointu: główny raport
+`docs/NR-v21-P65-optimized-audit.md` uzupełniono o pełny diff źródłowy,
+różnice profilu benchmarku/history reset oraz shaping-chain GPU. Krok 2
+poniżej jest już wykonany. Nie znaleziono konkretnego błędu do poprawienia;
+przyczyny historycznych 0,129 ms nie ustalono. Pozostaje ewentualny celowany
+pomiar pełnego toru w grze, a nie ponowienie wykonanych testów syntetycznych.
+
 ## Cel i ostatnie instrukcje
 
 Użytkownik zgłasza około 37,3 ms dla Optimized przy 65%, dawniej około 37,0 ms,
