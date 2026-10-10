@@ -6,6 +6,7 @@
 #include "DlssNr_PipelineUi.h"
 #include "DlssNr_Upscaler.h"
 #include "DlssNr_MenuSections.h"
+#include "DlssNr_Benchmark.h"
 #include "DlssNr_Placement.h"
 #include <Config.h>
 #include <menu/menu_common.h>
@@ -267,6 +268,37 @@ void RenderMenu(Config* config, float menuResScale)
         ImGui::Separator();
         ImGui::Spacing();
         RenderStatus(config);
+        const auto bench = DlssNr::ReadInterPassBenchmark();
+        if (bench.active)
+        {
+            ImGui::Text("NR benchmark %u/%u: %s", bench.current, bench.total, bench.variant.c_str());
+            ImGui::Text("Warmup %u/%u | Samples %u/%u", bench.warmed, bench.warmupTarget,
+                        bench.collected, bench.sampleTarget);
+            if (ImGui::Button("Stop benchmark and restore settings"))
+                DlssNr::CancelInterPassBenchmark();
+        }
+        else
+        {
+            static int warmup = 90, samples = 160;
+            ImGui::SetNextItemWidth(95.0f);
+            ImGui::InputInt("Benchmark warmup samples", &warmup, 0, 0);
+            warmup = std::clamp(warmup, 40, 600);
+            ImGui::SetNextItemWidth(95.0f);
+            ImGui::InputInt("Benchmark measured samples", &samples, 0, 0);
+            samples = std::clamp(samples, 40, 2000);
+            const bool canBenchmark = dx12.running && !vk.running;
+            ImGui::BeginDisabled(!canBenchmark);
+            if (ImGui::Button("Auto benchmark NR: P50 + P65 (save CSV)"))
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("DX12 only. Automatic 6-pass test of off/Classic/Fused and v9 flags. "
+                                  "Records raw GPU timestamp medians after per-case warmup. "
+                                  "Saves CSV and TXT in game's OptiScaler-NR-Benchmarks folder. "
+                                  "Leave the game in a stable scene; original settings are restored.");
+        }
+        if (!bench.message.empty())
+            ImGui::TextWrapped("%s", bench.message.c_str());
         ImGui::SeparatorText(PipelineUi::SectionName(selected));
         ImGui::PushItemWidth(std::min(220.0f * menuResScale, ImGui::GetContentRegionAvail().x * 0.42f));
         static constexpr void (*sections[])(Config*) = { RenderPlacement, RenderInput, RenderModel, RenderBlend };
