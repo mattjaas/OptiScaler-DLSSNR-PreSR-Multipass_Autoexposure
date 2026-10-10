@@ -12,8 +12,14 @@ bez produkcyjnej zmiany selekcji. Nieodpowiednia geometria/guide/fallback
 anuluje test. Raport `NR-v23-p65-guide16-*`, przywracanie ustawień na końcu.
 GPU bit parity Guide16 versus current RGB16: PASS, 102 porównania,
 84 688 704 RGBA, RTX4090, FP16/FP32, full P65, brzegi/HDR/non-finite/shaping.
-Python i dotychczasowe retained arithmetic PASS. Build/release do sprawdzenia
-przed zakończeniem zadania, a następnie potrzebny nowy pomiar w grze.
+Python i dotychczasowe retained arithmetic PASS. Build i release zweryfikowane:
+[Actions 38096089571](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38096089571),
+kod `74c4ce1aaab0faa92a028d0468da3b7e2d9a1971`.
+Paczka `nr-interpass-v23-p65-guide16-20261011` opublikowana; pobrany ZIP
+CRC/62 manifest files/x64/7 shader blobs/34 discarded absent PASS.
+Sumy i linki są w dokumencie v23. Następny krok: użytkownik instaluje paczkę,
+uruchamia nowy przycisk i dostarcza `NR-v23-p65-guide16-*.csv/.samples.csv/.txt`.
+Nie ogłoszono przewagi ani zmiany produkcyjnej selekcji; nie powtarzać v22.
 Poniższe wcześniejsze checkpointy opisują poprzednie etapy.
 
 ## Nowsza wskazówka: screeny v14 nie używają RGB16

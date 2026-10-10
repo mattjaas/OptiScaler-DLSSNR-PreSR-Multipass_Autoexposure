@@ -133,7 +133,11 @@ i ABBA. To porównanie algorytmicznych specjalizacji, a nie dwóch rewizji
 tego samego RGB16. Przy powtarzalnym zysku należy też sprawdzić zgodność
 wyniku GPU przed zmianą selekcji. Screeny same nie wystarczają do zmiany
 polityki i nie dowodzą regresji kodu; wskazują pominięty dotąd celowany test.
-Nie dodano jeszcze tego profilu ani nowego produkcyjnego PSO.
+Na kolejną prośbę użytkownika profil dodano i opublikowano w
+[v23](NR-v23-P65-guide16-benchmark.md). Standardowy shader pozostaje wspólny,
+zmieniany jest tylko RGB16/Guide16 inter-pass. Nowe GPU parity przeszło
+102 porównania; wynik pomiaru wydajności nowego profilu w grze jest jeszcze
+nieznany. Nie dodano Guide16 do produkcyjnej selekcji.
 
 ## Identyfikacja źródeł
 

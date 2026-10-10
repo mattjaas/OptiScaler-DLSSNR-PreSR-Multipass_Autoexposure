@@ -73,5 +73,31 @@ payloadu NaN.
   tiled_fused_area: PASS.
 - HLSL i cztery produkcyjne bloby pozostają bez zmian. Fixture korzystało
   z identycznych shaderów bieżących wygenerowanych i zweryfikowanych przy v22.
-- Pełna kompilacja/paczka zostanie sprawdzona w istniejącym workflow;
-  jego wynik i link do release zostaną dopisane po zakończeniu.
+- Pełna kompilacja, kompilacja produkcyjnych shaderów, testy polityki,
+  kompilacja fixtures i wydanie paczki: PASS,
+  [GitHub Actions 38096089571](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38096089571).
+  Kod: `74c4ce1aaab0faa92a028d0468da3b7e2d9a1971`, gałąź
+  `codex/nr-interpass-v13-bounded-area`. Kontrolę GPU wykonano lokalnie
+  na RTX 4090; runner CI kompiluje fixture, nie deklaruje pomiaru na tej karcie.
+
+## Zweryfikowana paczka
+
+[Release v23](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/tag/nr-interpass-v23-p65-guide16-20261011)
+oraz [ZIP do instalacji](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v23-p65-guide16-20261011/OptiScaler-NR-nr-interpass-v23-p65-guide16-20261011.zip).
+
+- ZIP: 131 382 656 bajtów, SHA256
+  `142d7463193f1bebf3a1dc2fb19ce88e2aaca3d00defa39daadb903edcbc1958`.
+- DLL SHA256: `751d773e4f582c4852fae7ed2d77d7fbba64eb4bb41d15341182c8e2bc99685d`.
+- Pobrany ZIP: CRC i wszystkie 62 pliki manifestu SHA256SUMS — PASS.
+- DLL Windows x64, nowy przycisk/prefix/report paths oraz dotychczasowy
+  profil v22 — PASS.
+- Dokładnie po jednym egzemplarzu czterech bieżących shaderów i trzech
+  archiwalnych (standard/RGB16 dla v22, Guide16 dla v23) — PASS.
+- Cztery bieżące bloby są byte-identical z v22/v21. 34 pozostałe odrzucone
+  bloby eksperymentalne nie występują w DLL — PASS.
+- Hash pobranego ZIP jest zgodny z digestem assetu GitHub — PASS.
+
+Następny krok: uruchomienie nowego przycisku przez użytkownika w grze
+i analiza trzech raportów `NR-v23-p65-guide16-*`. Nie powtarzać v22 ani
+gotowych kontroli syntetycznych bez nowej hipotezy. Nie ma jeszcze pomiaru
+przewagi Guide16 w całym NR.
