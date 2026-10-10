@@ -72,6 +72,13 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool _tiledStridedPipelineAttempted = false;
     ID3D12PipelineState* _tiledCompactPipelineState = nullptr;
     bool _tiledCompactPipelineAttempted = false;
+    // v9 experimental variants are separate PSOs; other paths remain byte-identical.
+    ID3D12PipelineState* _tiledCompactLinearPipelineState = nullptr;
+    bool _tiledCompactLinearPipelineAttempted = false;
+    ID3D12PipelineState* _tiledV9PipelineState[4] {};
+    bool _tiledV9PipelineAttempted[4] {};
+    ID3D12PipelineState* _classicCachePipelineState = nullptr;
+    bool _classicCachePipelineAttempted = false;
     ID3D12PipelineState* _finishedColorPipelineState = nullptr;
     ID3D12PipelineState* _spatialPipelineState = nullptr;
     ID3D12PipelineState* _spatialGuidesPipelineState = nullptr;
