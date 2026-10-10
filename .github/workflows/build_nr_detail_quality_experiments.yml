@@ -1,9 +1,9 @@
-name: Build NR compact and strided tiled v8
+name: Build NR interpass v9 and auto benchmark
 
 on:
   push:
     branches:
-      - codex/nr-interpass-tiled-compact-strided-v8
+      - codex/nr-interpass-v9-auto-benchmark
     paths:
       - OptiScaler/Config.h
       - OptiScaler/Config.cpp
@@ -13,6 +13,7 @@ on:
       - OptiScaler/dlssnr/DlssNr_MenuControls.cpp
       - OptiScaler/dlssnr/DlssNr_Status.h
       - OptiScaler/dlssnr/DlssNr_Status.cpp
+      - OptiScaler/dlssnr/DlssNr_Benchmark.h
       - OptiScaler/dlssnr/DlssNr_AnalysisCapture.h
       - OptiScaler/shaders/dlssnr/DlssNr_Common.h
       - OptiScaler/shaders/dlssnr/DlssNr_Dx12.h
@@ -37,13 +38,15 @@ on:
       - tests/test_nr_interpass_classic_guided_stencil.py
       - tests/test_nr_interpass_tiled_fused_area.py
       - tests/test_nr_interpass_tiled_v8.py
+      - tests/test_nr_interpass_v9.py
+      - OptiScaler/shaders/dlssnr/DlssNr_GpuTime.h
       - .github/workflows/build_nr_detail_quality_experiments.yml
 
 permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-tiled-fused-v7-${{ github.sha }}
+  group: nr-interpass-v9-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -92,6 +95,10 @@ jobs:
         shell: powershell
         run: python tests/test_nr_interpass_tiled_v8.py
 
+      - name: Verify v9 shared source cache bounds and bilinear parity
+        shell: powershell
+        run: python tests/test_nr_interpass_v9.py
+
       - name: Rebuild NR detail experiment shader
         shell: powershell
         run: |
@@ -115,6 +122,31 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python "..\..\shader_tools\create_header.py" "dlssnr_tiled_compact_Shader.cso" "dlssnr_tiled_compact_Shader.h" "dlssnr_tiled_compact_cso"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # v9 independent Linear 16 and radius-one cached/weighted shaders.
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 "dlssnr.hlsl" -Fo "dlssnr_tiled_linear16_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_linear16_Shader.cso" "dlssnr_tiled_linear16_Shader.h" "dlssnr_tiled_linear16_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_V9=1 -D DLSSNR_TILED_PITCH=20 "dlssnr.hlsl" -Fo "dlssnr_tiled_v9_linear20_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v9_linear20_Shader.cso" "dlssnr_tiled_v9_linear20_Shader.h" "dlssnr_tiled_v9_linear20_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_V9=1 -D DLSSNR_TILED_PITCH=16 "dlssnr.hlsl" -Fo "dlssnr_tiled_v9_linear16_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v9_linear16_Shader.cso" "dlssnr_tiled_v9_linear16_Shader.h" "dlssnr_tiled_v9_linear16_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_V9=1 -D DLSSNR_TILED_STRIDED=1 -D DLSSNR_TILED_PITCH=20 "dlssnr.hlsl" -Fo "dlssnr_tiled_v9_strided20_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v9_strided20_Shader.cso" "dlssnr_tiled_v9_strided20_Shader.h" "dlssnr_tiled_v9_strided20_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_V9=1 -D DLSSNR_TILED_STRIDED=1 -D DLSSNR_TILED_PITCH=16 "dlssnr.hlsl" -Fo "dlssnr_tiled_v9_strided16_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v9_strided16_Shader.cso" "dlssnr_tiled_v9_strided16_Shader.h" "dlssnr_tiled_v9_strided16_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_CLASSIC_SOURCE_CACHE=1 "dlssnr.hlsl" -Fo "dlssnr_classic_cache_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_classic_cache_Shader.cso" "dlssnr_classic_cache_Shader.h" "dlssnr_classic_cache_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           # Detect accidental identical shader variants; the tiled shader must differ.
           $mainHash = (Get-FileHash "DlssNr_Shader.cso" -Algorithm SHA256).Hash
           $tileHash = (Get-FileHash "dlssnr_tiled_Shader.cso" -Algorithm SHA256).Hash
@@ -135,13 +167,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-tiled-compact-strided-v8-20261010"
+        run: ./package_release.ps1 -Version "nr-interpass-v9-auto-benchmark-20261010"
 
       - name: Upload test package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-tiled-compact-strided-v8-20261010
-          path: release/OptiScaler-NR-nr-interpass-tiled-compact-strided-v8-20261010.zip
+          name: OptiScaler-NR-interpass-v9-auto-benchmark-20261010
+          path: release/OptiScaler-NR-nr-interpass-v9-auto-benchmark-20261010.zip
           if-no-files-found: error
 
       - name: Publish compiled ZIP as experimental GitHub Release
@@ -149,26 +181,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-tiled-compact-strided-v8-20261010"
-          $archive = "release/OptiScaler-NR-nr-interpass-tiled-compact-strided-v8-20261010.zip"
+          $tag = "nr-interpass-v9-auto-benchmark-20261010"
+          $archive = "release/OptiScaler-NR-nr-interpass-v9-auto-benchmark-20261010.zip"
           if (-not (Test-Path $archive)) { throw "Release ZIP missing: $archive" }
           $notes = @"
-          Experimental build from commit $env:GITHUB_SHA of codex/nr-interpass-tiled-compact-strided-v8.
-
-          v8 retains v7.1 isolated standard NR PSO and original v7
-          tiled Fused PSO. Two new optional, lazy-created PSOs:
-          (1) 20x20 2D thread-strided group fills, avoiding per-sample
-          runtime modulo/division, same 6400B as v7;
-          (2) 16x16 2D strided compact tile using only 4096B groupshared,
-          selected only with actual native/work ratios <= 5/3 on BOTH axes,
-          e.g. P65 and P75. Other ratios keep 20x20 strided PSO.
-          Both features default OFF with independent A/B UI controls.
-          All variants preserve guided bilinear+bilateral math, Area weights,
-          alpha, frequency shaping, shadow gating, and thread barriers.
-          No new GPU dispatch or scratch. The normal non-tiled shader is
-          built separately without either new tiled variant.
-          CI verifies P51-P90 tile bounds/coverage, v1-v7 arithmetic parity,
-          four distinct DXIL shader variants, and Win64 Release compilation.
-          In-game motion quality and actual GPU speed remain to verify.
+          Experimental v9 from commit $env:GITHUB_SHA.
+          Independent Compact 16x16 Linear and Strided (actual geometry guard).
+          Experimental separable guided bilinear weight preload in v9 Fused tiled PSOs.
+          Experimental FP32 groupshared source/model stencil caching in isolated
+          Fused tiled and Classic PSOs; default OFF. In-game image parity and
+          actual GPU speed require user's A/B measurements.
+          Automatic six-pass DX12 GPU timestamp benchmark for P50 and P65:
+          automatic per-case warmup, median/mean/p95/stddev,
+          CSV+TXT saved beside game in OptiScaler-NR-Benchmarks;
+          original settings restored on completion/cancel.
+          Baseline standard NR DXIL separately compiled without v9 code.
           "@
-          gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR - compact and strided tiled Fused v8 (experimental)" --notes $notes --prerelease
+          gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR - interpass v9 + automated GPU benchmark (experimental)" --notes $notes --prerelease
