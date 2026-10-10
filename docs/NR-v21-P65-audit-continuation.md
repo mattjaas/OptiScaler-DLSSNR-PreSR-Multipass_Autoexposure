@@ -1,5 +1,20 @@
 # Kontynuacja audytu P65 — stan 2026-10-11
 
+## Aktualny wynik v22 z gry
+
+Raport `NR-v22-p65-revision-20261011-005612` został dostarczony i sprawdzony:
+[NR-v22-P65-game-results.md](NR-v22-P65-game-results.md). Wszystkie 1120 próbek
+są kompletne, metryki odtworzone z raw, faktyczne current/v14 PSO bez fallbacku.
+Off 35,765760 ms; obecny Optimized 37,245440 ms; v14 37,233152 ms.
+Zysk v14 0,012288 ms; sąsiednie pary AB/BA dają −0,001536 / +0,024064 ms.
+Same stare shadery nie odtworzyły historycznych 37,020160 ms. Nie wykazano
+powtarzalnego zysku uzasadniającego cofnięcie produkcyjnych shaderów/polityki.
+Historyczna różnica narzutu nadal nie ma ustalonej przyczyny. Poniższe
+checkpointy zachowują wcześniejszy stan; ich wzmianki o brakującym pomiarze
+v22 są już nieaktualne. Nie czekać ponownie na te raporty ani nie ponawiać
+shader-only testów. Ewentualna nowa hipoteza wymaga porównania całych DLL
+przy uzgodnionych ustawieniach/modelu/scenie. W tej aktualizacji tylko dokumentacja.
+
 ## Aktualizacja v22
 
 Przygotowano celowany benchmark gry: **Compare current / v14 Optimized at 65% (CSV)**.

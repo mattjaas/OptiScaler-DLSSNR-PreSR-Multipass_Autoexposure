@@ -1,5 +1,11 @@
 # Audyt Optimized przy 65% — 2026-10-11
 
+Aktualizacja po celowanym pomiarze całego NR w grze:
+[wyniki v22 current/v14 w ABBA](NR-v22-P65-game-results.md).
+Obecny/v14 dają 37,245440 / 37,233152 ms; nie wykazano powtarzalnej przewagi
+starych shaderów wyjaśniającej historyczne 0,1–0,13 ms. Poniższy audyt
+opisuje wcześniejszy stan i zachowuje dane historyczne.
+
 Sprawdzono źródło `3de18608d09dee551542a50d24c7a8581f69f584`, zgodne z
 upstream `codex/nr-interpass-v13-bounded-area`. Zgłoszenie dotyczyło około
 37,3 ms dla Optimized wobec zapamiętanego wyniku około 37,0 ms i Off około

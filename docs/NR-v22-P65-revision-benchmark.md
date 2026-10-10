@@ -1,5 +1,10 @@
 # NR v22: porównanie obecnych shaderów z v14 przy P65
 
+Aktualizacja po raporcie `NR-v22-p65-revision-20261011-005612`:
+[pomiar w grze i analiza okien](NR-v22-P65-game-results.md) są ukończone.
+Obecny/v14: 37,245440 / 37,233152 ms. Nie wykazano powtarzalnego zysku
+wyjaśniającego historyczną różnicę; produkcyjna ścieżka pozostaje bez zmian.
+
 W statusie NR jest przycisk **Compare current / v14 Optimized at 65% (CSV)**.
 To celowany test zgłoszenia około 37,3 ms wobec historycznych około 37,0 ms.
 Nie zmienia produkcyjnej polityki Optimized. Przygotowano go po
@@ -84,8 +89,8 @@ taktowania. Test nie jest uruchomieniem całego starego DLL v14.
 - Dotychczasowa zgodność inter-pass Mode27/28 z rzeczywistą bazą v14:
   6528 porównań, 53 543 552 składowych RGBA (audyt v21).
 
-Pomiar nowego profilu w grze wymaga uruchomienia przez użytkownika.
-Nie ma jeszcze wyniku całego NR z tego A/B i nie ogłoszono usunięcia regresji.
+Pomiar profilu w grze dostarczono i sprawdzono; szczegóły w podlinkowanej
+analizie v22. Nie ogłoszono usunięcia regresji.
 
 ## Opublikowana i zweryfikowana paczka
 
@@ -107,6 +112,6 @@ Rozmiar: 131 349 011 bajtów.
 - 35 odrzuconych blobów eksperymentalnych nie występuje w DLL — PASS.
 - Hash pobranej paczki jest zgodny z digestem assetu GitHub — PASS.
 
-Następny krok to wyłącznie pomiar tego profilu w grze i analiza trzech raportów
-`NR-v22-p65-revision-*`; nie trzeba ponownie wykonywać gotowych kontroli
-syntetycznych. Udany build nie rozstrzyga zgłoszonej różnicy czasu GPU.
+Pomiar i analiza trzech raportów `NR-v22-p65-revision-20261011-005612` są
+ukończone. Nie trzeba ponownie wykonywać gotowych kontroli syntetycznych.
+Udany build sam w sobie nie rozstrzyga różnicy czasu GPU.
