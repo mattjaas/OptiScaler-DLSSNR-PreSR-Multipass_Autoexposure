@@ -1174,6 +1174,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             guided.DirectDetailMode = modelWidth;
             guided.DirectResolveUpscaler = modelHeight;
             guided.DirectResolveFlags |= 1024u;
+            if (cfg.DlssNrInterPassV9SourceCache.value_or_default())
+                guided.DirectResolveFlags |= 32768u; // Classic source/model cached PSO
         }
 
         if (!shader.DispatchPassAux2(cmdList, guided, originalPassBase, currentAnswer, nr.colorCopy,
@@ -1379,19 +1381,18 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 {
                     guided.DirectResolveFlags |= 2048u;
                     if (cfg.DlssNrInterPassTiledStridedLoads.value_or_default())
-                    {
                         guided.DirectResolveFlags |= 4096u;
-                        // For 8 adjacent working texels the native footprint
-                        // spans at most ceil(8*r)+1 texels. r <= 5/3 fits
-                        // comfortably in 16, including fractional origins,
-                        // partial edge groups and rounding at noninteger P65.
-                        // Use actual dimensions, not percentage slider, so
-                        // a rounded edge case cannot incorrectly select 16.
-                        if (cfg.DlssNrInterPassTiledCompact16.value_or_default() &&
-                            (uint64_t)width * 3u <= (uint64_t)modelWidth * 5u &&
-                            (uint64_t)height * 3u <= (uint64_t)modelHeight * 5u)
-                            guided.DirectResolveFlags |= 8192u;
-                    }
+                    // v9: Compact 16x16 is INDEPENDENT of the strided layout.
+                    // Same 5/3 actual-dimension guard as v8, hence no change
+                    // to the native footprint or Area weights.
+                    if (cfg.DlssNrInterPassTiledCompact16.value_or_default() &&
+                        (uint64_t)width * 3u <= (uint64_t)modelWidth * 5u &&
+                        (uint64_t)height * 3u <= (uint64_t)modelHeight * 5u)
+                        guided.DirectResolveFlags |= 8192u;
+                    if (cfg.DlssNrInterPassV9Weights.value_or_default())
+                        guided.DirectResolveFlags |= 16384u;
+                    if (cfg.DlssNrInterPassV9SourceCache.value_or_default())
+                        guided.DirectResolveFlags |= 32768u;
                 }
             }
             if (!shader.DispatchPassAux2(cmdList, guided, originalPassBase, currentAnswer, nr.colorCopy,
