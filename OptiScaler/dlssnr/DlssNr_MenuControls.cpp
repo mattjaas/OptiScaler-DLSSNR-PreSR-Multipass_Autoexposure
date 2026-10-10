@@ -1156,15 +1156,15 @@ void RenderModel(Config* config)
                                    "linear group assignment with independent 8x8 2D thread stripes. "
                                    "Same reconstructed P100 texels, Area weights, FP32 tile and barrier. "
                                    "OFF retains the original 20x20 v7.1 shader/PSO.");
-                        if (config->DlssNrInterPassTiledStridedLoads.value_or_default())
-                        {
-                            Checkbox("Fused: compact 16x16 shared tile (v8)",
-                                     config->DlssNrInterPassTiledCompact16);
-                            HelpMarker("Compare 16x16 (4096B groupshared) vs 20x20 (6400B). "
-                                       "Available only if native/work dimension ratio <= 5/3 in "
-                                       "both axes, e.g. P65/P75. Other ratios automatically "
-                                       "select the 20x20 strided variant. OFF restores 20x20.");
-                        }
+                        Checkbox("Fused: compact 16x16 tile (v9 independent)",
+                                 config->DlssNrInterPassTiledCompact16);
+                        HelpMarker("Works with BOTH linear and 2D strided loads. For eligible native/work "
+                                   "ratios <= 5/3 chooses 16x16, otherwise 20x20. "
+                                   "Linear 16x16 is the new v9 A/B variant.");
+                        Checkbox("Fused: precompute separable bilinear weights (v9)",
+                                 config->DlssNrInterPassV9Weights);
+                        HelpMarker("Experimental: reuses separable bilinear weights as in Classic v6. "
+                                   "Available in v9 tiled linear PSOs for GPU cost and parity A/B.");
                     }
                     HelpMarker("Experimental: Fused + Area + Guided radius 1, fractional P51-P90. "
                                "Each 8x8 workgroup reconstructs each native P100 guided pixel "
@@ -1175,6 +1175,11 @@ void RenderModel(Config* config)
                                "The slower v4 paired path must be OFF. "
                                "OFF restores v3 for measured GPU A/B; GPU occupancy may differ.");
                 }
+                Checkbox("Classic/Fused: shared source-model tile (v9)",
+                         config->DlssNrInterPassV9SourceCache);
+                HelpMarker("Experimental radius-one shared source/model tap preload with isolated shaders. "
+                           "Works for Classic and Fused tiled linear; P50 Fused keeps its dedicated path. "
+                           "May be slower due to LDS/barriers. Default OFF.");
                 if (config->DlssNrInterPassDynamicSharedTaps.value_or_default())
                 {
                     Checkbox("Pair adjacent P100 Area taps (v4)", config->DlssNrInterPassPairedArea);
