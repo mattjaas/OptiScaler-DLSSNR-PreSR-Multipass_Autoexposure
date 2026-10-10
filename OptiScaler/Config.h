@@ -599,6 +599,9 @@ class Config
     // v11 isolated fast-path experiments; never enabled by default.
     CustomOptional<bool> DlssNrInterPassV11Spatial { false };
     CustomOptional<bool> DlssNrInterPassV11QuadFill { false };
+    // v12: independent 3x3 source-addressing experiments, default disabled.
+    CustomOptional<bool> DlssNrInterPassV12Interior { false };
+    CustomOptional<bool> DlssNrInterPassV12Axes { false };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
