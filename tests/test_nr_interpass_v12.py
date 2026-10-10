@@ -37,7 +37,7 @@ def test_compilation_isolation():
     for shader in ("v12_interior", "v12_axes", "v12_both"):
         assert f"dlssnr_tiled_{shader}_cso" in DX12
         assert f"dlssnr_tiled_{shader}_Shader.cso" in WORKFLOW
-    assert 'name << "NR-v12-"' in BENCH
+    assert 'name << "NR-v13-"' in BENCH
     assert "v12Interior = true;" in BENCH and "v12Axes = true;" in BENCH
     assert "for (int scale : { 50, 65 })" in BENCH
     assert "benchmarkWarm < benchmarkWarmup" in BENCH

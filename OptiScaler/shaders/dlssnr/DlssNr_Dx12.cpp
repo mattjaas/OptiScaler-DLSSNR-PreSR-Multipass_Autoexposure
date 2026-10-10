@@ -22,6 +22,9 @@
 #include "precompile/dlssnr_tiled_v12_interior_Shader.h"
 #include "precompile/dlssnr_tiled_v12_axes_Shader.h"
 #include "precompile/dlssnr_tiled_v12_both_Shader.h"
+#include "precompile/dlssnr_tiled_v13_area_Shader.h"
+#include "precompile/dlssnr_tiled_v13_mode28_Shader.h"
+#include "precompile/dlssnr_tiled_v13_both_Shader.h"
 #include "precompile/dlssnr_classic_v10_cache_Shader.h"
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -199,6 +202,31 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
         const bool compact = (flags & 8192u) != 0u;
         const bool strided = (flags & 4096u) != 0u;
         const bool v9 = (flags & (16384u | 32768u)) != 0u;
+        // v13: independent Area loops and constant Mode28 compilation.
+        // Require older experiments OFF so this benchmark isolates one factor.
+        const bool v13 = compact && !strided && (flags & 16384u) != 0u &&
+                             (flags & (32768u | 65536u | 131072u | 262144u | 524288u)) == 0u &&
+                             (flags & (1048576u | 2097152u)) != 0u;
+        if (v13)
+        {
+            const uint32_t index = ((flags & 1048576u) != 0u ? 1u : 0u) +
+                                   ((flags & 2097152u) != 0u ? 2u : 0u) - 1u;
+            const void* const blobs[] = { dlssnr_tiled_v13_area_cso,
+                                          dlssnr_tiled_v13_mode28_cso,
+                                          dlssnr_tiled_v13_both_cso };
+            const size_t sizes[] = { sizeof(dlssnr_tiled_v13_area_cso),
+                                     sizeof(dlssnr_tiled_v13_mode28_cso),
+                                     sizeof(dlssnr_tiled_v13_both_cso) };
+            if (!_tiledV13PipelineAttempted[index])
+            {
+                _tiledV13PipelineAttempted[index] = true;
+                if (!CreateComputePipeline(_device, &_tiledV13PipelineState[index],
+                                           blobs[index], sizes[index], nullptr))
+                    LOG_WARN("[{0}] v13 optimized PSO {1} unavailable; retaining v10", _name, index);
+            }
+            if (_tiledV13PipelineState[index])
+                pipeline = _tiledV13PipelineState[index];
+        }
         // v12 experiments are independent of both v10 and v11. v12 takes
         // priority if the user intentionally enables flags from both versions.
         // Eligibility is enforced using real tile geometry and v10 weights.
@@ -551,6 +579,14 @@ DlssNr_Dx12::~DlssNr_Dx12()
         _tiledCompactLinearPipelineState = nullptr;
     }
     for (auto*& state : _tiledV12PipelineState)
+    {
+        if (state)
+        {
+            state->Release();
+            state = nullptr;
+        }
+    }
+    for (auto*& state : _tiledV13PipelineState)
     {
         if (state)
         {

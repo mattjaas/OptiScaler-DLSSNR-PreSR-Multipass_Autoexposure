@@ -1185,6 +1185,16 @@ void RenderModel(Config* config)
                         HelpMarker("v11 P65 Linear16 with v10 Weights ON and cache OFF. "
                                    "Uses four statically unrolled 8x8 native tile quadrants instead "
                                    "of runtime linear index div/mod. FP32 reconstruction and Area unchanged.");
+                        Checkbox("Fused: bounded 3x3 Area integration (v13)",
+                                 config->DlssNrInterPassV13Area);
+                        HelpMarker("P65 Linear16, Weights ON, Source Cache OFF, v11/v12 OFF. "
+                                   "Keeps the v10 guided reconstruction and Area sample order. "
+                                   "Tests bounded Area loops; default OFF. GPU benefit requires measurement.");
+                        Checkbox("Fused: compile only inter-pass Mode28 (v13)",
+                                 config->DlssNrInterPassV13Mode28);
+                        HelpMarker("P65 Linear16, Weights ON, Source Cache OFF, v11/v12 OFF. "
+                                   "Compiles the existing inter-pass path without other render modes. "
+                                   "Can combine with v13 Area; both options default OFF.");
                         HelpMarker("v10 P65 Linear16: separate compiled weights-only DXIL. The source/model "
                                    "groupshared arrays and cache branches are completely absent. "
                                    "Other tiled configurations retain the v9 A/B implementation.");

@@ -86,6 +86,8 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     // v12: separate interior/axes/both PSOs, lazy init, v10 reference untouched.
     ID3D12PipelineState* _tiledV12PipelineState[3] {};
     bool _tiledV12PipelineAttempted[3] {};
+    ID3D12PipelineState* _tiledV13PipelineState[3] {};
+    bool _tiledV13PipelineAttempted[3] {};
     ID3D12PipelineState* _classicCachePipelineState = nullptr;
     bool _classicCachePipelineAttempted = false;
     ID3D12PipelineState* _classicV10CachePipelineState = nullptr;

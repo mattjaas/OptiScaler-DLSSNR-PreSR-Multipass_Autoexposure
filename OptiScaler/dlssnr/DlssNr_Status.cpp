@@ -100,6 +100,7 @@ struct BenchmarkConfig
     bool tiled, strided, compact, weights, cache;
     bool v11Spatial, v11QuadFill;
     bool v12Interior, v12Axes;
+    bool v13Area, v13Mode28;
 };
 struct BenchmarkVariant
 {
@@ -110,6 +111,8 @@ struct BenchmarkVariant
     unsigned nativeW = 0, nativeH = 0, workW = 0, workH = 0, effectivePasses = 0;
     bool v11Spatial = false, v11QuadFill = false;
     bool v12Interior = false, v12Axes = false;
+    bool v13Area = false;
+    bool v13Mode28 = false;
 };
 std::mutex benchmarkMutex;
 std::atomic<bool> benchmarkActive { false };
@@ -150,7 +153,9 @@ BenchmarkConfig TakeBenchmarkConfig(const Config& c)
         c.DlssNrInterPassV11Spatial.value_or_default(),
         c.DlssNrInterPassV11QuadFill.value_or_default(),
         c.DlssNrInterPassV12Interior.value_or_default(),
-        c.DlssNrInterPassV12Axes.value_or_default()
+        c.DlssNrInterPassV12Axes.value_or_default(),
+        c.DlssNrInterPassV13Area.value_or_default(),
+        c.DlssNrInterPassV13Mode28.value_or_default()
     };
 }
 void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
@@ -181,6 +186,8 @@ void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
     c.DlssNrInterPassV11QuadFill = v.v11QuadFill;
     c.DlssNrInterPassV12Interior = v.v12Interior;
     c.DlssNrInterPassV12Axes = v.v12Axes;
+    c.DlssNrInterPassV13Area = v.v13Area;
+    c.DlssNrInterPassV13Mode28 = v.v13Mode28;
 }
 void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
 {
@@ -209,6 +216,8 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     c.DlssNrInterPassV11QuadFill = v.v11QuadFill;
     c.DlssNrInterPassV12Interior = v.v12Interior;
     c.DlssNrInterPassV12Axes = v.v12Axes;
+    c.DlssNrInterPassV13Area = v.v13Area;
+    c.DlssNrInterPassV13Mode28 = v.v13Mode28;
 }
 void AddBenchmark(int scale, int mode, bool exact, bool tiled, bool strided, bool compact,
                   bool weights, bool cache, const char* name)
@@ -255,6 +264,16 @@ void BuildBenchmarkVariants()
             benchmarkVariants.back().v12Axes = true;
         }
     }
+    AddBenchmark(65, 2, true, true, false, true, true, false,
+                 "Linear 16 + weights + bounded Area v13");
+    benchmarkVariants.back().v13Area = true;
+    AddBenchmark(65, 2, true, true, false, true, true, false,
+                 "Linear 16 + weights + dedicated Mode28 v13");
+    benchmarkVariants.back().v13Mode28 = true;
+    AddBenchmark(65, 2, true, true, false, true, true, false,
+                 "Linear 16 + weights + Area and Mode28 v13");
+    benchmarkVariants.back().v13Area = true;
+    benchmarkVariants.back().v13Mode28 = true;
 }
 void UpdateBenchmarkProgress()
 {
@@ -287,7 +306,7 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        name << "NR-v12-" << std::put_time(&local, "%Y%m%d-%H%M%S");
+        name << "NR-v13-" << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
         const auto info = directory / (name.str() + ".txt");
         const auto raw = directory / (name.str() + ".samples.csv");
@@ -296,7 +315,7 @@ void FinishBenchmark(bool cancelled)
         std::ofstream description(info);
         if (!out || !description || !individual)
             throw std::runtime_error("Cannot create benchmark report.");
-        out << "scale_percent,variant,mode,exact,tiled,strided,compact,weights,source_cache,v11_spatial,v11_quadfill,v12_interior,v12_axes,"
+        out << "scale_percent,variant,mode,exact,tiled,strided,compact,weights,source_cache,v11_spatial,v11_quadfill,v12_interior,v12_axes,v13_area,v13_mode28,"
                "native_width,native_height,work_width,work_height,effective_passes,"
                "samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,delta_vs_off_median_ms\n";
         individual << "scale_percent,variant,sample_index,total_nr_gpu_ms\n";
@@ -331,6 +350,7 @@ void FinishBenchmark(bool cancelled)
                 << v.tiled << ',' << v.strided << ',' << v.compact << ',' << v.weights << ',' << v.cache
                 << ',' << v.v11Spatial << ',' << v.v11QuadFill
                 << ',' << v.v12Interior << ',' << v.v12Axes
+                << ',' << v.v13Area << ',' << v.v13Mode28
                 << ',' << v.nativeW << ',' << v.nativeH << ',' << v.workW << ',' << v.workH << ','
                 << v.effectivePasses << ',' << n << ',' << mean << ',' << median << ',' << p95 << ','
                 << sorted.front() << ',' << sorted.back() << ',' << std::sqrt(variance/n)
@@ -338,7 +358,7 @@ void FinishBenchmark(bool cancelled)
             for (size_t i = 0; i < v.samples.size(); ++i)
                 individual << v.percent << ',' << '"' << v.name << '"' << ',' << i << ',' << v.samples[i] << '\n';
         }
-        description << "OptiScaler DLSS NR v12 automatic six-pass GPU benchmark\n"
+        description << "OptiScaler DLSS NR v13 automatic six-pass GPU benchmark\n"
                     << "ONE measurement per configuration: no ABBA and no repeated sweeps.\n"
                     << "P50 and P65 only; all variants: 6 passes, Area, radius 1, "
                        "dynamic/shared bilinear ON, paired OFF, shadow/frequency shaping left unchanged.\n"
@@ -354,6 +374,12 @@ void FinishBenchmark(bool cancelled)
                     << "v12 experiments: interior stencil (skip unnecessary clamps), "
                        "3+3 separable preclamped axes, and both, three isolated P65 Linear16 "
                        "weights-only DXIL PSOs. All new flags OFF by default.\n"
+                    << "v13 experiments: bounded 3x3 Area loops, constant Mode28 compilation, "
+                       "and both, on the unchanged v10 weights-only "
+                       "guided reconstruction. v11/v12 OFF; new option OFF by default. "
+                       "28 cases (6 P50, 22 P65), each measured once.\n"
+                    << "Configured experiment flags are reported; PSO creation failure logs a warning "
+                       "and may fall back. Check the game log before accepting a speed comparison.\n"
                     << "Source cache: v10 Linear16 Fused uses 16x16 float3 FP32 source/model arrays; "
                        "v10 Classic uses 12x12 float3 FP32 arrays. "
                        "Actual LDS allocation/register occupancy require external GPU profiler.\n"

@@ -48,6 +48,13 @@ cbuffer Params : register(b0)
     uint gDirectResolveFlags;
 };
 
+#ifdef DLSSNR_TILED_V13_MODE28
+// Isolated PSO selected only for Mode 28. Keep the constant-buffer layout
+// unchanged, but let DXC eliminate unrelated modes and their groupshared
+// reductions. The complete Mode 28 fallback remains available.
+#define gMode 28u
+#endif
+
 // Hue-preserving gamut compression toward the D65 neutral axis.
 // Adapted from clshortfuse/RenoDX (https://github.com/clshortfuse/renodx).
 // See Licenses/RenoDX_ATTRIBUTION.txt.
@@ -2469,6 +2476,34 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
     const int j1 = (int)ceil(y1) - 1;
 
     float4 acc = 0.0;
+#ifdef DLSSNR_TILED_V13_AREA
+    // Isolated v13: compact eligibility guarantees a footprint <=3x3.
+    // Guard per output against unexpected dimensions/float boundary rounding;
+    // returning false resumes the exact non-tiled Mode 28 implementation.
+    // Every lane has already reached the group barrier before this return.
+    if (i1 - i0 > 2 || j1 - j0 > 2)
+        return false;
+    [unroll] for (int row = 0; row < 3; ++row)
+    {
+        const int j = j0 + row;
+        if (j <= j1)
+        {
+            const float wy = max(min(y1, (float)j + 1.0) - max(y0, (float)j), 0.0);
+            [unroll] for (int column = 0; column < 3; ++column)
+            {
+                const int i = i0 + column;
+                if (i <= i1)
+                {
+                    const float wx = max(min(x1, (float)i + 1.0) - max(x0, (float)i), 0.0);
+                    const int2 localP100 = int2(i, j) - first;
+                    const float4 sample = gInterPassCorrectedTile[
+                        (uint)localP100.y * kInterPassTilePitch + (uint)localP100.x];
+                    acc += sample * (wx * wy);
+                }
+            }
+        }
+    }
+#else
     [loop] for (int j = j0; j <= j1; ++j)
     {
         const float wy = max(min(y1, (float)j + 1.0) - max(y0, (float)j), 0.0);
@@ -2482,6 +2517,7 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
             acc += corrected * (wx * wy);
         }
     }
+#endif
     float4 corrected = acc / area;
     const int acx = clamp((int)floor(((float)id.x + 0.5) * (float)nativeW / (float)gWidth),
                           0, (int)nativeW - 1);

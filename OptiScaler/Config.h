@@ -602,6 +602,9 @@ class Config
     // v12: independent 3x3 source-addressing experiments, default disabled.
     CustomOptional<bool> DlssNrInterPassV12Interior { false };
     CustomOptional<bool> DlssNrInterPassV12Axes { false };
+    // v13: isolated bounded Area integration on the v10 weights reference.
+    CustomOptional<bool> DlssNrInterPassV13Area { false };
+    CustomOptional<bool> DlssNrInterPassV13Mode28 { false };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };

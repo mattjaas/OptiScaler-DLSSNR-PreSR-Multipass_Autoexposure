@@ -289,7 +289,7 @@ void RenderMenu(Config* config, float menuResScale)
             const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
                                       !ReadStatus(Backend::Vulkan).running;
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("NR v12: one sweep P50 + P65 (CSV)"))
+            if (ImGui::Button("NR v13: one sweep P50 + P65 (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))

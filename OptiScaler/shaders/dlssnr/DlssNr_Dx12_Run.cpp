@@ -1407,6 +1407,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         guided.DirectResolveFlags |= 262144u;
                     if (cfg.DlssNrInterPassV12Axes.value_or_default())
                         guided.DirectResolveFlags |= 524288u;
+                    if (cfg.DlssNrInterPassV13Area.value_or_default())
+                        guided.DirectResolveFlags |= 1048576u;
+                    if (cfg.DlssNrInterPassV13Mode28.value_or_default())
+                        guided.DirectResolveFlags |= 2097152u;
                 }
             }
             if (!shader.DispatchPassAux2(cmdList, guided, originalPassBase, currentAnswer, nr.colorCopy,
