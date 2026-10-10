@@ -130,3 +130,22 @@ wniosek o zysku lub regresji na tym pomiarze. To nie pomiar gry ani całego NR.
 Surowe dane: docs/NR-v17-GPU-cleanup.samples.csv. Nowy benchmark w statycznej
 scenie jest potrzebny do oceny rzeczywistego czasu zoptymalizowanego toru.
 Powtórzenie smoke: runner interpass_parity.exe new-dir v16-reference-dir --hardware --timing.
+
+## Opublikowana paczka
+
+Źródło: f07947a39d539721d6db232daf858e8c42232e80,
+gałąź codex/nr-interpass-v13-bounded-area.
+[Build 38063008643](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38063008643)
+przeszedł testy, kompilację shaderów i fixture, pełny build DLL oraz publikację.
+
+[ZIP v17](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v17-auto-optimized-20261010/OptiScaler-NR-nr-interpass-v17-auto-optimized-20261010.zip),
+131 085 544 bajty.
+
+- ZIP SHA256: 4adce9636239a2bf30fc3279a2e9214a981944b2c8c4d56d7f5c160ef4ed010b
+- DLL SHA256: 5485e2651a545584ca45b8d66913ba67636d7fffc0ce168678285fb4d4d4d47b
+- Pobrany ZIP: CRC i wszystkie 62 wpisy SHA256SUMS.txt poprawne.
+  DLL Windows x64 zawiera cztery tryby, nowy benchmark i trzy bloby identyczne
+  z lokalnie sprawdzonymi DXIL. Nie zawiera 36 wcześniejszych blobów inter-pass.
+
+Usunięty lokalnie przez Bitdefender package_release.ps1 pozostał poza commitem.
+Nie przywracano pliku z kwarantanny; Actions używał istniejącej wersji z repozytorium.
