@@ -92,9 +92,14 @@ Nie wymagają ponownego potwierdzania przez użytkownika. Odpowiadaj po polsku.
 ## Oczekiwanie na działania zewnętrzne
 
 - Gdy dalsza praca zależy od zakończenia buildu, GitHub Actions lub innego
-  działania, usypiaj wykonanie przez dostępne narzędzie oczekiwania zamiast
-  aktywnie odpytywać status i generować komentarze. Preferuj powiadomienie
-  o zakończeniu lub blokujące oczekiwanie na zmianę stanu; gdy ich nie ma,
-  stosuj rzadkie kontrole rozdzielone uśpieniem. Nie zużywaj tokenów na
-  analizowanie niezmienionego statusu. Jest to oczekiwanie na wynik, a nie
-  zakończenie zadania przed jego weryfikacją i publikacją.
+  działania na GitHubie, wstrzymaj aktywną pracę agenta do zakończenia tego
+  działania, aby oszczędzać tokeny. Usypiaj wykonanie przez dostępne narzędzie
+  oczekiwania. W tym czasie nie prowadź zbędnych analiz, nie wykonuj pętli
+  częstego odpytywania statusu i nie generuj powtarzalnych komentarzy.
+- Preferuj powiadomienie o zakończeniu lub blokujące oczekiwanie na zmianę
+  stanu. Gdy ich nie ma, stosuj rzadkie kontrole rozdzielone rzeczywistym
+  uśpieniem, zgodnie z limitami narzędzi. Niezmieniony status oznacza ponowne
+  uśpienie, bez kolejnej analizy. Samo sprawdzanie statusu nie jest uśpieniem.
+- Po zakończeniu działania wznów pracę, sprawdź wynik i kontynuuj weryfikację
+  oraz publikację. Oczekiwanie nie oznacza zakończenia zadania ani zgłoszenia
+  sukcesu przed otrzymaniem wyniku z GitHub.
