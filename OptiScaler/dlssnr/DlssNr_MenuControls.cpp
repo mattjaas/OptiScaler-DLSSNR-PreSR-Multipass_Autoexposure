@@ -1163,6 +1163,16 @@ void RenderModel(Config* config)
                                    "Linear 16x16 is the new v9 A/B variant.");
                         Checkbox("Fused: isolated bilinear weights (v10)",
                                  config->DlssNrInterPassV9Weights);
+                        Checkbox("Fused: hoist clamped spatial coordinates (v11)",
+                                 config->DlssNrInterPassV11Spatial);
+                        HelpMarker("v11 P65 Linear16 with v10 Weights ON and cache OFF. Hoists the three "
+                                   "horizontal and vertical spatial deltas outside the 3x3 bilateral loop; "
+                                   "retains the same bilateral exp2 and dot products. Isolated PSO; default OFF.");
+                        Checkbox("Fused: unrolled 2x2 native tile quadrants (v11)",
+                                 config->DlssNrInterPassV11QuadFill);
+                        HelpMarker("v11 P65 Linear16 with v10 Weights ON and cache OFF. "
+                                   "Uses four statically unrolled 8x8 native tile quadrants instead "
+                                   "of runtime linear index div/mod. FP32 reconstruction and Area unchanged.");
                         HelpMarker("v10 P65 Linear16: separate compiled weights-only DXIL. The source/model "
                                    "groupshared arrays and cache branches are completely absent. "
                                    "Other tiled configurations retain the v9 A/B implementation.");
