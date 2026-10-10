@@ -289,14 +289,15 @@ void RenderMenu(Config* config, float menuResScale)
             const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
                                       !ReadStatus(Backend::Vulkan).running;
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Auto benchmark NR: P50 + P65 (save CSV)"))
+            if (ImGui::Button("Single-sweep benchmark: P50 + P65 (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("DX12 only. Automatic 6-pass test of off/Classic/Fused and v9 flags. "
-                                  "Records raw GPU timestamp medians after per-case warmup. "
-                                  "Saves CSV and TXT in game's OptiScaler-NR-Benchmarks folder. "
-                                  "Leave the game in a stable scene; original settings are restored.");
+                ImGui::SetTooltip("DX12, SIX passes; each configuration measured ONCE with warmup and "
+                                  "a single sample window (no ABBA). Saves summary CSV, raw per-frame "
+                                  "samples CSV and metadata TXT in game/OptiScaler-NR-Benchmarks. "
+                                  "Includes GPU adapter, actual texture resolutions and complete-NR overhead. "
+                                  "Keep the scene static. Original configuration restored.");
         }
         if (!bench.message.empty())
             ImGui::TextWrapped("%s", bench.message.c_str());
