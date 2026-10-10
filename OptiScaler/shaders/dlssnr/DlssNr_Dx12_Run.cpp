@@ -1397,6 +1397,11 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         guided.DirectResolveFlags |= 16384u;
                     if (cfg.DlssNrInterPassV9SourceCache.value_or_default())
                         guided.DirectResolveFlags |= 32768u;
+                    // v11 flags only affect the explicitly isolated P65 Linear16+Weights PSO.
+                    if (cfg.DlssNrInterPassV11Spatial.value_or_default())
+                        guided.DirectResolveFlags |= 65536u;
+                    if (cfg.DlssNrInterPassV11QuadFill.value_or_default())
+                        guided.DirectResolveFlags |= 131072u;
                 }
             }
             if (!shader.DispatchPassAux2(cmdList, guided, originalPassBase, currentAnswer, nr.colorCopy,
