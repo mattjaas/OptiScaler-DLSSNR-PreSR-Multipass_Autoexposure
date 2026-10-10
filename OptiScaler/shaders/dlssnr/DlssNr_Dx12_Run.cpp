@@ -1374,15 +1374,15 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 std::memcpy(&guided.ResidualMotionBaseX, &nr.interPassGeometryRatioX, sizeof(float));
                 std::memcpy(&guided.ResidualMotionBaseY, &nr.interPassGeometryRatioY, sizeof(float));
                 guided.DirectResolveFlags |= 128u;
-                // v7: only intermediate fractional scales. Preserve exact P50
-                // 2x2 fast path and every non-Area/radius>1 fallback.
+                // Automatic selection keeps the measured ranges. Benchmark overrides
+                // may test RGB20 below P50; the shader guards each complete group footprint
+                // and uses direct Mode28 reconstruction when it exceeds the tile.
                 // One workgroup writes a single 8x8 output tile and cooperates
                 // on its native P100 Area footprint without allocating scratch.
                 const bool workingScaleTiled = interPassPath == DlssNr::InterPass::Path::Rgb16 ||
                                                interPassPath == DlssNr::InterPass::Path::Rgb20;
                 const bool eligibleTiledDims =
-                    width > modelWidth && height > modelHeight &&
-                    width < 2u * modelWidth && height < 2u * modelHeight;
+                    width > modelWidth && height > modelHeight;
                 if (workingScaleTiled && eligibleTiledDims &&
                     originalPassBase->GetDesc().Width == modelWidth &&
                     originalPassBase->GetDesc().Height == modelHeight &&

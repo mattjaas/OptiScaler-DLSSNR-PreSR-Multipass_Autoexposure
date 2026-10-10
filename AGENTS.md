@@ -56,9 +56,18 @@ Nie wymagają ponownego potwierdzania przez użytkownika. Odpowiadaj po polsku.
   P50, P59 i P65 reprezentują trzy zachowane tory; dodaj bieżący procent,
   gdy jest inny. Automat porównuj ze znanym zwycięzcą w kolejności ABBA,
   z osobną rozgrzewką, oraz z drugim zachowanym trybem zoptymalizowanym.
-  Obecnie to 18 unikalnych konfiguracji / 24 okna pomiarowe, albo 24 / 32
-  z dodatkową skalą. Nie przywracaj do rutynowego benchmarku odrzuconych
+  Bazowy zestaw to 18 unikalnych konfiguracji / 24 okna pomiarowe, albo 24 / 32
+  z dodatkową skalą ≥50%. Bieżąca skala <50% dodaje porównanie opisane poniżej
+  (łącznie 25 konfiguracji / 34 okna). Nie przywracaj do rutynowego benchmarku odrzuconych
   wariantów ani wielu bliskich skal bez konkretnej nowej hipotezy.
+- Osobny test poniżej 50% porównuje 33/40/45/49% oraz bieżący niższy procent,
+  gdy jest inny. Zachowuje Off, oba tryby referencyjne i automat. Warianty
+  Classic optimized / Fused optimized / RGB20 guarded mierzy w symetrycznej
+  kolejności A/B/C/C/B/A, z osobną rozgrzewką. To 28 konfiguracji / 40 okien
+  lub 35 / 50 z dodatkową skalą. RGB20 może używać bezpośredniego fallbacku
+  dla grup niemieszczących się w kaflu; raportowanie PSO nie oznacza użycia
+  LDS w każdej grupie. Nie nazywaj domyślnego Classic zmierzonym zwycięzcą
+  i nie zmieniaj polityki na podstawie samego syntetycznego pomiaru shadera.
 
 - Stosuj `CONTRIBUTING.md`, w szczególności zasady PCH. Uruchamiaj kontrole
   odpowiednie do zakresu zmiany; nie wymagaj kompilacji dla samej dokumentacji.

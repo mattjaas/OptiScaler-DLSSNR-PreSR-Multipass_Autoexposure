@@ -58,9 +58,9 @@ def check(nw,nh,ow,oh,rng):
         for gx in range((ow+7)//8):
             sx,sy,ex,ey=bounds(nw,nh,ow,oh,gx,gy)
             assert sx>=0 and sy>=0 and ex<=nw and ey<=nh
-            assert 0 < ex-sx <= PITCH and 0 < ey-sy <= PITCH, (
-                nw,nh,ow,oh,gx,gy,sx,sy,ex,ey)
-            tile=[native[y][sx:ex] for y in range(sy,ey)]
+            assert ex>sx and ey>sy
+            fits=ex-sx<=PITCH and ey-sy<=PITCH
+            tile=[native[y][sx:ex] for y in range(sy,ey)] if fits else None
             nrecon=(ex-sx)*(ey-sy)
             individually=0
             for y in range(gy*8,min((gy+1)*8,oh)):
@@ -72,7 +72,7 @@ def check(nw,nh,ow,oh,rng):
                     y0,y1=float(y)*nh/oh,float(y+1)*nh/oh
                     individually+=(math.ceil(x1)-math.floor(x0))*(math.ceil(y1)-math.floor(y0))
                     locations+=1
-            reused+=individually-nrecon
+            reused+=individually-nrecon if fits else 0
     return locations,reused
 
 
@@ -82,7 +82,7 @@ def main():
            (192,108),(257,143),(384,216)]
     pixels=saved=0
     for nw,nh in cases:
-        for percentage in (51,53,55,60,63,65,66,67,70,73,75,77,80,85,90):
+        for percentage in (25,33,40,45,49,51,53,55,60,63,65,66,67,70,73,75,77,80,85,90):
             ow=max(1,int(nw*percentage/100+.5))
             oh=max(1,int(nh*percentage/100+.5))
             n,r=check(nw,nh,ow,oh,rng)

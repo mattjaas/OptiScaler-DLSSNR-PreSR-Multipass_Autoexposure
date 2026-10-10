@@ -11,12 +11,12 @@ def test_benchmark():
         (50, 'FusedOptimized'), (59, 'Rgb20'), (65, 'Rgb16')]
     assert all(float(gain) > 0 for p, route, gain in rows)
     status = (ROOT / 'OptiScaler/dlssnr/DlssNr_Status.cpp').read_text(encoding='utf-8')
-    plan = status[status.index('void AddBenchmarkScale'):status.index('void BuildBenchmarkVariants')]
+    plan = status[status.index('void AddBenchmarkScale'):status.index('void AddLowBenchmarkScale')]
     calls = re.findall(r'add\((\d), ([^,]+), "([^"]+)"\);', plan)
     assert calls[:3] == [('0', '-1', 'No inter-pass'), ('1', '-1', 'Classic reference'),
                          ('2', '-1', 'Fused reference')]
     assert [name for mode, path, name in calls[-4:]] == [
-        'Known winner control', 'Inter-pass optimized', 'Inter-pass optimized', 'Known winner control']
+        'Expected path control', 'Inter-pass optimized', 'Inter-pass optimized', 'Expected path control']
     assert [path for mode, path, name in calls[-4:]] == ['int(expected)', '-1', '-1', 'int(expected)']
     assert all(mode == '3' for mode, path, name in calls[3:])
     assert 'Classic optimized control' in plan and 'Fused optimized control' in plan
@@ -24,7 +24,8 @@ def test_benchmark():
     assert 'it->samples.insert' in status and '"Mixed routes"' in status
     assert 'window,sample_index,total_nr_gpu_ms' in status
     for column in ('selected_path', 'native_width', 'work_height', 'stddev_ms',
-                   'delta_vs_known_winner_ms', 'actual_gain_vs_fused_ms', 'path_matches_control'):
+                   'delta_vs_expected_path_ms', 'actual_gain_vs_fused_ms', 'path_matches_control',
+                   'window_medians_ms', 'window_median_spread_ms'):
         assert column in status
     restore = status[status.index('void RestoreBenchmarkConfig'):status.index('void AddBenchmarkScale')]
     saved = set(re.findall(r'c\.(DlssNr\w+) =', restore.split('void ApplyBenchmarkVariant')[0]))
@@ -41,7 +42,20 @@ def test_benchmark():
     assert re.findall(r'#include "precompile/(dlssnr_.*)_Shader.h"', dx) == [
         'dlssnr_interpass_rgb16', 'dlssnr_interpass_rgb20', 'dlssnr_residual',
         'dlssnr_finished_color', 'dlssnr_spatial', 'dlssnr_spatial_guides']
+    low = status[status.index('void AddLowBenchmarkScale'):status.index('void UpdateBenchmarkProgress')]
+    assert 'for (const auto path : kInterPassLowBenchmarkOrder)' in low
+    assert 'RGB20 guarded candidate' in low and 'Fused optimized candidate' in low
+    assert 'Expected path control' in low and 'Inter-pass optimized' in low
+    assert 'quiet_NaN()' in low  # No fabricated historical gain below 50.
+    assert 'if (current < 50) AddLowBenchmarkScale(current)' in low
+    assert 'benchmarkBelow50 = below50;' in status
+    ui = (ROOT / 'OptiScaler/dlssnr/DlssNr_Menu.cpp').read_text(encoding='utf-8')
+    assert 'Compare inter-pass below 50% (CSV)' in ui
+    assert 'StartInterPassBenchmark((unsigned)warmup, (unsigned)samples, true)' in ui
+    run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
+    guard = run[run.index('const bool eligibleTiledDims'):run.index('if (workingScaleTiled && eligibleTiledDims')]
+    assert '2u * modelWidth' not in guard and '2u * modelHeight' not in guard
 
 if __name__ == '__main__':
     test_benchmark()
-    print('Benchmark PASS: references, retained winners, ABBA pooling, route reporting and restoration')
+    print('Benchmark PASS: references, regular ABBA, low-scale symmetric candidates, route reporting and restoration')

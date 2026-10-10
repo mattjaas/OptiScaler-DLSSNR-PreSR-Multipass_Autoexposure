@@ -18,7 +18,7 @@ struct BenchmarkProgress
     std::string variant;
     std::string message;
 };
-void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples);
+void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, bool below50 = false);
 void CancelInterPassBenchmark();
 int BenchmarkInterPassOverride(); // -1 outside benchmark, no user-facing implementation switches.
 void BenchmarkReportInterPassPath(const char* path);

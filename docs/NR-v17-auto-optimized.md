@@ -1,5 +1,8 @@
 # NR v17: automatyczny wybór inter-pass
 
+Ten dokument opisuje paczkę v17. Test poniżej 50%, aktualne nazwy kontroli
+i nowe raporty v18 opisano w [NR-v18-below-50.md](NR-v18-below-50.md).
+
 UI ma cztery pozycje: Off, Classic reference, Fused reference i Inter-pass optimized.
 Oba tryby referencyjne wyłączają optymalizacje inter-pass. Optimized dobiera zachowaną
 ścieżkę według rzeczywistych wymiarów tekstur, filtra i promienia prowadzenia.

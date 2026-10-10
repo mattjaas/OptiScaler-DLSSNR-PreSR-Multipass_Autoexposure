@@ -295,11 +295,23 @@ void RenderMenu(Config* config, float menuResScale)
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, SIX passes; independent warmup for each window and "
                                   "Area / radius 1 / guide strength 1. "
-                                  "A/B/B/A windows for Optimized versus the known winner. Saves summary CSV, raw per-frame "
+                                  "A/B/B/A windows for Optimized versus its expected path. Saves summary CSV, raw per-frame "
                                   "samples CSV and metadata TXT in game/OptiScaler-NR-Benchmarks. "
                                   "Includes GPU adapter, actual texture resolutions and complete-NR overhead. "
                                   "50%, 59%, 65% plus current percentage if different; both references and off retained. "
+                                  "A current scale below 50 adds the symmetric Classic/Fused/RGB20 comparison. "
                                   "Keep the scene static. Original configuration restored.");
+            ImGui::BeginDisabled(!canBenchmark);
+            if (ImGui::Button("Compare inter-pass below 50% (CSV)"))
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples, true);
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("DX12, six passes, Area / radius 1 / guide strength 1. "
+                                  "33%, 40%, 45%, 49% plus current percentage below 50 if different. "
+                                  "Classic optimized / Fused optimized / RGB20 guarded, then reverse order. "
+                                  "Includes Off, both references and the current automatic path. "
+                                  "RGB20 uses direct reconstruction for groups exceeding its 20x20 tile. "
+                                  "Keep the scene static. Original settings restored; results do not change the policy.");
         }
         if (!bench.message.empty())
             ImGui::TextWrapped("%s", bench.message.c_str());

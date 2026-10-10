@@ -1,11 +1,19 @@
 #include "pch.h"
-#include "../../OptiScaler/dlssnr/DlssNr_InterPassPolicy.h"
+#include "../../OptiScaler/dlssnr/DlssNr_BenchmarkCases.h"
 
 using namespace DlssNr::InterPass;
 void require(bool condition) { if (!condition) throw std::runtime_error("Inter-pass policy check failed"); }
 int main()
 {
     try {
+        require(DlssNr::kInterPassLowBenchmarkScales == std::array<int,4>{33,40,45,49});
+        const auto& order = DlssNr::kInterPassLowBenchmarkOrder;
+        require(order.size()==6);
+        for (size_t i=0;i<order.size();++i) require(order[i]==order[order.size()-1-i]);
+        for (auto path : {Path::ClassicOptimized,Path::FusedOptimized,Path::Rgb20})
+            require(std::count(order.begin(),order.end(),path)==2);
+        for (int scale : DlssNr::kInterPassLowBenchmarkScales)
+            require(Select(3,3840,2160,3840*scale/100,2160*scale/100,0,1,1)==Path::ClassicOptimized);
         require(Select(0,3840,2160,2496,1404,0,1,1)==Path::Off);
         require(Select(1,3840,2160,2496,1404,0,1,1)==Path::ClassicReference);
         require(Select(2,3840,2160,2496,1404,0,1,1)==Path::FusedReference);

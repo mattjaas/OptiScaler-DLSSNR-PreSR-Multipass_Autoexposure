@@ -69,7 +69,7 @@ def area_pixel(native, model, proxy, px, py, gain_high, gain_low, sigma_r, sigma
 
 def main():
     rng = random.Random(20261009)
-    for percent in (50, 53, 60, 63, 66, 67, 75, 77, 80, 91, 97):
+    for percent in (25, 33, 40, 45, 49, 50, 53, 60, 63, 66, 67, 75, 77, 80, 91, 97):
         # Odd native dimensions exercise actual rounded model resolutions.
         nw, nh = 39, 27
         ww = max(1, round(nw * percent / 100))
@@ -94,7 +94,7 @@ def main():
                     d = area_pixel(native, model, proxy, px, py, 0.75, 1.0, sy, 1.2, True)
                     for c in range(3):
                         assert abs(r[c] - d[c]) < 2e-12, (percent, px, py, c, r[c], d[c])
-    print("Dynamic all-scale guided/bilinear + Area arithmetic: PASS (P50..P97, odd dims, edges)")
+    print("Dynamic all-scale guided/bilinear + Area arithmetic: PASS (P25..P97, odd dims, edges)")
 
 
 if __name__ == "__main__":
