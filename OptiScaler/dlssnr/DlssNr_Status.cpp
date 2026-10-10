@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "DlssNr_Status.h"
 #include "DlssNr_Benchmark.h"
+#include "DlssNr_BenchmarkCases.h"
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
@@ -239,78 +240,13 @@ void AddBenchmark(int scale, int mode, bool exact, bool tiled, bool strided, boo
 void BuildBenchmarkVariants()
 {
     benchmarkVariants.clear();
-    for (int scale : { 50, 65 })
+    for (const auto& v : kInterPassBenchmarkCases)
     {
-        AddBenchmark(scale, 0, false, false, false, false, false, false, "No inter-pass");
-        AddBenchmark(scale, 1, false, false, false, false, false, false, "Classic reference");
-        AddBenchmark(scale, 1, true, false, false, false, false, false, "Classic optimized");
-        AddBenchmark(scale, 1, true, false, false, false, false, true,  "Classic source cache v10");
-        AddBenchmark(scale, 2, false, false, false, false, false, false, "Fused reference");
-        AddBenchmark(scale, 2, true, false, false, false, false, false, "Fused optimized");
-        if (scale == 65)
-        {
-            AddBenchmark(scale, 2, true, true, false, false, false, false, "Tiled linear 20");
-            AddBenchmark(scale, 2, true, true, false, true, false, false, "Tiled linear 16");
-            AddBenchmark(scale, 2, true, true, true, false, false, false, "Tiled strided 20");
-            AddBenchmark(scale, 2, true, true, true, true, false, false, "Tiled strided 16");
-            AddBenchmark(scale, 2, true, true, false, true, true, false, "Linear 16 + isolated weights v10");
-            AddBenchmark(scale, 2, true, true, false, true, false, true, "Linear 16 + compact cache v10");
-            AddBenchmark(scale, 2, true, true, false, true, true, true, "Linear 16 + isolated both v10");
-            AddBenchmark(scale, 2, true, true, false, true, true, false, "Linear 16 + weights + spatial v11");
-            benchmarkVariants.back().v11Spatial = true;
-            AddBenchmark(scale, 2, true, true, false, true, true, false, "Linear 16 + weights + quadfill v11");
-            benchmarkVariants.back().v11QuadFill = true;
-            AddBenchmark(scale, 2, true, true, false, true, true, false, "Linear 16 + weights + both v11");
-            benchmarkVariants.back().v11Spatial = true;
-            benchmarkVariants.back().v11QuadFill = true;
-            // v12: each isolated PSO evaluated ONCE, not A-B-B-A.
-            AddBenchmark(scale, 2, true, true, false, true, true, false,
-                         "Linear 16 + weights + interior v12");
-            benchmarkVariants.back().v12Interior = true;
-            AddBenchmark(scale, 2, true, true, false, true, true, false,
-                         "Linear 16 + weights + axis preclamp v12");
-            benchmarkVariants.back().v12Axes = true;
-            AddBenchmark(scale, 2, true, true, false, true, true, false,
-                         "Linear 16 + weights + interior and axes v12");
-            benchmarkVariants.back().v12Interior = true;
-            benchmarkVariants.back().v12Axes = true;
-        }
-    }
-    AddBenchmark(65, 2, true, true, false, true, true, false,
-                 "Linear 16 + weights + bounded Area v13");
-    benchmarkVariants.back().v13Area = true;
-    AddBenchmark(65, 2, true, true, false, true, true, false,
-                 "Linear 16 + weights + dedicated Mode28 v13");
-    benchmarkVariants.back().v13Mode28 = true;
-    AddBenchmark(65, 2, true, true, false, true, true, false,
-                 "Linear 16 + weights + Area and Mode28 v13");
-    benchmarkVariants.back().v13Area = true;
-    benchmarkVariants.back().v13Mode28 = true;
-    for (int combination = 1; combination <= 3; ++combination)
-    {
-        const char* names[] = { "Linear16 Mode28 + RGB v14", "Linear16 Mode28 + guide-one v14",
-                                "Linear16 Mode28 + RGB and guide-one v14" };
-        AddBenchmark(65, 2, true, true, false, true, true, false, names[combination - 1]);
-        benchmarkVariants.back().v14RgbTile = (combination & 1) != 0;
-        benchmarkVariants.back().v14GuideOne = (combination & 2) != 0;
-    }
-    // Same settings around the actual-dimension Compact16 boundary.
-    for (int scale : {55, 59, 60, 61})
-    {
-        AddBenchmark(scale, 0, false, false, false, false, false, false, "No inter-pass");
-        AddBenchmark(scale, 2, true, true, false, true, false, false, "Boundary Linear weights OFF");
-        AddBenchmark(scale, 2, true, true, false, true, true, false, "Boundary legacy weights ON");
-        // Explicit Linear20 allows comparison of legacy v9 against v14 at all four scales.
-        AddBenchmark(scale, 2, true, true, false, false, true, false, "Linear20 legacy weights ON");
-        for (int combination = 0; combination < 4; ++combination)
-        {
-            const char* names[] = { "Linear20 weights + Mode28 v14", "Linear20 Mode28 + RGB v14",
-                                    "Linear20 Mode28 + guide-one v14", "Linear20 Mode28 + RGB and guide-one v14" };
-            AddBenchmark(scale, 2, true, true, false, false, true, false, names[combination]);
-            benchmarkVariants.back().v14Linear20 = true;
-            benchmarkVariants.back().v14RgbTile = (combination & 1) != 0;
-            benchmarkVariants.back().v14GuideOne = (combination & 2) != 0;
-        }
+        AddBenchmark(v.percent, v.mode, v.exact, v.tiled, false, v.compact,
+                     v.weights, false, v.name);
+        benchmarkVariants.back().v13Mode28 = v.mode28;
+        benchmarkVariants.back().v14RgbTile = v.rgb;
+        benchmarkVariants.back().v14Linear20 = v.linear20;
     }
 }
 void UpdateBenchmarkProgress()
@@ -344,7 +280,7 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        name << "NR-v14-" << std::put_time(&local, "%Y%m%d-%H%M%S");
+        name << "NR-v15-" << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
         const auto info = directory / (name.str() + ".txt");
         const auto raw = directory / (name.str() + ".samples.csv");
@@ -397,9 +333,9 @@ void FinishBenchmark(bool cancelled)
             for (size_t i = 0; i < v.samples.size(); ++i)
                 individual << v.percent << ',' << '"' << v.name << '"' << ',' << i << ',' << v.samples[i] << '\n';
         }
-        description << "OptiScaler DLSS NR v14 automatic six-pass GPU benchmark\n"
+        description << "OptiScaler DLSS NR v15 short six-pass GPU benchmark\n"
                     << "ONE measurement per configuration: no ABBA and no repeated sweeps.\n"
-                    << "P50/P55/P59/P60/P61/P65; all variants: 6 passes, Area, radius 1, "
+                    << "P50/P59/P65; all variants: 6 passes, Area, radius 1, "
                        "dynamic/shared bilinear ON, paired OFF, shadow/frequency shaping left unchanged.\n"
                     << "Each case has " << benchmarkWarmup << " fresh warmup timestamps, then "
                     << benchmarkSamples << " fresh measured timestamps.\n"
@@ -408,17 +344,11 @@ void FinishBenchmark(bool cancelled)
                        "not isolated shader time.\n"
                     << "Original user settings restored after benchmark.\n"
                     << "GPU adapter: " << (benchmarkAdapterInfo.empty() ? "unavailable" : benchmarkAdapterInfo) << "\n"
-                    << "v11 experiments: P65 Linear16 + v10 weights baseline, spatial-hoist, "
-                       "quad-fill, and both, preserved for comparison.\n"
-                    << "v12 experiments: interior stencil (skip unnecessary clamps), "
-                       "3+3 separable preclamped axes, and both, three isolated P65 Linear16 "
-                       "weights-only DXIL PSOs. All new flags OFF by default.\n"
-                    << "v13 experiments: bounded 3x3 Area loops, constant Mode28 compilation, "
-                       "and both, on the unchanged v10 weights-only "
-                       "guided reconstruction. v11/v12 OFF; new option OFF by default. "
-                       "Historical v13 cases retained. New v14 RGB/guide-one at P65 and Linear20 boundary cases.\n"
-                    << "v14: 63 cases, RGB tile, isolated Linear20 Mode28 weights, exact guide-one; all OFF by default.\n"
-                    << "Guide-one PSO is eligible only if the saved user guide strength is exactly 1.\n"
+                    << "v15 short sweep: 14 cases (3 P50, 5 P59, 6 P65), each measured once.\n"
+                    << "Per scale: No inter-pass and unoptimized Fused reference retained.\n"
+                    << "P50: Fused optimized. P59: Linear20 weights OFF, isolated Mode28 weights, and RGB.\n"
+                    << "P65: Linear16 weights OFF, weights v10, Mode28 v13, and RGB v14.\n"
+                    << "Cache, strided, v11/v12, bounded Area and guide-one excluded from the routine sweep; settings remain available.\n"
                     << "Configured experiment flags are reported; PSO creation failure logs a warning "
                        "and may fall back. Check the game log before accepting a speed comparison.\n"
                     << "Source cache: v10 Linear16 Fused uses 16x16 float3 FP32 source/model arrays; "

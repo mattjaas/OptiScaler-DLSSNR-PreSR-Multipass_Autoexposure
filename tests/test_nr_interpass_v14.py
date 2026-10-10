@@ -72,7 +72,7 @@ def test_integration():
         assert field+'.value_or_default()' in take
         assert field+' = v.v14'+name in restore and field+' = v.v14'+name in apply
     assert 'std::map<int, double> baselines' in bench and 'baselines.at(v.percent)' in bench
-    assert 'for (int scale : {55, 59, 60, 61})' in bench
+    assert 'kInterPassBenchmarkCases' in bench
     assert 'InConstants.ResidualConfidenceSensitivity == 1.0f' in cpp
     assert 'if (v13 && pipeline == _pipelineState)' in cpp
     assert 'for (auto*& state : _tiledV14PipelineState)' in cpp

@@ -32,8 +32,8 @@ def test_code_isolation():
     for token in ("DLSSNR_TILED_V10_CACHE=1", "DLSSNR_TILED_V10_WEIGHTS=1",
                   "dlssnr_classic_v10_cache_Shader.cso"):
         assert token in FLOW
-    assert any(x in BENCH for x in ("NR-v10-", "NR-v11-", "NR-v12-", "NR-v13-", "NR-v14-"))  # legacy invariants
-    assert "for (int scale : { 50, 65 })" in BENCH
+    assert any(x in BENCH for x in ("NR-v10-", "NR-v11-", "NR-v12-", "NR-v13-", "NR-v14-", "NR-v15-"))  # legacy invariants
+    assert "kInterPassBenchmarkCases" in BENCH
     assert "benchmarkVariants[benchmarkIndex].samples" in BENCH
     assert "std::ofstream individual(raw)" in BENCH
     assert "benchmarkAdapterInfo" in BENCH

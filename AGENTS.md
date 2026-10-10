@@ -51,6 +51,14 @@ Nie wymagają ponownego potwierdzania przez użytkownika. Odpowiadaj po polsku.
 
 ## Weryfikacja zmian
 
+- Regularny benchmark w grze utrzymuj krótki: obecnie 14 konfiguracji dla
+  P50, P59 i P65. P59 reprezentuje fractional tiled poniżej progu Compact16,
+  a P65 ścieżkę powyżej niego. Zachowuj bazę bez inter-pass i Fused bez
+  optymalizacji oraz użyteczne etapy porównania. Nie dodawaj ponownie słabych
+  lub redundantnych wariantów do każdego sweepu ani wielu bliskich skal
+  bez konkretnej nowej hipotezy. Szersze jednorazowe pomiary służą wyborowi
+  krótkiego zestawu, a nie stałemu zwiększaniu liczby przypadków w grze.
+
 - Stosuj `CONTRIBUTING.md`, w szczególności zasady PCH. Uruchamiaj kontrole
   odpowiednie do zakresu zmiany; nie wymagaj kompilacji dla samej dokumentacji.
 - Przy zmianach inter-pass NR używaj odpowiednich testów `tests/test_nr_interpass_*.py`

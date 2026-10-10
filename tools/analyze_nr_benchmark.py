@@ -9,9 +9,10 @@ import numpy as np
 
 def analyze(summary, raw, output):
     version = summary.name.split("-")[1]
-    assert version in ("v12", "v13", "v14"), version
-    experiments = ("v12", "v13", "v14") if version == "v14" else (("v12", "v13") if version == "v13" else ("v12",))
+    assert version in ("v12", "v13", "v14", "v15"), version
+    experiments = ("v12", "v13", "v14") if version in ("v14", "v15") else (("v12", "v13") if version == "v13" else ("v12",))
     rows = list(csv.DictReader(summary.open(encoding="utf-8-sig")))
+    experiments = tuple(v for v in experiments if any(v in r['variant'] for r in rows))
     samples = {}
     for row in csv.DictReader(raw.open(encoding="utf-8-sig")):
         key = (int(row["scale_percent"]), row["variant"])
@@ -20,9 +21,11 @@ def analyze(summary, raw, output):
     lines = [f"# Analiza benchmarku NR {version}", "",
              "RTX 4090, The Last of Us Part I, native 3840×2160; P50 1920×1080, P65 2496×1404; 6 passów, Area, radius 1, guide strength 1.0. 90 warmup + 160 pomiarów na konfigurację. Jeden sekwencyjny sweep. Czas całego przedziału GPU NR, obejmujący NGX, inter-pass i zależności kolejek.", "",
              f"Zweryfikowano {len(rows)} konfiguracji i {sum(len(v) for v in samples.values())} próbek; indeksy bez luk i duplikatów. Metryki podsumowania zgodne z raw do 0,000006 ms. SD populacyjne, P5/P95 nearest-rank, trimmed mean po odrzuceniu 10% z każdego końca. Trend: średnia ostatnich 40 minus pierwszych 40 próbek. Autokorelacja lag-1.", ""]
-    if version == "v14":
+    if version in ("v14", "v15"):
         dimensions = sorted({(int(r['scale_percent']),int(r['work_width']),int(r['work_height'])) for r in rows})
         lines[2] = "RTX 4090, The Last of Us Part I, native 3840×2160; " + ", ".join(f"P{p} {w}×{h}" for p,w,h in dimensions) + "; 6 passów, Area, radius 1. 90 warmup + 160 pomiarów na konfigurację. Jeden sekwencyjny sweep; czas całego GPU NR. Żądane flagi nie dowodzą wykonania PSO; guide-one wymaga dokładnie guide strength 1 w ustawieniach użytkownika."
+        if version == "v15":
+            lines[2] = lines[2].split("; guide-one wymaga")[0] + ". Krótki zestaw zachowuje bazę bez inter-pass i Fused bez optymalizacji."
     stats = {}
     for row in rows:
         key = (int(row["scale_percent"]), row["variant"])
@@ -31,7 +34,7 @@ def analyze(summary, raw, output):
         x = np.array([v for _, v in indexed])
         assert len(x) == 160 and int(row["effective_passes"]) == 6
         assert (int(row["native_width"]), int(row["native_height"])) == (3840, 2160)
-        if version != "v14":
+        if version not in ("v14", "v15"):
             assert (int(row["work_width"]), int(row["work_height"])) == ((1920,1080) if key[0] == 50 else (2496,1404))
         else:
             assert 0 < int(row["work_width"]) <= 3840 and 0 < int(row["work_height"]) <= 2160

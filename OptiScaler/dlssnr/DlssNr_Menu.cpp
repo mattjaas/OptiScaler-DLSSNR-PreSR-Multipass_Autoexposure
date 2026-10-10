@@ -289,7 +289,7 @@ void RenderMenu(Config* config, float menuResScale)
             const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
                                       !ReadStatus(Backend::Vulkan).running;
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("NR v14: one sweep P50-P65, 63 cases (CSV)"))
+            if (ImGui::Button("NR v15: short sweep P50/P59/P65, 14 cases (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
@@ -297,6 +297,7 @@ void RenderMenu(Config* config, float menuResScale)
                                   "a single sample window (no ABBA). Saves summary CSV, raw per-frame "
                                   "samples CSV and metadata TXT in game/OptiScaler-NR-Benchmarks. "
                                   "Includes GPU adapter, actual texture resolutions and complete-NR overhead. "
+                                  "14 cases at 50%, 59%, 65%; off and unoptimized Fused baselines retained. "
                                   "Keep the scene static. Original configuration restored.");
         }
         if (!bench.message.empty())
