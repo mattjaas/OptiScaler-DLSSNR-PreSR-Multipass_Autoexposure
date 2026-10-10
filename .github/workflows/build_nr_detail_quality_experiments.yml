@@ -1,9 +1,9 @@
-name: Build NR v11 spatial/quadfill GPU optimization
+name: Build NR v12 interior/axes GPU optimization
 
 on:
   push:
     branches:
-      - codex/nr-interpass-v11-spatial-quadfill
+      - codex/nr-interpass-v12-interior-addressing
     paths:
       - OptiScaler/Config.h
       - OptiScaler/Config.cpp
@@ -41,6 +41,7 @@ on:
       - tests/test_nr_interpass_v9.py
       - tests/test_nr_interpass_v10.py
       - tests/test_nr_interpass_v11.py
+      - tests/test_nr_interpass_v12.py
       - OptiScaler/shaders/dlssnr/DlssNr_GpuTime.h
       - .github/workflows/build_nr_detail_quality_experiments.yml
 
@@ -48,7 +49,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v11-${{ github.ref }}
+  group: nr-interpass-v12-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -108,6 +109,10 @@ jobs:
       - name: Verify v11 spatial-hoist math and non-overlapping quadrant fill
         shell: powershell
         run: python tests/test_nr_interpass_v11.py
+
+      - name: Verify v12 exact 3x3 address and Gaussian-distance parity
+        shell: powershell
+        run: python tests/test_nr_interpass_v12.py
 
       - name: Rebuild NR detail experiment shader
         shell: powershell
@@ -205,6 +210,28 @@ jobs:
           )
           if (($v11Hashes | Sort-Object -Unique).Count -ne 4) { throw "v11 variants must compile to unique DXIL" }
           Write-Host "v10 weights / v11 spatial / quadfill / both DXIL SHA256: $v11Hashes"
+          # v12 independent 16x16 Linear + Weights PSOs: each combination is
+          # compiled separately; v10/v11, Classic and standard shader untouched.
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V12_INTERIOR=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v12_interior_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v12_interior_Shader.cso" "dlssnr_tiled_v12_interior_Shader.h" "dlssnr_tiled_v12_interior_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V12_AXES=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v12_axes_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v12_axes_Shader.cso" "dlssnr_tiled_v12_axes_Shader.h" "dlssnr_tiled_v12_axes_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "..\..\shader_tools\dxc.exe" -T cs_6_0 -E CSMain -O3 -Qstrip_debug -Qstrip_reflect -D DLSSNR_TILED_FUSED=1 -D DLSSNR_TILED_PITCH=16 -D DLSSNR_TILED_V10=1 -D DLSSNR_TILED_V10_WEIGHTS=1 -D DLSSNR_TILED_V12_INTERIOR=1 -D DLSSNR_TILED_V12_AXES=1 "dlssnr.hlsl" -Fo "dlssnr_tiled_v12_both_Shader.cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python "..\..\shader_tools\create_header.py" "dlssnr_tiled_v12_both_Shader.cso" "dlssnr_tiled_v12_both_Shader.h" "dlssnr_tiled_v12_both_cso"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $v12Hashes = @(
+            (Get-FileHash "dlssnr_tiled_v10_weights_Shader.cso" -Algorithm SHA256).Hash,
+            (Get-FileHash "dlssnr_tiled_v12_interior_Shader.cso" -Algorithm SHA256).Hash,
+            (Get-FileHash "dlssnr_tiled_v12_axes_Shader.cso" -Algorithm SHA256).Hash,
+            (Get-FileHash "dlssnr_tiled_v12_both_Shader.cso" -Algorithm SHA256).Hash
+          )
+          if (($v12Hashes | Sort-Object -Unique).Count -ne 4) { throw "v12 variants must compile to unique DXIL" }
+          Write-Host "v10 weights/v12 interior/axes/both DXIL SHA256: $v12Hashes"
           # Detect accidental identical shader variants; the tiled shader must differ.
           $mainHash = (Get-FileHash "DlssNr_Shader.cso" -Algorithm SHA256).Hash
           $tileHash = (Get-FileHash "dlssnr_tiled_Shader.cso" -Algorithm SHA256).Hash
@@ -228,13 +255,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v11-spatial-quadfill-20261010"
+        run: ./package_release.ps1 -Version "nr-interpass-v12-interior-addressing-20261010"
 
       - name: Upload test package
         uses: actions/upload-artifact@v4
         with:
           name: OptiScaler-NR-interpass-v10-isolated-single-benchmark-20261010
-          path: release/OptiScaler-NR-nr-interpass-v11-spatial-quadfill-20261010.zip
+          path: release/OptiScaler-NR-nr-interpass-v12-interior-addressing-20261010.zip
           if-no-files-found: error
 
       - name: Publish compiled ZIP as experimental GitHub Release (best effort)
@@ -243,17 +270,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v11-spatial-quadfill-20261010"
-          $archive = "release/OptiScaler-NR-nr-interpass-v11-spatial-quadfill-20261010.zip"
+          $tag = "nr-interpass-v12-interior-addressing-20261010"
+          $archive = "release/OptiScaler-NR-nr-interpass-v12-interior-addressing-20261010.zip"
           if (-not (Test-Path $archive)) { throw "Release ZIP missing: $archive" }
           $notes = @"
-          Experimental v11 from $env:GITHUB_SHA.
-          P65 Linear16+weights reference v10 preserved unchanged. Three new
-          separately compiled PSOs: hoisted spatial clamped coordinates,
-          statically unrolled 2x2 quadrants of 8x8 lanes, and both.
-          No added source/model LDS; no changed bilateral Gaussian or Area math.
-          All new v11 switches default OFF; v10 and P50 paths preserved.
-          Standard NR DXIL SHA256 must equal proven v6.1/v8 build.
+          Experimental v12 from $env:GITHUB_SHA.
+          Three new isolated PSOs only for P65 Linear16+Weights with cache OFF:
+          interior stencil clamp bypass, separable 3+3 axis preclamping,
+          and combined. Edge coordinates, Gaussian bilateral exp2, range
+          values, weight and accumulation order and Area stay identical.
+          Standard NR DXIL SHA256 is checked against the proven v6.1/v8 build.
+          All new options OFF. Existing v10/v11 and P50 reference PSOs retained.
+          Single benchmark per setup, P50 + P65 with 6 passes and raw samples.
           Single test PER setup at P50 and P65 only (no ABBA).
           Full game DX12 timestamp timing; per-case warmup and raw sample CSV,
           improved diagnostics, and original settings restoration.
@@ -262,9 +290,9 @@ jobs:
           if (gh release view $tag 2>$null) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release archive replacement failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v11 - spatial hoist and quad-fill single-case GPU benchmark" --notes $notes --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v12 - interior source clamp and separable axes benchmark" --notes $notes --prerelease
             if ($LASTEXITCODE -ne 0) { throw "Release update failed" }
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v11 - spatial hoist and quad-fill single-case GPU benchmark" --notes $notes --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v12 - interior source clamp and separable axes benchmark" --notes $notes --prerelease
             if ($LASTEXITCODE -ne 0) { throw "Release creation failed" }
           }
