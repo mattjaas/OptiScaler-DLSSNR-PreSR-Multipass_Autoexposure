@@ -102,3 +102,26 @@ kafli). Nowe kontrole potwierdzają dokładnie P41/P42, wcześniejszy powrót
 bez dopisania bieżącej skali, zachowanie symetrycznej kolejności trzech
 kandydatur i przywracanie konfiguracji. Zmiana nie dotyka HLSL ani ścieżki
 produkcyjnego renderowania; test arytmetyki nie jest pomiarem wydajności.
+
+## Build i paczka
+
+Źródło paczki: 88b15110c986604931502ab49a1d62ca4ea874d1,
+gałąź codex/nr-interpass-v13-bounded-area.
+[Build 38083412109](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38083412109)
+przeszedł: pięć testów arytmetyki, integracja benchmarku, kompilacja trzech
+shaderów, wykonanie testu C++ polityki, kompilacja fixture GPU, pełna DLL,
+pakowanie i publikacja.
+
+[ZIP v19](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v19-boundary-41-42-20261010/OptiScaler-NR-nr-interpass-v19-boundary-41-42-20261010.zip),
+131 091 025 bajtów.
+
+- ZIP SHA256: 6318a35ef2b892ca0d1991e2b2ea2d0ff812297f4a6e76afd9091e5207ed02a8
+- DLL SHA256: d21f8eee6cd1a0e22bc28829d6b86e45a6d0e424896f81913cf07b5ca687f6e7
+- Pobrany ZIP: CRC i wszystkie 62 wpisy SHA256SUMS.txt poprawne.
+- DLL Windows x64 zawiera przycisk 41/42%, nowy prefiks raportu i opis
+  dokładnie dwóch skal. Wszystkie trzy DXIL są identyczne z v18, sprawdzonym
+  na RTX 4090. W DLL nie ma 36 odrzuconych wcześniejszych blobów inter-pass.
+  Nie wykonano nowego pomiaru całego NR w grze; wymaga uruchomienia benchmarku.
+
+Lokalne usunięcie package_release.ps1 przez Bitdefender pozostawiono poza
+commitem. Build użył wersji skryptu z repozytorium.
