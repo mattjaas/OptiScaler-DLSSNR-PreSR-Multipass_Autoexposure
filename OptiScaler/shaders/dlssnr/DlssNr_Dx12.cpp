@@ -5,6 +5,8 @@
 #include <list>
 #include "precompile/DlssNr_Shader.h"
 #include "precompile/dlssnr_tiled_Shader.h"
+#include "precompile/dlssnr_tiled_strided_Shader.h"
+#include "precompile/dlssnr_tiled_compact_Shader.h"
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
 #include "precompile/dlssnr_spatial_Shader.h"
@@ -166,18 +168,54 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
         InConstants.Transfer == 0u &&
         (InConstants.DirectResolveFlags & 2048u) != 0u)
     {
-        if (!_tiledFusedPipelineAttempted)
+        // Priority compact -> strided -> original v7 -> normal reference.
+        // Only executed while tiled Fused is active; no extra CPU/GPU cost
+        // for regular NR, Classic, or even Fused with Tiled switched off.
+        if ((InConstants.DirectResolveFlags & 8192u) != 0u)
         {
-            _tiledFusedPipelineAttempted = true;
-            if (!CreateComputePipeline(_device, &_tiledFusedPipelineState, dlssnr_tiled_cso,
-                                       sizeof(dlssnr_tiled_cso), nullptr))
+            if (!_tiledCompactPipelineAttempted)
             {
-                _tiledFusedPipelineState = nullptr;
-                LOG_WARN("[{0}] v7 tiled Fused PSO creation failed; using normal Fused path", _name);
+                _tiledCompactPipelineAttempted = true;
+                if (!CreateComputePipeline(_device, &_tiledCompactPipelineState, dlssnr_tiled_compact_cso,
+                                           sizeof(dlssnr_tiled_compact_cso), nullptr))
+                {
+                    _tiledCompactPipelineState = nullptr;
+                    LOG_WARN("[{0}] v8 compact tiled PSO failed; falling back to 20x20 tiled", _name);
+                }
             }
+            if (_tiledCompactPipelineState != nullptr)
+                pipeline = _tiledCompactPipelineState;
         }
-        if (_tiledFusedPipelineState != nullptr)
-            pipeline = _tiledFusedPipelineState;
+        if (pipeline == _pipelineState && (InConstants.DirectResolveFlags & 4096u) != 0u)
+        {
+            if (!_tiledStridedPipelineAttempted)
+            {
+                _tiledStridedPipelineAttempted = true;
+                if (!CreateComputePipeline(_device, &_tiledStridedPipelineState, dlssnr_tiled_strided_cso,
+                                           sizeof(dlssnr_tiled_strided_cso), nullptr))
+                {
+                    _tiledStridedPipelineState = nullptr;
+                    LOG_WARN("[{0}] v8 strided tiled PSO failed; falling back to original v7", _name);
+                }
+            }
+            if (_tiledStridedPipelineState != nullptr)
+                pipeline = _tiledStridedPipelineState;
+        }
+        if (pipeline == _pipelineState)
+        {
+            if (!_tiledFusedPipelineAttempted)
+            {
+                _tiledFusedPipelineAttempted = true;
+                if (!CreateComputePipeline(_device, &_tiledFusedPipelineState, dlssnr_tiled_cso,
+                                           sizeof(dlssnr_tiled_cso), nullptr))
+                {
+                    _tiledFusedPipelineState = nullptr;
+                    LOG_WARN("[{0}] v7 tiled Fused PSO creation failed; using normal Fused path", _name);
+                }
+            }
+            if (_tiledFusedPipelineState != nullptr)
+                pipeline = _tiledFusedPipelineState;
+        }
         // If creation fails, standard PSO ignores bit 11, naturally falling
         // back to the previous Area reconstruction without corrupting output.
     }
@@ -375,6 +413,16 @@ DlssNr_Dx12::~DlssNr_Dx12()
     {
         _tiledFusedPipelineState->Release();
         _tiledFusedPipelineState = nullptr;
+    }
+    if (_tiledStridedPipelineState != nullptr)
+    {
+        _tiledStridedPipelineState->Release();
+        _tiledStridedPipelineState = nullptr;
+    }
+    if (_tiledCompactPipelineState != nullptr)
+    {
+        _tiledCompactPipelineState->Release();
+        _tiledCompactPipelineState = nullptr;
     }
     if (_spatialPipelineState != nullptr)
     {
