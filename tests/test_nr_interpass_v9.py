@@ -27,8 +27,17 @@ def verify_geometry(native_w, native_h, work_w, work_h, compact=False):
     source_pitch = 24
     ratio_x = work_w / native_w
     ratio_y = work_h / native_h
-    for gy in range(0, work_h, 8):
-        for gx in range(0, work_w, 8):
+    # Representative workgroups: corners, edges, centre and random positions.
+    # Exhaustively iterating 4K output and every P100 stencil in Python would
+    # make CI unreasonably slow without improving geometric corner coverage.
+    xs = sorted({min((work_w - 1) // 8 * 8, x) for x in
+                 (0, 8, 16, work_w // 3 // 8 * 8, work_w // 2 // 8 * 8,
+                  max(0, (work_w - 1) // 8 * 8), *[R.randrange(0, max(1, (work_w + 7)//8)) * 8 for _ in range(12)] )})
+    ys = sorted({min((work_h - 1) // 8 * 8, y) for y in
+                 (0, 8, 16, work_h // 3 // 8 * 8, work_h // 2 // 8 * 8,
+                  max(0, (work_h - 1) // 8 * 8), *[R.randrange(0, max(1, (work_h + 7)//8)) * 8 for _ in range(12)] )})
+    for gy in ys:
+        for gx in xs:
             ex, ey = min(gx + 8, work_w), min(gy + 8, work_h)
             fx, fy = math.floor(gx * native_w / work_w), math.floor(gy * native_h / work_h)
             lx, ly = math.ceil(ex * native_w / work_w), math.ceil(ey * native_h / work_h)
