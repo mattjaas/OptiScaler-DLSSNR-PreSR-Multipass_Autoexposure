@@ -260,7 +260,7 @@ jobs:
       - name: Upload test package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v10-isolated-single-benchmark-20261010
+          name: OptiScaler-NR-interpass-v12-interior-addressing-20261010
           path: release/OptiScaler-NR-nr-interpass-v12-interior-addressing-20261010.zip
           if-no-files-found: error
 
