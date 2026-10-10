@@ -66,6 +66,12 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     // The standard PSO has no tiled code and is used for every other mode.
     ID3D12PipelineState* _tiledFusedPipelineState = nullptr;
     bool _tiledFusedPipelineAttempted = false;
+    // v8 optional PSOs are also isolated from the standard and v7 binaries.
+    // Neither is instantiated unless the respective UI option is selected.
+    ID3D12PipelineState* _tiledStridedPipelineState = nullptr;
+    bool _tiledStridedPipelineAttempted = false;
+    ID3D12PipelineState* _tiledCompactPipelineState = nullptr;
+    bool _tiledCompactPipelineAttempted = false;
     ID3D12PipelineState* _finishedColorPipelineState = nullptr;
     ID3D12PipelineState* _spatialPipelineState = nullptr;
     ID3D12PipelineState* _spatialGuidesPipelineState = nullptr;
