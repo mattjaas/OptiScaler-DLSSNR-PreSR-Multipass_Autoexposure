@@ -1268,8 +1268,8 @@ bool InterPassClassicCacheFill(uint3 groupId, uint3 localId, out int2 origin)
     const float2 ratio = float2(srcDim) / float2(gWidth, gHeight);
     const int2 firstBase = int2(floor((float2(begin) + 0.5) * ratio));
     const int2 lastBase = int2(floor((float2(end - 1u) + 0.5) * ratio));
-    origin = clamp(firstBase - 1, int2(0, 0), int2(srcDim) - 1);
-    const int2 upper = clamp(lastBase + 1, int2(0, 0), int2(srcDim) - 1);
+    origin = clamp(firstBase - 2, int2(0, 0), int2(srcDim) - 1);
+    const int2 upper = clamp(lastBase + 2, int2(0, 0), int2(srcDim) - 1);
     const int2 size = upper - origin + 1;
     if (any(size <= 0) || any(size > 12)) return false;
     const uint count = (uint)(size.x * size.y);
@@ -2271,8 +2271,8 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
                                      asfloat(gResidualMotionBaseYUnused));
         const int2 firstBase = int2(floor((float2(first) + 0.5) * ratio));
         const int2 lastBase = int2(floor((float2(limit - 1) + 0.5) * ratio));
-        sourceOrigin = clamp(firstBase - 1, int2(0, 0), int2(srcW, srcH) - 1);
-        const int2 sourceEnd = clamp(lastBase + 1, int2(0, 0), int2(srcW, srcH) - 1);
+        sourceOrigin = clamp(firstBase - 2, int2(0, 0), int2(srcW, srcH) - 1);
+        const int2 sourceEnd = clamp(lastBase + 2, int2(0, 0), int2(srcW, srcH) - 1);
         const int2 cacheSize = sourceEnd - sourceOrigin + 1;
         if (any(cacheSize <= 0) || any(cacheSize > 24)) return false;
         const uint count = (uint)(cacheSize.x * cacheSize.y);
