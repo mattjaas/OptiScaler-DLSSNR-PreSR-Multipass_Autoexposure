@@ -83,6 +83,9 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     // v11 spatial/quadfill/both: three independent P65 Linear16+Weights PSOs.
     ID3D12PipelineState* _tiledV11PipelineState[3] {};
     bool _tiledV11PipelineAttempted[3] {};
+    // v12: separate interior/axes/both PSOs, lazy init, v10 reference untouched.
+    ID3D12PipelineState* _tiledV12PipelineState[3] {};
+    bool _tiledV12PipelineAttempted[3] {};
     ID3D12PipelineState* _classicCachePipelineState = nullptr;
     bool _classicCachePipelineAttempted = false;
     ID3D12PipelineState* _classicV10CachePipelineState = nullptr;
