@@ -77,6 +77,9 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool _tiledCompactLinearPipelineAttempted = false;
     ID3D12PipelineState* _tiledV9PipelineState[4] {};
     bool _tiledV9PipelineAttempted[4] {};
+    // v10: three independent P65 Linear 16x16 PSOs. The default uses v9 Linear16.
+    ID3D12PipelineState* _tiledV10PipelineState[3] {};
+    bool _tiledV10PipelineAttempted[3] {};
     ID3D12PipelineState* _classicCachePipelineState = nullptr;
     bool _classicCachePipelineAttempted = false;
     ID3D12PipelineState* _finishedColorPipelineState = nullptr;
