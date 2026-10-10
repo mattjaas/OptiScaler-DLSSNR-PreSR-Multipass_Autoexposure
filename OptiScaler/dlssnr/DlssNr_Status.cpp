@@ -98,6 +98,7 @@ struct BenchmarkConfig
     bool exact, shared, dynamic, paired, downClamp, classicStencil;
     bool tiled, strided, compact, weights, cache;
     bool v11Spatial, v11QuadFill;
+    bool v12Interior, v12Axes;
 };
 struct BenchmarkVariant
 {
@@ -107,6 +108,7 @@ struct BenchmarkVariant
     std::vector<double> samples;
     unsigned nativeW = 0, nativeH = 0, workW = 0, workH = 0, effectivePasses = 0;
     bool v11Spatial = false, v11QuadFill = false;
+    bool v12Interior = false, v12Axes = false;
 };
 std::mutex benchmarkMutex;
 std::atomic<bool> benchmarkActive { false };
@@ -144,7 +146,9 @@ BenchmarkConfig TakeBenchmarkConfig(const Config& c)
         c.DlssNrInterPassV9Weights.value_or_default(),
         c.DlssNrInterPassV9SourceCache.value_or_default(),
         c.DlssNrInterPassV11Spatial.value_or_default(),
-        c.DlssNrInterPassV11QuadFill.value_or_default()
+        c.DlssNrInterPassV11QuadFill.value_or_default(),
+        c.DlssNrInterPassV12Interior.value_or_default(),
+        c.DlssNrInterPassV12Axes.value_or_default()
     };
 }
 void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
@@ -172,6 +176,8 @@ void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
     c.DlssNrInterPassV9SourceCache = v.cache;
     c.DlssNrInterPassV11Spatial = v.v11Spatial;
     c.DlssNrInterPassV11QuadFill = v.v11QuadFill;
+    c.DlssNrInterPassV12Interior = v.v12Interior;
+    c.DlssNrInterPassV12Axes = v.v12Axes;
 }
 void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
 {
@@ -198,6 +204,8 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     c.DlssNrInterPassV9SourceCache = v.cache;
     c.DlssNrInterPassV11Spatial = v.v11Spatial;
     c.DlssNrInterPassV11QuadFill = v.v11QuadFill;
+    c.DlssNrInterPassV12Interior = v.v12Interior;
+    c.DlssNrInterPassV12Axes = v.v12Axes;
 }
 void AddBenchmark(int scale, int mode, bool exact, bool tiled, bool strided, bool compact,
                   bool weights, bool cache, const char* name)
@@ -231,6 +239,17 @@ void BuildBenchmarkVariants()
             AddBenchmark(scale, 2, true, true, false, true, true, false, "Linear 16 + weights + both v11");
             benchmarkVariants.back().v11Spatial = true;
             benchmarkVariants.back().v11QuadFill = true;
+            // v12: each isolated PSO evaluated ONCE, not A-B-B-A.
+            AddBenchmark(scale, 2, true, true, false, true, true, false,
+                         "Linear 16 + weights + interior v12");
+            benchmarkVariants.back().v12Interior = true;
+            AddBenchmark(scale, 2, true, true, false, true, true, false,
+                         "Linear 16 + weights + axis preclamp v12");
+            benchmarkVariants.back().v12Axes = true;
+            AddBenchmark(scale, 2, true, true, false, true, true, false,
+                         "Linear 16 + weights + interior and axes v12");
+            benchmarkVariants.back().v12Interior = true;
+            benchmarkVariants.back().v12Axes = true;
         }
     }
 }
@@ -265,7 +284,7 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        name << "NR-v11-" << std::put_time(&local, "%Y%m%d-%H%M%S");
+        name << "NR-v12-" << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
         const auto info = directory / (name.str() + ".txt");
         const auto raw = directory / (name.str() + ".samples.csv");
@@ -274,7 +293,7 @@ void FinishBenchmark(bool cancelled)
         std::ofstream description(info);
         if (!out || !description || !individual)
             throw std::runtime_error("Cannot create benchmark report.");
-        out << "scale_percent,variant,mode,exact,tiled,strided,compact,weights,source_cache,v11_spatial,v11_quadfill,"
+        out << "scale_percent,variant,mode,exact,tiled,strided,compact,weights,source_cache,v11_spatial,v11_quadfill,v12_interior,v12_axes,"
                "native_width,native_height,work_width,work_height,effective_passes,"
                "samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,delta_vs_off_median_ms\n";
         individual << "scale_percent,variant,sample_index,total_nr_gpu_ms\n";
@@ -308,6 +327,7 @@ void FinishBenchmark(bool cancelled)
             out << v.percent << ',' << '"' << v.name << '"' << ',' << v.mode << ',' << v.exact << ','
                 << v.tiled << ',' << v.strided << ',' << v.compact << ',' << v.weights << ',' << v.cache
                 << ',' << v.v11Spatial << ',' << v.v11QuadFill
+                << ',' << v.v12Interior << ',' << v.v12Axes
                 << ',' << v.nativeW << ',' << v.nativeH << ',' << v.workW << ',' << v.workH << ','
                 << v.effectivePasses << ',' << n << ',' << mean << ',' << median << ',' << p95 << ','
                 << sorted.front() << ',' << sorted.back() << ',' << std::sqrt(variance/n)
@@ -315,7 +335,7 @@ void FinishBenchmark(bool cancelled)
             for (size_t i = 0; i < v.samples.size(); ++i)
                 individual << v.percent << ',' << '"' << v.name << '"' << ',' << i << ',' << v.samples[i] << '\n';
         }
-        description << "OptiScaler DLSS NR v11 automatic six-pass GPU benchmark\n"
+        description << "OptiScaler DLSS NR v12 automatic six-pass GPU benchmark\n"
                     << "ONE measurement per configuration: no ABBA and no repeated sweeps.\n"
                     << "P50 and P65 only; all variants: 6 passes, Area, radius 1, "
                        "dynamic/shared bilinear ON, paired OFF, shadow/frequency shaping left unchanged.\n"
@@ -326,8 +346,11 @@ void FinishBenchmark(bool cancelled)
                        "not isolated shader time.\n"
                     << "Original user settings restored after benchmark.\n"
                     << "GPU adapter: " << (benchmarkAdapterInfo.empty() ? "unavailable" : benchmarkAdapterInfo) << "\n"
-                    << "v11 experiments: P65 Linear16 + v10 weights baseline and separately compiled "
-                       "spatial-hoist, static quad-fill, and combined shaders. All options default OFF.\n"
+                    << "v11 experiments: P65 Linear16 + v10 weights baseline, spatial-hoist, "
+                       "quad-fill, and both, preserved for comparison.\n"
+                    << "v12 experiments: interior stencil (skip unnecessary clamps), "
+                       "3+3 separable preclamped axes, and both, three isolated P65 Linear16 "
+                       "weights-only DXIL PSOs. All new flags OFF by default.\n"
                     << "Source cache: v10 Linear16 Fused uses 16x16 float3 FP32 source/model arrays; "
                        "v10 Classic uses 12x12 float3 FP32 arrays. "
                        "Actual LDS allocation/register occupancy require external GPU profiler.\n"
