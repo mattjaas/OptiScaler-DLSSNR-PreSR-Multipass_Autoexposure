@@ -16,6 +16,7 @@
 #include "precompile/dlssnr_tiled_v10_weights_Shader.h"
 #include "precompile/dlssnr_tiled_v10_cache_Shader.h"
 #include "precompile/dlssnr_tiled_v10_both_Shader.h"
+#include "precompile/dlssnr_classic_v10_cache_Shader.h"
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
 #include "precompile/dlssnr_spatial_Shader.h"
@@ -174,15 +175,17 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
     if (InConstants.Mode == DlssNrMode_InterPassGuidedP100 &&
         (flags & (1024u | 32768u)) == (1024u | 32768u))
     {
-        if (!_classicCachePipelineAttempted)
+        if (!_classicV10CachePipelineAttempted)
         {
-            _classicCachePipelineAttempted = true;
-            if (!CreateComputePipeline(_device, &_classicCachePipelineState,
-                                       dlssnr_classic_cache_cso, sizeof(dlssnr_classic_cache_cso), nullptr))
-                LOG_WARN("[{0}] v9 Classic source cache PSO unavailable; using v6", _name);
+            _classicV10CachePipelineAttempted = true;
+            if (!CreateComputePipeline(_device, &_classicV10CachePipelineState,
+                                       dlssnr_classic_v10_cache_cso, sizeof(dlssnr_classic_v10_cache_cso), nullptr))
+                LOG_WARN("[{0}] v10 Classic source/model cache PSO unavailable", _name);
         }
-        if (_classicCachePipelineState)
-            pipeline = _classicCachePipelineState;
+        if (_classicV10CachePipelineState)
+            pipeline = _classicV10CachePipelineState;
+        // No silent fallback to an old cached shader with different LDS behavior.
+        // If v10 PSO is unavailable, reference v6 stencil is used with unchanged input.
     }
     if (InConstants.Mode == DlssNrMode_InterPassGuidedWorking &&
         InConstants.Transfer == 0u && (flags & 2048u) != 0u)
@@ -505,6 +508,11 @@ DlssNr_Dx12::~DlssNr_Dx12()
             state->Release();
             state = nullptr;
         }
+    }
+    if (_classicV10CachePipelineState)
+    {
+        _classicV10CachePipelineState->Release();
+        _classicV10CachePipelineState = nullptr;
     }
     if (_classicCachePipelineState)
     {
