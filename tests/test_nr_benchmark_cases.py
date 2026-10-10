@@ -48,10 +48,20 @@ def test_benchmark():
     assert 'Expected path control' in low and 'Inter-pass optimized' in low
     assert 'quiet_NaN()' in low  # No fabricated historical gain below 50.
     assert 'if (current < 50) AddLowBenchmarkScale(current)' in low
-    assert 'benchmarkBelow50 = below50;' in status
+    assert 'benchmarkProfile = profile;' in status
+    build = status[status.index('void BuildBenchmarkVariants'):status.index('void UpdateBenchmarkProgress')]
+    boundary = build[build.index('InterPassBenchmarkProfile::Boundary'):build.index('InterPassBenchmarkProfile::Below50')]
+    assert 'for (const int scale : kInterPassBoundaryBenchmarkScales) AddLowBenchmarkScale(scale);' in boundary
+    assert 'return;' in boundary and 'AddLowBenchmarkScale(current)' not in boundary
+    assert 'kInterPassBoundaryBenchmarkScales {41, 42}' in header
+    assert 'NR-v19-boundary-' in status and 'exactly P41/P42; current scale is not appended' in status
+    assert 'InterPassBenchmarkProfile profile = InterPassBenchmarkProfile::Regular' in (
+        ROOT / 'OptiScaler/dlssnr/DlssNr_Benchmark.h').read_text(encoding='utf-8')
     ui = (ROOT / 'OptiScaler/dlssnr/DlssNr_Menu.cpp').read_text(encoding='utf-8')
     assert 'Compare inter-pass below 50% (CSV)' in ui
-    assert 'StartInterPassBenchmark((unsigned)warmup, (unsigned)samples, true)' in ui
+    assert 'DlssNr::InterPassBenchmarkProfile::Below50' in ui
+    assert 'Compare inter-pass 41% / 42% (CSV)' in ui
+    assert 'DlssNr::InterPassBenchmarkProfile::Boundary' in ui
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
     guard = run[run.index('const bool eligibleTiledDims'):run.index('if (workingScaleTiled && eligibleTiledDims')]
     assert '2u * modelWidth' not in guard and '2u * modelHeight' not in guard

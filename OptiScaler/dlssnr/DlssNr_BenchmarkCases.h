@@ -12,6 +12,8 @@ inline constexpr std::array<InterPassBenchmarkScale, 3> kInterPassBenchmarkScale
 }};
 // Targeted experiment, separate from the regular verification sweep.
 inline constexpr std::array<int, 4> kInterPassLowBenchmarkScales {33, 40, 45, 49};
+// Resolve partial RGB20 tile coverage; do not repeat already measured scales.
+inline constexpr std::array<int, 2> kInterPassBoundaryBenchmarkScales {41, 42};
 // A/B/C/C/B/A gives every candidate the same mean position within the sweep.
 inline constexpr std::array<InterPass::Path, 6> kInterPassLowBenchmarkOrder {
     InterPass::Path::ClassicOptimized, InterPass::Path::FusedOptimized, InterPass::Path::Rgb20,

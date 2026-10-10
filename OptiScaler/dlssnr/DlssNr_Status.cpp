@@ -119,7 +119,7 @@ BenchmarkConfig savedBenchmarkConfig {};
 std::vector<BenchmarkVariant> benchmarkVariants;
 unsigned benchmarkIndex = 0, benchmarkWarm = 0;
 unsigned benchmarkWarmup = 90, benchmarkSamples = 160;
-bool benchmarkBelow50 = false;
+InterPassBenchmarkProfile benchmarkProfile = InterPassBenchmarkProfile::Regular;
 std::string benchmarkSetup;
 std::string benchmarkAdapterInfo;
 unsigned benchmarkNativeW = 0, benchmarkNativeH = 0, benchmarkWorkW = 0,
@@ -209,7 +209,12 @@ void BuildBenchmarkVariants()
 {
     benchmarkVariants.clear();
     const int current = std::clamp(int(std::lround(savedBenchmarkConfig.scale * 100.0f)), 25, 99);
-    if (benchmarkBelow50)
+    if (benchmarkProfile == InterPassBenchmarkProfile::Boundary)
+    {
+        for (const int scale : kInterPassBoundaryBenchmarkScales) AddLowBenchmarkScale(scale);
+        return; // Exactly P41/P42, regardless of the current slider setting.
+    }
+    if (benchmarkProfile == InterPassBenchmarkProfile::Below50)
     {
         for (const int scale : kInterPassLowBenchmarkScales) AddLowBenchmarkScale(scale);
         if (current < 50 && std::find(kInterPassLowBenchmarkScales.begin(),
@@ -263,7 +268,9 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        name << (benchmarkBelow50 ? "NR-v18-low-" : "NR-v18-auto-") << std::put_time(&local, "%Y%m%d-%H%M%S");
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v19-boundary-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v19-low-" : "NR-v19-auto-";
+        name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
         const auto info = directory / (name.str() + ".txt");
         const auto raw = directory / (name.str() + ".samples.csv");
@@ -342,7 +349,10 @@ void FinishBenchmark(bool cancelled)
             out << "\"," << *range.second - *range.first << '\n';
         }
         description << "OptiScaler six-pass inter-pass GPU comparison\n"
-                    << (benchmarkBelow50 ? "Below-50 profile: P33/P40/P45/P49 plus current lower scale if different.\n" :
+                    << (benchmarkProfile == InterPassBenchmarkProfile::Boundary ?
+                        "Boundary profile: exactly P41/P42; current scale is not appended.\n" :
+                        benchmarkProfile == InterPassBenchmarkProfile::Below50 ?
+                        "Below-50 profile: P33/P40/P45/P49 plus current lower scale if different.\n" :
                         "Regular profile: P50/P59/P65 plus current rounded percentage when different.\n")
                     << "Off, Classic reference and Fused reference retained.\n"
                     << "At lower scales: Classic A / Fused B / RGB20 C / C / B / A, then automatic path.\n"
@@ -379,7 +389,7 @@ void FinishBenchmark(bool cancelled)
 }
 } // namespace
 
-void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, bool below50)
+void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, InterPassBenchmarkProfile profile)
 {
     std::lock_guard lock(benchmarkMutex);
     if (benchmarkActive.load())
@@ -394,7 +404,7 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, b
     benchmarkWarmup = std::clamp(warmupSamples, 40u, 600u);
     benchmarkSamples = std::clamp(measuredSamples, 40u, 2000u);
     benchmarkIndex = benchmarkWarm = 0;
-    benchmarkBelow50 = below50;
+    benchmarkProfile = profile;
     BuildBenchmarkVariants();
     benchmarkAdapterInfo.clear();
     benchmarkNativeW = benchmarkNativeH = benchmarkWorkW = benchmarkWorkH = benchmarkEffectivePasses = 0;

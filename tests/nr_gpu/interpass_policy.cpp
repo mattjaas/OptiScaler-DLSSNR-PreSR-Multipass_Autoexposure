@@ -7,6 +7,7 @@ int main()
 {
     try {
         require(DlssNr::kInterPassLowBenchmarkScales == std::array<int,4>{33,40,45,49});
+        require(DlssNr::kInterPassBoundaryBenchmarkScales == std::array<int,2>{41,42});
         const auto& order = DlssNr::kInterPassLowBenchmarkOrder;
         require(order.size()==6);
         for (size_t i=0;i<order.size();++i) require(order[i]==order[order.size()-1-i]);

@@ -1,5 +1,8 @@
 # NR v18: porównanie inter-pass poniżej 50%
 
+Raport historyczny v18. Wyniki z gry oraz celowany test przejściowego zakresu
+41/42% opisuje [NR v19](NR-v19-boundary-41-42.md).
+
 Hipoteza: RGB20/Mode28/isolated weights, który wygrywa przy 59%, może wygrywać
 również poniżej 50%. W v17 blokował go warunek CPU native/work <2. Usunięto tę
 blokadę dla wybranego RGB PSO, pozostawiając sprawdzanie wymiarów wejść oraz

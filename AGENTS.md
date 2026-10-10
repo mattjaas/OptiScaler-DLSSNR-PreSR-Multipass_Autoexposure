@@ -68,6 +68,13 @@ Nie wymagają ponownego potwierdzania przez użytkownika. Odpowiadaj po polsku.
   dla grup niemieszczących się w kaflu; raportowanie PSO nie oznacza użycia
   LDS w każdej grupie. Nie nazywaj domyślnego Classic zmierzonym zwycięzcą
   i nie zmieniaj polityki na podstawie samego syntetycznego pomiaru shadera.
+- Celowany profil Boundary porównuje wyłącznie 41% i 42%, bez dopisywania
+  bieżącej skali: 14 konfiguracji / 20 okien. Zachowuje te same trzy
+  kandydatury A/B/C/C/B/A, Off, oba tryby referencyjne i automat. Hipoteza:
+  częściowe pokrycie kaflem RGB20 pomiędzy wyrównanym P40 a pełnym pokryciem
+  około 42,11%. Nie powtarzaj P33/P40/P45/P49 w tym profilu. Wyniki v18 z gry
+  potwierdzają Classic przy P33 oraz RGB20 przy P40/P45/P49; nie dowodzą
+  zwycięstwa we wszystkich skalach pomiędzy tymi punktami.
 
 - Stosuj `CONTRIBUTING.md`, w szczególności zasady PCH. Uruchamiaj kontrole
   odpowiednie do zakresu zmiany; nie wymagaj kompilacji dla samej dokumentacji.

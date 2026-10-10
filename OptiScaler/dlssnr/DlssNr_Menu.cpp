@@ -303,7 +303,8 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Keep the scene static. Original configuration restored.");
             ImGui::BeginDisabled(!canBenchmark);
             if (ImGui::Button("Compare inter-pass below 50% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples, true);
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                              DlssNr::InterPassBenchmarkProfile::Below50);
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, six passes, Area / radius 1 / guide strength 1. "
@@ -312,6 +313,18 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Includes Off, both references and the current automatic path. "
                                   "RGB20 uses direct reconstruction for groups exceeding its 20x20 tile. "
                                   "Keep the scene static. Original settings restored; results do not change the policy.");
+            ImGui::BeginDisabled(!canBenchmark);
+            if (ImGui::Button("Compare inter-pass 41% / 42% (CSV)"))
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                              DlssNr::InterPassBenchmarkProfile::Boundary);
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("DX12, six passes, Area / radius 1 / guide strength 1. "
+                                  "Only 41% and 42%, regardless of current percentage: 20 windows, 14 configurations. "
+                                  "Classic optimized / Fused optimized / RGB20 guarded, then reverse order. "
+                                  "Includes Off, both references and the current automatic path. "
+                                  "Each window has independent warmup. Keep the scene static. "
+                                  "Original settings restored; results do not change the policy.");
         }
         if (!bench.message.empty())
             ImGui::TextWrapped("%s", bench.message.c_str());
