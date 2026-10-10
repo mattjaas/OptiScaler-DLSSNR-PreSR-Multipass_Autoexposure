@@ -162,6 +162,12 @@ class DlssNrGpuTime
                 s.occupied = false;
     }
 
+    UINT64 LastCompletedSequence()
+    {
+        Collect();
+        return lastSequence;
+    }
+
     void ClearLast()
     {
         last.reset();
