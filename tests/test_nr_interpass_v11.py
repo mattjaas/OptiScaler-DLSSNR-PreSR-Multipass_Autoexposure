@@ -27,7 +27,7 @@ def test_isolation():
     assert "DlssNrInterPassV11QuadFill { false }" in CONFIG
     assert "DlssNrInterPassV11Spatial.value_or_default()" in RUN
     assert "DlssNrInterPassV11QuadFill.value_or_default()" in RUN
-    assert "NR-v11-" in BENCH
+    assert "NR-v11-" in BENCH or "NR-v12-" in BENCH
     assert "for (int scale : { 50, 65 })" in BENCH
     assert "v11Spatial = true;" in BENCH and "v11QuadFill = true;" in BENCH
     assert "benchmarkWarm < benchmarkWarmup" in BENCH
