@@ -531,6 +531,8 @@ bool Config::Reload(std::filesystem::path iniPath)
             DlssNrInterPassDownsampleClamp.set_from_config(readBool("DlssNr", "InterPassDownsampleClamp"));
             DlssNrInterPassClassicSharedStencil.set_from_config(readBool("DlssNr", "InterPassClassicSharedStencil"));
             DlssNrInterPassTiledFusedArea.set_from_config(readBool("DlssNr", "InterPassTiledFusedArea"));
+            DlssNrInterPassTiledStridedLoads.set_from_config(readBool("DlssNr", "InterPassTiledStridedLoads"));
+            DlssNrInterPassTiledCompact16.set_from_config(readBool("DlssNr", "InterPassTiledCompact16"));
             DlssNrWhitePointScale.set_from_config(readFloat("DlssNr", "WhitePointScale"));
             DlssNrReplaceDetailStrength.set_from_config(readFloat("DlssNr", "ReplaceDetailStrength"));
             DlssNrResidualConfidenceSensitivity.set_from_config(readFloat("DlssNr", "ResidualConfidenceSensitivity"));
@@ -1711,6 +1713,10 @@ bool Config::SaveIni(std::filesystem::path destination)
                      GetBoolValue(Instance()->DlssNrInterPassClassicSharedStencil.value_for_config()).c_str());
         ini.SetValue("DlssNr", "InterPassTiledFusedArea",
                      GetBoolValue(Instance()->DlssNrInterPassTiledFusedArea.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "InterPassTiledStridedLoads",
+                     GetBoolValue(Instance()->DlssNrInterPassTiledStridedLoads.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "InterPassTiledCompact16",
+                     GetBoolValue(Instance()->DlssNrInterPassTiledCompact16.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ReplaceDetailStrength",
                      GetFloatValue(Instance()->DlssNrReplaceDetailStrength.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ResidualConfidenceSensitivity",
