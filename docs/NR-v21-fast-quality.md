@@ -1,5 +1,8 @@
 # NR v21: eksperymentalny Fast inter-pass
 
+Zgłoszenie czasu dokładnego Optimized około 37,3 ms przy P65 oraz porównanie
+z historycznym RGB16 około 37,0 ms opisano w [audycie P65](NR-v21-P65-optimized-audit.md).
+
 W menu **Model → Inter-pass reconstruction**, po **Inter-pass optimized**, jest
 **Inter-pass fast (experimental)** (`InterPassReconstruction=4`). Dotychczasowy
 Optimized (`3`) zachowuje dokładną matematykę i politykę v20. Domyślna opcja pozostaje Off.
