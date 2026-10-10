@@ -3,6 +3,7 @@
 // not ImGui frames. Engine-side implementation lives in DlssNr_Status.cpp.
 #include <cstdint>
 #include <string>
+struct ID3D12Device;
 namespace DlssNr
 {
 struct BenchmarkProgress
@@ -21,4 +22,7 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples);
 void CancelInterPassBenchmark();
 BenchmarkProgress ReadInterPassBenchmark();
 void BenchmarkGpuSample(double rawGpuMs, bool modelRunning);
+void BenchmarkReportGeometry(unsigned nativeW, unsigned nativeH, unsigned workW, unsigned workH,
+                             unsigned effectivePasses);
+void BenchmarkReportDevice(ID3D12Device* device);
 } // namespace DlssNr
