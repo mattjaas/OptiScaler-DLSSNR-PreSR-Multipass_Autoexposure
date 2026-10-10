@@ -47,8 +47,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v10-${{ github.sha }}
-  cancel-in-progress: false
+  group: nr-interpass-v10-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
