@@ -590,6 +590,9 @@ class Config
     // v7 experimental: cooperatively reconstruct each native P100 texel once
     // per 8x8 working output tile in Fused Area. OFF keeps v3/v4 path.
     CustomOptional<bool> DlssNrInterPassTiledFusedArea { false };
+    // Independent experimental A/B controls for v8 tiled Fused (v7.1 remains OFF/OFF).
+    CustomOptional<bool> DlssNrInterPassTiledStridedLoads { false };
+    CustomOptional<bool> DlssNrInterPassTiledCompact16 { false };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
