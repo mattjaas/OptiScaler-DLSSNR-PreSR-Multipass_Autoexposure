@@ -82,6 +82,8 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool _tiledV10PipelineAttempted[3] {};
     ID3D12PipelineState* _classicCachePipelineState = nullptr;
     bool _classicCachePipelineAttempted = false;
+    ID3D12PipelineState* _classicV10CachePipelineState = nullptr;
+    bool _classicV10CachePipelineAttempted = false;
     ID3D12PipelineState* _finishedColorPipelineState = nullptr;
     ID3D12PipelineState* _spatialPipelineState = nullptr;
     ID3D12PipelineState* _spatialGuidesPipelineState = nullptr;
