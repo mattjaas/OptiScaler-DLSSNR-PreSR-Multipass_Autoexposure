@@ -1172,7 +1172,13 @@ void InterPassCorrectedDynamicPair(int2 p0, out float4 result0, out float4 resul
 // clamping, so corner duplicates still receive the hardware CLAMP weights.
 // Every guided sample uses the CLAMPED texel position for its spatial
 // distance, just like the v1 exact-optimized reference.
+#ifdef DLSSNR_CLASSIC_SOURCE_CACHE
+static const uint kClassicCachePitch = 12u;
+groupshared float4 gClassicSource[12 * 12], gClassicModel[12 * 12];
+float4 InterPassCorrectedClassicSharedStencilInternal(int2 nativeP, bool cacheOn, int2 origin)
+#else
 float4 InterPassCorrectedClassicSharedStencil(int2 nativeP)
+#endif
 {
     const float4 native = gOriginal.Load(int3(nativeP, 0));
     const float2 uvq = (float2(nativeP) + 0.5) / float2(gWidth, gHeight);
@@ -1213,8 +1219,19 @@ float4 InterPassCorrectedClassicSharedStencil(int2 nativeP)
         {
             const int sampleX = clamp(sourceBase.x + ox, 0, (int)srcW - 1);
             const int2 sampleP = int2(sampleX, sampleY);
+#ifdef DLSSNR_CLASSIC_SOURCE_CACHE
+            const int2 indexP = sampleP - origin;
+            const float3 proxyCandidate = cacheOn
+                ? gClassicSource[indexP.y * kClassicCachePitch + indexP.x].rgb
+                : gSource.Load(int3(sampleP, 0)).rgb;
+            const float3 modelCandidate = cacheOn
+                ? gClassicModel[indexP.y * kClassicCachePitch + indexP.x].rgb
+                : gModel.Load(int3(sampleP, 0)).rgb;
+            const float3 residual = modelCandidate - proxyCandidate;
+#else
             const float3 proxyCandidate = gSource.Load(int3(sampleP, 0)).rgb;
             const float3 residual = gModel.Load(int3(sampleP, 0)).rgb - proxyCandidate;
+#endif
             bilinear += residual * (weightsX[ox + 1] * wy);
 
             const float3 colourDelta = proxyCandidate - native.rgb;
@@ -1232,6 +1249,43 @@ float4 InterPassCorrectedClassicSharedStencil(int2 nativeP)
     const float3 corrected = SanitizeFinite3(native.rgb + shapedEdit, native.rgb);
     return float4(corrected, native.a);
 }
+
+#ifdef DLSSNR_CLASSIC_SOURCE_CACHE
+float4 InterPassCorrectedClassicSharedStencil(int2 p)
+{
+    return InterPassCorrectedClassicSharedStencilInternal(p, false, int2(0, 0));
+}
+// Native tile is 8x8, so the union of radius-one source taps fits in 12x12
+// for every working/native ratio <= 1. The group (including edge lanes)
+// uniformly preloads source AND model, then barriers before native reconstruction.
+bool InterPassClassicCacheFill(uint3 groupId, uint3 localId, out int2 origin)
+{
+    const uint2 begin = groupId.xy * 8u;
+    const uint2 end = min(begin + 8u, uint2(gWidth, gHeight));
+    origin = int2(0, 0);
+    const uint2 srcDim = uint2(gDirectDetailMode, gDirectResolveUpscaler);
+    if (any(begin >= end) || any(srcDim == 0u)) return false;
+    const float2 ratio = float2(srcDim) / float2(gWidth, gHeight);
+    const int2 firstBase = int2(floor((float2(begin) + 0.5) * ratio));
+    const int2 lastBase = int2(floor((float2(end - 1u) + 0.5) * ratio));
+    origin = clamp(firstBase - 1, int2(0, 0), int2(srcDim) - 1);
+    const int2 upper = clamp(lastBase + 1, int2(0, 0), int2(srcDim) - 1);
+    const int2 size = upper - origin + 1;
+    if (any(size <= 0) || any(size > 12)) return false;
+    const uint count = (uint)(size.x * size.y);
+    const uint lane = localId.y * 8u + localId.x;
+    [loop] for (uint n = lane; n < count; n += 64u)
+    {
+        const uint x = n % (uint)size.x, y = n / (uint)size.x;
+        const int2 p = origin + int2(x, y);
+        const uint offset = y * kClassicCachePitch + x;
+        gClassicSource[offset] = gSource.Load(int3(p, 0));
+        gClassicModel[offset] = gModel.Load(int3(p, 0));
+    }
+    GroupMemoryBarrierWithGroupSync();
+    return true;
+}
+#endif
 
  // Exact 2:1 P100->P50 Area case. All four P100 centres share the same
  // nearest P50 source texel and thus exactly the same (2*r+1)^2 source
@@ -2534,6 +2588,12 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             return;
     }
 #endif // DLSSNR_TILED_FUSED
+#ifdef DLSSNR_CLASSIC_SOURCE_CACHE
+    int2 classicCacheOrigin = int2(0, 0);
+    bool classicCacheOn = false;
+    if (gMode == 27u && (gDirectResolveFlags & (1024u | 32768u)) == (1024u | 32768u))
+        classicCacheOn = InterPassClassicCacheFill(groupId, groupThreadId, classicCacheOrigin);
+#endif
 
     if (id.x >= gWidth || id.y >= gHeight)
         return;
@@ -2683,9 +2743,15 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         // Bit 10: standalone v6 A/B. Only selected when exact optimized
         // mode, radius=1, nonzero guide strength and equal source/model dims.
         // OFF remains the byte-for-byte v5 P100 guided shader path.
+#ifdef DLSSNR_CLASSIC_SOURCE_CACHE
+        gTarget[id.xy] = (gDirectResolveFlags & 1024u) != 0u
+            ? InterPassCorrectedClassicSharedStencilInternal(int2(id.xy), classicCacheOn, classicCacheOrigin)
+            : InterPassCorrectedP100Load(int2(id.xy));
+#else
         gTarget[id.xy] = (gDirectResolveFlags & 1024u) != 0u
             ? InterPassCorrectedClassicSharedStencil(int2(id.xy))
             : InterPassCorrectedP100Load(int2(id.xy));
+#endif
         return;
     }
 
