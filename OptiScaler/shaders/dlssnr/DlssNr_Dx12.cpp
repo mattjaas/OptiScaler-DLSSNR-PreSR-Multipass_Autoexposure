@@ -25,6 +25,13 @@
 #include "precompile/dlssnr_tiled_v13_area_Shader.h"
 #include "precompile/dlssnr_tiled_v13_mode28_Shader.h"
 #include "precompile/dlssnr_tiled_v13_both_Shader.h"
+#include "precompile/dlssnr_tiled_v14_rgb16_Shader.h"
+#include "precompile/dlssnr_tiled_v14_guide16_Shader.h"
+#include "precompile/dlssnr_tiled_v14_both16_Shader.h"
+#include "precompile/dlssnr_tiled_v14_weights20_Shader.h"
+#include "precompile/dlssnr_tiled_v14_rgb20_Shader.h"
+#include "precompile/dlssnr_tiled_v14_guide20_Shader.h"
+#include "precompile/dlssnr_tiled_v14_both20_Shader.h"
 #include "precompile/dlssnr_classic_v10_cache_Shader.h"
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -202,12 +209,46 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
         const bool compact = (flags & 8192u) != 0u;
         const bool strided = (flags & 4096u) != 0u;
         const bool v9 = (flags & (16384u | 32768u)) != 0u;
+        // v14 variants preserve v10 reconstruction and always compile Mode28.
+        // GuideOne is eligible only for exactly 1; never approximate user settings.
+        const bool rgb14 = (flags & 4194304u) != 0u;
+        const bool guide14 = (flags & 16777216u) != 0u &&
+                             InConstants.ResidualConfidenceSensitivity == 1.0f;
+        const bool linear20 = !compact && (flags & 8388608u) != 0u;
+        const bool v14 = !strided && (flags & 16384u) != 0u &&
+                         (flags & (32768u | 65536u | 131072u | 262144u | 524288u | 1048576u)) == 0u &&
+                         (compact ? (rgb14 || guide14) : linear20);
+        if (v14)
+        {
+            const uint32_t combination = (rgb14 ? 1u : 0u) + (guide14 ? 2u : 0u);
+            const uint32_t index = compact ? combination - 1u : 3u + combination;
+            const void* const blobs[] = { dlssnr_tiled_v14_rgb16_cso, dlssnr_tiled_v14_guide16_cso,
+                                          dlssnr_tiled_v14_both16_cso, dlssnr_tiled_v14_weights20_cso,
+                                          dlssnr_tiled_v14_rgb20_cso, dlssnr_tiled_v14_guide20_cso,
+                                          dlssnr_tiled_v14_both20_cso };
+            const size_t sizes[] = { sizeof(dlssnr_tiled_v14_rgb16_cso), sizeof(dlssnr_tiled_v14_guide16_cso),
+                                     sizeof(dlssnr_tiled_v14_both16_cso), sizeof(dlssnr_tiled_v14_weights20_cso),
+                                     sizeof(dlssnr_tiled_v14_rgb20_cso), sizeof(dlssnr_tiled_v14_guide20_cso),
+                                     sizeof(dlssnr_tiled_v14_both20_cso) };
+            if (!_tiledV14PipelineAttempted[index])
+            {
+                _tiledV14PipelineAttempted[index] = true;
+                if (!CreateComputePipeline(_device, &_tiledV14PipelineState[index],
+                                           blobs[index], sizes[index], nullptr))
+                    LOG_WARN("[{0}] v14 PSO {1} unavailable; retaining previous path", _name, index);
+                else
+                    LOG_INFO("[{0}] v14 PSO {1} created (pitch={2}, RGB={3}, guideOne={4})",
+                             _name, index, compact ? 16 : 20, rgb14, guide14);
+            }
+            if (_tiledV14PipelineState[index])
+                pipeline = _tiledV14PipelineState[index];
+        }
         // v13: independent Area loops and constant Mode28 compilation.
         // Require older experiments OFF so this benchmark isolates one factor.
         const bool v13 = compact && !strided && (flags & 16384u) != 0u &&
                              (flags & (32768u | 65536u | 131072u | 262144u | 524288u)) == 0u &&
                              (flags & (1048576u | 2097152u)) != 0u;
-        if (v13)
+        if (v13 && pipeline == _pipelineState)
         {
             const uint32_t index = ((flags & 1048576u) != 0u ? 1u : 0u) +
                                    ((flags & 2097152u) != 0u ? 2u : 0u) - 1u;
@@ -585,6 +626,12 @@ DlssNr_Dx12::~DlssNr_Dx12()
             state->Release();
             state = nullptr;
         }
+    }
+    for (auto*& state : _tiledV14PipelineState)
+    {
+        if (state)
+            state->Release();
+        state = nullptr;
     }
     for (auto*& state : _tiledV13PipelineState)
     {

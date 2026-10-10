@@ -55,6 +55,24 @@ cbuffer Params : register(b0)
 #define gMode 28u
 #endif
 
+float3 InterPassGuideBlend(float3 bilinear, float3 guided, float strength)
+{
+#ifdef DLSSNR_TILED_V14_GUIDE_ONE
+    // Even precise (guided-bilinear)+bilinear differed by one ULP on RTX 4090.
+    // Retain the EXACT runtime lerp expression and driver contraction behavior.
+    // Only eligibility branches below are specialized, never the blend math.
+    return lerp(bilinear, guided, saturate(gResidualConfidenceUnused));
+#else
+    return lerp(bilinear, guided, strength);
+#endif
+}
+
+#ifdef DLSSNR_TILED_V14_GUIDE_ONE
+// Defined AFTER the blend helper so its cbuffer read and arithmetic survive.
+// CPU requires exactly 1; only branches outside that helper see a constant.
+#define gResidualConfidenceUnused 1.0
+#endif
+
 // Hue-preserving gamut compression toward the D65 neutral axis.
 // Adapted from clshortfuse/RenoDX (https://github.com/clshortfuse/renodx).
 // See Licenses/RenoDX_ATTRIBUTION.txt.
@@ -836,7 +854,7 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
     }
 
     const float3 guided = weightSum > 1e-8 ? weighted / weightSum : bilinearResidual;
-    return lerp(bilinearResidual, guided, saturate(gResidualConfidenceUnused));
+    return InterPassGuideBlend(bilinearResidual, guided, saturate(gResidualConfidenceUnused));
 }
 
 
@@ -886,7 +904,7 @@ float3 P100GuidedResidualAtOptimized(float2 uvq, float3 nativeGuide)
         }
     }
     const float3 guided = weightSum > 1e-8 ? weighted / weightSum : bilinearResidual;
-    return lerp(bilinearResidual, guided, guideStrength);
+    return InterPassGuideBlend(bilinearResidual, guided, guideStrength);
 }
 #endif
 
@@ -1123,7 +1141,7 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
         }
     }
     const float3 guided = weightSum > 1e-8 ? weighted / weightSum : bilinear;
-    const float3 editRaw = lerp(bilinear, guided, saturate(gResidualConfidenceUnused));
+    const float3 editRaw = InterPassGuideBlend(bilinear, guided, saturate(gResidualConfidenceUnused));
     const float3 edit = InterPassShapeEditAt(editRaw, uvq, native.rgb);
     return float4(SanitizeFinite3(native.rgb + edit, native.rgb), native.a);
 }
@@ -1221,9 +1239,9 @@ void InterPassCorrectedDynamicPair(int2 p0, out float4 result0, out float4 resul
     const float guideStrength = saturate(gResidualConfidenceUnused);
     const float3 guided0 = weightSum0 > 1e-8 ? weighted0 / weightSum0 : bilinear0;
     const float3 guided1 = weightSum1 > 1e-8 ? weighted1 / weightSum1 : bilinear1;
-    const float3 edit0 = InterPassShapeEditAt(lerp(bilinear0, guided0, guideStrength),
+    const float3 edit0 = InterPassShapeEditAt(InterPassGuideBlend(bilinear0, guided0, guideStrength),
                                               uv0, native0.rgb);
-    const float3 edit1 = InterPassShapeEditAt(lerp(bilinear1, guided1, guideStrength),
+    const float3 edit1 = InterPassShapeEditAt(InterPassGuideBlend(bilinear1, guided1, guideStrength),
                                               uv1, native1.rgb);
     result0 = float4(SanitizeFinite3(native0.rgb + edit0, native0.rgb), native0.a);
     result1 = float4(SanitizeFinite3(native1.rgb + edit1, native1.rgb), native1.a);
@@ -1326,7 +1344,7 @@ float4 InterPassCorrectedClassicSharedStencil(int2 nativeP)
     }
 
     const float3 guided = weightSum > 1e-8 ? weighted / weightSum : bilinear;
-    const float3 editRaw = lerp(bilinear, guided, saturate(gResidualConfidenceUnused));
+    const float3 editRaw = InterPassGuideBlend(bilinear, guided, saturate(gResidualConfidenceUnused));
     const float3 shapedEdit = InterPassShapeEditAt(editRaw, uvq, native.rgb);
     const float3 corrected = SanitizeFinite3(native.rgb + shapedEdit, native.rgb);
     return float4(corrected, native.a);
@@ -1444,7 +1462,7 @@ float4 InterPassCorrectedAreaP50Optimized(int2 outP, uint2 nativeSize)
     [unroll] for (uint k = 0u; k < 4u; ++k)
     {
         const float3 guided = weightSum[k] > 1e-8 ? weighted[k] / weightSum[k] : bilinear[k];
-        const float3 edit = InterPassShapeEditAt(lerp(bilinear[k], guided, guideStrength),
+        const float3 edit = InterPassShapeEditAt(InterPassGuideBlend(bilinear[k], guided, guideStrength),
                                                 uvList[k], originals[k].rgb);
         correctedSum += SanitizeFinite3(originals[k].rgb + edit, originals[k].rgb);
     }
@@ -1545,7 +1563,7 @@ float4 InterPassCorrectedAreaP50SharedBilinear(int2 outP, uint2 nativeSize)
     [unroll] for (uint k = 0u; k < 4u; ++k)
     {
         const float3 guided = weightSum[k] > 1e-8 ? weighted[k] / weightSum[k] : bilinear[k];
-        const float3 edit = InterPassShapeEditAt(lerp(bilinear[k], guided, guideStrength),
+        const float3 edit = InterPassShapeEditAt(InterPassGuideBlend(bilinear[k], guided, guideStrength),
                                                  uvList[k], originals[k].rgb);
         correctedSum += SanitizeFinite3(originals[k].rgb + edit, originals[k].rgb);
     }
@@ -2324,7 +2342,14 @@ float4 DownsampleMaybeClampProxy(float4 raw, bool fused)
 #define DLSSNR_TILED_PITCH 20
 #endif
 static const uint kInterPassTilePitch = DLSSNR_TILED_PITCH;
-groupshared float4 gInterPassCorrectedTile[DLSSNR_TILED_PITCH * DLSSNR_TILED_PITCH];
+#ifdef DLSSNR_TILED_V14_RGB
+#define DLSSNR_TILE_VALUE float3
+float3 InterPassTileValue(float4 value) { return value.rgb; }
+#else
+#define DLSSNR_TILE_VALUE float4
+float4 InterPassTileValue(float4 value) { return value; }
+#endif
+groupshared DLSSNR_TILE_VALUE gInterPassCorrectedTile[DLSSNR_TILED_PITCH * DLSSNR_TILED_PITCH];
 
 bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
 {
@@ -2415,8 +2440,8 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
                 {
                     const int2 p100 = first + int2((int)tileX, (int)tileY);
                     gInterPassCorrectedTile[tileY * kInterPassTilePitch + tileX] =
-                        InterPassCorrectedP100LoadDynamicInternal(
-                            p100, useV9Weights, useV9Cache, sourceOrigin);
+                        InterPassTileValue(InterPassCorrectedP100LoadDynamicInternal(
+                            p100, useV9Weights, useV9Cache, sourceOrigin));
                 }
             }
         }
@@ -2433,9 +2458,9 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
             const int2 p100 = first + int2((int)tileX, (int)tileY);
             gInterPassCorrectedTile[tileY * kInterPassTilePitch + tileX] =
                 #if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10)
-                InterPassCorrectedP100LoadDynamicInternal(p100, useV9Weights, useV9Cache, sourceOrigin);
+                InterPassTileValue(InterPassCorrectedP100LoadDynamicInternal(p100, useV9Weights, useV9Cache, sourceOrigin));
 #else
-                InterPassCorrectedP100LoadDynamic(p100);
+                InterPassTileValue(InterPassCorrectedP100LoadDynamic(p100));
 #endif
         }
     }
@@ -2452,9 +2477,9 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
         // guided+bilinear reuse, P100 guide and frequency/shadow shaping.
         gInterPassCorrectedTile[y * kInterPassTilePitch + x] =
             #if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10)
-                InterPassCorrectedP100LoadDynamicInternal(p100, useV9Weights, useV9Cache, sourceOrigin);
+                InterPassTileValue(InterPassCorrectedP100LoadDynamicInternal(p100, useV9Weights, useV9Cache, sourceOrigin));
 #else
-                InterPassCorrectedP100LoadDynamic(p100);
+                InterPassTileValue(InterPassCorrectedP100LoadDynamic(p100));
 #endif
     }
 #endif
@@ -2475,7 +2500,7 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
     const int j0 = (int)floor(y0);
     const int j1 = (int)ceil(y1) - 1;
 
-    float4 acc = 0.0;
+    DLSSNR_TILE_VALUE acc = 0.0;
 #ifdef DLSSNR_TILED_V13_AREA
     // Isolated v13: compact eligibility guarantees a footprint <=3x3.
     // Guard per output against unexpected dimensions/float boundary rounding;
@@ -2496,7 +2521,7 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
                 {
                     const float wx = max(min(x1, (float)i + 1.0) - max(x0, (float)i), 0.0);
                     const int2 localP100 = int2(i, j) - first;
-                    const float4 sample = gInterPassCorrectedTile[
+                    const DLSSNR_TILE_VALUE sample = gInterPassCorrectedTile[
                         (uint)localP100.y * kInterPassTilePitch + (uint)localP100.x];
                     acc += sample * (wx * wy);
                 }
@@ -2512,13 +2537,17 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
             const float wx = max(min(x1, (float)i + 1.0) - max(x0, (float)i), 0.0);
             const int2 localP100 = int2(i, j) - first;
             // A valid tile's group bounds encompass every output footprint.
-            const float4 corrected = gInterPassCorrectedTile[
+            const DLSSNR_TILE_VALUE corrected = gInterPassCorrectedTile[
                 (uint)localP100.y * kInterPassTilePitch + (uint)localP100.x];
             acc += corrected * (wx * wy);
         }
     }
 #endif
+#ifdef DLSSNR_TILED_V14_RGB
+    float4 corrected = float4(acc / area, 0.0);
+#else
     float4 corrected = acc / area;
+#endif
     const int acx = clamp((int)floor(((float)id.x + 0.5) * (float)nativeW / (float)gWidth),
                           0, (int)nativeW - 1);
     const int acy = clamp((int)floor(((float)id.y + 0.5) * (float)nativeH / (float)gHeight),

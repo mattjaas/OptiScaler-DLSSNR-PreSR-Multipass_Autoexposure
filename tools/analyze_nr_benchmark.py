@@ -9,8 +9,8 @@ import numpy as np
 
 def analyze(summary, raw, output):
     version = summary.name.split("-")[1]
-    assert version in ("v12", "v13"), version
-    experiments = ("v12", "v13") if version == "v13" else ("v12",)
+    assert version in ("v12", "v13", "v14"), version
+    experiments = ("v12", "v13", "v14") if version == "v14" else (("v12", "v13") if version == "v13" else ("v12",))
     rows = list(csv.DictReader(summary.open(encoding="utf-8-sig")))
     samples = {}
     for row in csv.DictReader(raw.open(encoding="utf-8-sig")):
@@ -20,6 +20,9 @@ def analyze(summary, raw, output):
     lines = [f"# Analiza benchmarku NR {version}", "",
              "RTX 4090, The Last of Us Part I, native 3840×2160; P50 1920×1080, P65 2496×1404; 6 passów, Area, radius 1, guide strength 1.0. 90 warmup + 160 pomiarów na konfigurację. Jeden sekwencyjny sweep. Czas całego przedziału GPU NR, obejmujący NGX, inter-pass i zależności kolejek.", "",
              f"Zweryfikowano {len(rows)} konfiguracji i {sum(len(v) for v in samples.values())} próbek; indeksy bez luk i duplikatów. Metryki podsumowania zgodne z raw do 0,000006 ms. SD populacyjne, P5/P95 nearest-rank, trimmed mean po odrzuceniu 10% z każdego końca. Trend: średnia ostatnich 40 minus pierwszych 40 próbek. Autokorelacja lag-1.", ""]
+    if version == "v14":
+        dimensions = sorted({(int(r['scale_percent']),int(r['work_width']),int(r['work_height'])) for r in rows})
+        lines[2] = "RTX 4090, The Last of Us Part I, native 3840×2160; " + ", ".join(f"P{p} {w}×{h}" for p,w,h in dimensions) + "; 6 passów, Area, radius 1. 90 warmup + 160 pomiarów na konfigurację. Jeden sekwencyjny sweep; czas całego GPU NR. Żądane flagi nie dowodzą wykonania PSO; guide-one wymaga dokładnie guide strength 1 w ustawieniach użytkownika."
     stats = {}
     for row in rows:
         key = (int(row["scale_percent"]), row["variant"])
@@ -28,7 +31,10 @@ def analyze(summary, raw, output):
         x = np.array([v for _, v in indexed])
         assert len(x) == 160 and int(row["effective_passes"]) == 6
         assert (int(row["native_width"]), int(row["native_height"])) == (3840, 2160)
-        assert (int(row["work_width"]), int(row["work_height"])) == ((1920,1080) if key[0] == 50 else (2496,1404))
+        if version != "v14":
+            assert (int(row["work_width"]), int(row["work_height"])) == ((1920,1080) if key[0] == 50 else (2496,1404))
+        else:
+            assert 0 < int(row["work_width"]) <= 3840 and 0 < int(row["work_height"]) <= 2160
         s = np.sort(x)
         d = dict(mean_ms=x.mean(), median_ms=np.median(x), p95_ms=s[int(np.ceil(.95*len(x)))-1],
                  min_ms=s[0], max_ms=s[-1], stddev_ms=x.std(), p5=s[int(np.ceil(.05*len(x)))-1],
@@ -36,7 +42,7 @@ def analyze(summary, raw, output):
         for name in ("mean_ms","median_ms","p95_ms","min_ms","max_ms","stddev_ms"):
             assert abs(float(row[name])-d[name]) < .000006, (key,name)
         stats[key] = (x,d)
-    for scale in (50,65):
+    for scale in sorted({p for p,_ in stats}):
         lines += [f"## P{scale}", "", "| Wariant | Mean | Median | P5 | P95 | Min | Max | SD | Trim10% | Δ off | Lag1 | Trend |", "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
         baseline = stats[(scale,"No inter-pass")][1]["median_ms"]
         for (p,name),(x,d) in stats.items():

@@ -88,6 +88,8 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool _tiledV12PipelineAttempted[3] {};
     ID3D12PipelineState* _tiledV13PipelineState[3] {};
     bool _tiledV13PipelineAttempted[3] {};
+    ID3D12PipelineState* _tiledV14PipelineState[7] {};
+    bool _tiledV14PipelineAttempted[7] {};
     ID3D12PipelineState* _classicCachePipelineState = nullptr;
     bool _classicCachePipelineAttempted = false;
     ID3D12PipelineState* _classicV10CachePipelineState = nullptr;

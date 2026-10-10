@@ -1185,6 +1185,15 @@ void RenderModel(Config* config)
                         HelpMarker("v11 P65 Linear16 with v10 Weights ON and cache OFF. "
                                    "Uses four statically unrolled 8x8 native tile quadrants instead "
                                    "of runtime linear index div/mod. FP32 reconstruction and Area unchanged.");
+                        Checkbox("Fused: RGB corrected tile (v14)", config->DlssNrInterPassV14RgbTile);
+                        HelpMarker("FP32 RGB tile; final alpha still comes from the original image. "
+                                          "Requires Linear + Weights, older experiments/cache OFF. Default OFF.");
+                        Checkbox("Fused: isolated Linear20 weights + Mode28 (v14)", config->DlssNrInterPassV14Linear20);
+                        HelpMarker("Enables a separate weights-only 20x20 PSO when Compact16 is ineligible or OFF. "
+                                          "Tiled scale guard is unchanged. Can combine with RGB/guide-one. Default OFF.");
+                        Checkbox("Fused: exact guide-one specialization (v14)", config->DlssNrInterPassV14GuideOne);
+                        HelpMarker("Only when guide strength is exactly 1. Keeps the low-weight bilinear fallback. "
+                                          "Requires Linear + Weights; older experiments/cache OFF. Default OFF.");
                         Checkbox("Fused: bounded 3x3 Area integration (v13)",
                                  config->DlssNrInterPassV13Area);
                         HelpMarker("P65 Linear16, Weights ON, Source Cache OFF, v11/v12 OFF. "
@@ -1197,7 +1206,7 @@ void RenderModel(Config* config)
                                    "Can combine with v13 Area; both options default OFF.");
                         HelpMarker("v10 P65 Linear16: separate compiled weights-only DXIL. The source/model "
                                    "groupshared arrays and cache branches are completely absent. "
-                                   "Other tiled configurations retain the v9 A/B implementation.");
+                                   "Other tiled configurations retain v9 unless isolated Linear20 v14 is enabled.");
                     }
                     HelpMarker("Experimental: Fused + Area + Guided radius 1, fractional P51-P90. "
                                "Each 8x8 workgroup reconstructs each native P100 guided pixel "

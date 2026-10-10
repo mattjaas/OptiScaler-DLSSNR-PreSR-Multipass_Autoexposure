@@ -20,6 +20,7 @@
 #include <numeric>
 #include <sstream>
 #include <vector>
+#include <map>
 
 namespace DlssNr
 {
@@ -101,6 +102,7 @@ struct BenchmarkConfig
     bool v11Spatial, v11QuadFill;
     bool v12Interior, v12Axes;
     bool v13Area, v13Mode28;
+    bool v14RgbTile, v14Linear20, v14GuideOne;
 };
 struct BenchmarkVariant
 {
@@ -113,6 +115,7 @@ struct BenchmarkVariant
     bool v12Interior = false, v12Axes = false;
     bool v13Area = false;
     bool v13Mode28 = false;
+    bool v14RgbTile = false, v14Linear20 = false, v14GuideOne = false;
 };
 std::mutex benchmarkMutex;
 std::atomic<bool> benchmarkActive { false };
@@ -155,7 +158,10 @@ BenchmarkConfig TakeBenchmarkConfig(const Config& c)
         c.DlssNrInterPassV12Interior.value_or_default(),
         c.DlssNrInterPassV12Axes.value_or_default(),
         c.DlssNrInterPassV13Area.value_or_default(),
-        c.DlssNrInterPassV13Mode28.value_or_default()
+        c.DlssNrInterPassV13Mode28.value_or_default(),
+        c.DlssNrInterPassV14RgbTile.value_or_default(),
+        c.DlssNrInterPassV14Linear20.value_or_default(),
+        c.DlssNrInterPassV14GuideOne.value_or_default()
     };
 }
 void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
@@ -188,6 +194,9 @@ void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
     c.DlssNrInterPassV12Axes = v.v12Axes;
     c.DlssNrInterPassV13Area = v.v13Area;
     c.DlssNrInterPassV13Mode28 = v.v13Mode28;
+    c.DlssNrInterPassV14RgbTile = v.v14RgbTile;
+    c.DlssNrInterPassV14Linear20 = v.v14Linear20;
+    c.DlssNrInterPassV14GuideOne = v.v14GuideOne;
 }
 void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
 {
@@ -218,6 +227,9 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     c.DlssNrInterPassV12Axes = v.v12Axes;
     c.DlssNrInterPassV13Area = v.v13Area;
     c.DlssNrInterPassV13Mode28 = v.v13Mode28;
+    c.DlssNrInterPassV14RgbTile = v.v14RgbTile;
+    c.DlssNrInterPassV14Linear20 = v.v14Linear20;
+    c.DlssNrInterPassV14GuideOne = v.v14GuideOne;
 }
 void AddBenchmark(int scale, int mode, bool exact, bool tiled, bool strided, bool compact,
                   bool weights, bool cache, const char* name)
@@ -274,6 +286,32 @@ void BuildBenchmarkVariants()
                  "Linear 16 + weights + Area and Mode28 v13");
     benchmarkVariants.back().v13Area = true;
     benchmarkVariants.back().v13Mode28 = true;
+    for (int combination = 1; combination <= 3; ++combination)
+    {
+        const char* names[] = { "Linear16 Mode28 + RGB v14", "Linear16 Mode28 + guide-one v14",
+                                "Linear16 Mode28 + RGB and guide-one v14" };
+        AddBenchmark(65, 2, true, true, false, true, true, false, names[combination - 1]);
+        benchmarkVariants.back().v14RgbTile = (combination & 1) != 0;
+        benchmarkVariants.back().v14GuideOne = (combination & 2) != 0;
+    }
+    // Same settings around the actual-dimension Compact16 boundary.
+    for (int scale : {55, 59, 60, 61})
+    {
+        AddBenchmark(scale, 0, false, false, false, false, false, false, "No inter-pass");
+        AddBenchmark(scale, 2, true, true, false, true, false, false, "Boundary Linear weights OFF");
+        AddBenchmark(scale, 2, true, true, false, true, true, false, "Boundary legacy weights ON");
+        // Explicit Linear20 allows comparison of legacy v9 against v14 at all four scales.
+        AddBenchmark(scale, 2, true, true, false, false, true, false, "Linear20 legacy weights ON");
+        for (int combination = 0; combination < 4; ++combination)
+        {
+            const char* names[] = { "Linear20 weights + Mode28 v14", "Linear20 Mode28 + RGB v14",
+                                    "Linear20 Mode28 + guide-one v14", "Linear20 Mode28 + RGB and guide-one v14" };
+            AddBenchmark(scale, 2, true, true, false, false, true, false, names[combination]);
+            benchmarkVariants.back().v14Linear20 = true;
+            benchmarkVariants.back().v14RgbTile = (combination & 1) != 0;
+            benchmarkVariants.back().v14GuideOne = (combination & 2) != 0;
+        }
+    }
 }
 void UpdateBenchmarkProgress()
 {
@@ -306,7 +344,7 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        name << "NR-v13-" << std::put_time(&local, "%Y%m%d-%H%M%S");
+        name << "NR-v14-" << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
         const auto info = directory / (name.str() + ".txt");
         const auto raw = directory / (name.str() + ".samples.csv");
@@ -315,13 +353,13 @@ void FinishBenchmark(bool cancelled)
         std::ofstream description(info);
         if (!out || !description || !individual)
             throw std::runtime_error("Cannot create benchmark report.");
-        out << "scale_percent,variant,mode,exact,tiled,strided,compact,weights,source_cache,v11_spatial,v11_quadfill,v12_interior,v12_axes,v13_area,v13_mode28,"
+        out << "scale_percent,variant,mode,exact,tiled,strided,compact,weights,source_cache,v11_spatial,v11_quadfill,v12_interior,v12_axes,v13_area,v13_mode28,v14_rgb_tile,v14_linear20,v14_guide_one,"
                "native_width,native_height,work_width,work_height,effective_passes,"
                "samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,delta_vs_off_median_ms\n";
         individual << "scale_percent,variant,sample_index,total_nr_gpu_ms\n";
         out << std::fixed << std::setprecision(5);
         individual << std::fixed << std::setprecision(6);
-        double baseline50 = 0.0, baseline65 = 0.0;
+        std::map<int, double> baselines;
         for (const auto& v : benchmarkVariants)
         {
             if (v.mode != 0 || v.samples.empty())
@@ -330,7 +368,7 @@ void FinishBenchmark(bool cancelled)
             std::sort(sorted.begin(), sorted.end());
             const size_t n = sorted.size();
             const double median = n % 2 ? sorted[n/2] : (sorted[n/2 - 1] + sorted[n/2]) * 0.5;
-            (v.percent == 50 ? baseline50 : baseline65) = median;
+            baselines[v.percent] = median;
         }
         for (const auto& v : benchmarkVariants)
         {
@@ -345,12 +383,13 @@ void FinishBenchmark(bool cancelled)
             const size_t n = sorted.size();
             const double median = n % 2 ? sorted[n/2] : (sorted[n/2-1] + sorted[n/2]) * 0.5;
             const double p95 = sorted[std::min(n-1, size_t(std::ceil(n * 0.95))-1)];
-            const double baseline = v.percent == 50 ? baseline50 : baseline65;
+            const double baseline = baselines.at(v.percent);
             out << v.percent << ',' << '"' << v.name << '"' << ',' << v.mode << ',' << v.exact << ','
                 << v.tiled << ',' << v.strided << ',' << v.compact << ',' << v.weights << ',' << v.cache
                 << ',' << v.v11Spatial << ',' << v.v11QuadFill
                 << ',' << v.v12Interior << ',' << v.v12Axes
                 << ',' << v.v13Area << ',' << v.v13Mode28
+                << ',' << v.v14RgbTile << ',' << v.v14Linear20 << ',' << v.v14GuideOne
                 << ',' << v.nativeW << ',' << v.nativeH << ',' << v.workW << ',' << v.workH << ','
                 << v.effectivePasses << ',' << n << ',' << mean << ',' << median << ',' << p95 << ','
                 << sorted.front() << ',' << sorted.back() << ',' << std::sqrt(variance/n)
@@ -358,9 +397,9 @@ void FinishBenchmark(bool cancelled)
             for (size_t i = 0; i < v.samples.size(); ++i)
                 individual << v.percent << ',' << '"' << v.name << '"' << ',' << i << ',' << v.samples[i] << '\n';
         }
-        description << "OptiScaler DLSS NR v13 automatic six-pass GPU benchmark\n"
+        description << "OptiScaler DLSS NR v14 automatic six-pass GPU benchmark\n"
                     << "ONE measurement per configuration: no ABBA and no repeated sweeps.\n"
-                    << "P50 and P65 only; all variants: 6 passes, Area, radius 1, "
+                    << "P50/P55/P59/P60/P61/P65; all variants: 6 passes, Area, radius 1, "
                        "dynamic/shared bilinear ON, paired OFF, shadow/frequency shaping left unchanged.\n"
                     << "Each case has " << benchmarkWarmup << " fresh warmup timestamps, then "
                     << benchmarkSamples << " fresh measured timestamps.\n"
@@ -377,7 +416,9 @@ void FinishBenchmark(bool cancelled)
                     << "v13 experiments: bounded 3x3 Area loops, constant Mode28 compilation, "
                        "and both, on the unchanged v10 weights-only "
                        "guided reconstruction. v11/v12 OFF; new option OFF by default. "
-                       "28 cases (6 P50, 22 P65), each measured once.\n"
+                       "Historical v13 cases retained. New v14 RGB/guide-one at P65 and Linear20 boundary cases.\n"
+                    << "v14: 63 cases, RGB tile, isolated Linear20 Mode28 weights, exact guide-one; all OFF by default.\n"
+                    << "Guide-one PSO is eligible only if the saved user guide strength is exactly 1.\n"
                     << "Configured experiment flags are reported; PSO creation failure logs a warning "
                        "and may fall back. Check the game log before accepting a speed comparison.\n"
                     << "Source cache: v10 Linear16 Fused uses 16x16 float3 FP32 source/model arrays; "

@@ -1409,6 +1409,12 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         guided.DirectResolveFlags |= 524288u;
                     if (cfg.DlssNrInterPassV13Area.value_or_default())
                         guided.DirectResolveFlags |= 1048576u;
+                    if (cfg.DlssNrInterPassV14RgbTile.value_or_default())
+                        guided.DirectResolveFlags |= 4194304u;
+                    if (cfg.DlssNrInterPassV14Linear20.value_or_default())
+                        guided.DirectResolveFlags |= 8388608u;
+                    if (cfg.DlssNrInterPassV14GuideOne.value_or_default())
+                        guided.DirectResolveFlags |= 16777216u;
                     if (cfg.DlssNrInterPassV13Mode28.value_or_default())
                         guided.DirectResolveFlags |= 2097152u;
                 }

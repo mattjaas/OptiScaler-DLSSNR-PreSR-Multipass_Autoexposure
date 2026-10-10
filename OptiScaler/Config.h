@@ -605,6 +605,9 @@ class Config
     // v13: isolated bounded Area integration on the v10 weights reference.
     CustomOptional<bool> DlssNrInterPassV13Area { false };
     CustomOptional<bool> DlssNrInterPassV13Mode28 { false };
+    CustomOptional<bool> DlssNrInterPassV14GuideOne { false };
+    CustomOptional<bool> DlssNrInterPassV14Linear20 { false };
+    CustomOptional<bool> DlssNrInterPassV14RgbTile { false };
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
