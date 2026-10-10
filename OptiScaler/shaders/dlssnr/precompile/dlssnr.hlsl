@@ -1016,6 +1016,16 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
     const float3 weightsY = movedY ? float3(1.0 - fracPos.y, fracPos.y, 0.0)
                                    : float3(0.0, 1.0 - fracPos.y, fracPos.y);
 #endif
+#ifdef DLSSNR_TILED_V11_SPATIAL
+    // v11 isolated A/B: each clamped component is shared by three 3x3 taps.
+    // Keep the original dot(float2,float2) and exp2 expression/order.
+    // Only eliminate duplicate int->float conversion and coordinate subtraction.
+    // Weights, range guidance, spatial geometry and border clamping are unchanged.
+    const int3 sx = clamp(roundedBase.x + int3(-1, 0, 1), 0, (int)srcW - 1);
+    const int3 sy = clamp(roundedBase.y + int3(-1, 0, 1), 0, (int)srcH - 1);
+    const float3 spatialDeltaX = float3(sx) - sourcePos.x;
+    const float3 spatialDeltaY = float3(sy) - sourcePos.y;
+#endif
     [unroll] for (int oy = -1; oy <= 1; ++oy)
     {
         [unroll] for (int ox = -1; ox <= 1; ++ox)
@@ -1062,7 +1072,11 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
 #endif
 
             const float3 delta = proxyCandidate - native.rgb;
+#ifdef DLSSNR_TILED_V11_SPATIAL
+            const float2 deltaSpatial = float2(spatialDeltaX[ox + 1], spatialDeltaY[oy + 1]);
+#else
             const float2 deltaSpatial = float2(coord) - sourcePos;
+#endif
             const float w = exp2(-(dot(delta, delta) * rangeFactor +
                                    dot(deltaSpatial, deltaSpatial) * spatialFactor));
             weighted += residual * w;
@@ -2344,7 +2358,31 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
     }
 #endif
 
-#ifdef DLSSNR_TILED_STRIDED
+#ifdef DLSSNR_TILED_V11_QUADFILL
+    // v11: static four 8x8 quadrants for the <=16x16 native tile.
+    // Replace per-texel modulo/division with at most four fixed coordinate
+    // evaluations per lane, with bounds checks for partial edge groups.
+    // No new LDS, no dispatch, no extra barrier, and each native P100 texel
+    // is reconstructed exactly once at the same position as the baseline.
+    [unroll] for (uint tileYStep = 0u; tileYStep != 2u; ++tileYStep)
+    {
+        const uint tileY = localId.y + tileYStep * 8u;
+        if (tileY < (uint)tileSize.y)
+        {
+            [unroll] for (uint tileXStep = 0u; tileXStep != 2u; ++tileXStep)
+            {
+                const uint tileX = localId.x + tileXStep * 8u;
+                if (tileX < (uint)tileSize.x)
+                {
+                    const int2 p100 = first + int2((int)tileX, (int)tileY);
+                    gInterPassCorrectedTile[tileY * kInterPassTilePitch + tileX] =
+                        InterPassCorrectedP100LoadDynamicInternal(
+                            p100, useV9Weights, useV9Cache, sourceOrigin);
+                }
+            }
+        }
+    }
+#elif defined(DLSSNR_TILED_STRIDED)
     // v8: two-dimensional 8x8 workgroup stripes. Each lane exclusively owns
     // (x mod 8, y mod 8) P100 texels, eliminating runtime % tileWidth and
     // / tileWidth from every expensive reconstruction. No warp ballot,
