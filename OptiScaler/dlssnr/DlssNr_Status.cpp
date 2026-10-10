@@ -204,7 +204,7 @@ void BuildBenchmarkVariants()
         AddBenchmark(scale, 0, false, false, false, false, false, false, "No inter-pass");
         AddBenchmark(scale, 1, false, false, false, false, false, false, "Classic reference");
         AddBenchmark(scale, 1, true, false, false, false, false, false, "Classic optimized");
-        AddBenchmark(scale, 1, true, false, false, false, false, true,  "Classic source cache");
+        AddBenchmark(scale, 1, true, false, false, false, false, true,  "Classic source cache v10");
         AddBenchmark(scale, 2, false, false, false, false, false, false, "Fused reference");
         AddBenchmark(scale, 2, true, false, false, false, false, false, "Fused optimized");
         if (scale == 65)
@@ -213,9 +213,9 @@ void BuildBenchmarkVariants()
             AddBenchmark(scale, 2, true, true, false, true, false, false, "Tiled linear 16");
             AddBenchmark(scale, 2, true, true, true, false, false, false, "Tiled strided 20");
             AddBenchmark(scale, 2, true, true, true, true, false, false, "Tiled strided 16");
-            AddBenchmark(scale, 2, true, true, false, true, true, false, "Linear 16 + weights");
-            AddBenchmark(scale, 2, true, true, false, true, false, true, "Linear 16 + source cache");
-            AddBenchmark(scale, 2, true, true, false, true, true, true, "Linear 16 + both");
+            AddBenchmark(scale, 2, true, true, false, true, true, false, "Linear 16 + isolated weights v10");
+            AddBenchmark(scale, 2, true, true, false, true, false, true, "Linear 16 + compact cache v10");
+            AddBenchmark(scale, 2, true, true, false, true, true, true, "Linear 16 + isolated both v10");
         }
     }
 }
