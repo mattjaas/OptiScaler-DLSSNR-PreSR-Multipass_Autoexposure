@@ -8,7 +8,9 @@ def test_benchmark():
     header = (ROOT / 'OptiScaler/dlssnr/DlssNr_BenchmarkCases.h').read_text(encoding='utf-8')
     rows = re.findall(r'\{(\d+), InterPass::Path::(\w+), ([\d.]+)\}', header)
     assert [(int(p), route) for p, route, gain in rows] == [
-        (50, 'FusedOptimized'), (59, 'Rgb20'), (65, 'Rgb16')]
+        (50, 'FusedOptimized'), (59, 'Rgb20'), (65, 'Rgb16'),
+        (33, 'ClassicOptimized'), (40, 'Rgb20'), (41, 'ClassicOptimized'),
+        (42, 'Rgb20'), (45, 'Rgb20'), (49, 'Rgb20')]
     assert all(float(gain) > 0 for p, route, gain in rows)
     status = (ROOT / 'OptiScaler/dlssnr/DlssNr_Status.cpp').read_text(encoding='utf-8')
     plan = status[status.index('void AddBenchmarkScale'):status.index('void AddLowBenchmarkScale')]
@@ -20,6 +22,7 @@ def test_benchmark():
     assert [path for mode, path, name in calls[-4:]] == ['int(expected)', '-1', '-1', 'int(expected)']
     assert all(mode == '3' for mode, path, name in calls[3:])
     assert 'Classic optimized control' in plan and 'Fused optimized control' in plan
+    assert 'else if (scale < 50)' in plan and 'RGB20 optimized control' in plan
     assert 'existing.percent == v.percent && std::string(existing.name) == v.name' in status
     assert 'it->samples.insert' in status and '"Mixed routes"' in status
     assert 'window,sample_index,total_nr_gpu_ms' in status
@@ -43,10 +46,11 @@ def test_benchmark():
         'dlssnr_interpass_rgb16', 'dlssnr_interpass_rgb20', 'dlssnr_residual',
         'dlssnr_finished_color', 'dlssnr_spatial', 'dlssnr_spatial_guides']
     low = status[status.index('void AddLowBenchmarkScale'):status.index('void UpdateBenchmarkProgress')]
-    assert 'for (const auto path : kInterPassLowBenchmarkOrder)' in low
-    assert 'RGB20 guarded candidate' in low and 'Fused optimized candidate' in low
-    assert 'Expected path control' in low and 'Inter-pass optimized' in low
-    assert 'quiet_NaN()' in low  # No fabricated historical gain below 50.
+    assert 'kInterPassMeasuredLowScales' in low and 'measured->expected' in low
+    assert 'kInterPassLowVerificationScales {33, 40, 41, 42, 49}' in header
+    assert 'RGB20 guarded candidate' not in low and 'Fused optimized candidate' not in low
+    assert 'AddBenchmarkScale(scale, measured->expected, measured->historicalGainVsFusedMs)' in low
+    assert 'quiet_NaN()' in low  # No fabricated historical gain for unmeasured scales.
     assert 'if (current < 50) AddLowBenchmarkScale(current)' in low
     assert 'benchmarkProfile = profile;' in status
     build = status[status.index('void BuildBenchmarkVariants'):status.index('void UpdateBenchmarkProgress')]
@@ -54,13 +58,13 @@ def test_benchmark():
     assert 'for (const int scale : kInterPassBoundaryBenchmarkScales) AddLowBenchmarkScale(scale);' in boundary
     assert 'return;' in boundary and 'AddLowBenchmarkScale(current)' not in boundary
     assert 'kInterPassBoundaryBenchmarkScales {41, 42}' in header
-    assert 'NR-v19-boundary-' in status and 'exactly P41/P42; current scale is not appended' in status
+    assert 'NR-v20-boundary-' in status and 'exactly P41/P42; current scale is not appended' in status
     assert 'InterPassBenchmarkProfile profile = InterPassBenchmarkProfile::Regular' in (
         ROOT / 'OptiScaler/dlssnr/DlssNr_Benchmark.h').read_text(encoding='utf-8')
     ui = (ROOT / 'OptiScaler/dlssnr/DlssNr_Menu.cpp').read_text(encoding='utf-8')
-    assert 'Compare inter-pass below 50% (CSV)' in ui
+    assert 'Verify optimized inter-pass below 50% (CSV)' in ui
     assert 'DlssNr::InterPassBenchmarkProfile::Below50' in ui
-    assert 'Compare inter-pass 41% / 42% (CSV)' in ui
+    assert 'Verify optimized inter-pass 41% / 42% (CSV)' in ui
     assert 'DlssNr::InterPassBenchmarkProfile::Boundary' in ui
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
     guard = run[run.index('const bool eligibleTiledDims'):run.index('if (workingScaleTiled && eligibleTiledDims')]
@@ -68,4 +72,4 @@ def test_benchmark():
 
 if __name__ == '__main__':
     test_benchmark()
-    print('Benchmark PASS: references, regular ABBA, low-scale symmetric candidates, route reporting and restoration')
+    print('Benchmark PASS: references, independent measured low controls, ABBA, route reporting and restoration')

@@ -299,29 +299,29 @@ void RenderMenu(Config* config, float menuResScale)
                                   "samples CSV and metadata TXT in game/OptiScaler-NR-Benchmarks. "
                                   "Includes GPU adapter, actual texture resolutions and complete-NR overhead. "
                                   "50%, 59%, 65% plus current percentage if different; both references and off retained. "
-                                  "A current scale below 50 adds the symmetric Classic/Fused/RGB20 comparison. "
+                                  "A current scale below 50 compares its measured or predicted path with the alternate in ABBA. "
                                   "Keep the scene static. Original configuration restored.");
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare inter-pass below 50% (CSV)"))
+            if (ImGui::Button("Verify optimized inter-pass below 50% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
                                               DlssNr::InterPassBenchmarkProfile::Below50);
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, six passes, Area / radius 1 / guide strength 1. "
-                                  "33%, 40%, 45%, 49% plus current percentage below 50 if different. "
-                                  "Classic optimized / Fused optimized / RGB20 guarded, then reverse order. "
+                                  "33%, 40%, 41%, 42%, 49% plus current percentage below 50 if different. "
+                                  "Forced expected path / automatic / automatic / forced expected path; alternate Classic or RGB20. "
                                   "Includes Off, both references and the current automatic path. "
                                   "RGB20 uses direct reconstruction for groups exceeding its 20x20 tile. "
-                                  "Keep the scene static. Original settings restored; results do not change the policy.");
+                                  "40 windows by default. Keep the scene static. Original settings restored.");
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare inter-pass 41% / 42% (CSV)"))
+            if (ImGui::Button("Verify optimized inter-pass 41% / 42% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
                                               DlssNr::InterPassBenchmarkProfile::Boundary);
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, six passes, Area / radius 1 / guide strength 1. "
-                                  "Only 41% and 42%, regardless of current percentage: 20 windows, 14 configurations. "
-                                  "Classic optimized / Fused optimized / RGB20 guarded, then reverse order. "
+                                  "Only 41% and 42%, regardless of current percentage: 16 windows, 12 configurations. "
+                                  "Forced winner / automatic / automatic / forced winner; alternate Classic or RGB20. "
                                   "Includes Off, both references and the current automatic path. "
                                   "Each window has independent warmup. Keep the scene static. "
                                   "Original settings restored; results do not change the policy.");

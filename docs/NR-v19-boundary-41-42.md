@@ -1,5 +1,8 @@
 # NR v19: celowany benchmark 41% i 42%
 
+Raport historyczny v19. Dostarczone wyniki i wdrożoną regułę automatu opisuje
+[NR v20](NR-v20-measured-low-auto.md).
+
 Przycisk **Compare inter-pass 41% / 42% (CSV)** porównuje tylko te dwie skale.
 Nie powtarza P33/P40/P45/P49 i nie dopisuje bieżącego procentu suwaka.
 Reguła produkcyjnego automatu, obliczenia shaderów i cztery tryby inter-pass

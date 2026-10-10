@@ -57,23 +57,29 @@ Nie wymagają ponownego potwierdzania przez użytkownika. Odpowiadaj po polsku.
   gdy jest inny. Automat porównuj ze znanym zwycięzcą w kolejności ABBA,
   z osobną rozgrzewką, oraz z drugim zachowanym trybem zoptymalizowanym.
   Bazowy zestaw to 18 unikalnych konfiguracji / 24 okna pomiarowe, albo 24 / 32
-  z dodatkową skalą ≥50%. Bieżąca skala <50% dodaje porównanie opisane poniżej
-  (łącznie 25 konfiguracji / 34 okna). Nie przywracaj do rutynowego benchmarku odrzuconych
+  z dodatkową skalą. Bieżąca skala <50% również używa ABBA oraz alternatywnego
+  Classic/RGB20. Nie przywracaj do rutynowego benchmarku odrzuconych
   wariantów ani wielu bliskich skal bez konkretnej nowej hipotezy.
-- Osobny test poniżej 50% porównuje 33/40/45/49% oraz bieżący niższy procent,
-  gdy jest inny. Zachowuje Off, oba tryby referencyjne i automat. Warianty
-  Classic optimized / Fused optimized / RGB20 guarded mierzy w symetrycznej
-  kolejności A/B/C/C/B/A, z osobną rozgrzewką. To 28 konfiguracji / 40 okien
-  lub 35 / 50 z dodatkową skalą. RGB20 może używać bezpośredniego fallbacku
+- Osobna weryfikacja poniżej 50% porównuje 33/40/41/42/49% oraz bieżący niższy
+  procent, gdy jest inny. P45 pomijamy jako powtórzenie zachowanego toru RGB20.
+  Zachowuje Off, oba tryby referencyjne, alternatywny Classic/RGB20 i automat
+  przeciw niezależnemu wymuszonemu zwycięzcy w ABBA, z osobną rozgrzewką.
+  To 30 konfiguracji / 40 okien lub 36 / 48 z dodatkową skalą.
+  Generic Fused optimized poniżej 50% przegrał wszystkie dostarczone pomiary
+  P33/P40/P41/P42/P45/P49; nie dodawaj go z powrotem bez nowej hipotezy.
+  RGB20 może używać bezpośredniego fallbacku
   dla grup niemieszczących się w kaflu; raportowanie PSO nie oznacza użycia
-  LDS w każdej grupie. Nie nazywaj domyślnego Classic zmierzonym zwycięzcą
-  i nie zmieniaj polityki na podstawie samego syntetycznego pomiaru shadera.
+  LDS w każdej grupie. Nie zmieniaj polityki na podstawie samego syntetycznego
+  pomiaru shadera ani nie nazywaj niezmierzonych skal potwierdzonymi zwycięzcami.
 - Celowany profil Boundary porównuje wyłącznie 41% i 42%, bez dopisywania
-  bieżącej skali: 14 konfiguracji / 20 okien. Zachowuje te same trzy
-  kandydatury A/B/C/C/B/A, Off, oba tryby referencyjne i automat. Hipoteza:
-  częściowe pokrycie kaflem RGB20 pomiędzy wyrównanym P40 a pełnym pokryciem
-  około 42,11%. Nie powtarzaj P33/P40/P45/P49 w tym profilu. Wyniki v18 z gry
-  potwierdzają Classic przy P33 oraz RGB20 przy P40/P45/P49; nie dowodzą
+  bieżącej skali: 12 konfiguracji / 16 okien, ABBA i alternatywny tor.
+  Wyniki v18/v19 z gry potwierdzają Classic przy P33/P41 oraz RGB20 przy
+  P40/P42/P45/P49. Produkcyjna reguła v20 dopuszcza RGB20 przy dokładnym
+  wyrównaniu native/work=5/2 na obu osiach oraz od zaokrąglonego P42
+  (tolerancja pół texela); dokładne P50 ma pierwszeństwo swojej specjalizacji.
+  Odcinki niezmierzone, szczególnie ułamkowe P41..P42, są konserwatywną regułą,
+  nie runtime autotuningiem. Nie powtarzaj P33/P40/P45/P49 w profilu Boundary;
+  dostarczone pomiary nie dowodzą
   zwycięstwa we wszystkich skalach pomiędzy tymi punktami.
 
 - Stosuj `CONTRIBUTING.md`, w szczególności zasady PCH. Uruchamiaj kontrole

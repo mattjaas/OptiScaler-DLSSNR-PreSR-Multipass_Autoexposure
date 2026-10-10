@@ -82,7 +82,7 @@ def main():
            (192,108),(257,143),(384,216)]
     pixels=saved=0
     for nw,nh in cases:
-        for percentage in (25,33,40,45,49,51,53,55,60,63,65,66,67,70,73,75,77,80,85,90):
+        for percentage in (25,33,40,41,42,45,49,51,53,55,60,63,65,66,67,70,73,75,77,80,85,90):
             ow=max(1,int(nw*percentage/100+.5))
             oh=max(1,int(nh*percentage/100+.5))
             n,r=check(nw,nh,ow,oh,rng)

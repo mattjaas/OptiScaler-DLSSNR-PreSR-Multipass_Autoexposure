@@ -182,6 +182,8 @@ void AddBenchmarkScale(int scale, InterPass::Path expected, double historicalGai
     add(2, -1, "Fused reference");
     if (expected != InterPass::Path::ClassicOptimized)
         add(3, int(InterPass::Path::ClassicOptimized), "Classic optimized control");
+    else if (scale < 50)
+        add(3, int(InterPass::Path::Rgb20), "RGB20 optimized control");
     else
         add(3, int(InterPass::Path::FusedOptimized), "Fused optimized control");
     // ABBA checks the same retained winner against automatic selection.
@@ -192,18 +194,16 @@ void AddBenchmarkScale(int scale, InterPass::Path expected, double historicalGai
 }
 void AddLowBenchmarkScale(int scale)
 {
-    const auto add = [&](int mode, int path, const char* name)
+    const auto measured = std::find_if(kInterPassMeasuredLowScales.begin(),
+        kInterPassMeasuredLowScales.end(), [&](const auto& v) { return v.percent == scale; });
+    if (measured != kInterPassMeasuredLowScales.end())
+        AddBenchmarkScale(scale, measured->expected, measured->historicalGainVsFusedMs);
+    else
     {
-        benchmarkVariants.push_back({ scale, mode, path, name, {} });
-        benchmarkVariants.back().historicalGain = std::numeric_limits<double>::quiet_NaN();
-    };
-    add(0, -1, "No inter-pass");
-    add(1, -1, "Classic reference");
-    add(2, -1, "Fused reference");
-    for (const auto path : kInterPassLowBenchmarkOrder)
-        add(3, int(path), path == InterPass::Path::ClassicOptimized ? "Expected path control" :
-            path == InterPass::Path::FusedOptimized ? "Fused optimized candidate" : "RGB20 guarded candidate");
-    add(3, -1, "Inter-pass optimized");
+        // Unmeasured slider scales: predicted control, not historical evidence.
+        const auto expected = scale >= 42 ? InterPass::Path::Rgb20 : InterPass::Path::ClassicOptimized;
+        AddBenchmarkScale(scale, expected, std::numeric_limits<double>::quiet_NaN());
+    }
 }
 void BuildBenchmarkVariants()
 {
@@ -216,9 +216,9 @@ void BuildBenchmarkVariants()
     }
     if (benchmarkProfile == InterPassBenchmarkProfile::Below50)
     {
-        for (const int scale : kInterPassLowBenchmarkScales) AddLowBenchmarkScale(scale);
-        if (current < 50 && std::find(kInterPassLowBenchmarkScales.begin(),
-            kInterPassLowBenchmarkScales.end(), current) == kInterPassLowBenchmarkScales.end())
+        for (const int scale : kInterPassLowVerificationScales) AddLowBenchmarkScale(scale);
+        if (current < 50 && std::find(kInterPassLowVerificationScales.begin(),
+            kInterPassLowVerificationScales.end(), current) == kInterPassLowVerificationScales.end())
             AddLowBenchmarkScale(current);
         return;
     }
@@ -268,8 +268,8 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v19-boundary-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v19-low-" : "NR-v19-auto-";
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
         name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
         const auto info = directory / (name.str() + ".txt");
@@ -352,12 +352,12 @@ void FinishBenchmark(bool cancelled)
                     << (benchmarkProfile == InterPassBenchmarkProfile::Boundary ?
                         "Boundary profile: exactly P41/P42; current scale is not appended.\n" :
                         benchmarkProfile == InterPassBenchmarkProfile::Below50 ?
-                        "Below-50 profile: P33/P40/P45/P49 plus current lower scale if different.\n" :
+                        "Below-50 verification: P33/P40/P41/P42/P49 plus current lower scale if different.\n" :
                         "Regular profile: P50/P59/P65 plus current rounded percentage when different.\n")
                     << "Off, Classic reference and Fused reference retained.\n"
-                    << "At lower scales: Classic A / Fused B / RGB20 C / C / B / A, then automatic path.\n"
-                    << "At standard scales: expected path A / automatic B / B / A plus alternate retained path.\n"
-                    << "Expected path control below 50 is provisional Classic, not a measured winner.\n"
+                    << "All scales: expected path A / automatic B / B / A plus alternate retained path.\n"
+                    << "Measured low controls: P33/P41 Classic; P40/P42/P45/P49 RGB20. Unmeasured scales are predictions.\n"
+                    << "Generic Fused optimized below 50 omitted: slower at every supplied P33/P40/P41/P42/P45/P49.\n"
                     << "Independent warmup for each window; symmetric order reduces linear drift.\n"
                     << "Warmup=" << benchmarkWarmup << ", samples/window=" << benchmarkSamples << "\n"
                     << "Repeated windows pooled in summary; raw CSV retains window and sample indices.\n"
@@ -365,9 +365,10 @@ void FinishBenchmark(bool cancelled)
                     << "Area, radius 1, guide strength 1, 6 passes; user shadow/frequency shaping unchanged.\n"
                     << "GPU adapter: " << benchmarkAdapterInfo << "\n"
                     << "User settings at start: " << benchmarkSetup << "\n"
-                    << "Historical gain is last RTX4090/4K/guide-one result vs Fused reference, not absolute time.\n"
+                    << "Historical gain is last RTX4090/4K/guide-one v16/v18/v19 result vs Fused reference, not absolute time.\n"
                     << "Historical values do not apply to other scenes/GPUs/settings. Current control is decisive.\n"
-                    << "Automatic should match its expected path; this does not establish the fastest candidate below 50.\n"
+                    << "Automatic should match the independent forced control in ABBA; compare the alternate and references too.\n"
+                    << "Controls describe measured 4K geometry. Other dimensions, especially rounded P40, may select differently.\n"
                     << "RGB20 below 50 is a guarded PSO: oversized groups use direct reconstruction with isolated weights.\n"
                     << "selected_path reports actual PSO, not whether each group used LDS.\n"
                     << "Actual geometry rounding may affect compact eligibility at nominal 60%; inspect selected_path.\n"

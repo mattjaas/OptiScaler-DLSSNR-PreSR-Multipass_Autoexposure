@@ -42,9 +42,16 @@ inline Path Select(uint32_t mode, uint32_t nativeW, uint32_t nativeH, uint32_t w
     {
         if (uint64_t(workW) * 2 == nativeW && uint64_t(workH) * 2 == nativeH)
             return Path::FusedOptimized;
-        if (nativeW > workW && nativeH > workH &&
-            uint64_t(workW) * 1000 > uint64_t(nativeW) * 505 &&
-            uint64_t(workH) * 1000 > uint64_t(nativeH) * 505 &&
+        // v18/v19 whole-NR timings: aligned P40 and P42/P45/P49 favour RGB20;
+        // P33/P41 favour Classic. Exactly P40 has integral 20-texel group edges.
+        const bool alignedP40 = uint64_t(workW) * 5 == uint64_t(nativeW) * 2 &&
+                                uint64_t(workH) * 5 == uint64_t(nativeH) * 2;
+        // Half a working texel admits the rounded P42 dimensions on both axes
+        // (3840x2160 -> 1613x907). Fractional scales use this conservative cutoff,
+        // not a claim of a measured crossover at every intermediate percentage.
+        const bool atLeastP42 = uint64_t(workW) * 100 + 50 >= uint64_t(nativeW) * 42 &&
+                               uint64_t(workH) * 100 + 50 >= uint64_t(nativeH) * 42;
+        if (nativeW > workW && nativeH > workH && (alignedP40 || atLeastP42) &&
             uint64_t(workW) * 10 <= uint64_t(nativeW) * 9 &&
             uint64_t(workH) * 10 <= uint64_t(nativeH) * 9)
         {

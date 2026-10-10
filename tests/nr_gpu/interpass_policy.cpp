@@ -13,8 +13,14 @@ int main()
         for (size_t i=0;i<order.size();++i) require(order[i]==order[order.size()-1-i]);
         for (auto path : {Path::ClassicOptimized,Path::FusedOptimized,Path::Rgb20})
             require(std::count(order.begin(),order.end(),path)==2);
-        for (int scale : DlssNr::kInterPassLowBenchmarkScales)
-            require(Select(3,3840,2160,3840*scale/100,2160*scale/100,0,1,1)==Path::ClassicOptimized);
+        require(DlssNr::kInterPassLowVerificationScales == std::array<int,5>{33,40,41,42,49});
+        for (const auto& v : DlssNr::kInterPassMeasuredLowScales)
+        {
+            const unsigned ww=(3840*v.percent+50)/100,wh=(2160*v.percent+50)/100;
+            require(Select(3,3840,2160,ww,wh,0,1,1)==v.expected);
+            for (unsigned mode=0;mode<3;++mode)
+                require(Select(mode,3840,2160,ww,wh,0,1,1)==static_cast<Path>(mode));
+        }
         require(Select(0,3840,2160,2496,1404,0,1,1)==Path::Off);
         require(Select(1,3840,2160,2496,1404,0,1,1)==Path::ClassicReference);
         require(Select(2,3840,2160,2496,1404,0,1,1)==Path::FusedReference);
@@ -23,22 +29,31 @@ int main()
         require(Select(3,3840,2160,2304,1296,0,1,1)==Path::Rgb16);
         require(Select(3,65,37,39,22,0,1,1)==Path::Rgb20); // nominal P60, rounded height below threshold
         require(Select(3,3840,2160,2496,1404,0,1,1)==Path::Rgb16);
-        require(Select(3,1000,1000,505,505,0,1,1)==Path::ClassicOptimized);
+        require(Select(3,1000,1000,505,505,0,1,1)==Path::Rgb20);
         require(Select(3,1000,1000,506,506,0,1,1)==Path::Rgb20);
         require(Select(3,1000,1000,900,900,0,1,1)==Path::Rgb16);
         require(Select(3,1000,1000,901,901,0,1,1)==Path::ClassicOptimized);
-        require(Select(3,1000,1000,400,400,0,1,1)==Path::ClassicOptimized);
+        require(Select(3,1000,1000,400,400,0,1,1)==Path::Rgb20);
+        require(Select(3,1000,1000,400,401,0,1,1)==Path::ClassicOptimized);
+        require(Select(3,1000,1000,399,400,0,1,1)==Path::ClassicOptimized);
+        require(Select(3,3840,2160,1574,886,0,1,1)==Path::ClassicOptimized); // P41
+        require(Select(3,3840,2160,1613,907,0,1,1)==Path::Rgb20); // rounded P42
+        require(Select(3,3840,2160,1612,907,0,1,1)==Path::ClassicOptimized);
+        require(Select(3,3840,2160,1613,906,0,1,1)==Path::ClassicOptimized);
+        require(Select(3,3840,2160,1728,972,0,1,1)==Path::Rgb20); // measured P45
+        require(Select(3,3840,2160,1882,1058,0,1,1)==Path::Rgb20); // measured P49
+        require(Select(3,4000000000u,3000000000u,1680000000u,1260000000u,0,1,1)==Path::Rgb20);
         require(Select(3,0,0,0,0,0,1,1)==Path::ClassicOptimized);
         require(Select(3,3840,2160,2496,1404,0,1,0)==Path::ClassicOptimized);
         for (unsigned filter=1;filter<=11;++filter)
             require(Select(3,3840,2160,2496,1404,filter,1,1)==Path::ClassicOptimized);
         for (unsigned radius : {2u,3u})
             require(Select(3,3840,2160,2496,1404,0,radius,1)==Path::ClassicOptimized);
-        unsigned groups=0;
+        unsigned groups=0,guarded=0;
         for (auto dims : {std::pair<unsigned,unsigned>{65,37},{127,73},{1920,1080},{3840,2160}})
         for (unsigned percent=25;percent<100;++percent)
         {
-            const unsigned ww=std::max(1u,dims.first*percent/100),wh=std::max(1u,dims.second*percent/100);
+            const unsigned ww=std::max(1u,(dims.first*percent+50)/100),wh=std::max(1u,(dims.second*percent+50)/100);
             const auto path=Select(3,dims.first,dims.second,ww,wh,0,1,1);
             if (path!=Path::Rgb16 && path!=Path::Rgb20) continue;
             const unsigned pitch=path==Path::Rgb16?16:20;
@@ -47,10 +62,19 @@ int main()
             {
                 unsigned first=uint64_t(start)*axis.first/axis.second;
                 unsigned end=(uint64_t(std::min(start+8,axis.second))*axis.first+axis.second-1)/axis.second;
-                require(end>first && end-first<=pitch);++groups;
+                require(end>first);
+                if (end-first>pitch)
+                {
+                    // Rounded P42 deliberately permits partial RGB20 coverage;
+                    // the unchanged group-uniform shader guard takes direct Mode28.
+                    require(path==Path::Rgb20 && uint64_t(axis.second)*19<uint64_t(axis.first)*8);
+                    ++guarded;
+                }
+                ++groups;
             }
         }
-        std::cout<<"Inter-pass policy PASS: all percentages, reference isolation, P50/P60/90 boundaries, filters/radii and "<<groups<<" tile axes\n";
+        require(guarded>0);
+        std::cout<<"Inter-pass policy PASS: measured winners, aligned P40, rounded P42, all percentages, reference isolation, filters/radii and "<<groups<<" tile axes ("<<guarded<<" guarded overflow axes)\n";
         return 0;
     } catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}
 }

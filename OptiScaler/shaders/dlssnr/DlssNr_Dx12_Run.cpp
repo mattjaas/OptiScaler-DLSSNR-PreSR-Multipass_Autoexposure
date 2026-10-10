@@ -1374,8 +1374,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 std::memcpy(&guided.ResidualMotionBaseX, &nr.interPassGeometryRatioX, sizeof(float));
                 std::memcpy(&guided.ResidualMotionBaseY, &nr.interPassGeometryRatioY, sizeof(float));
                 guided.DirectResolveFlags |= 128u;
-                // Automatic selection keeps the measured ranges. Benchmark overrides
-                // may test RGB20 below P50; the shader guards each complete group footprint
+                // Automatic selection includes aligned P40 and rounded P42+ from v18/v19.
+                // The shader guards each complete group footprint
                 // and uses direct Mode28 reconstruction when it exceeds the tile.
                 // One workgroup writes a single 8x8 output tile and cooperates
                 // on its native P100 Area footprint without allocating scratch.

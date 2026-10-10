@@ -2,6 +2,7 @@
 
 Ten dokument opisuje paczkę v17. Test poniżej 50%, aktualne nazwy kontroli
 i nowe raporty v18 opisano w [NR-v18-below-50.md](NR-v18-below-50.md).
+Aktualna polityka automatu i weryfikacja pomiarów v18/v19: [NR v20](NR-v20-measured-low-auto.md).
 
 UI ma cztery pozycje: Off, Classic reference, Fused reference i Inter-pass optimized.
 Oba tryby referencyjne wyłączają optymalizacje inter-pass. Optimized dobiera zachowaną

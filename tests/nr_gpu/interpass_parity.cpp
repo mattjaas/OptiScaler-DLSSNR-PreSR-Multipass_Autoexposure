@@ -45,7 +45,7 @@ int main(int argc, char** argv)
         }
         UINT64 checked = 0; unsigned fixtures = 0;
         for (auto dims : {std::pair<UINT,UINT>{65,37},{127,73},{17,11},{64,40}})
-        for (int scale : {25,33,40,45,49,50,51,55,59,60,61,65,90,95,99})
+        for (int scale : {25,33,40,41,42,45,49,50,51,55,59,60,61,65,90,95,99})
         for (int stress = 0; stress < 4; ++stress)
         for (float guide : {0.35f, 1.0f})
         for (bool half : {false, true})
