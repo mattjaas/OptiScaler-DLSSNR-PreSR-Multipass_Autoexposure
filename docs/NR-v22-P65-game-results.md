@@ -86,12 +86,54 @@ prywatna biblioteka modelu, stan temporalny, warunki GPU czy inne zachowanie
 starego wykonania. Podobny czas Off nie dowodzi identycznego kosztu kolejnych
 NGX passów po inter-pass. B zmienia tylko standard+RGB16, a nie całe DLL v14.
 
-Nie ma podstaw do cofania shaderów, kolejnego testu samego RGB16 ani
-przełączania P65 na inny tor. Gdy dalsze dochodzenie jest potrzebne, nowa
-hipoteza powinna dotyczyć całego v14 DLL kontra obecne DLL przy jawnie
-uzgodnionym configu, modelu i scenie, z zapisanym metadata i powtórzeniami
-ABBA. Nie byłby to automatycznie replay historycznej sesji, której pełny
-config nie został zapisany.
+Ten pomiar nie uzasadnia cofania RGB16 ani przełączania produkcyjnego P65
+na inny tor. Nie rozstrzyga innych PSO v14. Nowa wskazówka ze screenów,
+opisana poniżej, uzasadnia osobne porównanie konkretnego Guide16; ponowienie
+samego RGB16 nie odpowie na to pytanie. Porównanie całych DLL jest nadal
+możliwe przy jawnie uzgodnionym configu, modelu i scenie. Żadne z tych
+porównań nie odtwarza automatycznie nieudokumentowanego historycznego configu.
+
+## Nowa wskazówka: screeny rzeczywistego DLL v14
+
+Po analizie v22 użytkownik dostarczył dwa screeny z ponownie uruchomionego
+v14: `codex-clipboard-f96d394a-81f4-428c-800f-ed15b7094364.png` (Off)
+i `codex-clipboard-235c57c3-dcab-4207-aca8-d561e6694d91.png` (Fused).
+Wyświetlane średnie NR: 35,75 ms Off / 37,16 ms Fused, około 1,41 ms narzutu.
+Ekran pokazuje okno średniej 9999 ms; nie jest to mediana siedmiu okien
+benchmarku. Nie widać na tych screenach skali, sigm, transferu ani guide
+strength i nie wiadomo, czy całe okno średniej obejmuje stabilny wariant.
+Oba screeny pokazują sześć passów i podobny widok sceny, ale nie dowodzą
+tożsamości wszystkich warunków z CSV v22.
+
+Zaznaczono Exact optimized, shared bilinear + guided P50, dynamic shared,
+tiled v7, compact16 v9, isolated weights v10 i exact guide-one v14.
+Wyłączono RGB corrected tile v14, Linear20 v14, strided, cache, v11/v12,
+bounded Area v13 oraz compile-only Mode28 v13.
+
+Sprawdzony kod `c88b3c56`, `DlssNr_Dx12_Run.cpp` i `DispatchPassAux2` w
+`DlssNr_Dx12.cpp`, mapuje ten zestaw przy kwalifikującym P65 i dokładnym
+guide strength=1 na indeks PSO 1: `dlssnr_tiled_v14_guide16_cso`, **RGBA16
+z guide-one**, LDS 4096 B. RGB16 to indeks 0, LDS 3072 B. Warunki obejmują
+Area/radius1, tiled, compact, isolated weights, brak strided/cache/v11/v12/
+bounded Area. Osobny checkbox Mode28 nie musi być włączony: wariant Guide16
+już jest kompilowany tylko dla Mode28. Jeśli guide nie wynosi dokładnie 1
+albo tworzenie PSO zawiedzie, następuje starsza ścieżka; do potwierdzenia
+faktycznego PSO służy log `v14 PSO 1 created (pitch=16, RGB=false, guideOne=true)`.
+Sama obecność checkboxa nie dowodzi utworzenia PSO.
+
+Dlatego zdanie, że v22 wykluczył szybszy wariant ze screenów, byłoby błędne.
+v22 zamienił tylko obecny RGB16 na historyczny RGB16 oraz standardowy shader;
+**nie zawierał Guide16 ze screenów**. Guide16 był testowany w historycznym
+sweepie v14 jako `Linear16 Mode28 + guide-one v14`, lecz nie w tej samej
+sesji co obecny Optimized z niezależnymi powtórzeniami ABBA.
+
+Nowa konkretna hipoteza: obecny Optimized RGB16 kontra rzeczywisty archiwalny
+Guide16 RGBA, tylko P65, ten sam pełny tor NR/config/scena, osobna rozgrzewka
+i ABBA. To porównanie algorytmicznych specjalizacji, a nie dwóch rewizji
+tego samego RGB16. Przy powtarzalnym zysku należy też sprawdzić zgodność
+wyniku GPU przed zmianą selekcji. Screeny same nie wystarczają do zmiany
+polityki i nie dowodzą regresji kodu; wskazują pominięty dotąd celowany test.
+Nie dodano jeszcze tego profilu ani nowego produkcyjnego PSO.
 
 ## Identyfikacja źródeł
 

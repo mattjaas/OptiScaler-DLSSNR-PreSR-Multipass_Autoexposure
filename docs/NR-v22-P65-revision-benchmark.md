@@ -4,6 +4,8 @@ Aktualizacja po raporcie `NR-v22-p65-revision-20261011-005612`:
 [pomiar w grze i analiza okien](NR-v22-P65-game-results.md) są ukończone.
 Obecny/v14: 37,245440 / 37,233152 ms. Nie wykazano powtarzalnego zysku
 wyjaśniającego historyczną różnicę; produkcyjna ścieżka pozostaje bez zmian.
+Późniejsze screeny v14 wskazują odrębny Guide16 RGBA (RGB OFF, guide-one ON).
+Ten profil nie mierzy Guide16; nową hipotezę opisano w analizie wyników v22.
 
 W statusie NR jest przycisk **Compare current / v14 Optimized at 65% (CSV)**.
 To celowany test zgłoszenia około 37,3 ms wobec historycznych około 37,0 ms.

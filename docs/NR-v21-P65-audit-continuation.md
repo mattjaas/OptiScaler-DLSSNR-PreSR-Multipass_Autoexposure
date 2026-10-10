@@ -1,5 +1,18 @@
 # Kontynuacja audytu P65 — stan 2026-10-11
 
+## Nowsza wskazówka: screeny v14 nie używają RGB16
+
+Użytkownik ponownie uruchomił v14: ekran pokazuje Off 35,75 ms i Fused
+37,16 ms jako średnie z 9999 ms. RGB tile jest OFF, exact guide-one ON.
+Kod c88b3c56 przy P65 i guide=1 kwalifikuje **Guide16 RGBA, PSO indeks 1**,
+nie RGB16 indeks 0. Screeny nie pokazują guide ani skali; faktyczny wybór
+potwierdza log PSO. V22 nie mierzył tego Guide16, tylko old/current RGB16.
+Poprzednia rekomendacja, że pozostaje wyłącznie całe DLL, była zbyt wąska.
+Nowa hipoteza: celowany P65 current RGB16 kontra rzeczywisty v14 Guide16
+w tym samym pełnym NR, ABBA + osobna rozgrzewka, zgodność GPU przed zmianą
+produkcji. Szczegóły: [uzupełnienie wyników v22](NR-v22-P65-game-results.md).
+Nie dodano nowego profilu ani nie zmieniono produkcyjnej selekcji.
+
 ## Aktualny wynik v22 z gry
 
 Raport `NR-v22-p65-revision-20261011-005612` został dostarczony i sprawdzony:
@@ -12,8 +25,9 @@ powtarzalnego zysku uzasadniającego cofnięcie produkcyjnych shaderów/polityki
 Historyczna różnica narzutu nadal nie ma ustalonej przyczyny. Poniższe
 checkpointy zachowują wcześniejszy stan; ich wzmianki o brakującym pomiarze
 v22 są już nieaktualne. Nie czekać ponownie na te raporty ani nie ponawiać
-shader-only testów. Ewentualna nowa hipoteza wymaga porównania całych DLL
-przy uzgodnionych ustawieniach/modelu/scenie. W tej aktualizacji tylko dokumentacja.
+identycznych shader-only testów. Nowsza wskazówka o Guide16 jest opisana
+powyżej; porównanie całych DLL nie jest jedyną możliwą dalszą kontrolą.
+W tej aktualizacji tylko dokumentacja.
 
 ## Aktualizacja v22
 
