@@ -608,6 +608,10 @@ class Config
     CustomOptional<bool> DlssNrInterPassV14GuideOne { false };
     CustomOptional<bool> DlssNrInterPassV14Linear20 { false };
     CustomOptional<bool> DlssNrInterPassV14RgbTile { false };
+    CustomOptional<bool> DlssNrInterPassV16WideTile { false };
+    CustomOptional<bool> DlssNrInterPassV16PairLoads { false };
+    CustomOptional<bool> DlssNrInterPassV16LowShader { false };
+
 
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };

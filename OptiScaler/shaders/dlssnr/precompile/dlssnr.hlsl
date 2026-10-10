@@ -48,6 +48,9 @@ cbuffer Params : register(b0)
     uint gDirectResolveFlags;
 };
 
+#ifdef DLSSNR_V16_MODE18
+#define gMode 18u
+#endif
 #ifdef DLSSNR_TILED_V13_MODE28
 // Isolated PSO selected only for Mode 28. Keep the constant-buffer layout
 // unchanged, but let DXC eliminate unrelated modes and their groupshared
@@ -1145,6 +1148,8 @@ float4 InterPassCorrectedP100LoadDynamic(int2 p)
     const float3 edit = InterPassShapeEditAt(editRaw, uvq, native.rgb);
     return float4(SanitizeFinite3(native.rgb + edit, native.rgb), native.a);
 }
+#include "dlssnr_v16_pair.hlsli"
+
 #if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10)
 float4 InterPassCorrectedP100LoadDynamic(int2 p)
 {
@@ -2341,6 +2346,12 @@ float4 DownsampleMaybeClampProxy(float4 raw, bool fused)
 #ifndef DLSSNR_TILED_PITCH
 #define DLSSNR_TILED_PITCH 20
 #endif
+#ifndef DLSSNR_TILE_HEIGHT
+#define DLSSNR_TILE_HEIGHT DLSSNR_TILED_PITCH
+#endif
+#ifndef DLSSNR_GROUP_X
+#define DLSSNR_GROUP_X 8
+#endif
 static const uint kInterPassTilePitch = DLSSNR_TILED_PITCH;
 #ifdef DLSSNR_TILED_V14_RGB
 #define DLSSNR_TILE_VALUE float3
@@ -2349,14 +2360,14 @@ float3 InterPassTileValue(float4 value) { return value.rgb; }
 #define DLSSNR_TILE_VALUE float4
 float4 InterPassTileValue(float4 value) { return value; }
 #endif
-groupshared DLSSNR_TILE_VALUE gInterPassCorrectedTile[DLSSNR_TILED_PITCH * DLSSNR_TILED_PITCH];
+groupshared DLSSNR_TILE_VALUE gInterPassCorrectedTile[DLSSNR_TILED_PITCH * DLSSNR_TILE_HEIGHT];
 
 bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
 {
     uint nativeW, nativeH;
     gOriginal.GetDimensions(nativeW, nativeH);
-    const uint2 outBegin = groupId.xy * 8u;
-    const uint2 outEnd = min(outBegin + 8u, uint2(gWidth, gHeight));
+    const uint2 outBegin = groupId.xy * uint2(DLSSNR_GROUP_X, 8);
+    const uint2 outEnd = min(outBegin + uint2(DLSSNR_GROUP_X, 8), uint2(gWidth, gHeight));
     if (nativeW == 0u || nativeH == 0u || any(outBegin >= outEnd))
         return false;
 
@@ -2368,7 +2379,7 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
 
     // Uniform per-group guard: unexpected dimensions use the original Mode
     // 28 Area path rather than ever indexing outside groupshared memory.
-    if (any(tileSize <= 0) || any(tileSize > int2(kInterPassTilePitch, kInterPassTilePitch)))
+    if (any(tileSize <= 0) || any(tileSize > int2(kInterPassTilePitch, DLSSNR_TILE_HEIGHT)))
         return false;
 #if defined(DLSSNR_TILED_V9) || defined(DLSSNR_TILED_V10)
     int2 sourceOrigin = 0;
@@ -2422,7 +2433,20 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
     }
 #endif
 
-#ifdef DLSSNR_TILED_V11_QUADFILL
+#ifdef DLSSNR_TILED_V16_PAIR
+    const uint pairsPerRow = ((uint)tileSize.x + 1u) / 2u;
+    const uint lane = localId.y * DLSSNR_GROUP_X + localId.x;
+    [loop] for (uint index = lane; index < pairsPerRow * (uint)tileSize.y; index += DLSSNR_GROUP_X * 8u)
+    {
+        const uint x = (index % pairsPerRow) * 2u;
+        const uint y = index / pairsPerRow;
+        const bool second = x + 1u < (uint)tileSize.x;
+        float4 a, b;
+        InterPassV16Pair(first + int2(x, y), second, a, b);
+        gInterPassCorrectedTile[y * kInterPassTilePitch + x] = InterPassTileValue(a);
+        if (second) gInterPassCorrectedTile[y * kInterPassTilePitch + x + 1u] = InterPassTileValue(b);
+    }
+#elif defined(DLSSNR_TILED_V11_QUADFILL)
     // v11: static four 8x8 quadrants for the <=16x16 native tile.
     // Replace per-texel modulo/division with at most four fixed coordinate
     // evaluations per lane, with bounds checks for partial edge groups.
@@ -2467,8 +2491,8 @@ bool InterPassTiledFusedArea(uint3 id, uint3 groupId, uint3 localId)
 #else
     // Exact v7.1 A/B baseline retained without modification.
     const uint tileCount = (uint)tileSize.x * (uint)tileSize.y;
-    const uint lane = localId.y * 8u + localId.x;
-    [loop] for (uint index = lane; index < tileCount; index += 64u)
+    const uint lane = localId.y * DLSSNR_GROUP_X + localId.x;
+    [loop] for (uint index = lane; index < tileCount; index += DLSSNR_GROUP_X * 8u)
     {
         const uint x = index % (uint)tileSize.x;
         const uint y = index / (uint)tileSize.x;
@@ -2563,7 +2587,10 @@ groupshared float4 gExposureReduce[64];
 groupshared float4 gFinalColorReduceOriginal[64];
 groupshared float4 gFinalColorReduceNr[64];
 
-[numthreads(8, 8, 1)]
+#ifndef DLSSNR_GROUP_X
+#define DLSSNR_GROUP_X 8
+#endif
+[numthreads(DLSSNR_GROUP_X, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
 {
     const uint lane = groupThreadId.y * 8u + groupThreadId.x;

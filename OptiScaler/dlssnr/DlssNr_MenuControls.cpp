@@ -1185,6 +1185,12 @@ void RenderModel(Config* config)
                         HelpMarker("v11 P65 Linear16 with v10 Weights ON and cache OFF. "
                                    "Uses four statically unrolled 8x8 native tile quadrants instead "
                                    "of runtime linear index div/mod. FP32 reconstruction and Area unchanged.");
+                        Checkbox("Fused: 16x8 output tile (v16)", config->DlssNrInterPassV16WideTile);
+                        HelpMarker("Requires RGB tile, isolated weights and Linear16/Linear20. Experimental; compare GPU time.");
+                        Checkbox("Fused: register-local paired loads (v16)", config->DlssNrInterPassV16PairLoads);
+                        HelpMarker("Shares source/model reads for adjacent P100 texels; preserves independent guidance.");
+                        Checkbox("Inter-pass: dedicated low-frequency shader (v16)", config->DlssNrInterPassV16LowShader);
+                        HelpMarker("Same 64-sample filter. Active only when low/high frequency gains differ.");
                         Checkbox("Fused: RGB corrected tile (v14)", config->DlssNrInterPassV14RgbTile);
                         HelpMarker("FP32 RGB tile; final alpha still comes from the original image. "
                                           "Requires Linear + Weights, older experiments/cache OFF. Default OFF.");

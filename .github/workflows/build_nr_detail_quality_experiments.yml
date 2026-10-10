@@ -1,4 +1,4 @@
-name: Build NR v15 short GPU benchmark
+name: Build NR v16 wide tiles paired loads and Mode18
 
 on:
   push:
@@ -49,6 +49,9 @@ on:
       - tests/test_nr_benchmark_cases.py
       - tests/nr_gpu/**
       - tools/compile_nr_v14.ps1
+      - tools/compile_nr_v16.ps1
+      - tests/test_nr_interpass_v16.py
+      - OptiScaler/shaders/dlssnr/precompile/dlssnr_v16_pair.hlsli
       - OptiScaler/shaders/dlssnr/DlssNr_GpuTime.h
       - .github/workflows/build_nr_detail_quality_experiments.yml
 
@@ -56,7 +59,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v15-${{ github.ref }}
+  group: nr-interpass-v16-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -294,6 +297,12 @@ jobs:
         shell: powershell
         run: ./tools/compile_nr_v14.ps1
 
+      - name: Compile and validate v16 PSOs and routing
+        shell: powershell
+        run: |
+          ./tools/compile_nr_v16.ps1
+          python tests/test_nr_interpass_v16.py
+
       - name: Verify v14 RGB arithmetic, exact guide-one blend and PSO routing
         shell: powershell
         run: python tests/test_nr_interpass_v14.py
@@ -312,18 +321,18 @@ jobs:
           if (-not $vs) { throw "C++ toolchain missing" }
           $vcvars = Join-Path $vs "VC/Auxiliary/Build/vcvars64.bat"
           New-Item -ItemType Directory -Force -Path artifacts/nr-v14 | Out-Null
-          cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/v14_parity.cpp /Fe:artifacts/nr-v14/v14_parity.exe /Fo:artifacts/nr-v14/v14_parity.obj /link d3d12.lib dxgi.lib"
+          cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/v16_parity.cpp /Fe:artifacts/nr-v14/v16_parity.exe /Fo:artifacts/nr-v14/v16_parity.obj /link d3d12.lib dxgi.lib"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v15-short-benchmark-20261010"
+        run: ./package_release.ps1 -Version "nr-interpass-v16-wide-pair-low-20261010"
 
       - name: Upload test package
         uses: actions/upload-artifact@v4
         with:
           name: OptiScaler-NR-interpass-v15-short-benchmark-20261010
-          path: release/OptiScaler-NR-nr-interpass-v15-short-benchmark-20261010.zip
+          path: release/OptiScaler-NR-nr-interpass-v16-wide-pair-low-20261010.zip
           if-no-files-found: error
 
       - name: Publish compiled ZIP as experimental GitHub Release (best effort)
@@ -332,19 +341,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v15-short-benchmark-20261010"
-          $archive = "release/OptiScaler-NR-nr-interpass-v15-short-benchmark-20261010.zip"
+          $tag = "nr-interpass-v16-wide-pair-low-20261010"
+          $archive = "release/OptiScaler-NR-nr-interpass-v16-wide-pair-low-20261010.zip"
           if (-not (Test-Path $archive)) { throw "Release ZIP missing: $archive" }
           $notes = @"
-          Short benchmark v15 from $env:GITHUB_SHA.
-          Seven isolated FP32 variants: RGB corrected tile, Linear20 weights-only Mode28,
-          and exact guide-one branch specialization; all options OFF by default.
-          RGB uses 3/4 of the corrected tile LDS and preserves final original alpha.
-          Guide-one retains runtime lerp after an aggressive simplification failed parity.
-          Shaders/options v10-v14 retained; regular sweep excludes poor/redundant variants.
-          Benchmark: 14 cases at P50/P59/P65, six passes; off and unoptimized Fused baselines,
-          90 warmup and 160 raw DX12 timestamps per case, one sweep.
-          Shader parity fixtures passed on RTX 4090; GPU speed still requires in-game measurement.
+          Inter-pass v16 from $env:GITHUB_SHA.
+          Independent 16x8 output tiles, register-local paired P100 reads and dedicated Mode18.
+          All new options OFF by default; same FP32 math, filter, shaping and original alpha.
+          Six tiled combinations plus a Mode18 PSO; earlier reference shaders retained.
+          Benchmark uses up to 17 cases at P50/P59/P65 with off/Fused baselines and v14 RGB controls.
+          Inactive Mode18 cases omitted; compares wide/pair separately and together.
+          Hardware parity passed on RTX 4090; in-game performance still requires measurement.
           "@
           # Windows PowerShell 5 treats native stderr as a terminating error
           # under Stop, including the expected "release not found" response.
@@ -355,9 +362,9 @@ jobs:
           if ($releaseExists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release archive replacement failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v15 - short 14-case benchmark" --notes $notes --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v16 - wide tiles paired loads and Mode18" --notes $notes --prerelease
             if ($LASTEXITCODE -ne 0) { throw "Release update failed" }
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v15 - short 14-case benchmark" --notes $notes --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v16 - wide tiles paired loads and Mode18" --notes $notes --prerelease
             if ($LASTEXITCODE -ne 0) { throw "Release creation failed" }
           }

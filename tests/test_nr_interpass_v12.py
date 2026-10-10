@@ -37,7 +37,7 @@ def test_compilation_isolation():
     for shader in ("v12_interior", "v12_axes", "v12_both"):
         assert f"dlssnr_tiled_{shader}_cso" in DX12
         assert f"dlssnr_tiled_{shader}_Shader.cso" in WORKFLOW
-    assert 'name << "NR-v15-"' in BENCH
+    assert 'name << "NR-v16-"' in BENCH
     assert "c.DlssNrInterPassV12Interior = v.v12Interior;" in BENCH
     assert "c.DlssNrInterPassV12Axes = v.v12Axes;" in BENCH
     assert "kInterPassBenchmarkCases" in BENCH

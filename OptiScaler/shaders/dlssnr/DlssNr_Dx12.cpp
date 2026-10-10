@@ -4,6 +4,14 @@
 #include <atomic>
 #include <list>
 #include "precompile/DlssNr_Shader.h"
+#include "precompile/dlssnr_tiled_v16_wide16_Shader.h"
+#include "precompile/dlssnr_tiled_v16_pair16_Shader.h"
+#include "precompile/dlssnr_tiled_v16_both16_Shader.h"
+#include "precompile/dlssnr_tiled_v16_wide20_Shader.h"
+#include "precompile/dlssnr_tiled_v16_pair20_Shader.h"
+#include "precompile/dlssnr_tiled_v16_both20_Shader.h"
+#include "precompile/dlssnr_v16_low_Shader.h"
+
 #include "precompile/dlssnr_tiled_Shader.h"
 #include "precompile/dlssnr_tiled_strided_Shader.h"
 #include "precompile/dlssnr_tiled_compact_Shader.h"
@@ -173,7 +181,21 @@ bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssN
 {
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
-    return DispatchCompute(InCmdList, InConstants, _pipelineState, InSource, InModel, InOriginal, InMotion, InPrevEdit,
+    ID3D12PipelineState* pipeline = _pipelineState;
+    if (InConstants.Mode == DlssNrMode_GuidedResidualLow && InConstants.Transfer == 0u &&
+        (InConstants.DirectResolveFlags & 134217728u) != 0u)
+    {
+        if (!_v16LowPipelineAttempted)
+        {
+            _v16LowPipelineAttempted = true;
+            if (!CreateComputePipeline(_device, &_v16LowPipelineState,
+                                       dlssnr_v16_low_cso, sizeof(dlssnr_v16_low_cso), nullptr))
+                LOG_WARN("[{0}] v16 Mode18 PSO unavailable; retaining reference", _name);
+        }
+        if (_v16LowPipelineState)
+            pipeline = _v16LowPipelineState;
+    }
+    return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion, InPrevEdit,
                            nullptr, OutTarget, OutKeep, immutableSlot);
 }
 
@@ -187,6 +209,7 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
     std::lock_guard stateLock(_state->mutex);
     // Lazy, isolated PSOs. The standard DXIL and its fast dispatch are unchanged.
     ID3D12PipelineState* pipeline = _pipelineState;
+    uint32_t groupWidth = 8;
     const auto& flags = InConstants.DirectResolveFlags;
     if (InConstants.Mode == DlssNrMode_InterPassGuidedP100 &&
         (flags & (1024u | 32768u)) == (1024u | 32768u))
@@ -218,7 +241,39 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
         const bool v14 = !strided && (flags & 16384u) != 0u &&
                          (flags & (32768u | 65536u | 131072u | 262144u | 524288u | 1048576u)) == 0u &&
                          (compact ? (rgb14 || guide14) : linear20);
-        if (v14)
+        const bool wide16 = (flags & 33554432u) != 0u;
+        const bool pair16 = (flags & 67108864u) != 0u;
+        if (v14 && rgb14 && !guide14 && (wide16 || pair16))
+        {
+            const uint32_t index = (compact ? 0u : 3u) +
+                                   (wide16 ? 1u : 0u) + (pair16 ? 2u : 0u) - 1u;
+            const void* const blobs[] = { dlssnr_tiled_v16_wide16_cso,
+                                          dlssnr_tiled_v16_pair16_cso,
+                                          dlssnr_tiled_v16_both16_cso,
+                                          dlssnr_tiled_v16_wide20_cso,
+                                          dlssnr_tiled_v16_pair20_cso,
+                                          dlssnr_tiled_v16_both20_cso };
+            const size_t sizes[] = { sizeof(dlssnr_tiled_v16_wide16_cso),
+                                     sizeof(dlssnr_tiled_v16_pair16_cso),
+                                     sizeof(dlssnr_tiled_v16_both16_cso),
+                                     sizeof(dlssnr_tiled_v16_wide20_cso),
+                                     sizeof(dlssnr_tiled_v16_pair20_cso),
+                                     sizeof(dlssnr_tiled_v16_both20_cso) };
+            if (!_tiledV16PipelineAttempted[index])
+            {
+                _tiledV16PipelineAttempted[index] = true;
+                if (!CreateComputePipeline(_device, &_tiledV16PipelineState[index], blobs[index], sizes[index], nullptr))
+                    LOG_WARN("[{0}] v16 PSO {1} unavailable; retaining v14", _name, index);
+                else
+                    LOG_INFO("[{0}] v16 PSO {1} created (wide={2}, pair={3})", _name, index, wide16, pair16);
+            }
+            if (_tiledV16PipelineState[index])
+            {
+                pipeline = _tiledV16PipelineState[index];
+                groupWidth = wide16 ? 16u : 8u;
+            }
+        }
+        if (v14 && pipeline == _pipelineState)
         {
             const uint32_t combination = (rgb14 ? 1u : 0u) + (guide14 ? 2u : 0u);
             const uint32_t index = compact ? combination - 1u : 3u + combination;
@@ -410,14 +465,14 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
         }
     }
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion,
-                           InPrevEdit, InAux2, OutTarget, OutKeep, immutableSlot);
+                           InPrevEdit, InAux2, OutTarget, OutKeep, immutableSlot, groupWidth);
 }
 
 bool DlssNr_Dx12::DispatchCompute(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,
                                   ID3D12PipelineState* pipeline, ID3D12Resource* InSource, ID3D12Resource* InModel,
                                   ID3D12Resource* InOriginal, ID3D12Resource* InMotion, ID3D12Resource* InPrevEdit,
                                   ID3D12Resource* InAux2, ID3D12Resource* OutTarget, ID3D12Resource* OutKeep,
-                                  uint32_t* immutableSlot)
+                                  uint32_t* immutableSlot, uint32_t groupWidth)
 {
     _state->lifetime.Record(InCmdList);
     if (!_init || !pipeline || !InCmdList || !_device || !InSource || !OutTarget)
@@ -479,7 +534,7 @@ bool DlssNr_Dx12::DispatchCompute(ID3D12GraphicsCommandList* InCmdList, const Dl
     // writes fewer pixels than its source has.
     const UINT dispatchWidth = InConstants.Mode == DlssNrMode_Meter
                                    ? InConstants.Width
-                                   : (InConstants.Width + _numThreadsX - 1) / _numThreadsX;
+                                   : (InConstants.Width + groupWidth - 1) / groupWidth;
     const UINT dispatchHeight = InConstants.Mode == DlssNrMode_Meter
                                     ? InConstants.Height
                                     : (InConstants.Height + _numThreadsY - 1) / _numThreadsY;
@@ -626,6 +681,13 @@ DlssNr_Dx12::~DlssNr_Dx12()
             state->Release();
             state = nullptr;
         }
+    }
+    if (_v16LowPipelineState)
+        _v16LowPipelineState->Release();
+    for (auto*& state : _tiledV16PipelineState)
+    {
+        if (state)
+            state->Release();
     }
     for (auto*& state : _tiledV14PipelineState)
     {

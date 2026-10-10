@@ -2,6 +2,7 @@
 #include "DlssNr_Status.h"
 #include "DlssNr_Benchmark.h"
 #include "DlssNr_BenchmarkCases.h"
+#include "PassProfiles.h"
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
@@ -104,6 +105,7 @@ struct BenchmarkConfig
     bool v12Interior, v12Axes;
     bool v13Area, v13Mode28;
     bool v14RgbTile, v14Linear20, v14GuideOne;
+    bool v16WideTile, v16PairLoads, v16LowShader;
 };
 struct BenchmarkVariant
 {
@@ -117,6 +119,7 @@ struct BenchmarkVariant
     bool v13Area = false;
     bool v13Mode28 = false;
     bool v14RgbTile = false, v14Linear20 = false, v14GuideOne = false;
+    bool v16WideTile = false, v16PairLoads = false, v16LowShader = false;
 };
 std::mutex benchmarkMutex;
 std::atomic<bool> benchmarkActive { false };
@@ -162,7 +165,10 @@ BenchmarkConfig TakeBenchmarkConfig(const Config& c)
         c.DlssNrInterPassV13Mode28.value_or_default(),
         c.DlssNrInterPassV14RgbTile.value_or_default(),
         c.DlssNrInterPassV14Linear20.value_or_default(),
-        c.DlssNrInterPassV14GuideOne.value_or_default()
+        c.DlssNrInterPassV14GuideOne.value_or_default(),
+        c.DlssNrInterPassV16WideTile.value_or_default(),
+        c.DlssNrInterPassV16PairLoads.value_or_default(),
+        c.DlssNrInterPassV16LowShader.value_or_default()
     };
 }
 void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
@@ -198,6 +204,10 @@ void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
     c.DlssNrInterPassV14RgbTile = v.v14RgbTile;
     c.DlssNrInterPassV14Linear20 = v.v14Linear20;
     c.DlssNrInterPassV14GuideOne = v.v14GuideOne;
+    c.DlssNrInterPassV16WideTile = v.v16WideTile;
+    c.DlssNrInterPassV16PairLoads = v.v16PairLoads;
+    c.DlssNrInterPassV16LowShader = v.v16LowShader;
+
 }
 void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
 {
@@ -231,6 +241,10 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     c.DlssNrInterPassV14RgbTile = v.v14RgbTile;
     c.DlssNrInterPassV14Linear20 = v.v14Linear20;
     c.DlssNrInterPassV14GuideOne = v.v14GuideOne;
+    c.DlssNrInterPassV16WideTile = v.v16WideTile;
+    c.DlssNrInterPassV16PairLoads = v.v16PairLoads;
+    c.DlssNrInterPassV16LowShader = v.v16LowShader;
+
 }
 void AddBenchmark(int scale, int mode, bool exact, bool tiled, bool strided, bool compact,
                   bool weights, bool cache, const char* name)
@@ -240,13 +254,29 @@ void AddBenchmark(int scale, int mode, bool exact, bool tiled, bool strided, boo
 void BuildBenchmarkVariants()
 {
     benchmarkVariants.clear();
+    const auto& cfg = *Config::Instance();
     for (const auto& v : kInterPassBenchmarkCases)
     {
+        if (v.low)
+        {
+            bool active = false;
+            for (unsigned pass = 1; pass < 6; ++pass)
+            {
+                const auto gains = Profiles::EffectiveGuidedResidualGainsForInterPass(
+                    cfg, std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u),
+                    Profiles::PassSettings(cfg, pass).style, float(v.percent) / 100.0f);
+                active |= gains.active && gains.high != gains.low;
+            }
+            if (!active) continue; // No redundant Mode18 row when the dispatch is absent.
+        }
         AddBenchmark(v.percent, v.mode, v.exact, v.tiled, false, v.compact,
                      v.weights, false, v.name);
         benchmarkVariants.back().v13Mode28 = v.mode28;
         benchmarkVariants.back().v14RgbTile = v.rgb;
         benchmarkVariants.back().v14Linear20 = v.linear20;
+        benchmarkVariants.back().v16WideTile = v.wide;
+        benchmarkVariants.back().v16PairLoads = v.pair;
+        benchmarkVariants.back().v16LowShader = v.low;
     }
 }
 void UpdateBenchmarkProgress()
@@ -280,7 +310,7 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        name << "NR-v15-" << std::put_time(&local, "%Y%m%d-%H%M%S");
+        name << "NR-v16-" << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
         const auto info = directory / (name.str() + ".txt");
         const auto raw = directory / (name.str() + ".samples.csv");
@@ -289,7 +319,7 @@ void FinishBenchmark(bool cancelled)
         std::ofstream description(info);
         if (!out || !description || !individual)
             throw std::runtime_error("Cannot create benchmark report.");
-        out << "scale_percent,variant,mode,exact,tiled,strided,compact,weights,source_cache,v11_spatial,v11_quadfill,v12_interior,v12_axes,v13_area,v13_mode28,v14_rgb_tile,v14_linear20,v14_guide_one,"
+        out << "scale_percent,variant,mode,exact,tiled,strided,compact,weights,source_cache,v11_spatial,v11_quadfill,v12_interior,v12_axes,v13_area,v13_mode28,v14_rgb_tile,v14_linear20,v14_guide_one,v16_wide_tile,v16_pair_loads,v16_low_shader,"
                "native_width,native_height,work_width,work_height,effective_passes,"
                "samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,delta_vs_off_median_ms\n";
         individual << "scale_percent,variant,sample_index,total_nr_gpu_ms\n";
@@ -325,7 +355,7 @@ void FinishBenchmark(bool cancelled)
                 << ',' << v.v11Spatial << ',' << v.v11QuadFill
                 << ',' << v.v12Interior << ',' << v.v12Axes
                 << ',' << v.v13Area << ',' << v.v13Mode28
-                << ',' << v.v14RgbTile << ',' << v.v14Linear20 << ',' << v.v14GuideOne
+                << ',' << v.v14RgbTile << ',' << v.v14Linear20 << ',' << v.v14GuideOne << ',' << v.v16WideTile << ',' << v.v16PairLoads << ',' << v.v16LowShader
                 << ',' << v.nativeW << ',' << v.nativeH << ',' << v.workW << ',' << v.workH << ','
                 << v.effectivePasses << ',' << n << ',' << mean << ',' << median << ',' << p95 << ','
                 << sorted.front() << ',' << sorted.back() << ',' << std::sqrt(variance/n)
@@ -333,7 +363,7 @@ void FinishBenchmark(bool cancelled)
             for (size_t i = 0; i < v.samples.size(); ++i)
                 individual << v.percent << ',' << '"' << v.name << '"' << ',' << i << ',' << v.samples[i] << '\n';
         }
-        description << "OptiScaler DLSS NR v15 short six-pass GPU benchmark\n"
+        description << "OptiScaler DLSS NR v16 short six-pass GPU benchmark\n"
                     << "ONE measurement per configuration: no ABBA and no repeated sweeps.\n"
                     << "P50/P59/P65; all variants: 6 passes, Area, radius 1, "
                        "dynamic/shared bilinear ON, paired OFF, shadow/frequency shaping left unchanged.\n"
@@ -344,10 +374,10 @@ void FinishBenchmark(bool cancelled)
                        "not isolated shader time.\n"
                     << "Original user settings restored after benchmark.\n"
                     << "GPU adapter: " << (benchmarkAdapterInfo.empty() ? "unavailable" : benchmarkAdapterInfo) << "\n"
-                    << "v15 short sweep: 14 cases (3 P50, 5 P59, 6 P65), each measured once.\n"
+                    << "v16 sweep: up to 17 cases (3 P50, 7 P59, 7 P65); inactive Mode18 cases omitted.\n"
                     << "Per scale: No inter-pass and unoptimized Fused reference retained.\n"
-                    << "P50: Fused optimized. P59: Linear20 weights OFF, isolated Mode28 weights, and RGB.\n"
-                    << "P65: Linear16 weights OFF, weights v10, Mode28 v13, and RGB v14.\n"
+                    << "P50: Fused optimized. P59/P65: v14 RGB reference, wide tile, paired loads and both combined.\n"
+                    << "P59/P65 Mode18: compared only when saved low/high frequency gains differ.\n"
                     << "Cache, strided, v11/v12, bounded Area and guide-one excluded from the routine sweep; settings remain available.\n"
                     << "Configured experiment flags are reported; PSO creation failure logs a warning "
                        "and may fall back. Check the game log before accepting a speed comparison.\n"

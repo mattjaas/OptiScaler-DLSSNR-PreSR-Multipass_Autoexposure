@@ -88,7 +88,7 @@ def test_integration_and_state_coverage():
     assert all(field+".value_or_default()" in take for field in fields)
     assert "RestoreBenchmarkConfig(*Config::Instance(), savedBenchmarkConfig);" in bench
     assert "c.DlssNrInterPassV13Area = v.v13Area;" in bench
-    assert "v13_area," in bench and 'name << "NR-v15-"' in bench
+    assert "v13_area," in bench and 'name << "NR-v16-"' in bench
     assert "v13_mode28," in bench
     # PSO index is a complete bijection for the three nonempty flag combinations.
     assert [int(a)+2*int(m)-1 for a,m in ((True,False),(False,True),(True,True))] == [0,1,2]

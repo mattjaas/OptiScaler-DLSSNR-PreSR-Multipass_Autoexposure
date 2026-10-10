@@ -27,7 +27,7 @@ def test_isolation():
     assert "DlssNrInterPassV11QuadFill { false }" in CONFIG
     assert "DlssNrInterPassV11Spatial.value_or_default()" in RUN
     assert "DlssNrInterPassV11QuadFill.value_or_default()" in RUN
-    assert any(x in BENCH for x in ("NR-v11-", "NR-v12-", "NR-v13-", "NR-v14-", "NR-v15-"))
+    assert any(x in BENCH for x in ("NR-v11-", "NR-v12-", "NR-v13-", "NR-v14-", "NR-v16-"))
     assert "kInterPassBenchmarkCases" in BENCH
     assert "c.DlssNrInterPassV11Spatial = v.v11Spatial;" in BENCH
     assert "c.DlssNrInterPassV11QuadFill = v.v11QuadFill;" in BENCH

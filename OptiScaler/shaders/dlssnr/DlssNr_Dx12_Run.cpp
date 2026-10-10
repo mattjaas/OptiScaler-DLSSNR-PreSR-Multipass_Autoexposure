@@ -1324,6 +1324,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             low.Width = lowW;
             low.Height = lowH;
             low.Transfer = 0u; // ALWAYS current cumulative N - immutable original base.
+            if (cfg.DlssNrInterPassV16LowShader.value_or_default())
+                low.DirectResolveFlags |= 134217728u;
             if (!shader.DispatchPass(cmdList, low, originalPassBase, currentAnswer, nullptr, nullptr, nullptr,
                                      nr.interPassResidualLow, nullptr))
                 return false;
@@ -1415,6 +1417,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         guided.DirectResolveFlags |= 8388608u;
                     if (cfg.DlssNrInterPassV14GuideOne.value_or_default())
                         guided.DirectResolveFlags |= 16777216u;
+                    if (cfg.DlssNrInterPassV16WideTile.value_or_default())
+                        guided.DirectResolveFlags |= 33554432u;
+                    if (cfg.DlssNrInterPassV16PairLoads.value_or_default())
+                        guided.DirectResolveFlags |= 67108864u;
                     if (cfg.DlssNrInterPassV13Mode28.value_or_default())
                         guided.DirectResolveFlags |= 2097152u;
                 }

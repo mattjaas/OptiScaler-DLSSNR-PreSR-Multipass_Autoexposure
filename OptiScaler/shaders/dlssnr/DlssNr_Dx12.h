@@ -88,6 +88,10 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool _tiledV12PipelineAttempted[3] {};
     ID3D12PipelineState* _tiledV13PipelineState[3] {};
     bool _tiledV13PipelineAttempted[3] {};
+    ID3D12PipelineState* _tiledV16PipelineState[6] {};
+    bool _tiledV16PipelineAttempted[6] {};
+    ID3D12PipelineState* _v16LowPipelineState = nullptr;
+    bool _v16LowPipelineAttempted = false;
     ID3D12PipelineState* _tiledV14PipelineState[7] {};
     bool _tiledV14PipelineAttempted[7] {};
     ID3D12PipelineState* _classicCachePipelineState = nullptr;
@@ -103,7 +107,7 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
                          ID3D12PipelineState* pipeline, ID3D12Resource* source, ID3D12Resource* model,
                          ID3D12Resource* original, ID3D12Resource* motion, ID3D12Resource* previousEdit,
                          ID3D12Resource* auxiliary2, ID3D12Resource* target, ID3D12Resource* keep,
-                         uint32_t* immutableSlot);
+                         uint32_t* immutableSlot, uint32_t groupWidth = 8);
 
   public:
     DlssNr_Dx12(std::string InName, ID3D12Device* InDevice);
