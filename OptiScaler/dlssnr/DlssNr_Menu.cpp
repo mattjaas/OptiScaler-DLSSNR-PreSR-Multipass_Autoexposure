@@ -286,7 +286,8 @@ void RenderMenu(Config* config, float menuResScale)
             ImGui::SetNextItemWidth(95.0f);
             ImGui::InputInt("Benchmark measured samples", &samples, 0, 0);
             samples = std::clamp(samples, 40, 2000);
-            const bool canBenchmark = dx12.running && !vk.running;
+            const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
+                                      !ReadStatus(Backend::Vulkan).running;
             ImGui::BeginDisabled(!canBenchmark);
             if (ImGui::Button("Auto benchmark NR: P50 + P65 (save CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);
