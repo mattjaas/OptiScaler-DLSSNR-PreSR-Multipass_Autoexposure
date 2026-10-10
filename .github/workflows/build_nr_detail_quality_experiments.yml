@@ -182,6 +182,9 @@ jobs:
           $mainHash = (Get-FileHash "DlssNr_Shader.cso" -Algorithm SHA256).Hash
           $tileHash = (Get-FileHash "dlssnr_tiled_Shader.cso" -Algorithm SHA256).Hash
           if ($mainHash -eq $tileHash) { throw "Tiled and normal shader binary are identical" }
+          if ($mainHash -ne "5599EE0B01FC50B9BEA4C2D02C8BFC1CE24287E9867DBC9FA0158DB883BAB9FC") {
+            throw "Standard NR shader regressed relative to proven v6.1/v8 DXIL"
+          }
           $stridedHash = (Get-FileHash "dlssnr_tiled_strided_Shader.cso" -Algorithm SHA256).Hash
           $compactHash = (Get-FileHash "dlssnr_tiled_compact_Shader.cso" -Algorithm SHA256).Hash
           if ($tileHash -eq $stridedHash -or $stridedHash -eq $compactHash) {
