@@ -29,6 +29,12 @@ int main()
         require(Select(3,3840,2160,2304,1296,0,1,1)==Path::Rgb16);
         require(Select(3,65,37,39,22,0,1,1)==Path::Rgb20); // nominal P60, rounded height below threshold
         require(Select(3,3840,2160,2496,1404,0,1,1)==Path::Rgb16);
+        for (const auto& scale : DlssNr::kInterPassBenchmarkScales)
+        {
+            const unsigned ww=(3840*scale.percent+50)/100,wh=(2160*scale.percent+50)/100;
+            require(Select(4,3840,2160,ww,wh,0,1,1)==Path::FastGuided);
+            require(Fused(Path::FastGuided) && Optimized(Path::FastGuided));
+        }
         require(Select(3,1000,1000,505,505,0,1,1)==Path::Rgb20);
         require(Select(3,1000,1000,506,506,0,1,1)==Path::Rgb20);
         require(Select(3,1000,1000,900,900,0,1,1)==Path::Rgb16);
@@ -49,6 +55,17 @@ int main()
             require(Select(3,3840,2160,2496,1404,filter,1,1)==Path::ClassicOptimized);
         for (unsigned radius : {2u,3u})
             require(Select(3,3840,2160,2496,1404,0,radius,1)==Path::ClassicOptimized);
+        for (unsigned percent=25;percent<=100;++percent)
+        for (unsigned filter=0;filter<=11;++filter)
+        for (unsigned radius : {1u,2u,3u})
+        for (float guide : {0.0f,1.0f})
+        {
+            const unsigned ww=(3840*percent+50)/100,wh=(2160*percent+50)/100;
+            const bool eligible=percent>=50 && percent<=90 && filter==0 && radius==1 && guide>0;
+            require(Select(4,3840,2160,ww,wh,filter,radius,guide)==
+                (eligible?Path::FastGuided:Select(3,3840,2160,ww,wh,filter,radius,guide)));
+        }
+        require(Select(4,65,37,33,18,0,1,1)==Select(3,65,37,33,18,0,1,1));
         unsigned groups=0,guarded=0;
         for (auto dims : {std::pair<unsigned,unsigned>{65,37},{127,73},{1920,1080},{3840,2160}})
         for (unsigned percent=25;percent<100;++percent)

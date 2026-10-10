@@ -962,7 +962,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     DlssNr::BenchmarkReportDevice(device);
 
     const uint32_t configuredInterPassMode =
-        std::min(cfg.DlssNrInterPassReconstruction.value_or_default(), 3u);
+        std::min(cfg.DlssNrInterPassReconstruction.value_or_default(), 4u);
     const uint32_t interPassFilter = std::min(
         workScale < 1.0f && cfg.DlssNrTransfer.value_or_default() == 6u
             ? cfg.DlssNrUpscaledResidualDownscaleFilter.value_or_default()
@@ -1363,6 +1363,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             guided.Width = modelWidth;
             guided.Height = modelHeight;
             guided.Transfer = proxyFilter;
+            if (interPassPath == DlssNr::InterPass::Path::FastGuided)
+                guided.Mode = DlssNrMode_InterPassFastGuided;
             // Use the all-scale path only for the Area mode and radius-one
             // guided reconstruction. The exact P50 2x2 specialization in HLSL
             // has priority. External filters and larger radius keep v2 math.

@@ -96,7 +96,7 @@ struct BenchmarkConfig
 {
     bool enabled;
     float scale;
-    uint32_t passes, radius, proxyFilter, upscaledFilter, debug;
+    uint32_t passes, radius, proxyFilter, upscaledFilter, debug, transfer;
     bool unlock, spatial;
     float strength;
     uint32_t mode;
@@ -120,6 +120,7 @@ std::vector<BenchmarkVariant> benchmarkVariants;
 unsigned benchmarkIndex = 0, benchmarkWarm = 0;
 unsigned benchmarkWarmup = 90, benchmarkSamples = 160;
 InterPassBenchmarkProfile benchmarkProfile = InterPassBenchmarkProfile::Regular;
+bool benchmarkInspectEachWindow = false;
 std::string benchmarkSetup;
 std::string benchmarkAdapterInfo;
 unsigned benchmarkNativeW = 0, benchmarkNativeH = 0, benchmarkWorkW = 0,
@@ -135,6 +136,7 @@ BenchmarkConfig TakeBenchmarkConfig(const Config& c)
         c.DlssNrProxyDownscaleFilter.value_or_default(),
         c.DlssNrUpscaledResidualDownscaleFilter.value_or_default(),
         c.DlssNrDebugView.value_or_default(),
+        c.DlssNrTransfer.value_or_default(),
         c.DlssNrUnlockPasses.value_or_default(), c.DlssNrSpatialCompression.value_or_default(),
         c.DlssNrGuidedResidualGuideStrength.value_or_default(),
         c.DlssNrInterPassReconstruction.value_or_default()
@@ -149,6 +151,7 @@ void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
     c.DlssNrProxyDownscaleFilter = v.proxyFilter;
     c.DlssNrUpscaledResidualDownscaleFilter = v.upscaledFilter;
     c.DlssNrDebugView = v.debug;
+    c.DlssNrTransfer = v.transfer;
     c.DlssNrUnlockPasses = v.unlock;
     c.DlssNrSpatialCompression = v.spatial;
     c.DlssNrGuidedResidualGuideStrength = v.strength;
@@ -167,6 +170,8 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     c.DlssNrGuidedResidualRadius = 1u;
     c.DlssNrGuidedResidualGuideStrength = 1.0f;
     c.DlssNrInterPassReconstruction = uint32_t(v.mode);
+    if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality)
+        c.DlssNrTransfer = 9u; // Temporal DLAA residual + P100-guided, as requested.
     benchmarkOverride.store(v.forcedPath, std::memory_order_relaxed);
     benchmarkPath.clear();
 }
@@ -208,6 +213,26 @@ void AddLowBenchmarkScale(int scale)
 void BuildBenchmarkVariants()
 {
     benchmarkVariants.clear();
+    if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality)
+    {
+        for (const auto& scale : kInterPassBenchmarkScales)
+        {
+            const auto add = [&](int mode, const char* name)
+            {
+                benchmarkVariants.push_back({scale.percent, mode, -1, name, {}});
+                benchmarkVariants.back().historicalGain = std::numeric_limits<double>::quiet_NaN();
+            };
+            add(0, "No inter-pass");
+            add(1, "Classic reference");
+            add(2, "Fused reference");
+            // Independent warmup in every A/B/B/A window; quality changes are opt-in.
+            add(3, "Inter-pass optimized");
+            add(4, "Inter-pass fast");
+            add(4, "Inter-pass fast");
+            add(3, "Inter-pass optimized");
+        }
+        return; // Exactly P50/P59/P65, never append the current scale.
+    }
     const int current = std::clamp(int(std::lround(savedBenchmarkConfig.scale * 100.0f)), 25, 99);
     if (benchmarkProfile == InterPassBenchmarkProfile::Boundary)
     {
@@ -268,7 +293,8 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v21-fast-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
         name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
@@ -283,7 +309,7 @@ void FinishBenchmark(bool cancelled)
                "work_width,work_height,effective_passes,samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,"
                "delta_vs_off_median_ms,delta_vs_fused_reference_ms,delta_vs_expected_path_ms,"
                "historical_gain_vs_fused_ms,actual_gain_vs_fused_ms,path_matches_control,"
-               "window_medians_ms,window_median_spread_ms\n";
+               "window_medians_ms,window_median_spread_ms,gain_vs_optimized_median_ms\n";
         individual << "scale_percent,variant,window,sample_index,total_nr_gpu_ms\n";
         out << std::fixed << std::setprecision(5);
         individual << std::fixed << std::setprecision(6);
@@ -310,13 +336,15 @@ void FinishBenchmark(bool cancelled)
             const size_t n = sorted.size();
             return n % 2 ? sorted[n/2] : (sorted[n/2-1] + sorted[n/2]) * 0.5;
         };
-        std::map<int, double> off, fused, expected;
+        std::map<int, double> off, fused, expected, optimized;
         std::map<int, std::string> expectedPath;
         for (const auto& v : combined)
         {
             if (v.mode == 0) off[v.percent] = medianOf(v);
             if (v.mode == 2) fused[v.percent] = medianOf(v);
-            if (std::string(v.name) == "Expected path control")
+            if (std::string(v.name) == "Inter-pass optimized") optimized[v.percent] = medianOf(v);
+            if (std::string(v.name) == "Expected path control" ||
+                (benchmarkProfile == InterPassBenchmarkProfile::FastQuality && v.mode == 3))
             {
                 expected[v.percent] = medianOf(v);
                 expectedPath[v.percent] = v.path;
@@ -346,16 +374,25 @@ void FinishBenchmark(bool cancelled)
             for (size_t i=0;i<windows.size();++i)
                 out << (i ? "|" : "") << windows[i];
             const auto range = std::minmax_element(windows.begin(), windows.end());
-            out << "\"," << *range.second - *range.first << '\n';
+            out << "\"," << *range.second - *range.first << ',' << optimized.at(v.percent) - median << '\n';
         }
         description << "OptiScaler six-pass inter-pass GPU comparison\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::Boundary ?
+                    << (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ?
+                        "Fast quality profile: exactly P50/P59/P65, Temporal DLAA residual + P100-guided (Transfer=9).\n"
+                        "Off and both unoptimized references; exact Optimized A / approximate Fast B / B / A.\n"
+                        "15 configurations / 21 measurement windows. No historical Fast measurements.\n"
+                        "Fast commutes guided reconstruction with Area downsampling; inspect edges, fine detail and shadows.\n"
+                        "gain_vs_optimized_median_ms is positive when faster; delta_vs_expected_path_ms uses Optimized here.\n"
+                        "path_matches_control is only route equality, not a quality or speed verdict.\n" :
+                        benchmarkProfile == InterPassBenchmarkProfile::Boundary ?
                         "Boundary profile: exactly P41/P42; current scale is not appended.\n" :
                         benchmarkProfile == InterPassBenchmarkProfile::Below50 ?
                         "Below-50 verification: P33/P40/P41/P42/P49 plus current lower scale if different.\n" :
                         "Regular profile: P50/P59/P65 plus current rounded percentage when different.\n")
                     << "Off, Classic reference and Fused reference retained.\n"
-                    << "All scales: expected path A / automatic B / B / A plus alternate retained path.\n"
+                    << (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "" :
+                        "All scales: expected path A / automatic B / B / A plus alternate retained path.\n")
+                    << "Manual window inspection=" << benchmarkInspectEachWindow << "; held-frame samples excluded.\n"
                     << "Measured low controls: P33/P41 Classic; P40/P42/P45/P49 RGB20. Unmeasured scales are predictions.\n"
                     << "Generic Fused optimized below 50 omitted: slower at every supplied P33/P40/P41/P42/P45/P49.\n"
                     << "Independent warmup for each window; symmetric order reduces linear drift.\n"
@@ -390,7 +427,8 @@ void FinishBenchmark(bool cancelled)
 }
 } // namespace
 
-void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, InterPassBenchmarkProfile profile)
+void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, InterPassBenchmarkProfile profile,
+                            bool inspectEachWindow, const char* scene)
 {
     std::lock_guard lock(benchmarkMutex);
     if (benchmarkActive.load())
@@ -406,11 +444,18 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, I
     benchmarkSamples = std::clamp(measuredSamples, 40u, 2000u);
     benchmarkIndex = benchmarkWarm = 0;
     benchmarkProfile = profile;
+    benchmarkInspectEachWindow = inspectEachWindow;
     BuildBenchmarkVariants();
     benchmarkAdapterInfo.clear();
     benchmarkNativeW = benchmarkNativeH = benchmarkWorkW = benchmarkWorkH = benchmarkEffectivePasses = 0;
-    benchmarkSetup = "guide strength=" + std::to_string(savedBenchmarkConfig.strength) +
-                     ", source scale=" + std::to_string(savedBenchmarkConfig.scale);
+    benchmarkSetup = "scene=" + std::string(scene ? scene : "unspecified") +
+                     ", guide strength=" + std::to_string(savedBenchmarkConfig.strength) +
+                     ", source scale=" + std::to_string(savedBenchmarkConfig.scale) +
+                     ", transfer=" + std::to_string(savedBenchmarkConfig.transfer) +
+                     ", range sigma=" + std::to_string(c.DlssNrGuidedResidualRangeSigma.value_or_default()) +
+                     ", spatial sigma=" + std::to_string(c.DlssNrGuidedResidualSpatialSigma.value_or_default()) +
+                     ", shaping=" + std::to_string(c.DlssNrGuidedResidualShaping.value_or_default()) +
+                     ", shadow gate=" + std::to_string(c.DlssNrGuidedResidualShadowGate.value_or_default());
     ApplyBenchmarkVariant(c, benchmarkVariants.front());
     benchmarkProgress = {};
     benchmarkProgress.active = true;
@@ -422,6 +467,28 @@ void CancelInterPassBenchmark()
 {
     std::lock_guard lock(benchmarkMutex);
     FinishBenchmark(true);
+}
+namespace
+{
+void AdvanceBenchmarkWindow()
+{
+    benchmarkProgress.awaitingVisualInspection = false;
+    if (++benchmarkIndex == benchmarkVariants.size())
+    {
+        FinishBenchmark(false);
+        return;
+    }
+    benchmarkWarm = 0;
+    ApplyBenchmarkVariant(*Config::Instance(), benchmarkVariants[benchmarkIndex]);
+    benchmarkProgress.message = "Running; keep the scene static. You may close the menu.";
+    UpdateBenchmarkProgress();
+}
+}
+void AdvanceInterPassBenchmark()
+{
+    std::lock_guard lock(benchmarkMutex);
+    if (benchmarkActive.load() && benchmarkProgress.awaitingVisualInspection)
+        AdvanceBenchmarkWindow();
 }
 BenchmarkProgress ReadInterPassBenchmark()
 {
@@ -436,6 +503,8 @@ void BenchmarkGpuSample(double rawGpuMs, bool modelRunning)
     if (!benchmarkActive.load() || !modelRunning || !std::isfinite(rawGpuMs) ||
         rawGpuMs <= 0.0 || rawGpuMs > 1000.0)
         return;
+    if (benchmarkProgress.awaitingVisualInspection)
+        return; // Keep rendering this configuration; don't contaminate its completed timing window.
     // Do not accidentally benchmark a partially prepared six-feature chain.
     if (benchmarkEffectivePasses != 6u || benchmarkNativeW == 0u || benchmarkWorkW == 0u)
     {
@@ -463,13 +532,16 @@ void BenchmarkGpuSample(double rawGpuMs, bool modelRunning)
         variant.samples.push_back(rawGpuMs);
     if (benchmarkVariants[benchmarkIndex].samples.size() == benchmarkSamples)
     {
-        if (++benchmarkIndex == benchmarkVariants.size())
+        if (benchmarkInspectEachWindow)
         {
-            FinishBenchmark(false);
+            benchmarkProgress.awaitingVisualInspection = true;
+            benchmarkProgress.message = "Window measured. Inspect the image, then continue; held frames are not measured.";
+        }
+        else
+        {
+            AdvanceBenchmarkWindow();
             return;
         }
-        benchmarkWarm = 0;
-        ApplyBenchmarkVariant(*Config::Instance(), benchmarkVariants[benchmarkIndex]);
     }
     UpdateBenchmarkProgress();
 }

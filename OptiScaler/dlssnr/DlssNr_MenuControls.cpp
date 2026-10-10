@@ -1115,13 +1115,18 @@ void RenderModel(Config* config)
     if (interPassAvailable)
     {
         static const char* interPassNames[] = {
-            "Off", "Classic reference", "Fused reference", "Inter-pass optimized"
+            "Off", "Classic reference", "Fused reference", "Inter-pass optimized", "Inter-pass fast (experimental)"
         };
-        int interPass = (int) std::min(config->DlssNrInterPassReconstruction.value_or_default(), 3u);
+        int interPass = (int) std::min(config->DlssNrInterPassReconstruction.value_or_default(), 4u);
         if (ImGui::Combo("Inter-pass reconstruction", &interPass, interPassNames, IM_ARRAYSIZE(interPassNames)))
             config->DlssNrInterPassReconstruction = (uint32_t) interPass;
         HelpMarker("Optimized automatically selects the retained path for actual texture dimensions, "
                    "filter and guide radius. Classic and Fused reference have no inter-pass optimizations.");
+        HelpMarker("Fast estimates the guided edit once per working pixel and reuses the immutable Area proxy. "
+                   "It keeps the 3x3 weights and shaping, but approximates their native-resolution integration. "
+                   "Small residual changes at edges, fine detail and shadows may compound over passes. "
+                   "Area / radius 1 / actual 50-90% only; other settings use exact Optimized. "
+                   "Use the Fast benchmark and visual inspection before choosing it; speed/quality need in-game validation.");
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
                    "feeds the corrected working-resolution image to the next NR pass. Final transfer remains unchanged.");
         HelpMarker("Inter-pass frequency shaping uses the currently selected guided residual gains once per transition. "

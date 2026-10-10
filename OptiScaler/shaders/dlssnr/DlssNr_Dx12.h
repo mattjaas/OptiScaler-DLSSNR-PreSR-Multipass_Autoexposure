@@ -63,6 +63,8 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     ID3D12PipelineState* _residualPipelineState = nullptr;
     ID3D12PipelineState* _interPassRgbPipeline[2] {};
     bool _interPassRgbAttempted[2] {};
+    ID3D12PipelineState* _interPassFastPipeline = nullptr;
+    bool _interPassFastAttempted = false;
     ID3D12PipelineState* _finishedColorPipelineState = nullptr;
     ID3D12PipelineState* _spatialPipelineState = nullptr;
     ID3D12PipelineState* _spatialGuidesPipelineState = nullptr;

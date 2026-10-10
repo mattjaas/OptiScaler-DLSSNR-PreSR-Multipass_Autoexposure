@@ -43,7 +43,7 @@ def test_benchmark():
     assert re.findall(r'CustomOptional<[^>]+> (DlssNrInterPass\w+)', cfg) == ['DlssNrInterPassReconstruction']
     dx = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp').read_text(encoding='utf-8')
     assert re.findall(r'#include "precompile/(dlssnr_.*)_Shader.h"', dx) == [
-        'dlssnr_interpass_rgb16', 'dlssnr_interpass_rgb20', 'dlssnr_residual',
+        'dlssnr_interpass_rgb16', 'dlssnr_interpass_rgb20', 'dlssnr_interpass_fast', 'dlssnr_residual',
         'dlssnr_finished_color', 'dlssnr_spatial', 'dlssnr_spatial_guides']
     low = status[status.index('void AddLowBenchmarkScale'):status.index('void UpdateBenchmarkProgress')]
     assert 'kInterPassMeasuredLowScales' in low and 'measured->expected' in low
@@ -66,6 +66,19 @@ def test_benchmark():
     assert 'DlssNr::InterPassBenchmarkProfile::Below50' in ui
     assert 'Verify optimized inter-pass 41% / 42% (CSV)' in ui
     assert 'DlssNr::InterPassBenchmarkProfile::Boundary' in ui
+    fast = build[build.index('InterPassBenchmarkProfile::FastQuality'):build.index('const int current')]
+    assert 'for (const auto& scale : kInterPassBenchmarkScales)' in fast
+    assert re.findall(r'add\((\d), "([^"]+)"\);', fast) == [
+        ('0', 'No inter-pass'), ('1', 'Classic reference'), ('2', 'Fused reference'),
+        ('3', 'Inter-pass optimized'), ('4', 'Inter-pass fast'),
+        ('4', 'Inter-pass fast'), ('3', 'Inter-pass optimized')]
+    assert 'AddLowBenchmarkScale(current)' not in fast and 'return;' in fast
+    assert 'InterPassBenchmarkProfile::FastQuality, inspectFastWindows' in ui
+    assert 'bench.awaitingVisualInspection' in ui and 'DlssNr::AdvanceInterPassBenchmark()' in ui
+    assert 'gain_vs_optimized_median_ms' in status and 'NR-v21-fast-' in status
+    sample = status[status.index('void BenchmarkGpuSample'):status.index('int BenchmarkInterPassOverride')]
+    assert sample.index('if (benchmarkProgress.awaitingVisualInspection)') < sample.index('variant.samples.push_back')
+    assert 'c.DlssNrTransfer = 9u;' in status and 'c.DlssNrTransfer = v.transfer;' in status
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
     guard = run[run.index('const bool eligibleTiledDims'):run.index('if (workingScaleTiled && eligibleTiledDims')]
     assert '2u * modelWidth' not in guard and '2u * modelHeight' not in guard

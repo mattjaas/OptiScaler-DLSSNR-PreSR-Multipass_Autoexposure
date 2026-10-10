@@ -7,6 +7,7 @@
 #include "precompile/DlssNr_Shader.h"
 #include "precompile/dlssnr_interpass_rgb16_Shader.h"
 #include "precompile/dlssnr_interpass_rgb20_Shader.h"
+#include "precompile/dlssnr_interpass_fast_Shader.h"
 
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -164,6 +165,20 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
     // Lazy, isolated RGB PSOs; references stay on the standard shader.
     ID3D12PipelineState* pipeline = _pipelineState;
     const auto flags = InConstants.DirectResolveFlags;
+    if (InConstants.Mode == DlssNrMode_InterPassFastGuided)
+    {
+        if (!_interPassFastAttempted)
+        {
+            _interPassFastAttempted = true;
+            if (!CreateComputePipeline(_device, &_interPassFastPipeline, dlssnr_interpass_fast_cso,
+                                       sizeof(dlssnr_interpass_fast_cso), nullptr))
+                LOG_WARN("[{0}] fast inter-pass PSO unavailable; using standard Mode33 shader", _name);
+        }
+        if (_interPassFastPipeline)
+            pipeline = _interPassFastPipeline;
+        else
+            DlssNr::BenchmarkReportInterPassPath("Fast guided (standard PSO fallback)");
+    }
     if (InConstants.Mode == DlssNrMode_InterPassGuidedWorking && InConstants.Transfer == 0u &&
         (flags & 2048u) != 0u)
     {
@@ -376,6 +391,7 @@ DlssNr_Dx12::~DlssNr_Dx12()
     }
     for (auto*& pipeline : _interPassRgbPipeline)
         if (pipeline) pipeline->Release();
+    if (_interPassFastPipeline) _interPassFastPipeline->Release();
     if (_spatialPipelineState != nullptr)
     {
         _spatialPipelineState->Release();

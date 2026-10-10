@@ -54,6 +54,10 @@ cbuffer Params : register(b0)
 // reductions. The complete Mode 28 fallback remains available.
 #define gMode 28u
 #endif
+#if defined(DLSSNR_INTERPASS_FAST)
+// Isolate the approximate path; no native tile or unrelated reductions in its PSO.
+#define gMode 33u
+#endif
 
 float3 InterPassGuideBlend(float3 bilinear, float3 guided, float strength)
 {
@@ -933,6 +937,47 @@ float3 InterPassGuidedEditAt(float2 uvq, float3 nativeGuide)
         ? P100GuidedResidualAtOptimized(uvq, nativeGuide)
         : P100GuidedResidualAt(uvq, nativeGuide);
     return InterPassShapeEditAt(guidedEditRaw, uvq, nativeGuide);
+}
+
+float4 InterPassFastGuided(int2 p)
+{
+    // Reuse the immutable original Area proxy B. Approximate
+    // Area(P100 + shaped Guided(N-B, P100)) by B + shaped Guided(N-B, P100 at centre).
+    // Do not feed N-previousCorrected back as the residual; that changes the multi-pass contract.
+    const float4 base = gSource.Load(int3(p, 0));
+    const float3 centreResidual = gModel.Load(int3(p, 0)).rgb - base.rgb;
+    const float2 uvq = (float2(p) + 0.5) / float2(gWidth, gHeight);
+    const float3 nativeGuide = gOriginal.SampleLevel(gLinear, uvq, 0).rgb;
+    const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
+    const float spatialSigma = max(abs(gResidualScale), 1e-4);
+    const float rangeFactor = (0.7213475204444817 / 3.0) / (rangeSigma * rangeSigma);
+    const float spatialFactor = 0.7213475204444817 / (spatialSigma * spatialSigma);
+    float3 weighted = 0.0;
+    float weightSum = 0.0;
+    [unroll] for (int oy = -1; oy <= 1; ++oy)
+    {
+        [unroll] for (int ox = -1; ox <= 1; ++ox)
+        {
+            const int2 q = clamp(p + int2(ox, oy), int2(0, 0), int2(gWidth - 1, gHeight - 1));
+            const float3 candidate = gSource.Load(int3(q, 0)).rgb;
+            const float3 residual = gModel.Load(int3(q, 0)).rgb - candidate;
+            const float3 delta = candidate - nativeGuide;
+            // Use clamped coordinates just like the exact path at frame edges.
+            const float2 spatialDelta = float2(q - p);
+            const float w = exp2(-(dot(delta, delta) * rangeFactor +
+                                   dot(spatialDelta, spatialDelta) * spatialFactor));
+            weighted += residual * w;
+            weightSum += w;
+        }
+    }
+    const float3 guided = weightSum > 1e-8 ? weighted / weightSum : centreResidual;
+    const float3 edit = InterPassShapeEditAt(
+        InterPassGuideBlend(centreResidual, guided, saturate(gResidualConfidenceUnused)), uvq, nativeGuide);
+    uint nativeW, nativeH;
+    gOriginal.GetDimensions(nativeW, nativeH);
+    const int2 nativeP = min(int2(uvq * float2(nativeW, nativeH)), int2(nativeW - 1, nativeH - 1));
+    const float alpha = gOriginal.Load(int3(nativeP, 0)).a;
+    return float4(saturate(SanitizeFinite3(base.rgb + edit, 0.5)), alpha);
 }
 
 float4 InterPassCorrectedP100Load(int2 p)
@@ -2365,6 +2410,14 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
 
     // Normalised, so the source may be any size relative to this dispatch.
     float2 uv = (float2(id.xy) + 0.5) / float2(gWidth, gHeight);
+
+#if !defined(VK_MODE)
+    if (gMode == 33u)
+    {
+        gTarget[id.xy] = InterPassFastGuided(int2(id.xy));
+        return;
+    }
+#endif
 
     if (gMode == 29)
     {

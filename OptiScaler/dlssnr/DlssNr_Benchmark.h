@@ -6,10 +6,11 @@
 struct ID3D12Device;
 namespace DlssNr
 {
-enum class InterPassBenchmarkProfile { Regular, Below50, Boundary };
+enum class InterPassBenchmarkProfile { Regular, Below50, Boundary, FastQuality };
 struct BenchmarkProgress
 {
     bool active = false;
+    bool awaitingVisualInspection = false;
     unsigned current = 0;
     unsigned total = 0;
     unsigned warmed = 0;
@@ -20,7 +21,9 @@ struct BenchmarkProgress
     std::string message;
 };
 void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples,
-                            InterPassBenchmarkProfile profile = InterPassBenchmarkProfile::Regular);
+                            InterPassBenchmarkProfile profile = InterPassBenchmarkProfile::Regular,
+                            bool inspectEachWindow = false, const char* scene = "unspecified");
+void AdvanceInterPassBenchmark();
 void CancelInterPassBenchmark();
 int BenchmarkInterPassOverride(); // -1 outside benchmark, no user-facing implementation switches.
 void BenchmarkReportInterPassPath(const char* path);
