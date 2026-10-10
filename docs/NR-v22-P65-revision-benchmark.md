@@ -86,3 +86,27 @@ taktowania. Test nie jest uruchomieniem całego starego DLL v14.
 
 Pomiar nowego profilu w grze wymaga uruchomienia przez użytkownika.
 Nie ma jeszcze wyniku całego NR z tego A/B i nie ogłoszono usunięcia regresji.
+
+## Opublikowana i zweryfikowana paczka
+
+Kod benchmarku: `e0543ba47510f2ed1d2081a3d69a7992aecbec00`, gałąź
+`codex/nr-interpass-v13-bounded-area`.
+[GitHub Actions 38091799380](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38091799380)
+zakończyło się sukcesem: testy Python, kompilacja shaderów, kontrola polityki,
+fixtures GPU z Mode18, pełny MSBuild i publikacja release.
+
+[Release v22](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/tag/nr-interpass-v22-p65-revision-20261011)
+zawiera [ZIP do instalacji](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v22-p65-revision-20261011/OptiScaler-NR-nr-interpass-v22-p65-revision-20261011.zip).
+Rozmiar: 131 349 011 bajtów.
+
+- SHA256 ZIP: `9dc0959a81561e38e716b8b4978f53bc48722f5caeecb0c065655a1ed4aada9d`.
+- SHA256 DLL: `128cab484e43c65d50fe8b86255aa5223226be767bdab8225640a86311c33f09`.
+- Pobrany ZIP: CRC i wszystkie 62 pliki manifestu SHA256SUMS — PASS.
+- DLL Windows x64: etykiety nowego profilu i sześć dokładnych blobów shaderów
+  (cztery bieżące, dwa archiwalne v14), każdy osadzony raz — PASS.
+- 35 odrzuconych blobów eksperymentalnych nie występuje w DLL — PASS.
+- Hash pobranej paczki jest zgodny z digestem assetu GitHub — PASS.
+
+Następny krok to wyłącznie pomiar tego profilu w grze i analiza trzech raportów
+`NR-v22-p65-revision-*`; nie trzeba ponownie wykonywać gotowych kontroli
+syntetycznych. Udany build nie rozstrzyga zgłoszonej różnicy czasu GPU.

@@ -13,8 +13,19 @@ Lokalne testy Python/kompilacja bieżących shaderów PASS, GPU Mode18 parity PA
 (32 porównania / 3520 komponentów). Pomiar nowego profilu w grze pozostaje
 do uruchomienia przez użytkownika. Nie powtarzać wcześniejszych synthetic pomiarów.
 
+Build kodu `e0543ba47510f2ed1d2081a3d69a7992aecbec00` zakończony sukcesem:
+[Actions 38091799380](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38091799380).
+[Paczka v22 jest opublikowana](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/tag/nr-interpass-v22-p65-revision-20261011).
+Pobrany ZIP zweryfikowano: CRC, 62 pliki manifestu, DLL x64, cztery bieżące
+i dwa archiwalne shadery, brak 35 odrzuconych blobów — PASS. Sumy i link
+do ZIP są w dokumencie v22. Następny krok: użytkownik uruchamia profil
+w grze przy 4K i dostarcza `NR-v22-p65-revision-*.csv/.samples.csv/.txt`.
+Nie ogłoszono poprawy wydajności; brak jeszcze pomiaru nowego A/B w grze.
+
 Ten plik jest checkpointem na prośbę użytkownika. Dochodzenie nie jest zakończone.
-Nie zmieniono kodu renderowania. Zapisano wyniki i źródła, aby kontynuacja
+Pierwotny checkpoint obejmował tylko audyt; v22 dodaje historyczne shadery
+wyłącznie do celowanego benchmarku. Produkcyjny tor pozostaje bez zmian.
+Zapisano wyniki i źródła, aby kontynuacja
 nie wymagała ponownego wykonywania gotowych analiz ani pomiarów.
 
 Aktualizacja po zapisie checkpointu: główny raport
