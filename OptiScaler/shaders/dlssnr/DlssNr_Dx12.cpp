@@ -19,6 +19,9 @@
 #include "precompile/dlssnr_tiled_v11_spatial_Shader.h"
 #include "precompile/dlssnr_tiled_v11_quadfill_Shader.h"
 #include "precompile/dlssnr_tiled_v11_both_Shader.h"
+#include "precompile/dlssnr_tiled_v12_interior_Shader.h"
+#include "precompile/dlssnr_tiled_v12_axes_Shader.h"
+#include "precompile/dlssnr_tiled_v12_both_Shader.h"
 #include "precompile/dlssnr_classic_v10_cache_Shader.h"
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -196,12 +199,38 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
         const bool compact = (flags & 8192u) != 0u;
         const bool strided = (flags & 4096u) != 0u;
         const bool v9 = (flags & (16384u | 32768u)) != 0u;
+        // v12 experiments are independent of both v10 and v11. v12 takes
+        // priority if the user intentionally enables flags from both versions.
+        // Eligibility is enforced using real tile geometry and v10 weights.
+        const bool v12 = compact && !strided && (flags & 16384u) != 0u &&
+                         (flags & 32768u) == 0u &&
+                         (flags & (262144u | 524288u)) != 0u;
+        if (v12)
+        {
+            const uint32_t index = ((flags & 262144u) != 0u ? 1u : 0u) +
+                                   ((flags & 524288u) != 0u ? 2u : 0u) - 1u;
+            const void* const blobs[] = { dlssnr_tiled_v12_interior_cso,
+                                          dlssnr_tiled_v12_axes_cso,
+                                          dlssnr_tiled_v12_both_cso };
+            const size_t sizes[] = { sizeof(dlssnr_tiled_v12_interior_cso),
+                                     sizeof(dlssnr_tiled_v12_axes_cso),
+                                     sizeof(dlssnr_tiled_v12_both_cso) };
+            if (!_tiledV12PipelineAttempted[index])
+            {
+                _tiledV12PipelineAttempted[index] = true;
+                if (!CreateComputePipeline(_device, &_tiledV12PipelineState[index],
+                                           blobs[index], sizes[index], nullptr))
+                    LOG_WARN("[{0}] v12 interior/axes PSO {1} unavailable; retaining v10", _name, index);
+            }
+            if (_tiledV12PipelineState[index])
+                pipeline = _tiledV12PipelineState[index];
+        }
         // v11 only for the verified P65 Linear16+Weights configuration.
         // All other routes, including P50 and cache, remain exactly v10.
         const bool v11 = compact && !strided && (flags & 16384u) != 0u &&
                          (flags & 32768u) == 0u &&
                          (flags & (65536u | 131072u)) != 0u;
-        if (v11)
+        if (v11 && pipeline == _pipelineState)
         {
             const uint32_t index = ((flags & 65536u) != 0u ? 1u : 0u) +
                                    ((flags & 131072u) != 0u ? 2u : 0u) - 1u;
@@ -520,6 +549,14 @@ DlssNr_Dx12::~DlssNr_Dx12()
     {
         _tiledCompactLinearPipelineState->Release();
         _tiledCompactLinearPipelineState = nullptr;
+    }
+    for (auto*& state : _tiledV12PipelineState)
+    {
+        if (state)
+        {
+            state->Release();
+            state = nullptr;
+        }
     }
     for (auto*& state : _tiledV11PipelineState)
     {
