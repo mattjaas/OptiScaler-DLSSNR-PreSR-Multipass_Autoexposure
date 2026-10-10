@@ -1168,6 +1168,18 @@ void RenderModel(Config* config)
                         HelpMarker("v11 P65 Linear16 with v10 Weights ON and cache OFF. Hoists the three "
                                    "horizontal and vertical spatial deltas outside the 3x3 bilateral loop; "
                                    "retains the same bilateral exp2 and dot products. Isolated PSO; default OFF.");
+                        Checkbox("Fused: source stencil interior guard (v12)",
+                                 config->DlssNrInterPassV12Interior);
+                        HelpMarker("v12 P65 Linear16, Weights ON, Source Cache OFF. "
+                                   "One 3x3 stencil interior test per reconstructed P100 pixel. "
+                                   "Interior taps skip coordinate clamp; edges preserve exact v10 taps. "
+                                   "Separate compiled DXIL; default OFF.");
+                        Checkbox("Fused: preclamp 3+3 stencil axes (v12)",
+                                 config->DlssNrInterPassV12Axes);
+                        HelpMarker("v12 P65 Linear16, Weights ON, Source Cache OFF. "
+                                   "Precomputes 3 X and 3 Y clamped coordinates rather than "
+                                   "9 independent 2D clamps. Can combine with v12 Interior. "
+                                   "Existing v10 remains a reference; default OFF.");
                         Checkbox("Fused: unrolled 2x2 native tile quadrants (v11)",
                                  config->DlssNrInterPassV11QuadFill);
                         HelpMarker("v11 P65 Linear16 with v10 Weights ON and cache OFF. "
