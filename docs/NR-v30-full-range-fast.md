@@ -91,7 +91,23 @@ oraz izolowane/fallback PSO Cross5. To kontrola kontraktu, nie dowód
 percepcyjnej jakości nowych wysokich skal. Użytkownik nie zauważył
 pogorszenia wcześniejszych v26/v27; oceny P91–P99 jeszcze nie otrzymano.
 
-Wynik GitHub Actions i weryfikacja paczki zostaną zapisane po zakończeniu buildu.
+[Build 38137651375](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38137651375)
+zakończył się sukcesem: testy Python/C++, kompilacja sześciu shaderów,
+fixture GPU, pełna DLL, ZIP i release. Krok publikacji pozostawał przez
+kilka minut przy wersji roboczej po uploadzie; po weryfikacji ZIP
+dokończono publikację przez `gh release edit --draft=false`, a workflow
+następnie również zamknął swój krok z sukcesem.
+Źródłowy commit: `6e42aa735b5e9af7d57c32efe70c758b186ba954`.
+
+[Release v30](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/tag/nr-interpass-v30-full-range-fast-20261011)
+i [ZIP](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v30-full-range-fast-20261011/OptiScaler-NR-nr-interpass-v30-full-range-fast-20261011.zip).
+SHA256: `a56c19cee761b8d3aee49277a221a4431ed0b599b487ffdcf4d5ec27eb33eb50`.
+Sprawdzono CRC, wszystkie 62 wpisy SHA256SUMS, commit zaszyty w DLL,
+krótkie benchmarki, pełny zakres w INI i brak osobnej opcji/kontroli
+Cross5. Wszystkie sześć blobów shaderów z v27/v28 występuje bajtowo
+w nowej DLL; odrzuconego PSO Weights nie ma. Dokument i surowe próbki
+są dostępne w repozytorium; istniejący skrypt pakowania nie dołącza ich
+do ZIP. Paczka nie została automatycznie podmieniona w grze.
 
 ## Syntetyczny pomiar GPU wysokich skal
 
