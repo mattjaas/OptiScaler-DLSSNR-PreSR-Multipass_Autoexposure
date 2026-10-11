@@ -21,17 +21,26 @@ def test_cadence():
     assert 'if (interPassDue)' in fallback and 'if (interPassActive)' not in fallback
     assert fallback.index('if (interPassDue)') < fallback.index('interPassFailed = true;')
     assert 'clamp.Mode = DlssNrMode_ClampProxy;' in fallback and 'passInput = nr.passClamp;' in fallback
-    assert '++interPassCorrections;' in loop and 'interPassShapingApplied = true;' in loop
+    assert '++interPassCorrections;' in loop and 'interPassCoveredPasses = pass + 1u;' in loop
     assert 'copy, passInput,' in loop  # actual pass-2 input even on skipped transitions
     assert 'ID3D12Resource* const originalPassBase = modelInput;' in run
     assert 'low.Transfer = 0u; // ALWAYS current cumulative N - immutable original base.' in run
-    assert 'MakeResolveConstants(encoded, effectivePasses, interPassShapingApplied)' in run
+    assert 'MakeResolveConstants(encoded, effectivePasses, interPassCoveredPasses)' in run
     assert 'BenchmarkReportInterPassSchedule(interPassCadence, interPassCorrections)' in run
     status = (ROOT / 'OptiScaler/dlssnr/DlssNr_Status.cpp').read_text(encoding='utf-8')
     assert 'benchmarkCorrections != expectedCorrections' in status
     assert 'interpass_stride,interpass_corrections' in status
     menu = (ROOT / 'OptiScaler/dlssnr/DlssNr_MenuControls.cpp').read_text(encoding='utf-8')
     assert 'InterPass::Cadence(config->DlssNrInterPassReconstruction.value_or_default(),' in menu
+    encode = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Encode.cpp').read_text(encoding='utf-8')
+    assert 'PendingPasses(effectivePasses, interPassCoveredPasses)' in encode
+    assert 'PendingPasses(pass + 1u,' in run
+    profiles = (ROOT / 'OptiScaler/dlssnr/PassProfiles.h').read_text(encoding='utf-8')
+    grouped = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass'):]
+    assert grouped.index('GuidedResidualGainForScale(gains.high') < grouped.index('CompoundGuidedHigh(gains.high, coveredPasses,')
+    assert 'coveredPasses > 1u' in grouped and 'DlssNrGuidedResidualCompoundPasses' in grouped
+    assert 'CompoundGuidedHigh(gains.low' not in profiles
+    assert 'ImGui::BeginDisabled(interPassShapingCadence == 1u);' in menu
     print('Cadence integration PASS: Off/every-two schedule, reset, ordinary fallback, debug input and reports')
 
 if __name__ == '__main__':

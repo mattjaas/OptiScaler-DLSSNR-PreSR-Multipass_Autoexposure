@@ -1037,7 +1037,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     bool interPassDebugReadable = false;
     bool clampFailed = false;
     bool interPassFailed = false;
-    bool interPassShapingApplied = false;
+    uint32_t interPassCoveredPasses = 0;
     uint32_t interPassCorrections = 0;
     uint32_t clampSlots[2] = { UINT32_MAX, UINT32_MAX };
 
@@ -1100,7 +1100,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
         const uint32_t style = PassSettings(cfg, pass).style;
         const auto shaping =
-            DlssNr::Profiles::EffectiveGuidedResidualGainsForInterPass(cfg, shapingMode, style, workScale);
+            DlssNr::Profiles::EffectiveGuidedResidualGainsForInterPass(cfg, shapingMode, style, workScale,
+                                                                     DlssNr::InterPass::PendingPasses(pass + 1u,
+                                                                                                     interPassCoveredPasses));
         guided.MvScaleX = shaping.high;
         guided.MvScaleY = shaping.low;
         guided.GuideWidth = shaping.active ? 1u : 0u;
@@ -1476,7 +1478,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
             if (reconstructed)
             {
-                interPassShapingApplied = true;
+                interPassCoveredPasses = pass + 1u;
                 ++interPassCorrections;
                 passInput = nr.interPassWorking;
             }
@@ -1825,7 +1827,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         // Resolve takes the difference between what the model returned and what it was shown, and adds
         // that back to the frame. At strength zero the result is what the upscaler produced, exactly, and
         // anything the model left alone is untouched rather than round-tripped through the curve.
-        auto resolveParams = MakeResolveConstants(encoded, effectivePasses, interPassShapingApplied);
+        auto resolveParams = MakeResolveConstants(encoded, effectivePasses, interPassCoveredPasses);
 
         const float finalChromaticityRecovery =
             std::clamp(cfg.DlssNrFinalChromaticityRecovery.value_or_default(), 0.0f, 100.0f);

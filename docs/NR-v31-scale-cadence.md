@@ -1,5 +1,7 @@
 # NR v31 — inter-pass zależny od skali
 
+> Wersja historyczna. [NR v32](NR-v32-scale-cadence-shaping.md) uzupełnia shaping w blokach pomiędzy korekcjami.
+
 Użytkownik zgłosił gorszy obraz z inter-pass powyżej 90% oraz wątpliwości w zakresie 80–90%.
 Na jego prośbę harmonogram obowiązuje wszystkie tryby inter-pass, łącznie z referencjami,
 Optimized i Fast. Zapisany wybór trybu pozostaje zachowany przy zmianach skali.

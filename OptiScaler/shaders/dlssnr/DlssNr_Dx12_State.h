@@ -491,7 +491,7 @@ struct DlssNr_Dx12::State
     };
     void EncodeInput(EncodeContext& context);
     DlssNrConstants MakeResolveConstants(const EncodeContext& context, unsigned int effectivePasses,
-                                           bool interPassShapingApplied);
+                                           unsigned int interPassCoveredPasses);
     OptiScaler::RollingVitals vitals;
     void EndGpuTiming(ID3D12GraphicsCommandList* cmdList);
 

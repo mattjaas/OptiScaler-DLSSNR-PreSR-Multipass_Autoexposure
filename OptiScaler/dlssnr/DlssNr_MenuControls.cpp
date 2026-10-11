@@ -520,23 +520,24 @@ void RenderInput(Config* config)
                        0.0f, 1.5f, "%.3f", 0.780f);
             }
 
-            const bool interPassShapingActive =
+            const unsigned interPassShapingCadence =
                 InterPass::Cadence(config->DlssNrInterPassReconstruction.value_or_default(),
                                    config->DlssNrWorkingScale.value_or_default(),
                                    config->DlssNrPasses.value_or_default(),
-                                   config->DlssNrSpatialCompression.value_or_default()) != 0u;
+                                   config->DlssNrSpatialCompression.value_or_default());
             if (shaping != 0)
             {
                 bool compoundPasses = config->DlssNrGuidedResidualCompoundPasses.value_or_default();
-                ImGui::BeginDisabled(interPassShapingActive);
-                if (ImGui::Checkbox("Compound final high/mid by pass count", &compoundPasses))
+                ImGui::BeginDisabled(interPassShapingCadence == 1u);
+                if (ImGui::Checkbox(interPassShapingCadence == 2u ? "Compound high/mid within each inter-pass block" :
+                                    "Compound final high/mid by pass count", &compoundPasses))
                     config->DlssNrGuidedResidualCompoundPasses = compoundPasses;
                 ImGui::EndDisabled();
-                HelpMarker("Without inter-pass correction: after working-scale correction, final high/mid can be raised "
-                           "to the number of effective NR passes (for example 0.85 -> 0.85^2 -> 0.85^3). With inter-pass "
-                           "correction active, scheduled transitions apply one normal shaping step, so the final "
-                           "resolve deliberately uses only the normal one-pass gain and this extra compounding is ignored. "
-                           "Low frequency is never pass-compounded.");
+                HelpMarker("High/mid compounding counts only passes since the last successful inter-pass correction. "
+                           "Below 80% every block has one pass. At 80-89%, six passes use gain^2 after pass 2, "
+                           "gain^2 after pass 4 and gain^2 in final resolve; five passes end with gain^1. "
+                           "Without inter-pass (including from 90%), final resolve covers all effective passes. "
+                           "Disabled compounding keeps one gain per correction/resolve. Low frequency is never pass-compounded.");
             }
 
             const unsigned int runtimePassLimit =
@@ -550,6 +551,9 @@ void RenderInput(Config* config)
             static const char* shapingStyleNames[] = { "Standard", "Natural", "Cinematic" };
             const uint32_t finalShapingStyle =
                 Profiles::PassSettings(*config, effectivePasses > 0 ? effectivePasses - 1u : 0u).style;
+            const unsigned predictedCoveredPasses = interPassShapingCadence
+                ? ((effectivePasses - 1u) / interPassShapingCadence) * interPassShapingCadence : 0u;
+            const unsigned finalShapingPasses = InterPass::PendingPasses(effectivePasses, predictedCoveredPasses);
             if (shaping != 0)
             {
                 ImGui::Separator();
@@ -558,18 +562,16 @@ void RenderInput(Config* config)
                 {
                     const auto effective =
                         Profiles::EffectiveGuidedResidualGains(*config, (uint32_t) shaping, (uint32_t) transfer,
-                                                              style, interPassShapingActive ? 1u : effectivePasses,
+                                                              style, finalShapingPasses,
                                                               shapingScale);
                     ImGui::Text("%s%s: high/mid %.4f, low %.4f", shapingStyleNames[style],
                                 style == finalShapingStyle ? " (final style)" : "", effective.high, effective.low);
                 }
                 if (shaping == 1 && transfer != 7)
                     ImGui::TextDisabled("Auto is neutral for this temporal DLAA mode until it is capture-calibrated.");
-                ImGui::TextDisabled("Scale %.0f%%, %u pass%s. Final high/mid pass compounding: %s; low never compounds.",
-                                    shapingScale * 100.0f, effectivePasses, effectivePasses == 1 ? "" : "es",
-                                    interPassShapingActive
-                                        ? "BYPASSED by inter-pass correction"
-                                        : (config->DlssNrGuidedResidualCompoundPasses.value_or_default() ? "ON" : "OFF"));
+                ImGui::TextDisabled("Scale %.0f%%, %u passes. Final shaping covers %u passes; compounding %s; low never compounds.",
+                                    shapingScale * 100.0f, effectivePasses, finalShapingPasses,
+                                    config->DlssNrGuidedResidualCompoundPasses.value_or_default() ? "ON" : "OFF");
             }
 
             bool shadowGate = config->DlssNrGuidedResidualShadowGate.value_or_default();
@@ -1144,9 +1146,10 @@ void RenderModel(Config* config)
                    "removing the four diagonal neighbours and retaining exact exponential weights. "
                    "including 50%. Ordinary/final low filtering keeps its "
                    "original 8x8 kernel. The high-scale benchmark compares scheduled Fast against Off.");
-        HelpMarker("Inter-pass frequency shaping uses the currently selected guided residual gains once per transition. "
-                   "Pass-count compounding is ignored both between passes and in the final resolve while inter-pass "
-                   "correction is actually being used; the final resolve still applies one normal shaping gain.");
+        HelpMarker("Inter-pass frequency shaping uses the completed model's style and accounts for passes since the "
+                   "previous successful correction. Optional high/mid compounding uses the same rule in each block "
+                   "and final resolve: six passes at 80-89% cover 2+2+2, five passes cover 2+2+1. "
+                   "Low frequency retains one gain per correction/resolve. No extra shaping dispatch is needed.");
     }
 
     static unsigned selectedPass = 0;

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "DlssNr_Dx12_State.h"
+#include <dlssnr/DlssNr_InterPassPolicy.h>
 
 void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
 {
@@ -380,7 +381,7 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
 }
 
 DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& context, unsigned int effectivePasses,
-                                                          bool interPassShapingApplied)
+                                                          unsigned int interPassCoveredPasses)
 {
     const auto& cfg = *Config::Instance();
     const auto whitePoint = context.whitePoint;
@@ -447,10 +448,11 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
         const unsigned int finalPass = effectivePasses > 0 ? effectivePasses - 1u : 0u;
         const uint32_t finalStyle = PassSettings(cfg, finalPass).style;
-        // Inter-pass reconstruction already applies one normal shaping step after every completed pass.
-        // The final cumulative residual still needs its normal one-pass shaping, but pass-count compounding
-        // would double-count the multipass correction. Keep legacy compounding only when inter-pass was unused.
-        const unsigned int finalShapingPasses = interPassShapingApplied ? 1u : effectivePasses;
+        // Account only for model passes after the last successful inter-pass correction.
+        // Six passes at stride two: corrections cover 2+2 passes; final resolve covers the remaining 2.
+        // Stride one leaves 1; without inter-pass all passes remain, preserving the ordinary Off rule.
+        const unsigned int finalShapingPasses =
+            DlssNr::InterPass::PendingPasses(effectivePasses, interPassCoveredPasses);
         const auto shaping =
             DlssNr::Profiles::EffectiveGuidedResidualGains(cfg, shapingMode, configuredTransfer, finalStyle,
                                                            finalShapingPasses, context.workScale);

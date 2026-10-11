@@ -1,6 +1,7 @@
 #pragma once
 #include <Config.h>
 #include "DlssNr_ModelParameters.h"
+#include "DlssNr_GuidedShaping.h"
 #include <algorithm>
 #include <cmath>
 
@@ -151,27 +152,29 @@ inline GuidedResidualGains EffectiveGuidedResidualGains(const Config& cfg, uint3
 
     // Optional pass-count compounding applies only to high/mid. When disabled, the gain still follows
     // the working-resolution correction but remains a one-pass value regardless of NR pass count.
-    if (cfg.DlssNrGuidedResidualCompoundPasses.value_or_default())
-        gains.high = std::pow(singlePassHigh, static_cast<float>(std::max(1u, effectivePasses)));
-    else
-        gains.high = singlePassHigh;
-    if (!std::isfinite(gains.high))
-        gains.high = 1.0f;
+    gains.high = CompoundGuidedHigh(singlePassHigh, effectivePasses,
+                                   cfg.DlssNrGuidedResidualCompoundPasses.value_or_default());
     return gains;
 }
 
 inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass(const Config& cfg, uint32_t shapingMode,
-                                                                    uint32_t style, float workScale)
+                                                                    uint32_t style, float workScale,
+                                                                    unsigned int coveredPasses = 1u)
 {
     // Inter-pass reconstruction is always the plain signed NR-working-minus-original-working residual.
-    // Reuse the same style/UI calibration as P100-guided residual, including working-scale correction,
-    // but intentionally never apply GuidedResidualCompoundPasses: every transition gets one normal gain.
+    // Reuse the same style/UI calibration as P100-guided residual, including working-scale correction.
+    // Each successful correction accounts only for passes since the previous correction.
+    // Stride one retains one normal gain. Skipped transitions accumulate optional high/mid compounding;
+    // low remains a single gain, exactly as in the ordinary final-resolve rule.
     auto gains = GuidedResidualBaseGains(cfg, shapingMode, 7u, style);
     if (!gains.active)
         return gains;
 
     gains.high = GuidedResidualGainForScale(gains.high, workScale);
     gains.low = GuidedResidualGainForScale(gains.low, workScale);
+    if (coveredPasses > 1u)
+        gains.high = CompoundGuidedHigh(gains.high, coveredPasses,
+                                       cfg.DlssNrGuidedResidualCompoundPasses.value_or_default());
     if (!std::isfinite(gains.high))
         gains.high = 1.0f;
     if (!std::isfinite(gains.low))

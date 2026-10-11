@@ -15,6 +15,10 @@ inline bool Due(uint32_t pass, uint32_t passes, uint32_t stride)
 {
     return stride != 0 && pass < passes && pass + 1 < passes && (pass + 1) % stride == 0;
 }
+inline uint32_t PendingPasses(uint32_t completed, uint32_t covered)
+{
+    return completed > covered ? completed - covered : 1u;
+}
 enum class Path : uint32_t
 {
     Off, ClassicReference, FusedReference, ClassicOptimized, FusedOptimized, Rgb20, Rgb16, FastGuided,

@@ -331,9 +331,9 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastHigh ? "NR-v31-cadence-high-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v31-fast-low-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v31-fast-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastHigh ? "NR-v32-cadence-high-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v32-fast-low-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v32-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
         name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
@@ -486,7 +486,7 @@ void FinishBenchmark(bool cancelled)
                     << "All modes: below P80 every transition; P80 to below P90 after passes 2,4,...; from P90 disabled.\n"
                     << "Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.\n"
                     << "interpass_stride is the active cadence (0=Off); interpass_corrections counts successful corrections/frame.\n"
-                    << "Final shaping uses one gain if any correction succeeded, otherwise ordinary Off compounding rules.\n"
+                    << "High/mid compounding covers only passes since the last successful correction; six passes at P80-P89 cover 2+2+2, five cover 2+2+1.\n"
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastHigh ?
                         "Each scale: both references, Optimized, Off/Fast/Fast/Off with separate warmup.\n"
                         "Raw comparison 1 is Off/Fast ABBA; expected-path baseline is Off.\n"
@@ -568,6 +568,7 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, I
                      ", range sigma=" + std::to_string(c.DlssNrGuidedResidualRangeSigma.value_or_default()) +
                      ", spatial sigma=" + std::to_string(c.DlssNrGuidedResidualSpatialSigma.value_or_default()) +
                      ", shaping=" + std::to_string(c.DlssNrGuidedResidualShaping.value_or_default()) +
+                     ", high/mid compounding=" + std::to_string(c.DlssNrGuidedResidualCompoundPasses.value_or_default()) +
                      ", shadow gate=" + std::to_string(c.DlssNrGuidedResidualShadowGate.value_or_default());
     ApplyBenchmarkVariant(c, benchmarkVariants.front());
     benchmarkProgress = {};

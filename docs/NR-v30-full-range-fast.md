@@ -1,6 +1,6 @@
 # NR v30: cały zakres pomniejszenia Fast i krótsze benchmarki
 
-> Wersja historyczna. Aktualny harmonogram jakościowy: [NR v31](NR-v31-scale-cadence.md) — inter-pass co dwa przebiegi przy 80–<90%, wyłączony od 90%.
+> Wersja historyczna. Aktualny harmonogram jakościowy: [NR v32](NR-v32-scale-cadence-shaping.md) — inter-pass co dwa przebiegi przy 80–<90%, wyłączony od 90%.
 
 **Fast z Low36 + Cross5 działa przy każdym rzeczywistym pomniejszeniu,
 również P50 i P91–P99.** Usuwamy wcześniejsze procentowe progi P25/P90
