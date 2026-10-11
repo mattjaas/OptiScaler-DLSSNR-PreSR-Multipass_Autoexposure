@@ -120,3 +120,13 @@ Nie ma jeszcze nowego pomiaru GPU całego NR w grze ani potwierdzenia poprawy ja
 w zakresie 80–<90%. Redukcja liczby korekcji 5→2 jest liczbą operacji, nie zmierzonym
 przyspieszeniem. Wcześniejsze syntetyczne pomiary P91/P95/P99 nie mierzą tej zmiany.
 Nie przypisujemy obserwowanego pogorszenia konkretnej przyczynie bez weryfikacji.
+
+## Zweryfikowana paczka
+
+- Źródło DLL: `4df53adde6ea315c68d9afbc768b11a1f70eeb72`.
+- [GitHub Actions 38143314275](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38143314275): success; testy Python, polityka i rzeczywiste funkcje iloczynu/Structure C++, kompilacja shaderów i fixture, build DLL, paczka i publikacja.
+- [Release v33](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/tag/nr-interpass-v33-scale-cadence-20261011).
+- ZIP: `OptiScaler-NR-nr-interpass-v33-scale-cadence-20261011.zip`, 131119115 bajtów.
+- SHA256: `a5bd83a0607def5c88eeb7274655b7fc4757665188100bab677c7a36d85dcc5d`.
+- Lokalnie sprawdzono CRC ZIP, wszystkie 62 wpisy SHA256SUMS, źródłowy commit DLL, nowy benchmark i UI gainów/Structure oraz nowe opisy INI. Wszystkie sześć payloadów CSO odpowiada wcześniejszym shaderom v27; brak starego benchmarku P91/P95/P99 i wycofanych opcji.
+- Paczki nie instalowano automatycznie w grze. Nowe wyniki obrazu i całego NR pozostają do oceny w benchmarku w grze; powyższe kontrole nie są pomiarem przyspieszenia.
