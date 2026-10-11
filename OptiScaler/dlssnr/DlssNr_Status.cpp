@@ -331,9 +331,9 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastHigh ? "NR-v32-cadence-high-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v32-fast-low-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v32-fast-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastHigh ? "NR-v33-cadence-high-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v33-fast-low-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v33-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
         name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
@@ -485,8 +485,10 @@ void FinishBenchmark(bool cancelled)
                     << "Off, Classic reference and Fused reference retained.\n"
                     << "All modes: below P80 every transition; P80 to below P90 after passes 2,4,...; from P90 disabled.\n"
                     << "Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.\n"
+                    << "Structure adjustment: 1+(scale_corrected_high-1)*clamp(configured Structure,0,1); Low unchanged.\n"
+                    << "All pass styles/Structure settings are recorded; there is no repetition of the last model's gain.\n"
                     << "interpass_stride is the active cadence (0=Off); interpass_corrections counts successful corrections/frame.\n"
-                    << "High/mid compounding covers only passes since the last successful correction; six passes at P80-P89 cover 2+2+2, five cover 2+2+1.\n"
+                    << "High/mid multiplies the actual per-pass style/Structure-adjusted gains since the last successful correction; six passes cover 2+2+2, five cover 2+2+1.\n"
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastHigh ?
                         "Each scale: both references, Optimized, Off/Fast/Fast/Off with separate warmup.\n"
                         "Raw comparison 1 is Off/Fast ABBA; expected-path baseline is Off.\n"
@@ -570,6 +572,13 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, I
                      ", shaping=" + std::to_string(c.DlssNrGuidedResidualShaping.value_or_default()) +
                      ", high/mid compounding=" + std::to_string(c.DlssNrGuidedResidualCompoundPasses.value_or_default()) +
                      ", shadow gate=" + std::to_string(c.DlssNrGuidedResidualShadowGate.value_or_default());
+    for (unsigned pass = 0; pass < 6u; ++pass)
+    {
+        const auto settings = Profiles::BasePassSettings(c, pass);
+        benchmarkSetup += ", pass" + std::to_string(pass + 1u) + "_preset=" + std::to_string(settings.preset) +
+                          "_style=" + std::to_string(settings.style) +
+                          "_configured_structure=" + std::to_string(settings.localStructure);
+    }
     ApplyBenchmarkVariant(c, benchmarkVariants.front());
     benchmarkProgress = {};
     benchmarkProgress.active = true;

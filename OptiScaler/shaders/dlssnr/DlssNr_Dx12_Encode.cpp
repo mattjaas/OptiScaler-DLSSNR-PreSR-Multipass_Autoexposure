@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "DlssNr_Dx12_State.h"
-#include <dlssnr/DlssNr_InterPassPolicy.h>
 
 void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
 {
@@ -446,16 +445,13 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         resolveParams.ResidualConfidenceSensitivity = std::isfinite(guideStrength) ? guideStrength : 0.75f;
 
         const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
-        const unsigned int finalPass = effectivePasses > 0 ? effectivePasses - 1u : 0u;
-        const uint32_t finalStyle = PassSettings(cfg, finalPass).style;
-        // Account only for model passes after the last successful inter-pass correction.
-        // Six passes at stride two: corrections cover 2+2 passes; final resolve covers the remaining 2.
-        // Stride one leaves 1; without inter-pass all passes remain, preserving the ordinary Off rule.
-        const unsigned int finalShapingPasses =
-            DlssNr::InterPass::PendingPasses(effectivePasses, interPassCoveredPasses);
+        // Multiply the actual per-model style/Structure gains only for passes after the last
+        // successful correction. Six passes at stride two: [0,2), [2,4), then [4,6) here.
+        // Without inter-pass this covers the complete model chain; low retains the last model's gain.
         const auto shaping =
-            DlssNr::Profiles::EffectiveGuidedResidualGains(cfg, shapingMode, configuredTransfer, finalStyle,
-                                                           finalShapingPasses, context.workScale);
+            DlssNr::Profiles::EffectiveGuidedResidualGainsForBlock(cfg, shapingMode, configuredTransfer,
+                                                                  interPassCoveredPasses, effectivePasses,
+                                                                  context.workScale);
         resolveParams.MvScaleX = shaping.high;
         resolveParams.MvScaleY = shaping.low;
         resolveParams.GuideWidth = shaping.active ? 1u : 0u;

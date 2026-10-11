@@ -139,47 +139,46 @@ inline GuidedResidualGains GuidedResidualBaseGains(const Config& cfg, uint32_t s
     return gains;
 }
 
-inline GuidedResidualGains EffectiveGuidedResidualGains(const Config& cfg, uint32_t shapingMode,
-                                                        uint32_t transfer, uint32_t style,
-                                                        unsigned int effectivePasses, float workScale)
+inline GuidedResidualGains EffectiveGuidedResidualGainsForPass(const Config& cfg, uint32_t shapingMode,
+                                                               uint32_t transfer, unsigned int pass, float workScale)
 {
-    auto gains = GuidedResidualBaseGains(cfg, shapingMode, transfer, style);
+    // Use each pass's configured style/Structure (including its override). Structure calibration is
+    // based on the user setting, before the separate experimental scale-aware model compensation.
+    const auto settings = BasePassSettings(cfg, pass);
+    auto gains = GuidedResidualBaseGains(cfg, shapingMode, transfer, settings.style);
     if (!gains.active)
         return gains;
 
-    const float singlePassHigh = GuidedResidualGainForScale(gains.high, workScale);
+    gains.high = StructureAdjustedHigh(GuidedResidualGainForScale(gains.high, workScale), settings.localStructure);
     gains.low = GuidedResidualGainForScale(gains.low, workScale);
+    return gains;
+}
 
-    // Optional pass-count compounding applies only to high/mid. When disabled, the gain still follows
-    // the working-resolution correction but remains a one-pass value regardless of NR pass count.
-    gains.high = CompoundGuidedHigh(singlePassHigh, effectivePasses,
-                                   cfg.DlssNrGuidedResidualCompoundPasses.value_or_default());
+inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock(const Config& cfg, uint32_t shapingMode,
+                                                                uint32_t transfer, unsigned int firstPass,
+                                                                unsigned int completedPasses, float workScale)
+{
+    if (completedPasses <= firstPass)
+        return {};
+    // Low remains a single gain from the block's last model. Only high/mid accumulates.
+    auto gains = EffectiveGuidedResidualGainsForPass(cfg, shapingMode, transfer, completedPasses - 1u, workScale);
+    if (!gains.active || completedPasses - firstPass == 1u)
+        return gains;
+    gains.high = ProductGuidedHigh(firstPass, completedPasses,
+                                  cfg.DlssNrGuidedResidualCompoundPasses.value_or_default(),
+                                  [&](unsigned pass) {
+                                      return EffectiveGuidedResidualGainsForPass(cfg, shapingMode, transfer, pass,
+                                                                                workScale).high;
+                                  });
     return gains;
 }
 
 inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass(const Config& cfg, uint32_t shapingMode,
-                                                                    uint32_t style, float workScale,
-                                                                    unsigned int coveredPasses = 1u)
+                                                                    unsigned int firstPass,
+                                                                    unsigned int completedPasses, float workScale)
 {
-    // Inter-pass reconstruction is always the plain signed NR-working-minus-original-working residual.
-    // Reuse the same style/UI calibration as P100-guided residual, including working-scale correction.
-    // Each successful correction accounts only for passes since the previous correction.
-    // Stride one retains one normal gain. Skipped transitions accumulate optional high/mid compounding;
-    // low remains a single gain, exactly as in the ordinary final-resolve rule.
-    auto gains = GuidedResidualBaseGains(cfg, shapingMode, 7u, style);
-    if (!gains.active)
-        return gains;
-
-    gains.high = GuidedResidualGainForScale(gains.high, workScale);
-    gains.low = GuidedResidualGainForScale(gains.low, workScale);
-    if (coveredPasses > 1u)
-        gains.high = CompoundGuidedHigh(gains.high, coveredPasses,
-                                       cfg.DlssNrGuidedResidualCompoundPasses.value_or_default());
-    if (!std::isfinite(gains.high))
-        gains.high = 1.0f;
-    if (!std::isfinite(gains.low))
-        gains.low = 1.0f;
-    return gains;
+    // Signed working-space residual uses the plain P100-guided calibration, as before.
+    return EffectiveGuidedResidualGainsForBlock(cfg, shapingMode, 7u, firstPass, completedPasses, workScale);
 }
 
 } // namespace DlssNr::Profiles

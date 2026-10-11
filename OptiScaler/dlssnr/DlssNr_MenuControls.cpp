@@ -529,15 +529,16 @@ void RenderInput(Config* config)
             {
                 bool compoundPasses = config->DlssNrGuidedResidualCompoundPasses.value_or_default();
                 ImGui::BeginDisabled(interPassShapingCadence == 1u);
-                if (ImGui::Checkbox(interPassShapingCadence == 2u ? "Compound high/mid within each inter-pass block" :
-                                    "Compound final high/mid by pass count", &compoundPasses))
+                if (ImGui::Checkbox(interPassShapingCadence == 2u ? "Multiply per-pass high/mid within each inter-pass block" :
+                                    "Multiply per-pass high/mid in final resolve", &compoundPasses))
                     config->DlssNrGuidedResidualCompoundPasses = compoundPasses;
                 ImGui::EndDisabled();
-                HelpMarker("High/mid compounding counts only passes since the last successful inter-pass correction. "
-                           "Below 80% every block has one pass. At 80-89%, six passes use gain^2 after pass 2, "
-                           "gain^2 after pass 4 and gain^2 in final resolve; five passes end with gain^1. "
-                           "Without inter-pass (including from 90%), final resolve covers all effective passes. "
-                           "Disabled compounding keeps one gain per correction/resolve. Low frequency is never pass-compounded.");
+                HelpMarker("Multiply each pass's actual high/mid gain using its configured style and Structure. "
+                           "Each successful inter-pass correction consumes only its block; final resolve consumes the rest. "
+                           "Six passes at 80-89% cover 2+2+2, five cover 2+2+1. Without inter-pass the final block covers all passes. "
+                           "Structure below 1 moves the scale-corrected high/mid gain proportionally toward neutral 1; "
+                           "Structure 0 is neutral, above 1 uses the Structure=1 calibration. Low is never multiplied. "
+                           "Disabling multiplication keeps the last pass's adjusted high/mid gain per correction/resolve.");
             }
 
             const unsigned int runtimePassLimit =
@@ -549,28 +550,35 @@ void RenderInput(Config* config)
             const float shapingScale =
                 std::clamp(config->DlssNrWorkingScale.value_or_default(), 0.25f, 2.0f);
             static const char* shapingStyleNames[] = { "Standard", "Natural", "Cinematic" };
-            const uint32_t finalShapingStyle =
-                Profiles::PassSettings(*config, effectivePasses > 0 ? effectivePasses - 1u : 0u).style;
             const unsigned predictedCoveredPasses = interPassShapingCadence
                 ? ((effectivePasses - 1u) / interPassShapingCadence) * interPassShapingCadence : 0u;
             const unsigned finalShapingPasses = InterPass::PendingPasses(effectivePasses, predictedCoveredPasses);
             if (shaping != 0)
             {
                 ImGui::Separator();
-                ImGui::TextUnformatted("Effective frequency gains now");
-                for (uint32_t style = 0; style < 3; ++style)
+                const auto finalGains = Profiles::EffectiveGuidedResidualGainsForBlock(*config, (uint32_t) shaping,
+                                                                                     (uint32_t) transfer,
+                                                                                     predictedCoveredPasses,
+                                                                                     effectivePasses, shapingScale);
+                ImGui::Text("Expected final block (%u passes): high/mid %.4f, low %.4f", finalShapingPasses,
+                            finalGains.high, finalGains.low);
+                if (ImGui::TreeNode("Per-pass frequency gains (final transfer)"))
                 {
-                    const auto effective =
-                        Profiles::EffectiveGuidedResidualGains(*config, (uint32_t) shaping, (uint32_t) transfer,
-                                                              style, finalShapingPasses,
-                                                              shapingScale);
-                    ImGui::Text("%s%s: high/mid %.4f, low %.4f", shapingStyleNames[style],
-                                style == finalShapingStyle ? " (final style)" : "", effective.high, effective.low);
+                    for (unsigned pass = 0; pass < effectivePasses; ++pass)
+                    {
+                        const auto settings = Profiles::BasePassSettings(*config, pass);
+                        const auto single = Profiles::EffectiveGuidedResidualGainsForPass(*config, (uint32_t) shaping,
+                                                                                        (uint32_t) transfer,
+                                                                                        pass, shapingScale);
+                        ImGui::Text("Pass %u (%s, Structure %.3f): high/mid %.4f, low %.4f", pass + 1u,
+                                    shapingStyleNames[settings.style], settings.localStructure, single.high, single.low);
+                    }
+                    ImGui::TreePop();
                 }
                 if (shaping == 1 && transfer != 7)
                     ImGui::TextDisabled("Auto is neutral for this temporal DLAA mode until it is capture-calibrated.");
-                ImGui::TextDisabled("Scale %.0f%%, %u passes. Final shaping covers %u passes; compounding %s; low never compounds.",
-                                    shapingScale * 100.0f, effectivePasses, finalShapingPasses,
+                ImGui::TextDisabled("Scale %.0f%%, %u passes. High/mid multiplication %s; low never multiplies.",
+                                    shapingScale * 100.0f, effectivePasses,
                                     config->DlssNrGuidedResidualCompoundPasses.value_or_default() ? "ON" : "OFF");
             }
 
@@ -593,8 +601,8 @@ void RenderInput(Config* config)
                        "leave Auto shaping neutral until they get their own NR50/NR100 capture fit; Manual still works. "
                        "Base gains are P50 / one-pass values. Resolution correction is geometric: "
                        "gain(scale) = gain50 ^ log2(1/scale), so 0.90 gives 1.00 at P100, 0.90 at P50 and 0.81 at P25. "
-                       "High/mid can optionally compound once per effective pass; the UI toggle can disable that "
-                       "additional pass-count calculation. Low remains pass-independent. The low component is an "
+                       "High/mid optionally multiplies the scale-corrected gain of each model's style, adjusted toward neutral for Structure below 1. "
+                       "Structure above 1 uses the calibration for 1; the UI toggle disables multiplication. Low is not multiplied. The low component is an "
                        "8x area-average of E50, "
                        "equivalent to a simple mip3 box chain at exact P50, so Proxy100 itself is never blurred. "
                        "Shadow confidence is optional/experimental because its thresholds came from one capture.");
@@ -1146,8 +1154,8 @@ void RenderModel(Config* config)
                    "removing the four diagonal neighbours and retaining exact exponential weights. "
                    "including 50%. Ordinary/final low filtering keeps its "
                    "original 8x8 kernel. The high-scale benchmark compares scheduled Fast against Off.");
-        HelpMarker("Inter-pass frequency shaping uses the completed model's style and accounts for passes since the "
-                   "previous successful correction. Optional high/mid compounding uses the same rule in each block "
+        HelpMarker("Inter-pass frequency shaping accounts for each model since the "
+                   "previous successful correction. High/mid multiplies the individual style/Structure gains in each block "
                    "and final resolve: six passes at 80-89% cover 2+2+2, five passes cover 2+2+1. "
                    "Low frequency retains one gain per correction/resolve. No extra shaping dispatch is needed.");
     }

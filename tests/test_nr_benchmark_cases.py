@@ -83,7 +83,7 @@ def test_benchmark():
     assert 'AddLowBenchmarkScale(current)' not in fast and 'return;' in fast
     assert 'InterPassBenchmarkProfile::FastQuality, inspectFastWindows' in ui
     assert 'bench.awaitingVisualInspection' in ui and 'DlssNr::AdvanceInterPassBenchmark()' in ui
-    assert 'gain_vs_optimized_median_ms' in status and 'NR-v32-fast-' in status
+    assert 'gain_vs_optimized_median_ms' in status and 'NR-v33-fast-' in status
     sample = status[status.index('void BenchmarkGpuSample'):status.index('int BenchmarkInterPassOverride')]
     assert sample.index('if (benchmarkProgress.awaitingVisualInspection)') < sample.index('variant.samples.push_back')
     assert 'c.DlssNrTransfer = 9u;' in status and 'c.DlssNrTransfer = v.transfer;' in status
@@ -100,7 +100,7 @@ def test_benchmark():
     assert 'FastBelow50, inspectExperimentWindows' in ui
     assert '25 configurations / 35 windows' in ui and '30 / 42' in ui
     assert '15 configurations / 21 windows, or 20 / 28' in ui
-    assert 'NR-v32-fast-low-' in status and 'NR-v32-cadence-high-' in status
+    assert 'NR-v33-fast-low-' in status and 'NR-v33-cadence-high-' in status
     open_pairs = status[status.index('std::ofstream paired;'):status.index('paired.open(pairs);')]
     write_pairs = status[status.index('if (!paired) throw'):status.index('description <<')]
     for profile in ('FastQuality','FastBelow50','FastHigh'):

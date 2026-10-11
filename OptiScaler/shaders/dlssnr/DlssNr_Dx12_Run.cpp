@@ -1098,11 +1098,9 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         guided.ResidualConfidenceSensitivity = std::isfinite(guideStrength) ? guideStrength : 0.75f;
 
         const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
-        const uint32_t style = PassSettings(cfg, pass).style;
         const auto shaping =
-            DlssNr::Profiles::EffectiveGuidedResidualGainsForInterPass(cfg, shapingMode, style, workScale,
-                                                                     DlssNr::InterPass::PendingPasses(pass + 1u,
-                                                                                                     interPassCoveredPasses));
+            DlssNr::Profiles::EffectiveGuidedResidualGainsForInterPass(cfg, shapingMode, interPassCoveredPasses,
+                                                                     pass + 1u, workScale);
         guided.MvScaleX = shaping.high;
         guided.MvScaleY = shaping.low;
         guided.GuideWidth = shaping.active ? 1u : 0u;

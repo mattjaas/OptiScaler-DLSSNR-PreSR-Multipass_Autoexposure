@@ -33,13 +33,22 @@ def test_cadence():
     menu = (ROOT / 'OptiScaler/dlssnr/DlssNr_MenuControls.cpp').read_text(encoding='utf-8')
     assert 'InterPass::Cadence(config->DlssNrInterPassReconstruction.value_or_default(),' in menu
     encode = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Encode.cpp').read_text(encoding='utf-8')
-    assert 'PendingPasses(effectivePasses, interPassCoveredPasses)' in encode
-    assert 'PendingPasses(pass + 1u,' in run
+    assert 'interPassCoveredPasses, effectivePasses,' in encode
+    assert 'shapingMode, interPassCoveredPasses,' in run and 'pass + 1u, workScale' in run
     profiles = (ROOT / 'OptiScaler/dlssnr/PassProfiles.h').read_text(encoding='utf-8')
-    grouped = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass'):]
-    assert grouped.index('GuidedResidualGainForScale(gains.high') < grouped.index('CompoundGuidedHigh(gains.high, coveredPasses,')
-    assert 'coveredPasses > 1u' in grouped and 'DlssNrGuidedResidualCompoundPasses' in grouped
-    assert 'CompoundGuidedHigh(gains.low' not in profiles
+    single = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForPass'):profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock')]
+    assert 'const auto settings = BasePassSettings(cfg, pass);' in single
+    assert 'GuidedResidualBaseGains(cfg, shapingMode, transfer, settings.style)' in single
+    assert 'StructureAdjustedHigh(GuidedResidualGainForScale(gains.high, workScale), settings.localStructure)' in single
+    assert 'gains.low = GuidedResidualGainForScale(gains.low, workScale);' in single
+    block = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock'):profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass')]
+    assert 'completedPasses - 1u, workScale' in block  # low and non-multiplied high use the actual last model
+    assert 'ProductGuidedHigh(firstPass, completedPasses,' in block
+    assert 'DlssNrGuidedResidualCompoundPasses' in block
+    assert 'transfer, pass,' in block  # each model, not the last style repeated N times
+    assert 'std::pow' not in block and 'ProductGuidedHigh' not in single
+    assert 'gains.low = ProductGuidedHigh' not in profiles
+    assert 'high/mid compounding=' in status and 'configured_structure=' in status
     assert 'ImGui::BeginDisabled(interPassShapingCadence == 1u);' in menu
     print('Cadence integration PASS: Off/every-two schedule, reset, ordinary fallback, debug input and reports')
 

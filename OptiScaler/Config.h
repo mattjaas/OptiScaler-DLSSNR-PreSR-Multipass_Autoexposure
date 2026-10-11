@@ -437,7 +437,7 @@ class Config
     CustomOptional<float> DlssNrGuidedResidualLowGain { 0.741f };  // Natural
     CustomOptional<float> DlssNrGuidedResidualCinematicHighGain { 0.370f };
     CustomOptional<float> DlssNrGuidedResidualCinematicLowGain { 0.780f };
-    // When enabled, the resolution-corrected high/mid gain is compounded once per effective NR pass.
+    // When enabled, multiply the scale-corrected, Structure-adjusted high/mid gain of each model in the current block.
     // Low-frequency gain is never pass-compounded.
     CustomOptional<bool> DlssNrGuidedResidualCompoundPasses { true };
     // Optional capture-derived deep-shadow confidence; experimental until validated on more scenes.

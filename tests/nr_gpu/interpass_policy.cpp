@@ -39,37 +39,54 @@ int main()
         require(!Due(UINT32_MAX,UINT32_MAX,2));
         require(!Due(0,6,0));
         require(!Due(0,6,2) && Due(1,6,2) && !Due(2,6,2) && Due(3,6,2) && !Due(4,6,2));
-        using DlssNr::Profiles::CompoundGuidedHigh;
-        require(std::abs(CompoundGuidedHigh(0.9f,2,true)-0.81f)<1e-6f);
-        require(CompoundGuidedHigh(0.9f,2,false)==0.9f);
-        require(CompoundGuidedHigh(0.9f,1,true)==0.9f);
-        require(CompoundGuidedHigh(0.9f,0,true)==0.9f);
-        require(CompoundGuidedHigh(0.0f,2,true)==0.0f);
-        require(CompoundGuidedHigh(1.0f,32,true)==1.0f);
-        require(CompoundGuidedHigh(2.0f,2048,true)==1.0f); // finite fallback on overflow
-        require(CompoundGuidedHigh(std::numeric_limits<float>::quiet_NaN(),2,true)==1.0f);
+        using DlssNr::Profiles::StructureAdjustedHigh;
+        using DlssNr::Profiles::ProductGuidedHigh;
+        require(std::abs(StructureAdjustedHigh(0.8f,0.5f)-0.9f)<1e-6f);
+        require(std::abs(StructureAdjustedHigh(1.2f,0.5f)-1.1f)<1e-6f);
+        require(StructureAdjustedHigh(0.8f,0)==1.0f);
+        require(StructureAdjustedHigh(0.8f,1)==0.8f);
+        require(StructureAdjustedHigh(0.8f,1.5f)==0.8f);
+        require(StructureAdjustedHigh(0.8f,-1)==1.0f);
+        require(StructureAdjustedHigh(1.2f,2)==1.2f);
+        require(StructureAdjustedHigh(std::numeric_limits<float>::quiet_NaN(),0.5f)==1.0f);
+        require(StructureAdjustedHigh(0.8f,std::numeric_limits<float>::quiet_NaN())==0.8f);
+        const std::array<float,6> high {{0.8f,0.6f,1.2f,0.5f,0.9f,0.7f}};
+        const std::array<float,6> structure {{1.0f,0.25f,0.25f,0.0f,2.0f,0.5f}};
+        const auto adjusted=[&](unsigned pass) { return StructureAdjustedHigh(high.at(pass),structure.at(pass)); };
+        require(std::abs(ProductGuidedHigh(0,2,true,adjusted)-0.72f)<1e-6f);
+        require(std::abs(ProductGuidedHigh(2,4,true,adjusted)-1.05f)<1e-6f);
+        require(std::abs(ProductGuidedHigh(4,6,true,adjusted)-0.765f)<1e-6f);
+        require(ProductGuidedHigh(4,5,true,adjusted)==0.9f); // five passes: final single model
+        require(std::abs(ProductGuidedHigh(0,2,false,adjusted)-0.9f)<1e-6f);
+        require(ProductGuidedHigh(0,0,true,adjusted)==1.0f);
+        require(ProductGuidedHigh(0,2,true,[](unsigned) { return std::numeric_limits<float>::max(); })==1.0f);
+        require(ProductGuidedHigh(0,2,true,[](unsigned) { return 0.0f; })==0.0f);
+        require(ProductGuidedHigh(0,2,true,[](unsigned) { return std::numeric_limits<float>::quiet_NaN(); })==1.0f);
         for (unsigned passes=1;passes<=32;++passes)
         for (unsigned stride : {0u,1u,2u})
         for (unsigned failure : {0u,1u,2u,3u})
         {
             unsigned covered=0, accounted=0;
             double product=1.0;
+            std::array<unsigned,32> visits {};
+            const auto variableGain=[&](unsigned pass) {
+                return StructureAdjustedHigh(0.75f+float(pass%4)*0.05f,0.25f+float(pass%5)*0.25f);
+            };
+            const auto countedGain=[&](unsigned pass) { ++visits.at(pass); return variableGain(pass); };
             for (unsigned pass=0;pass<passes;++pass)
             {
-                // Failed corrections do not advance the counter. The next success/final resolve
-                // covers the full outstanding interval without charging earlier completed blocks.
                 if (!Due(pass,passes,stride) || pass+1==failure) continue;
-                const unsigned span=PendingPasses(pass+1,covered);
-                accounted+=span;
-                product*=CompoundGuidedHigh(0.9f,span,true);
+                accounted+=PendingPasses(pass+1,covered);
+                product*=ProductGuidedHigh(covered,pass+1,true,countedGain);
                 covered=pass+1;
             }
             const unsigned finalSpan=PendingPasses(passes,covered);
             accounted+=finalSpan;
-            product*=CompoundGuidedHigh(0.9f,finalSpan,true);
+            product*=ProductGuidedHigh(covered,passes,true,countedGain);
             require(accounted==passes);
-            // This checks exponent bookkeeping for a fixed gain, not image equivalence through NGX/guiding.
-            require(std::abs(product-CompoundGuidedHigh(0.9f,passes,true))<1e-6);
+            for (unsigned pass=0;pass<passes;++pass) require(visits.at(pass)==1);
+            // Gain bookkeeping only: NGX/guiding/low/clamp do not commute with shaping.
+            require(std::abs(product-ProductGuidedHigh(0,passes,true,variableGain))<1e-6);
             if (passes==5 && stride==2 && failure==0) require(covered==4 && finalSpan==1);
             if (passes==6 && stride==2 && failure==0) require(covered==4 && finalSpan==2);
             if (stride==0) require(covered==0 && finalSpan==passes);
@@ -190,7 +207,7 @@ int main()
             }
         }
         require(guarded>0);
-        std::cout<<"Inter-pass policy PASS: measured winners, aligned P40, rounded P42, all percentages, grouped shaping and failure accounting, reference isolation, filters/radii and "<<groups<<" tile axes ("<<guarded<<" guarded overflow axes)\n";
+        std::cout<<"Inter-pass policy PASS: measured winners, aligned P40, rounded P42, all percentages, per-pass Structure/style products and failure accounting, reference isolation, filters/radii and "<<groups<<" tile axes ("<<guarded<<" guarded overflow axes)\n";
         return 0;
     } catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}
 }
