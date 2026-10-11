@@ -297,41 +297,6 @@ void RenderMenu(Config* config, float menuResScale)
             samples = std::clamp(samples, 40, 2000);
             const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
                                       !ReadStatus(Backend::Vulkan).running;
-            ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare current / v13-v14 baseline at 65% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
-                                              DlssNr::InterPassBenchmarkProfile::BaselineP65);
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("Baseline audit: current / archived standard / archived / current, at Off and Optimized. "
-                                  "Actual v13 and v14 standard shaders are identical; RGB16 stays current. "
-                                  "Only 4K -> 2496x1404, six passes; 10 windows including both references. "
-                                  "Same current CPU/NGX and user Enlargement/shaping. "
-                                  "Compares baseline and inter-pass overhead against the matching Off. "
-                                  "Keep the scene static; settings restored. Invalid geometry or PSO cancels the test.");
-            ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare Optimized / v14 Guide16 at 65% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
-                                              DlssNr::InterPassBenchmarkProfile::GuideP65);
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("Screenshot settings check: current RGB16 / v14 Guide16 RGBA / Guide16 / current. "
-                                  "Only 4K -> 2496x1404, six passes, Area / radius 1 / guide 1. "
-                                  "7 windows with Off and both references; independent warmup. "
-                                  "Preserves Enlargement, shaping and current main shader. "
-                                  "Guide16 has RGB OFF, compact16 and isolated weights ON, exact guide-one ON. "
-                                  "Keep the scene static; settings restored. Invalid geometry or PSO cancels the test.");
-            ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare current / v14 Optimized at 65% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
-                                              DlssNr::InterPassBenchmarkProfile::RevisionP65);
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("Focused regression check: only 4K -> 2496x1404, six passes, Area / radius 1 / guide 1. "
-                                  "Off and both references, then current / v14 / v14 / current with fresh warmup. "
-                                  "7 windows. Preserves your current Enlargement, shaping and other image settings. "
-                                  "Measures the complete NR interval with the actual v14 shaders or current shaders. "
-                                  "Keep the same scene static; settings restored. Wrong geometry or PSO fallback cancels the test.");
             static bool inspectFastWindows = false;
             static char fastBenchmarkScene[160] = "";
             ImGui::InputText("Fast benchmark scene (optional)", fastBenchmarkScene, sizeof(fastBenchmarkScene));

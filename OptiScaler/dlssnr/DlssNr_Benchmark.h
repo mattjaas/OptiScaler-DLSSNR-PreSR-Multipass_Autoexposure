@@ -6,7 +6,7 @@
 struct ID3D12Device;
 namespace DlssNr
 {
-enum class InterPassBenchmarkProfile { Regular, Below50, Boundary, FastQuality, RevisionP65, GuideP65, BaselineP65 };
+enum class InterPassBenchmarkProfile { Regular, Below50, Boundary, FastQuality };
 struct BenchmarkProgress
 {
     bool active = false;
@@ -26,10 +26,6 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples,
 void AdvanceInterPassBenchmark();
 void CancelInterPassBenchmark();
 int BenchmarkInterPassOverride(); // -1 outside benchmark, no user-facing implementation switches.
-bool BenchmarkUsesV14Shaders(); // Only the historical windows of the focused P65 benchmark.
-bool BenchmarkUsesV14Guide16(); // Only inter-pass PSO changes; main shader stays current.
-bool BenchmarkUsesV13V14StandardOnly(); // Baseline audit: keep inter-pass RGB PSO current.
-void AbortInterPassBenchmark(const char* reason);
 void BenchmarkReportInterPassPath(const char* path);
 BenchmarkProgress ReadInterPassBenchmark();
 void BenchmarkGpuSample(double rawGpuMs, bool modelRunning);
