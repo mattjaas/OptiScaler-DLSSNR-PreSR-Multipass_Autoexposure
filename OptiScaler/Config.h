@@ -566,7 +566,7 @@ class Config
     CustomOptional<uint32_t> DlssNrPasses { 1 };
     // Between-pass reconstruction only changes the input to the next NR feature. Final transfer stays independent.
     // 0 Off, 1 Classic reference, 2 Fused reference, 3 exact Optimized, 4 Fast (experimental quality tradeoff).
-    // Fast includes approved Low36 and Cross5, with nine neighbours instead of Cross5 at P50.
+    // Fast includes approved Low36 and Cross5 at every eligible scale, including P50.
     // Actual P25-P90 on both axes; retired values 5/6/7 migrate to 4.
     // Ordinary/final low filtering stays unchanged.
     CustomOptional<uint32_t> DlssNrInterPassReconstruction { 0 };

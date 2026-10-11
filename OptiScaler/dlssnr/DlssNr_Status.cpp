@@ -272,10 +272,9 @@ void BuildBenchmarkVariants()
                 add(control, controlName, pair, controlPath);
             };
             abba(3, "Inter-pass optimized", 4, "Inter-pass fast", 1);
-            if (scale.percent != 50)
-                abba(4, "Fast without Cross5 control", 4, "Inter-pass fast", 2, int(InterPass::Path::FastGuided));
+            abba(4, "Fast without Cross5 control", 4, "Inter-pass fast", 2, int(InterPass::Path::FastGuided));
         }
-        return; // Exactly P50/P59/P65; 29 windows, without duplicate Fast/Fast at P50.
+        return; // Exactly P50/P59/P65; 18 configurations / 33 windows, including the P50 Cross5 comparison.
     }
     if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality)
     {
@@ -357,9 +356,9 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v28-fast-low-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ? "NR-v28-fast-baseline-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v28-fast-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v29-fast-low-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ? "NR-v29-fast-baseline-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v29-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
         name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
@@ -491,7 +490,7 @@ void FinishBenchmark(bool cancelled)
                         "40 unique configurations / 80 independent windows; 48 / 96 with extra current scale.\n"
                         "Per scale: Off, both references, alternate Classic/RGB20; forced winner/Optimized ABBA;\n"
                         "Optimized/Fast/Fast/Optimized; Fast-without-Cross5/Fast/Fast/Fast-without-Cross5.\n"
-                        "Transfer=9, six passes. Fast includes Cross5 outside P50 and Low36 when shaping needs a low field.\n"
+                        "Transfer=9, six passes. Fast includes Cross5 at every eligible scale and Low36 when shaping needs a low field.\n"
                         "Forced FastGuided is a benchmark-only v27 control; it cannot enable Fast outside eligible geometry/settings.\n"
                         "Supplied v27 game timings and user quality review cover P33/P40/P41/P42/P49; other scales/scenes need validation.\n"
                         "Exact Optimized policy unchanged; no generic Fused optimized below 50.\n"
@@ -501,10 +500,10 @@ void FinishBenchmark(bool cancelled)
                         "Use .pairs.csv local controls: negative symmetric_delta_ms means faster, positive gain means saved time.\n" :
                         benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ?
                         "Integrated Fast comparison: exactly P50/P59/P65, Transfer=9, six passes.\n"
-                        "17 unique configurations / 29 independent measurement windows.\n"
+                        "18 unique configurations / 33 independent measurement windows.\n"
                         "Per scale: Off, both references; Optimized/Fast/Fast/Optimized; then\n"
-                        "Fast-without-Cross5/Fast/Fast/Fast-without-Cross5 at P59/P65. Both use Low36.\n"
-                        "At P50 Cross5 is disabled in Fast; duplicate pair omitted. Retired Mode7 migrates to Mode4.\n"
+                        "Fast-without-Cross5/Fast/Fast/Fast-without-Cross5 at P50/P59/P65. Both use Low36.\n"
+                        "Fast always includes Cross5 in its eligible range, including P50; retired Mode7 migrates to Mode4.\n"
                         "Forced FastGuided is a benchmark-only v27 control; it cannot enable Fast outside eligible geometry/settings.\n"
                         "Only inter-pass processing changes; ordinary/final 8x8 low filtering remains unchanged.\n"
                         "Low36 is skipped if shaping does not need the low field (including equal high/low gains).\n"
@@ -518,7 +517,7 @@ void FinishBenchmark(bool cancelled)
                         "Fast quality profile: exactly P50/P59/P65, Temporal DLAA residual + P100-guided (Transfer=9).\n"
                         "Off and both unoptimized references; exact Optimized A / approximate Fast B / B / A.\n"
                         "15 configurations / 21 measurement windows. Fast rows have no historical gain field.\n"
-                        "Fast includes Low36 and Cross5 outside P50; P50 keeps nine neighbours.\n"
+                        "Fast includes Low36 and Cross5 at every eligible scale, including P50.\n"
                         "Fast commutes guided reconstruction with Area downsampling; inspect edges, fine detail and shadows.\n"
                         "gain_vs_optimized_median_ms is positive when faster; delta_vs_expected_path_ms uses Optimized here.\n"
                         "path_matches_control is only route equality, not a quality or speed verdict.\n" :

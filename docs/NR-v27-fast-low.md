@@ -1,6 +1,6 @@
 # NR v27: Fast poniżej P50 i Cross5 wyłączony przy P50
 
-Aktualna integracja: [v28 — Cross5 w podstawowym Fast poza P50](NR-v28-integrated-fast.md).
+Aktualna integracja: [v29 — Cross5 w podstawowym Fast również przy P50](NR-v29-uniform-fast.md).
 Poniższy opis i wyniki dotyczą historycznych oddzielnych opcji v27.
 
 **Wynik z gry:** [raport 130323](NR-v27-20261011-ingame-analysis.md),

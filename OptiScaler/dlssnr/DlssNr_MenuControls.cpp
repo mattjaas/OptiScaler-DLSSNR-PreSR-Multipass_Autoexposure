@@ -1125,16 +1125,15 @@ void RenderModel(Config* config)
                    "filter and guide radius. Classic and Fused reference have no inter-pass optimizations.");
         HelpMarker("Fast estimates the guided edit once per working pixel and reuses the immutable Area proxy. "
                    "It uses five axial neighbours with exact weights and shaping, approximating native-resolution integration. "
-                   "At 50% it keeps all nine neighbours instead of Cross5. "
                    "Small residual changes at edges, fine detail and shadows may compound over passes. "
                    "Area / radius 1 / actual 25-90% only; other settings use exact Optimized. "
                    "Compare GPU time and inspect fine detail and motion with the Fast benchmarks.");
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
                    "feeds the corrected working-resolution image to the next NR pass. Final transfer remains unchanged.");
         HelpMarker("Fast includes the approved positive overlapping 6x6 Low36 filter BETWEEN passes. "
-                   "It is skipped when shaping does not need a low field. Cross5 is part of Fast outside 50%, "
+                   "It is skipped when shaping does not need a low field. Cross5 is part of Fast at every eligible scale, "
                    "removing the four diagonal neighbours and retaining exact exponential weights. "
-                   "At 50% Fast uses Low36 with all nine neighbours. Ordinary/final low filtering keeps its "
+                   "including 50%. Ordinary/final low filtering keeps its "
                    "original 8x8 kernel. The benchmark retains a forced Fast control without Cross5 for comparison.");
         HelpMarker("Inter-pass frequency shaping uses the currently selected guided residual gains once per transition. "
                    "Pass-count compounding is ignored both between passes and in the final resolve while inter-pass "

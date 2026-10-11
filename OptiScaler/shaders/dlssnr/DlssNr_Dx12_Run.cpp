@@ -1371,9 +1371,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 guided.Mode = DlssNrMode_InterPassFastGuided;
             if (interPassPath == DlssNr::InterPass::Path::FastCombinedCross5)
                 guided.Mode = DlssNrMode_InterPassFastCross5;
-            // Use the all-scale path only for the Area mode and radius-one
-            // guided reconstruction. The exact P50 2x2 specialization in HLSL
-            // has priority. External filters and larger radius keep v2 math.
+            // These geometry/cache flags serve the exact Mode28 Area/radius-one path,
+            // whose P50 2x2 specialization has priority over general integration.
+            // Fast Modes33/36 bypass that native integration and ignore these flags.
+            // External filters and larger radius keep v2 math.
             if (proxyFilter == 0u && nr.interPassGeometryValid &&
                 (guided.DirectResolveFlags & 16u) != 0u &&
                 guided.ResidualHistoryValid == 1u &&

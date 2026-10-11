@@ -326,9 +326,9 @@ void RenderMenu(Config* config, float menuResScale)
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
                                   "P50/P59/P65: Off, both references, Optimized versus Fast A/B/B/A; then "
-                                  "Forced Fast without Cross5 versus integrated Fast A/B/B/A at P59/P65. P50 disables Cross5. "
-                                  "17 configurations / 29 windows, independent warmup. "
-                                  "Both use Low36 whenever shaping needs a low field; integrated Fast includes Cross5 outside P50. "
+                                  "Forced Fast without Cross5 versus integrated Fast A/B/B/A at P50/P59/P65. "
+                                  "18 configurations / 33 windows, independent warmup. "
+                                  "Both use Low36 whenever shaping needs a low field; integrated Fast includes Cross5 at every eligible scale. "
                                   "Summary/raw/paired CSV and TXT report whole-NR GPU ms. Negative delta means faster; "
                                   "positive gain means time saved. Paired CSV uses nearby Fast controls. "
                                   "Enable Hold for visual checks/captures. Inspect in motion separately from static timings. "

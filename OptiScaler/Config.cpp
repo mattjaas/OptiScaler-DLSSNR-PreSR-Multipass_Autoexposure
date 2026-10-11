@@ -528,7 +528,7 @@ bool Config::Reload(std::filesystem::path iniPath)
             if (readBool("DlssNr", "InterPassExactOptimized").value_or(false) &&
                 interPassMode.value_or(0u) > 0u && interPassMode.value_or(0u) < 3u)
                 interPassMode = 3u;
-            // Cross5 is now part of Fast except P50; retire all separate experiment selections.
+            // Cross5 is part of Fast at every eligible scale; retire all separate experiment selections.
             if (interPassMode == 5u || interPassMode == 6u || interPassMode == 7u) interPassMode = 4u;
             DlssNrInterPassReconstruction.set_from_config(interPassMode);
             DlssNrWhitePointScale.set_from_config(readFloat("DlssNr", "WhitePointScale"));
