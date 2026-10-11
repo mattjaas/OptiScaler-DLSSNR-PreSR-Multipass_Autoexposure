@@ -119,3 +119,12 @@ SHA256 `841cdb09f34a37ee53e712e09aea98597a46f6a9538a8741eabadf910632ef6a`.
 Pojedynczy przebieg ABBA ma tylko dwa okna każdej strony. SD próbek nie
 jest przedziałem ufności zysku. Wynik syntetyczny nie potwierdza jakości
 ani uniwersalnej przewagi połączonego wariantu w grze.
+
+## Pomiar całego NR w grze
+
+[Raport 121917](NR-v26-20261011-ingame-analysis.md) z RTX 4090 / 4K / sześciu passów
+potwierdza dodatkowe skrócenie czasu Fast + Cross5 względem Fast z Low36:
+−0,049152 ms przy P59 i −0,111360 ms przy P65, po obu stronach lokalnego ABBA.
+P50 daje praktyczny remis (+0,002304 ms). Użytkownik nie zauważył pogorszenia
+obrazu połączonego wariantu, także przy pytaniu o ruch. Wynik dotyczy tego
+przebiegu i ustawień; wariant pozostaje osobną opcją.

@@ -1,0 +1,34 @@
+OptiScaler six-pass inter-pass GPU comparison
+Combined Fast comparison: exactly P50/P59/P65, Transfer=9, six passes.
+18 unique configurations / 33 independent measurement windows.
+Per scale: Off, both references; Optimized/Fast/Fast/Optimized; then
+Fast/(Fast + Cross5)/(Fast + Cross5)/Fast. Both Fast modes include Low36.
+Only inter-pass processing changes; ordinary/final 8x8 low filtering remains unchanged.
+Low36 is skipped if shaping does not need the low field (including equal high/low gains).
+Summary gain/delta_vs_fast_median_ms pool all Fast windows; use .pairs.csv for local controls.
+pairs.csv symmetric_delta_ms is candidate minus control: negative means faster.
+symmetric_gain_ms is control minus candidate: positive means time saved.
+Both neighbouring deltas/gains and window spreads are included.
+Raw comparison column identifies ABBA blocks (1 Optimized/Fast, 2 Fast/Fast + Cross5).
+No historical combined measurements. Check motion, diagonals and moving low-frequency patterns.
+Off, Classic reference and Fused reference retained.
+Manual window inspection=0; held-frame samples excluded.
+Measured low controls: P33/P41 Classic; P40/P42/P45/P49 RGB20. Unmeasured scales are predictions.
+Generic Fused optimized below 50 omitted: slower at every supplied P33/P40/P41/P42/P45/P49.
+Independent warmup for each window; symmetric order reduces linear drift.
+Warmup=90, samples/window=160
+Repeated windows pooled in summary; raw CSV retains window and sample indices.
+Whole NR GPU interval includes NGX, transitions and overlap, not isolated shader time.
+Area, radius 1, guide strength 1, 6 passes; user shadow/frequency shaping unchanged.
+GPU adapter: NVIDIA GeForce RTX 4090 VendorID=0x10de DeviceID=0x2684 DedicatedVRAM_MB=24138 LUID=0:62092 DXGI_driver_version=32.0.16.1656
+User settings at start: scene=unspecified, guide strength=1.000000, source scale=0.650000, transfer=9, range sigma=0.015000, spatial sigma=3.000000, shaping=2, shadow gate=0
+Historical gain is last RTX4090/4K/guide-one v16/v18/v19 result vs Fused reference, not absolute time.
+Historical values do not apply to other scenes/GPUs/settings. Current control is decisive.
+Automatic should match the independent forced control in ABBA; compare the alternate and references too.
+Controls describe measured 4K geometry. Other dimensions, especially rounded P40, may select differently.
+RGB20 below 50 is a guarded PSO: oversized groups use direct reconstruction with isolated weights.
+selected_path reports actual PSO, not whether each group used LDS.
+Actual geometry rounding may affect compact eligibility at nominal 60%; inspect selected_path.
+PSO failure reports fallback; no extra per-frame GPU timing outside benchmark.
+Clocks/temperature uncontrolled. Keep scene fixed, inspect median, P95 and dispersion.
+Original settings restored, including inter-pass selection.
