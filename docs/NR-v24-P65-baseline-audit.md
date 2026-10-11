@@ -167,5 +167,9 @@ fixture oraz pełne MSBuild/pakowanie/publikacja release — PASS.
 - Weryfikacja lokalna: `artifacts/nr-v24/verify_zip.py`; paczka w `release/`
   wewnątrz tego katalogu artifacts.
 
-Kontrolowany pomiar całego NR w grze v24: oczekuje na raport użytkownika.
-Do tego czasu regresja baseline nie jest potwierdzona ani uznana za naprawioną.
+Kontrolowany pomiar całego NR w grze v24 został dostarczony:
+[wyniki NR-v24-p65-baseline-20261011-092513](NR-v24-P65-game-results.md).
+Off obecny/stary standard: 35,623936 / 35,624448 ms;
+Optimized: 37,140992 / 37,158400 ms, oba z bieżącym RGB16.
+Nie potwierdzono regresji głównego shadera i nie przywrócono archiwalnego PSO.
+Różnica historycznych sesji nie została przypisana do konkretnej przyczyny.

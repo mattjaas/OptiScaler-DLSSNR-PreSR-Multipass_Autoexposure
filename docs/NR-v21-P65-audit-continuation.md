@@ -313,3 +313,22 @@ wdrażać dopiero po wykazaniu konkretnej przyczyny. Obecnie regresja nie jest
 potwierdzona ani uznana za naprawioną.
 Usunięcie package_release.ps1 nadal pochodzi z kwarantanny Bitdefender;
 zachować i nie stage'ować. CI używa oryginału z repozytorium.
+
+## Wynik v24 otrzymany 2026-10-11
+
+Raport NR-v24-p65-baseline-20261011-092513 przeanalizowany:
+[pełne wyniki](NR-v24-P65-game-results.md). Wszystkie 1600 próbek, dziesięć
+okien, faktyczne ścieżki/rewizje i statystyki CSV zweryfikowane niezależnie.
+Off obecny/stary standard 35,623936 / 35,624448 ms; Optimized
+37,140992 / 37,158400 ms. Stary standard nie odzyskuje przewagi.
+Pary median ABBA obu trybów zmieniają znak, różnice są małe.
+Baseline obecnej wersji spadł o 0,204288 ms między v23/v24 bez zmiany shaderów,
+więc wcześniejsza różnica sesji nie dowodzi regresji standard PSO.
+Nie ustalono konkretnej przyczyny różnic między sesjami.
+
+Produkcja i paczka v24 pozostają bez zmian; nie potrzeba nowego buildu.
+Nie powtarzać v22/v23/v24 bez nowej hipotezy. Pozostała różnica narzutu
+v24 względem historycznego v14 (0,146432 ms) nie jest kontrolowanym A/B,
+nie utożsamiać jej z potwierdzoną regresją i nie deklarować naprawy.
+Reader/hashes/reprodukowalne statystyki w artifacts/nr-v24/analyze_game.py
+oraz game_analysis.json; źródłowe trzy pliki użytkownika bez zmian.
