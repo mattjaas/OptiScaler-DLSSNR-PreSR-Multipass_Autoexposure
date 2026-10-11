@@ -111,10 +111,12 @@ struct BenchmarkVariant
     double historicalGain = 0.0;
     bool v14Shaders = false;
     bool v14Guide16 = false;
+    bool v13V14StandardOnly = false;
 };
 std::atomic<int> benchmarkOverride { -1 };
 std::atomic<bool> benchmarkV14Shaders { false };
 std::atomic<bool> benchmarkV14Guide16 { false };
+std::atomic<bool> benchmarkV13V14StandardOnly { false };
 std::string benchmarkPath;
 std::mutex benchmarkMutex;
 std::atomic<bool> benchmarkActive { false };
@@ -132,11 +134,12 @@ unsigned benchmarkNativeW = 0, benchmarkNativeH = 0, benchmarkWorkW = 0,
 
 bool IsFocusedP65(InterPassBenchmarkProfile profile)
 {
-    return profile == InterPassBenchmarkProfile::RevisionP65 || profile == InterPassBenchmarkProfile::GuideP65;
+    return profile == InterPassBenchmarkProfile::RevisionP65 || profile == InterPassBenchmarkProfile::GuideP65 ||
+           profile == InterPassBenchmarkProfile::BaselineP65;
 }
 const char* BenchmarkShaderRevision(const BenchmarkVariant& v)
 {
-    return v.v14Guide16 ? "v14-guide16" : v.v14Shaders ? "v14" : "current";
+    return v.v13V14StandardOnly ? "v13-v14-standard" : v.v14Guide16 ? "v14-guide16" : v.v14Shaders ? "v14" : "current";
 }
 
 BenchmarkConfig TakeBenchmarkConfig(const Config& c)
@@ -188,6 +191,7 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     benchmarkOverride.store(v.forcedPath, std::memory_order_relaxed);
     benchmarkV14Shaders.store(v.v14Shaders, std::memory_order_relaxed);
     benchmarkV14Guide16.store(v.v14Guide16, std::memory_order_relaxed);
+    benchmarkV13V14StandardOnly.store(v.v13V14StandardOnly, std::memory_order_relaxed);
     benchmarkPath.clear();
 }
 void AddBenchmarkScale(int scale, InterPass::Path expected, double historicalGain)
@@ -228,6 +232,26 @@ void AddLowBenchmarkScale(int scale)
 void BuildBenchmarkVariants()
 {
     benchmarkVariants.clear();
+    if (benchmarkProfile == InterPassBenchmarkProfile::BaselineP65)
+    {
+        const auto add = [&](int mode, bool historicalStandard, const char* name)
+        {
+            benchmarkVariants.push_back({65, mode, -1, name, {}});
+            benchmarkVariants.back().v13V14StandardOnly = historicalStandard;
+            benchmarkVariants.back().historicalGain = std::numeric_limits<double>::quiet_NaN();
+        };
+        add(0, false, "No inter-pass");
+        add(0, true, "No inter-pass (v13/v14 standard)");
+        add(0, true, "No inter-pass (v13/v14 standard)");
+        add(0, false, "No inter-pass");
+        add(1, false, "Classic reference");
+        add(2, false, "Fused reference");
+        add(3, false, "Inter-pass optimized");
+        add(3, true, "Optimized (v13/v14 standard; current RGB16)");
+        add(3, true, "Optimized (v13/v14 standard; current RGB16)");
+        add(3, false, "Inter-pass optimized");
+        return; // Off ABBA + Optimized ABBA: separate baseline from inter-pass overhead.
+    }
     if (benchmarkProfile == InterPassBenchmarkProfile::GuideP65)
     {
         const auto add = [&](int mode, bool guide16, const char* name)
@@ -328,6 +352,7 @@ void FinishBenchmark(bool cancelled)
     benchmarkOverride.store(-1, std::memory_order_relaxed);
     benchmarkV14Shaders.store(false, std::memory_order_relaxed);
     benchmarkV14Guide16.store(false, std::memory_order_relaxed);
+    benchmarkV13V14StandardOnly.store(false, std::memory_order_relaxed);
     RestoreBenchmarkConfig(*Config::Instance(), savedBenchmarkConfig);
     benchmarkProgress.active = false;
     if (cancelled)
@@ -344,7 +369,8 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::GuideP65 ? "NR-v23-p65-guide16-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::BaselineP65 ? "NR-v24-p65-baseline-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::GuideP65 ? "NR-v23-p65-guide16-" :
                              benchmarkProfile == InterPassBenchmarkProfile::RevisionP65 ? "NR-v22-p65-revision-" :
                              benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v21-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
@@ -362,7 +388,10 @@ void FinishBenchmark(bool cancelled)
                "work_width,work_height,effective_passes,samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,"
                "delta_vs_off_median_ms,delta_vs_fused_reference_ms,delta_vs_expected_path_ms,"
                "historical_gain_vs_fused_ms,actual_gain_vs_fused_ms,path_matches_control,"
-               "window_medians_ms,window_median_spread_ms,gain_vs_optimized_median_ms,shader_revision\n";
+               "window_medians_ms,window_median_spread_ms,gain_vs_optimized_median_ms,shader_revision";
+        if (benchmarkProfile == InterPassBenchmarkProfile::BaselineP65)
+            out << ",delta_vs_matching_off_median_ms,gain_vs_current_same_mode_ms";
+        out << '\n';
         individual << "scale_percent,variant,window,sample_index,total_nr_gpu_ms,selected_path,shader_revision\n";
         out << std::fixed << std::setprecision(5);
         individual << std::fixed << std::setprecision(6);
@@ -390,11 +419,12 @@ void FinishBenchmark(bool cancelled)
             const size_t n = sorted.size();
             return n % 2 ? sorted[n/2] : (sorted[n/2-1] + sorted[n/2]) * 0.5;
         };
-        std::map<int, double> off, fused, expected, optimized;
+        std::map<int, double> off, historicalOff, fused, expected, optimized;
         std::map<int, std::string> expectedPath;
         for (const auto& v : combined)
         {
-            if (v.mode == 0) off[v.percent] = medianOf(v);
+            if (v.mode == 0 && !v.v13V14StandardOnly) off[v.percent] = medianOf(v);
+            if (v.mode == 0 && v.v13V14StandardOnly) historicalOff[v.percent] = medianOf(v);
             if (v.mode == 2) fused[v.percent] = medianOf(v);
             if (std::string(v.name) == "Inter-pass optimized") optimized[v.percent] = medianOf(v);
             if (std::string(v.name) == "Expected path control" ||
@@ -431,10 +461,30 @@ void FinishBenchmark(bool cancelled)
                 out << (i ? "|" : "") << windows[i];
             const auto range = std::minmax_element(windows.begin(), windows.end());
             out << "\"," << *range.second - *range.first << ',' << optimized.at(v.percent) - median << ','
-                << BenchmarkShaderRevision(v) << '\n';
+                << BenchmarkShaderRevision(v);
+            if (benchmarkProfile == InterPassBenchmarkProfile::BaselineP65)
+            {
+                const double matchingOff = v.v13V14StandardOnly ? historicalOff.at(v.percent) : off.at(v.percent);
+                const double sameMode = v.mode == 0 ? off.at(v.percent) : v.mode == 3 ? optimized.at(v.percent) :
+                                        std::numeric_limits<double>::quiet_NaN();
+                out << ',' << median - matchingOff << ',' << sameMode - median;
+            }
+            out << '\n';
         }
         description << "OptiScaler six-pass inter-pass GPU comparison\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::GuideP65 ?
+                    << (benchmarkProfile == InterPassBenchmarkProfile::BaselineP65 ?
+                        "P65 baseline profile: only 3840x2160 -> 2496x1404, six passes.\n"
+                        "Off current A / v13-v14 standard B / B / A, then both current references.\n"
+                        "Optimized current A / v13-v14 standard B / B / A; inter-pass RGB16 remains current.\n"
+                        "6 configurations / 10 windows, independent warmup and history reset on standard revision changes.\n"
+                        "Same current CPU/NGX/resolve/resources/timestamps and user transfer/shaping/encoding.\n"
+                        "Only main standard PSO changes. Actual v13 and v14 release standard DXIL are byte-identical.\n"
+                        "Standard SHA256=5599ee0b01fc50b9bea4c2d02c8bfc1ce24287e9867dbc9fa0158db883bab9fc\n"
+                        "No archived RGB/Guide16 PSO in this profile; not the entire old DLL.\n"
+                        "delta_vs_matching_off_median_ms uses Off with the SAME standard revision.\n"
+                        "gain_vs_current_same_mode_ms is positive when archived standard is faster at Off or Optimized.\n"
+                        "Route equality is not quality equality. Compare both ABBA windows; no invented historical gain.\n" :
+                        benchmarkProfile == InterPassBenchmarkProfile::GuideP65 ?
                         "P65 Guide16 profile: only 3840x2160 -> 2496x1404, six passes.\n"
                         "Off and both references; current Optimized RGB16 A / v14 Guide16 RGBA B / B / A.\n"
                         "5 configurations / 7 windows, independent warmup and history reset on route changes.\n"
@@ -673,6 +723,10 @@ bool BenchmarkUsesV14Shaders()
 bool BenchmarkUsesV14Guide16()
 {
     return benchmarkActive.load(std::memory_order_relaxed) && benchmarkV14Guide16.load(std::memory_order_relaxed);
+}
+bool BenchmarkUsesV13V14StandardOnly()
+{
+    return benchmarkActive.load(std::memory_order_relaxed) && benchmarkV13V14StandardOnly.load(std::memory_order_relaxed);
 }
 void AbortInterPassBenchmark(const char* reason)
 {

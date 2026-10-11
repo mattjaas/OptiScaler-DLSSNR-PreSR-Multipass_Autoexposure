@@ -151,13 +151,28 @@ bool DlssNr_Dx12::EnsureBenchmarkV14Pipelines()
     if (!_benchmarkV14Attempted)
     {
         _benchmarkV14Attempted = true;
-        CreateComputePipeline(_device, &_benchmarkV14Standard, nr_benchmark_v14_standard,
-                              sizeof(nr_benchmark_v14_standard), nullptr);
+        if (!_benchmarkV14Standard)
+            CreateComputePipeline(_device, &_benchmarkV14Standard, nr_benchmark_v14_standard,
+                                  sizeof(nr_benchmark_v14_standard), nullptr);
         CreateComputePipeline(_device, &_benchmarkV14Rgb16, nr_benchmark_v14_rgb16,
                               sizeof(nr_benchmark_v14_rgb16), nullptr);
     }
     if (_benchmarkV14Standard && _benchmarkV14Rgb16) return true;
     DlssNr::AbortInterPassBenchmark("Archived v14 PSO creation failed; no historical timing accepted.");
+    return false;
+}
+
+bool DlssNr_Dx12::EnsureBenchmarkBaselineStandard()
+{
+    if (_benchmarkV14Standard) return true;
+    if (!_benchmarkBaselineStandardAttempted)
+    {
+        _benchmarkBaselineStandardAttempted = true;
+        CreateComputePipeline(_device, &_benchmarkV14Standard, nr_benchmark_v14_standard,
+                              sizeof(nr_benchmark_v14_standard), nullptr);
+    }
+    if (_benchmarkV14Standard) return true;
+    DlssNr::AbortInterPassBenchmark("Archived baseline standard PSO failed; no fallback timing accepted.");
     return false;
 }
 
@@ -169,7 +184,12 @@ bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssN
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
     ID3D12PipelineState* pipeline = _pipelineState;
-    if (DlssNr::BenchmarkUsesV14Shaders() && EnsureBenchmarkV14Pipelines())
+    if (DlssNr::BenchmarkUsesV13V14StandardOnly())
+    {
+        if (!EnsureBenchmarkBaselineStandard()) return false;
+        pipeline = _benchmarkV14Standard;
+    }
+    else if (DlssNr::BenchmarkUsesV14Shaders() && EnsureBenchmarkV14Pipelines())
         pipeline = _benchmarkV14Standard;
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion, InPrevEdit,
                            nullptr, OutTarget, OutKeep, immutableSlot);
@@ -188,6 +208,11 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
     const auto flags = InConstants.DirectResolveFlags;
     const bool historical = DlssNr::BenchmarkUsesV14Shaders() && EnsureBenchmarkV14Pipelines();
     if (historical) pipeline = _benchmarkV14Standard;
+    if (DlssNr::BenchmarkUsesV13V14StandardOnly())
+    {
+        if (!EnsureBenchmarkBaselineStandard()) return false;
+        pipeline = _benchmarkV14Standard;
+    }
     if (InConstants.Mode == DlssNrMode_InterPassFastGuided)
     {
         if (!_interPassFastAttempted)

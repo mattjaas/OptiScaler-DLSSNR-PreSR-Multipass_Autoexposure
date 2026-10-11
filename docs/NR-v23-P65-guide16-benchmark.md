@@ -97,7 +97,8 @@ oraz [ZIP do instalacji](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Mul
   bloby eksperymentalne nie występują w DLL — PASS.
 - Hash pobranego ZIP jest zgodny z digestem assetu GitHub — PASS.
 
-Następny krok: uruchomienie nowego przycisku przez użytkownika w grze
-i analiza trzech raportów `NR-v23-p65-guide16-*`. Nie powtarzać v22 ani
-gotowych kontroli syntetycznych bez nowej hipotezy. Nie ma jeszcze pomiaru
-przewagi Guide16 w całym NR.
+Raport `NR-v23-p65-guide16-20261011-020122` został dostarczony i sprawdzony.
+Guide16: mediana 37,280768 ms; obecny RGB16: 37,267968 ms.
+Różnica 0,012800 ms na korzyść obecnego wariantu zmienia znak pomiędzy
+parami ABBA; nie ma powtarzalnej przewagi Guide16. Polityka pozostaje bez zmian.
+Pełna analiza oraz nowa hipoteza baseline: [audyt v24](NR-v24-P65-baseline-audit.md).

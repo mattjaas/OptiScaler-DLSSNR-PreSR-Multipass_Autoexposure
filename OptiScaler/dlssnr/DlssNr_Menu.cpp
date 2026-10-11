@@ -298,6 +298,18 @@ void RenderMenu(Config* config, float menuResScale)
             const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
                                       !ReadStatus(Backend::Vulkan).running;
             ImGui::BeginDisabled(!canBenchmark);
+            if (ImGui::Button("Compare current / v13-v14 baseline at 65% (CSV)"))
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                              DlssNr::InterPassBenchmarkProfile::BaselineP65);
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Baseline audit: current / archived standard / archived / current, at Off and Optimized. "
+                                  "Actual v13 and v14 standard shaders are identical; RGB16 stays current. "
+                                  "Only 4K -> 2496x1404, six passes; 10 windows including both references. "
+                                  "Same current CPU/NGX and user Enlargement/shaping. "
+                                  "Compares baseline and inter-pass overhead against the matching Off. "
+                                  "Keep the scene static; settings restored. Invalid geometry or PSO cancels the test.");
+            ImGui::BeginDisabled(!canBenchmark);
             if (ImGui::Button("Compare Optimized / v14 Guide16 at 65% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
                                               DlssNr::InterPassBenchmarkProfile::GuideP65);
