@@ -169,3 +169,19 @@ Pozostawiono wszystkie trzy jako jawne opcje do testów zgodnie z prośbą użyt
 Nie są domyślne ani automatycznie wybierane. Pomiar całego NR w grze może dać inne
 wyniki; nie mnożymy shaderowych oszczędności przez liczbę passów i nie twierdzimy,
 że te eksperymenty gwarantują szybszy cały tor albo niewidoczną zmianę obrazu.
+
+## Zweryfikowana paczka do testów
+
+[Release v25](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/tag/nr-interpass-v25-fast-experiments-20261011)
+zawiera `OptiScaler-NR-nr-interpass-v25-fast-experiments-20261011.zip`.
+Źródłowy commit: `a678dfd558e8c8151c42788269b9813329bb25a6`.
+[GitHub Actions 38124083818](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38124083818)
+zakończył się sukcesem, łącznie z kompilacją DLL, pakowaniem i publikacją release.
+
+SHA256 ZIP: `5ece70c9aeca254b744158aa9f291c75c6330d6d031715332d0a71dd1239ed9e`.
+Pobrana paczka przeszła CRC, wszystkie 62 wpisy `SHA256SUMS.txt`, kontrolę commita
+oraz obecności siedmiu dokładnych blobów shaderów i nowych opcji/raportów w DLL.
+Suma zgadza się również z digestem assetu GitHub. Raport ten i surowe pomiary są
+w repozytorium; paczka używa dotychczasowego zestawu dokumentacji instalacyjnej.
+Jakość percepcyjna oraz wydajność całego NR nowych eksperymentów nadal wymagają
+sprawdzenia w konkretnej scenie gry.
