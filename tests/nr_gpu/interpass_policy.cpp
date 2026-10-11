@@ -1,11 +1,43 @@
 #include "pch.h"
 #include "../../OptiScaler/dlssnr/DlssNr_BenchmarkCases.h"
+#include <cmath>
+#include <limits>
 
 using namespace DlssNr::InterPass;
 void require(bool condition) { if (!condition) throw std::runtime_error("Inter-pass policy check failed"); }
 int main()
 {
     try {
+        require(DlssNr::kInterPassFastHighScales == std::array<int,3>{80,85,90});
+        for (unsigned percent=25;percent<=200;++percent)
+        for (unsigned mode=0;mode<=7;++mode)
+        for (unsigned passes=0;passes<=32;++passes)
+        for (bool spatial : {false,true})
+        {
+            const unsigned expected = mode==0 || spatial || percent>=90 ? 0u : percent>=80 ? 2u : 1u;
+            const unsigned stride = Cadence(mode, float(percent)/100.0f, passes, spatial);
+            require(stride == (passes>expected ? expected : 0u));
+            unsigned corrections=0;
+            for (unsigned pass=0;pass<passes;++pass)
+            {
+                const bool due=expected!=0 && (pass+1)%expected==0 && pass+1<passes;
+                require(Due(pass,passes,stride)==due);
+                corrections+=Due(pass,passes,stride);
+            }
+            require(corrections == (stride ? (passes-1)/stride : 0u));
+            require(!Due(passes,passes,stride));
+        }
+        require(Cadence(4,std::nextafter(0.80f,0.0f),6,false)==1);
+        require(Cadence(4,0.80f,6,false)==2);
+        require(Cadence(4,std::nextafter(0.90f,0.0f),6,false)==2);
+        require(Cadence(4,0.90f,6,false)==0);
+        require(Cadence(4,std::nextafter(0.90f,1.0f),6,false)==0);
+        require(Cadence(4,std::numeric_limits<float>::quiet_NaN(),6,false)==0);
+        require(Cadence(4,std::numeric_limits<float>::infinity(),6,false)==0);
+        require(Cadence(4,-1.0f,6,false)==0 && Cadence(4,0.0f,6,false)==0);
+        require(!Due(UINT32_MAX,UINT32_MAX,2));
+        require(!Due(0,6,0));
+        require(!Due(0,6,2) && Due(1,6,2) && !Due(2,6,2) && Due(3,6,2) && !Due(4,6,2));
         require(DlssNr::kInterPassLowBenchmarkScales == std::array<int,4>{33,40,45,49});
         require(DlssNr::kInterPassBoundaryBenchmarkScales == std::array<int,2>{41,42});
         const auto& order = DlssNr::kInterPassLowBenchmarkOrder;

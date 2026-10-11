@@ -968,32 +968,37 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             ? cfg.DlssNrUpscaledResidualDownscaleFilter.value_or_default()
             : cfg.DlssNrProxyDownscaleFilter.value_or_default(), 11u);
     const float configuredGuide = cfg.DlssNrGuidedResidualGuideStrength.value_or_default();
+    const uint32_t interPassCadence =
+        DlssNr::InterPass::Cadence(configuredInterPassMode, workScale, effectivePasses, spatial);
     auto interPassPath = DlssNr::InterPass::Select(configuredInterPassMode, width, height, modelWidth, modelHeight,
         interPassFilter, std::clamp(cfg.DlssNrGuidedResidualRadius.value_or_default(), 1u, 3u),
         std::isfinite(configuredGuide) ? configuredGuide : 0.75f);
-    if (configuredInterPassMode == 3u)
+    if (configuredInterPassMode == 3u && interPassCadence != 0u)
     {
         const auto overridePath = DlssNr::BenchmarkInterPassOverride();
         if (overridePath >= 0) interPassPath = static_cast<DlssNr::InterPass::Path>(overridePath);
     }
+    if (interPassCadence == 0u) interPassPath = DlssNr::InterPass::Path::Off;
     const bool interPassOptimized = DlssNr::InterPass::Optimized(interPassPath);
     const uint32_t selectedInterPassMode = DlssNr::InterPass::Fused(interPassPath) ? 2u : 1u;
     DlssNr::BenchmarkReportInterPassPath(DlssNr::InterPass::Name(interPassPath));
     if (!nr.interPassModeInitialized)
     {
         nr.interPassMode = static_cast<uint32_t>(interPassPath);
+        nr.interPassCadence = interPassCadence;
         nr.interPassModeInitialized = true;
     }
-    else if (nr.interPassMode != static_cast<uint32_t>(interPassPath))
+    else if (nr.interPassMode != static_cast<uint32_t>(interPassPath) ||
+             nr.interPassCadence != interPassCadence)
     {
         // The later temporal features now see a different input distribution. Reset history without
         // recreating NGX features; Off <-> Guided and reference <-> fused both start cleanly.
         nr.interPassMode = static_cast<uint32_t>(interPassPath);
+        nr.interPassCadence = interPassCadence;
         nr.reset = true;
     }
 
-    const bool interPassActive =
-        configuredInterPassMode != 0u && effectivePasses > 1u && workScale < 0.999f && !spatial;
+    const bool interPassActive = interPassCadence != 0u;
 
     // Cache only dimension-dependent scale geometry on the CPU. A change to the
     // slider that rounds to the same actual texture dimensions costs nothing.
@@ -1033,6 +1038,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     bool clampFailed = false;
     bool interPassFailed = false;
     bool interPassShapingApplied = false;
+    uint32_t interPassCorrections = 0;
     uint32_t clampSlots[2] = { UINT32_MAX, UINT32_MAX };
 
     const auto MakeModelReadable = [&](ID3D12Resource* resource)
@@ -1464,45 +1470,19 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         if (pass + 1 < effectivePasses)
         {
             bool reconstructed = false;
-            if (interPassActive)
+            const bool interPassDue = DlssNr::InterPass::Due(pass, effectivePasses, interPassCadence);
+            if (interPassDue)
                 reconstructed = BuildInterPassInput(pass, finalAnswer);
 
             if (reconstructed)
             {
                 interPassShapingApplied = true;
+                ++interPassCorrections;
                 passInput = nr.interPassWorking;
-
-                // Debug view 7 must remain the exact input of pass 2 even when a later transition rewrites
-                // interPassWorking for pass 3. Pay for this copy only while that debug view is selected.
-                if (pass == 0u && cfg.DlssNrDebugView.value_or_default() == 7u)
-                {
-                    const auto workingDesc = originalPassBase->GetDesc();
-                    if (EnsureInterPassScratch(nr.interPassDebug, workingDesc.Format, modelWidth, modelHeight,
-                                               interPassDebugReadable))
-                    {
-                        if (interPassDebugReadable)
-                        {
-                            Barrier(cmdList, nr.interPassDebug, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-                            interPassDebugReadable = false;
-                        }
-                        DlssNrConstants copy {};
-                        copy.Mode = DlssNrMode_TemporalCarrierDebugCopy;
-                        copy.Width = modelWidth;
-                        copy.Height = modelHeight;
-                        if (shader.DispatchPass(cmdList, copy, nr.interPassWorking, nullptr, nullptr, nullptr, nullptr,
-                                                nr.interPassDebug, nullptr))
-                        {
-                            Barrier(cmdList, nr.interPassDebug, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                            interPassDebugReadable = true;
-                        }
-                    }
-                }
             }
             else
             {
-                if (interPassActive)
+                if (interPassDue)
                 {
                     interPassFailed = true;
                     modelFrame.reset = true; // later histories in this same frame must not consume stale history.
@@ -1530,11 +1510,39 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 MakeModelReadable(nr.passClamp);
                 passInput = nr.passClamp;
             }
+            // Capture the exact pass-2 input, including ordinary ClampProxy on skipped transitions.
+            // Pay for the copy only while debug view 7 is selected.
+            if (pass == 0u && cfg.DlssNrDebugView.value_or_default() == 7u)
+            {
+                const auto workingDesc = passInput->GetDesc();
+                if (EnsureInterPassScratch(nr.interPassDebug, workingDesc.Format, modelWidth, modelHeight,
+                                           interPassDebugReadable))
+                {
+                    if (interPassDebugReadable)
+                    {
+                        Barrier(cmdList, nr.interPassDebug, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                                D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                        interPassDebugReadable = false;
+                    }
+                    DlssNrConstants copy {};
+                    copy.Mode = DlssNrMode_TemporalCarrierDebugCopy;
+                    copy.Width = modelWidth;
+                    copy.Height = modelHeight;
+                    if (shader.DispatchPass(cmdList, copy, passInput, nullptr, nullptr, nullptr, nullptr,
+                                            nr.interPassDebug, nullptr))
+                    {
+                        Barrier(cmdList, nr.interPassDebug, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                        interPassDebugReadable = true;
+                    }
+                }
+            }
             passOutput = passOutput == nr.output ? nr.passScratch : nr.output;
         }
     }
 
     ngxTime->End(cmdList);
+    DlssNr::BenchmarkReportInterPassSchedule(interPassCadence, interPassCorrections);
 
     if (styleAnalysisCapture.active && !styleAnalysisCapture.copiesRecorded && styleAnalysisModelsReady)
     {

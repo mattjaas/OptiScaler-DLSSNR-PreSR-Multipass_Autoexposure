@@ -2,6 +2,7 @@
 #include "DlssNr_MenuSections.h"
 #include "DlssNr_Placement.h"
 #include "DlssNr_Status.h"
+#include "DlssNr_InterPassPolicy.h"
 #include "PassProfiles.h"
 #include <shaders/dlssnr/DlssNr_Spatial.h>
 #include <Config.h>
@@ -520,10 +521,10 @@ void RenderInput(Config* config)
             }
 
             const bool interPassShapingActive =
-                config->DlssNrInterPassReconstruction.value_or_default() != 0u &&
-                config->DlssNrPasses.value_or_default() > 1u &&
-                config->DlssNrWorkingScale.value_or_default() < 0.999f &&
-                !config->DlssNrSpatialCompression.value_or_default();
+                InterPass::Cadence(config->DlssNrInterPassReconstruction.value_or_default(),
+                                   config->DlssNrWorkingScale.value_or_default(),
+                                   config->DlssNrPasses.value_or_default(),
+                                   config->DlssNrSpatialCompression.value_or_default()) != 0u;
             if (shaping != 0)
             {
                 bool compoundPasses = config->DlssNrGuidedResidualCompoundPasses.value_or_default();
@@ -533,7 +534,7 @@ void RenderInput(Config* config)
                 ImGui::EndDisabled();
                 HelpMarker("Without inter-pass correction: after working-scale correction, final high/mid can be raised "
                            "to the number of effective NR passes (for example 0.85 -> 0.85^2 -> 0.85^3). With inter-pass "
-                           "correction active, every transition already applies one normal shaping step, so the final "
+                           "correction active, scheduled transitions apply one normal shaping step, so the final "
                            "resolve deliberately uses only the normal one-pass gain and this extra compounding is ignored. "
                            "Low frequency is never pass-compounded.");
             }
@@ -1121,20 +1122,28 @@ void RenderModel(Config* config)
         int interPass = savedMode >= 4u ? 4 : (int)savedMode;
         if (ImGui::Combo("Inter-pass reconstruction", &interPass, interPassNames, IM_ARRAYSIZE(interPassNames)))
             config->DlssNrInterPassReconstruction = (uint32_t) interPass;
+        const unsigned cadence = InterPass::Cadence(config->DlssNrInterPassReconstruction.value_or_default(),
+                                                   config->DlssNrWorkingScale.value_or_default(),
+                                                   config->DlssNrPasses.value_or_default(), false);
+        ImGui::TextDisabled(cadence == 0u ? "Inter-pass inactive at this scale / pass count" :
+                            cadence == 2u ? "Inter-pass after passes 2, 4, ..." : "Inter-pass after each pass");
         HelpMarker("Optimized automatically selects the retained path for actual texture dimensions, "
                    "filter and guide radius. Classic and Fused reference have no inter-pass optimizations.");
         HelpMarker("Fast estimates the guided edit once per working pixel and reuses the immutable Area proxy. "
                    "It uses five axial neighbours with exact weights and shaping, approximating native-resolution integration. "
                    "Small residual changes at edges, fine detail and shadows may compound over passes. "
-                   "Area / radius 1 / every reduced scale, including 91-99%; other settings use exact Optimized. "
+                   "Area / radius 1 below 90%; other settings use exact Optimized at the same cadence. "
                    "Compare GPU time and inspect fine detail and motion with the Fast benchmarks.");
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
-                   "feeds the corrected working-resolution image to the next NR pass. Final transfer remains unchanged.");
+                   "feeds the corrected working-resolution image to the next NR pass. Below 80%: every transition. "
+                   "80% to below 90%: after passes 2, 4, ... (six passes: two corrections). "
+                   "From 90%: disabled for every inter-pass mode. Skipped transitions use ordinary ClampProxy. "
+                   "The saved mode is retained when changing scale.");
         HelpMarker("Fast includes the approved positive overlapping 6x6 Low36 filter BETWEEN passes. "
                    "It is skipped when shaping does not need a low field. Cross5 is part of Fast at every eligible scale, "
                    "removing the four diagonal neighbours and retaining exact exponential weights. "
                    "including 50%. Ordinary/final low filtering keeps its "
-                   "original 8x8 kernel. The compact benchmarks compare complete Fast against exact Optimized.");
+                   "original 8x8 kernel. The high-scale benchmark compares scheduled Fast against Off.");
         HelpMarker("Inter-pass frequency shaping uses the currently selected guided residual gains once per transition. "
                    "Pass-count compounding is ignored both between passes and in the final resolve while inter-pass "
                    "correction is actually being used; the final resolve still applies one normal shaping gain.");

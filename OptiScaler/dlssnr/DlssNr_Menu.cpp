@@ -332,17 +332,18 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Enable Hold for visual checks/captures; also inspect motion separately. "
                                   "Whole-NR summary/raw/paired CSV and TXT; negative delta means faster. Settings restored.");
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare reference / Optimized / Fast at 91% / 95% / 99% (CSV)"))
+            if (ImGui::Button("Compare Off / scheduled Fast at 80% / 85% / 90% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
                                               DlssNr::InterPassBenchmarkProfile::FastHigh, inspectExperimentWindows,
                                               fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
-                                  "91%, 95%, 99% plus current 91-99% if different: Off, both references, "
-                                  "then Optimized versus Fast ABBA. "
+                                  "80%, 85%, 90% plus current 80-99% if different: both references and Optimized, "
+                                  "then Off versus scheduled Fast ABBA. "
                                   "15 configurations / 21 windows, or 20 / 28 with extra current scale; independent warmup. "
-                                  "Tests removal of the old 90% Fast cutoff. Enable Hold to inspect image quality; "
+                                  "80-89%: corrections after passes 2 and 4. From 90%: inter-pass Off in every mode. "
+                                  "Enable Hold to compare image quality against Off; "
                                   "check motion separately. Whole-NR summary/raw/paired CSV and TXT, negative delta means faster. "
                                   "Original settings restored on finish/cancel.");
             ImGui::BeginDisabled(!canBenchmark);

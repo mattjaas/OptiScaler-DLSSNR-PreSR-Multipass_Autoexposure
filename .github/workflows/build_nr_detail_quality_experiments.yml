@@ -1,4 +1,4 @@
-name: Build NR v30 Fast at every reduced scale with compact benchmarks
+name: Build NR v31 scale-aware inter-pass cadence
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v30-${{ github.ref }}
+  group: nr-interpass-v31-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -46,7 +46,7 @@ jobs:
       - name: Verify retained arithmetic and benchmark
         shell: powershell
         run: |
-          foreach ($test in @("shared_bilinear", "dynamic_geometry", "classic_downsample_clamp", "classic_guided_stencil", "tiled_fused_area", "fast_experiments")) {
+          foreach ($test in @("shared_bilinear", "dynamic_geometry", "classic_downsample_clamp", "classic_guided_stencil", "tiled_fused_area", "fast_experiments", "cadence")) {
             python "tests/test_nr_interpass_${test}.py"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
@@ -86,13 +86,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v30-full-range-fast-20261011"
+        run: ./package_release.ps1 -Version "nr-interpass-v31-scale-cadence-20261011"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v30-full-range-fast-20261011
-          path: release/OptiScaler-NR-nr-interpass-v30-full-range-fast-20261011.zip
+          name: OptiScaler-NR-interpass-v31-scale-cadence-20261011
+          path: release/OptiScaler-NR-nr-interpass-v31-scale-cadence-20261011.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -101,35 +101,30 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v30-full-range-fast-20261011"
-          $archive = "release/OptiScaler-NR-nr-interpass-v30-full-range-fast-20261011.zip"
+          $tag = "nr-interpass-v31-scale-cadence-20261011"
+          $archive = "release/OptiScaler-NR-nr-interpass-v31-scale-cadence-20261011.zip"
           $notes = @"
-          Integrated Fast from $env:GITHUB_SHA.
-          Mode4 Fast includes approved Low36 and Cross5 at every eligible scale, including P50.
-          The P50 exception and former P25-P90 percentage cutoff are removed by user request.
-          Fast supports every actual reduction, including P91-P99 and one-axis rounding; exact Optimized policy is unchanged.
-          Cross5 integration follows supplied v26/v27 whole-NR ABBA measurements and user quality review.
-          Measured points: P33/P40/P41/P42/P49/P50/P59/P65; P50 was a practical timing tie with no user-observed quality loss.
-          No new speed claim or extrapolation to all scales; the tie does not establish a reason for a separate P50 policy.
-          Exact exponential weights are retained. The separate Fast + Cross5 menu option is removed.
-          Retired saved values 5/6/7 migrate to the integrated Fast (4).
-          Ordinary/final 8x8 low filtering and final resolve remain unchanged.
-          Area/radius-one/positive guide and valid reduced geometry; other settings retain the exact v20 Optimized policy.
-          The working-scale menu supports P25-P99 reductions; P100-P200 does not run reduced-resolution inter-pass.
-          Lazy isolated PSOs without LDS; no extra dispatches, textures or per-frame allocations.
-          Compact verification: Off, both references, Optimized versus Fast ABBA, no separate Cross5 control.
-          P50/P59/P65: 15 configurations / 21 windows. Transfer9, six passes, independent warmup.
-          Optional manual holds after each warmed measurement permit visual checks and captures.
-          Whole-NR summary/raw CSV, paired ABBA CSV and metadata TXT.
-          Negative delta means faster; positive gain means time saved. Paired CSV uses nearby controls.
-          Low36 is skipped if low-field shaping is unnecessary. No shader math or bytecode changes.
-          Low-scale benchmark: P33/P40/P41/P42/P49 plus current lower scale when different.
-          25 configurations / 35 windows, or 30 / 42 with extra current scale.
-          New high-scale benchmark: P91/P95/P99 plus current P91-P99 when different, 15 / 21 or 20 / 28.
-          High-scale speed/quality require game validation. No new theoretical gain is presented as a GPU timing.
-          Exact regular/Below50/Boundary controls and alternates remain in their separate profiles.
-          Inspect fine detail, diagonal edges, shadows and moving patterns, especially in motion.
-          Settings restored on finish/cancel; regular and below-50 benchmark profiles retained.
+          Scale-aware inter-pass cadence from $env:GITHUB_SHA.
+          User observed worse inter-pass image quality near native resolution.
+          All modes: below P80 after each pass; P80 to below P90 after model passes 2,4,...; from P90 disabled.
+          Six passes: five, two, or zero corrections. No correction after the final model pass.
+          Thresholds use requested WorkingScale before rounding actual texture dimensions.
+          Off, reference, Optimized and Fast modes share the same schedule; saved selection is retained.
+          Skipped transitions use ordinary ClampProxy and are not reconstruction failures.
+          Path/cadence changes reset model histories without recreating NGX features.
+          The immutable cumulative residual base and original shader mathematics are retained.
+          Final transfer is unchanged; when correction succeeds final shaping uses one gain, otherwise ordinary Off compounding rules.
+          Low36 and Cross5 remain integrated Fast at eligible active scales, including P50.
+          No HLSL or bytecode changes; skipped transitions avoid low/correction dispatches and related barriers/resources.
+          Compact high-scale validation replaces P91/P95/P99 with P80/P85/P90 plus current P80-P99 when different.
+          Five mode configurations per scale, seven windows: references, Optimized, Off/Fast/Fast/Off ABBA.
+          15 configurations / 21 windows; 20 / 28 with extra current scale. P90 is the disable-boundary check.
+          Separate warmup, whole-NR GPU timestamps, optional visual holds with held samples excluded.
+          Summary/raw/paired CSV and TXT. New stride and successful-correction columns; P90 rows report Off/0/0.
+          Negative paired delta means faster. Scene, geometry, GPU, dispersion and raw windows retained.
+          No game performance or visual improvement claim before user validation.
+          Existing regular, Below50, Boundary and compact lower Fast profiles retain their configurations.
+          Settings restored on benchmark finish/cancel. Debug view 7 shows actual pass-2 input even when correction is skipped.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -140,8 +135,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v30 - Full-range Fast and compact benchmarks" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v31 - Scale-aware inter-pass cadence" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v30 - Full-range Fast and compact benchmarks" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v31 - Scale-aware inter-pass cadence" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

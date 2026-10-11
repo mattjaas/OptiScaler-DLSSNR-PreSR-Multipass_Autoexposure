@@ -32,6 +32,7 @@ struct ModelStateDx12
     // Allocated only while debug view 7 is active so pass-2 input survives a later pass2->pass3 rewrite.
     ID3D12Resource* interPassDebug = nullptr;
     uint32_t interPassMode = 0;
+    uint32_t interPassCadence = 0;
     bool interPassModeInitialized = false;
     bool interPassWarned = false;
     bool interPassFusedReferenceWarned = false;
