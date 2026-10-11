@@ -224,22 +224,23 @@ void BuildBenchmarkVariants()
             AddLowBenchmarkScale(percent); // Off, references, alternate, forced winner/automatic ABBA.
             for (size_t i = first + 4; i < first + 8; ++i)
                 benchmarkVariants[i].comparison = 1;
-            const auto add = [&](int mode, const char* name, int comparison)
+            const auto add = [&](int mode, const char* name, int comparison, int forcedPath = -1)
             {
-                benchmarkVariants.push_back({percent, mode, -1, name, {}});
+                benchmarkVariants.push_back({percent, mode, forcedPath, name, {}});
                 auto& v = benchmarkVariants.back();
                 v.historicalGain = std::numeric_limits<double>::quiet_NaN();
                 v.comparison = comparison;
             };
-            const auto abba = [&](int control, const char* controlName, int candidate, const char* candidateName, int pair)
+            const auto abba = [&](int control, const char* controlName, int candidate, const char* candidateName,
+                                  int pair, int controlPath = -1)
             {
-                add(control, controlName, pair);
+                add(control, controlName, pair, controlPath);
                 add(candidate, candidateName, pair);
                 add(candidate, candidateName, pair);
-                add(control, controlName, pair);
+                add(control, controlName, pair, controlPath);
             };
             abba(3, "Inter-pass optimized", 4, "Inter-pass fast", 2);
-            abba(4, "Inter-pass fast", 7, "Fast + Cross5", 3);
+            abba(4, "Fast without Cross5 control", 4, "Inter-pass fast", 3, int(InterPass::Path::FastGuided));
         };
         for (const int percent : kInterPassLowVerificationScales) addScale(percent);
         const int current = std::clamp(int(std::lround(savedBenchmarkConfig.scale * 100.0f)), 25, 99);
@@ -252,9 +253,9 @@ void BuildBenchmarkVariants()
     {
         for (const auto& scale : kInterPassBenchmarkScales)
         {
-            const auto add = [&](int mode, const char* name, int comparison)
+            const auto add = [&](int mode, const char* name, int comparison, int forcedPath = -1)
             {
-                benchmarkVariants.push_back({scale.percent, mode, -1, name, {}});
+                benchmarkVariants.push_back({scale.percent, mode, forcedPath, name, {}});
                 auto& v = benchmarkVariants.back();
                 v.historicalGain = std::numeric_limits<double>::quiet_NaN();
                 v.comparison = comparison;
@@ -262,16 +263,17 @@ void BuildBenchmarkVariants()
             add(0, "No inter-pass", 0);
             add(1, "Classic reference", 0);
             add(2, "Fused reference", 0);
-            const auto abba = [&](int control, const char* controlName, int candidate, const char* candidateName, int pair)
+            const auto abba = [&](int control, const char* controlName, int candidate, const char* candidateName,
+                                  int pair, int controlPath = -1)
             {
-                add(control, controlName, pair);
+                add(control, controlName, pair, controlPath);
                 add(candidate, candidateName, pair);
                 add(candidate, candidateName, pair);
-                add(control, controlName, pair);
+                add(control, controlName, pair, controlPath);
             };
             abba(3, "Inter-pass optimized", 4, "Inter-pass fast", 1);
             if (scale.percent != 50)
-                abba(4, "Inter-pass fast", 7, "Fast + Cross5", 2);
+                abba(4, "Fast without Cross5 control", 4, "Inter-pass fast", 2, int(InterPass::Path::FastGuided));
         }
         return; // Exactly P50/P59/P65; 29 windows, without duplicate Fast/Fast at P50.
     }
@@ -355,9 +357,9 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v27-fast-low-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ? "NR-v27-fast-cross5-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v27-fast-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v28-fast-low-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ? "NR-v28-fast-baseline-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v28-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
         name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
@@ -413,7 +415,7 @@ void FinishBenchmark(bool cancelled)
             if (v.mode == 0) off[v.percent] = medianOf(v);
             if (v.mode == 2) fused[v.percent] = medianOf(v);
             if (std::string(v.name) == "Inter-pass optimized") optimized[v.percent] = medianOf(v);
-            if (v.mode == 4) fast[v.percent] = medianOf(v);
+            if (std::string(v.name) == "Inter-pass fast") fast[v.percent] = medianOf(v);
             if (std::string(v.name) == "Expected path control" ||
                 ((benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
                   benchmarkProfile == InterPassBenchmarkProfile::FastExperiments) && v.mode == 3))
@@ -469,7 +471,8 @@ void FinishBenchmark(bool cancelled)
                 const auto& a2 = benchmarkVariants[i+3];
                 if (a1.percent != a2.percent || a1.comparison != a2.comparison ||
                     a1.comparison != b1.comparison || a1.comparison != b2.comparison ||
-                    a1.mode != a2.mode || b1.mode != b2.mode)
+                    a1.mode != a2.mode || b1.mode != b2.mode ||
+                    a1.forcedPath != a2.forcedPath || b1.forcedPath != b2.forcedPath)
                     throw std::runtime_error("Invalid ABBA block.");
                 const double a = medianOf(a1), b = medianOf(b1), c = medianOf(b2), d = medianOf(a2);
                 paired << a1.percent << ',' << a1.comparison << ",\"" << a1.name << "\",\"" << b1.name << "\","
@@ -484,34 +487,38 @@ void FinishBenchmark(bool cancelled)
         }
         description << "OptiScaler six-pass inter-pass GPU comparison\n"
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ?
-                        "Low-scale Fast experiments: P33/P40/P41/P42/P49 plus current scale below 50 if different.\n"
+                        "Low-scale integrated Fast comparison: P33/P40/P41/P42/P49 plus current scale below 50 if different.\n"
                         "40 unique configurations / 80 independent windows; 48 / 96 with extra current scale.\n"
                         "Per scale: Off, both references, alternate Classic/RGB20; forced winner/Optimized ABBA;\n"
-                        "Optimized/Fast/Fast/Optimized; Fast/(Fast + Cross5)/(Fast + Cross5)/Fast.\n"
-                        "Transfer=9, six passes. Both Fast variants use Low36 when shaping needs a low field.\n"
-                        "Below-50 Fast is experimental and unmeasured in-game; inspect motion, detail and accumulated edits.\n"
+                        "Optimized/Fast/Fast/Optimized; Fast-without-Cross5/Fast/Fast/Fast-without-Cross5.\n"
+                        "Transfer=9, six passes. Fast includes Cross5 outside P50 and Low36 when shaping needs a low field.\n"
+                        "Forced FastGuided is a benchmark-only v27 control; it cannot enable Fast outside eligible geometry/settings.\n"
+                        "Supplied v27 game timings and user quality review cover P33/P40/P41/P42/P49; other scales/scenes need validation.\n"
                         "Exact Optimized policy unchanged; no generic Fused optimized below 50.\n"
                         "New Fast rows have no historical gain. Unmeasured current-scale controls are predictions.\n"
-                        "Raw comparisons: 1 forced/automatic, 2 Optimized/Fast, 3 Fast/Fast + Cross5.\n"
+                        "Raw comparisons: 1 forced/automatic exact, 2 Optimized/integrated Fast, 3 without-Cross5/integrated Fast.\n"
+                        "Summary gain/delta_vs_fast_median_ms use integrated Fast, not the without-Cross5 control.\n"
                         "Use .pairs.csv local controls: negative symmetric_delta_ms means faster, positive gain means saved time.\n" :
                         benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ?
-                        "Combined Fast comparison: exactly P50/P59/P65, Transfer=9, six passes.\n"
+                        "Integrated Fast comparison: exactly P50/P59/P65, Transfer=9, six passes.\n"
                         "17 unique configurations / 29 independent measurement windows.\n"
                         "Per scale: Off, both references; Optimized/Fast/Fast/Optimized; then\n"
-                        "Fast/(Fast + Cross5)/(Fast + Cross5)/Fast at P59/P65. Both Fast modes include Low36.\n"
-                        "At P50 Cross5 is disabled and Mode7 uses the same Fast as Mode4; duplicate pair omitted.\n"
+                        "Fast-without-Cross5/Fast/Fast/Fast-without-Cross5 at P59/P65. Both use Low36.\n"
+                        "At P50 Cross5 is disabled in Fast; duplicate pair omitted. Retired Mode7 migrates to Mode4.\n"
+                        "Forced FastGuided is a benchmark-only v27 control; it cannot enable Fast outside eligible geometry/settings.\n"
                         "Only inter-pass processing changes; ordinary/final 8x8 low filtering remains unchanged.\n"
                         "Low36 is skipped if shaping does not need the low field (including equal high/low gains).\n"
-                        "Summary gain/delta_vs_fast_median_ms pool all Fast windows; use .pairs.csv for local controls.\n"
+                        "Summary gain/delta_vs_fast_median_ms pool all integrated Fast windows; use .pairs.csv for local controls.\n"
                         "pairs.csv symmetric_delta_ms is candidate minus control: negative means faster.\n"
                         "symmetric_gain_ms is control minus candidate: positive means time saved.\n"
                         "Both neighbouring deltas/gains and window spreads are included.\n"
-                        "Raw comparison column identifies ABBA blocks (1 Optimized/Fast, 2 Fast/Fast + Cross5).\n"
-                        "No historical combined measurements. Check motion, diagonals and moving low-frequency patterns.\n" :
+                        "Raw comparison column identifies ABBA blocks (1 Optimized/Fast, 2 without-Cross5/integrated Fast).\n"
+                        "Cross5 integration follows v26/v27 game timings and user quality review; no new speed claim.\n" :
                         benchmarkProfile == InterPassBenchmarkProfile::FastQuality ?
                         "Fast quality profile: exactly P50/P59/P65, Temporal DLAA residual + P100-guided (Transfer=9).\n"
                         "Off and both unoptimized references; exact Optimized A / approximate Fast B / B / A.\n"
-                        "15 configurations / 21 measurement windows. No historical Fast measurements.\n"
+                        "15 configurations / 21 measurement windows. Fast rows have no historical gain field.\n"
+                        "Fast includes Low36 and Cross5 outside P50; P50 keeps nine neighbours.\n"
                         "Fast commutes guided reconstruction with Area downsampling; inspect edges, fine detail and shadows.\n"
                         "gain_vs_optimized_median_ms is positive when faster; delta_vs_expected_path_ms uses Optimized here.\n"
                         "path_matches_control is only route equality, not a quality or speed verdict.\n" :

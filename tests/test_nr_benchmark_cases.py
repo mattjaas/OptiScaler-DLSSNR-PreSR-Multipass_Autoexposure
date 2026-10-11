@@ -77,17 +77,17 @@ def test_benchmark():
     assert 'AddLowBenchmarkScale(current)' not in fast and 'return;' in fast
     assert 'InterPassBenchmarkProfile::FastQuality, inspectFastWindows' in ui
     assert 'bench.awaitingVisualInspection' in ui and 'DlssNr::AdvanceInterPassBenchmark()' in ui
-    assert 'gain_vs_optimized_median_ms' in status and 'NR-v27-fast-' in status
+    assert 'gain_vs_optimized_median_ms' in status and 'NR-v28-fast-' in status
     sample = status[status.index('void BenchmarkGpuSample'):status.index('int BenchmarkInterPassOverride')]
     assert sample.index('if (benchmarkProgress.awaitingVisualInspection)') < sample.index('variant.samples.push_back')
     assert 'c.DlssNrTransfer = 9u;' in status and 'c.DlssNrTransfer = v.transfer;' in status
     experiments = build[build.index('InterPassBenchmarkProfile::FastExperiments'):build.index('InterPassBenchmarkProfile::FastQuality')]
     assert re.findall(r'add\((\d), "([^"]+)", 0\);', experiments) == [
         ('0', 'No inter-pass'), ('1', 'Classic reference'), ('2', 'Fused reference')]
-    pairs = re.findall(r'abba\((\d), "([^"]+)", (\d), "([^"]+)", (\d)\);', experiments)
+    pairs = re.findall(r'abba\((\d), "([^"]+)", (\d), "([^"]+)", (\d)(?:, int\(InterPass::Path::(\w+)\))?\);', experiments)
     assert pairs == [
-        ('3', 'Inter-pass optimized', '4', 'Inter-pass fast', '1'),
-        ('4', 'Inter-pass fast', '7', 'Fast + Cross5', '2')]
+        ('3', 'Inter-pass optimized', '4', 'Inter-pass fast', '1', ''),
+        ('4', 'Fast without Cross5 control', '4', 'Inter-pass fast', '2', 'FastGuided')]
     assert 'AddLowBenchmarkScale(current)' not in experiments and 'return;' in experiments
     assert 'FastExperiments, inspectExperimentWindows' in ui
     assert '17 configurations / 29 windows' in ui
@@ -96,19 +96,30 @@ def test_benchmark():
     assert 'AddLowBenchmarkScale(percent)' in low_fast
     assert 'first + 4; i < first + 8' in low_fast and 'comparison = 1' in low_fast
     assert 'kInterPassLowVerificationScales' in low_fast and 'addScale(current)' in low_fast
-    assert re.findall(r'abba\((\d), "([^"]+)", (\d), "([^"]+)", (\d)\);', low_fast) == [
-        ('3', 'Inter-pass optimized', '4', 'Inter-pass fast', '2'),
-        ('4', 'Inter-pass fast', '7', 'Fast + Cross5', '3')]
+    assert re.findall(r'abba\((\d), "([^"]+)", (\d), "([^"]+)", (\d)(?:, int\(InterPass::Path::(\w+)\))?\);', low_fast) == [
+        ('3', 'Inter-pass optimized', '4', 'Inter-pass fast', '2', ''),
+        ('4', 'Fast without Cross5 control', '4', 'Inter-pass fast', '3', 'FastGuided')]
+    for profile in (experiments, low_fast):
+        assert 'int controlPath = -1' in profile
+        assert profile.count('add(control, controlName, pair, controlPath);') == 2
+        assert 'mode, forcedPath, name' in profile
+    assert 'if (std::string(v.name) == "Inter-pass fast") fast[v.percent]' in status
+    assert 'a1.forcedPath != a2.forcedPath || b1.forcedPath != b2.forcedPath' in status
     assert 'FastBelow50, inspectExperimentWindows' in ui
     assert '40 configurations / 80 windows' in ui and '48 / 96' in ui
-    assert 'NR-v27-fast-low-' in status
+    assert 'NR-v28-fast-low-' in status and 'NR-v28-fast-baseline-' in status
     assert 'Fast low36 (experimental)' not in menu and 'Fast weights (experimental)' not in menu
-    assert 'Fast + Cross5 (experimental)' in menu
+    assert 'Fast + Cross5 (experimental)' not in menu
+    assert 'interPass == 5 ? 7u' not in menu
     config = (ROOT/'OptiScaler/Config.cpp').read_text(encoding='utf-8')
-    assert 'if (interPassMode == 5u || interPassMode == 6u) interPassMode = 4u;' in config
+    assert 'if (interPassMode == 5u || interPassMode == 6u || interPassMode == 7u) interPassMode = 4u;' in config
     for field in ('gain_vs_fast_median_ms', '.pairs.csv', 'symmetric_gain_ms', 'first_gain_ms', 'last_gain_ms', 'symmetric_delta_ms', 'first_delta_ms', 'last_delta_ms', 'delta_vs_fast_median_ms'):
         assert field in status
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
+    override = run[run.index('if (configuredInterPassMode == 3u ||'):run.index('const bool interPassOptimized')]
+    assert 'DlssNr::InterPass::Fast(interPassPath)' in override
+    assert 'configuredInterPassMode == 3u && overridePath >= 0' in override
+    assert 'else if (overridePath == int(DlssNr::InterPass::Path::FastGuided))' in override
     guard = run[run.index('const bool eligibleTiledDims'):run.index('if (workingScaleTiled && eligibleTiledDims')]
     assert '2u * modelWidth' not in guard and '2u * modelHeight' not in guard
 

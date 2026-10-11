@@ -54,13 +54,14 @@ inline Path Select(uint32_t mode, uint32_t nativeW, uint32_t nativeH, uint32_t w
             uint64_t(workW) * 10 <= uint64_t(nativeW) * 9 &&
             uint64_t(workH) * 10 <= uint64_t(nativeH) * 9)
         {
-            // v26 whole-NR ABBA: Cross5 has no useful P50 gain. Treat an odd
+            // v26/v27 whole-NR ABBA and user quality review approve Cross5 in Fast,
+            // except P50 where it has no useful gain. Treat an odd
             // native dimension rounded up by half a working texel as P50 too.
             const bool halfScale = uint64_t(workW) * 2 >= nativeW &&
                                    uint64_t(workH) * 2 >= nativeH &&
                                    uint64_t(workW) * 2 <= uint64_t(nativeW) + 1 &&
                                    uint64_t(workH) * 2 <= uint64_t(nativeH) + 1;
-            return mode == 7 && !halfScale ? Path::FastCombinedCross5 : Path::FastGuided;
+            return !halfScale ? Path::FastCombinedCross5 : Path::FastGuided;
         }
         if (uint64_t(workW) * 2 == nativeW && uint64_t(workH) * 2 == nativeH)
             return Path::FusedOptimized;

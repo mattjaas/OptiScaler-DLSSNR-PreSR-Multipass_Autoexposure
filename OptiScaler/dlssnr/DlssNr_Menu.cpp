@@ -318,7 +318,7 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Keep the scene static for timings; original settings restored on finish/cancel.");
             ImGui::Checkbox("Hold each experiment benchmark window for visual inspection", &inspectExperimentWindows);
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare Fast / Fast + Cross5 at 50% / 59% / 65% (CSV)"))
+            if (ImGui::Button("Compare integrated Fast / Fast without Cross5 at 50% / 59% / 65% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
                                               DlssNr::InterPassBenchmarkProfile::FastExperiments, inspectExperimentWindows,
                                               fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
@@ -326,15 +326,15 @@ void RenderMenu(Config* config, float menuResScale)
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
                                   "P50/P59/P65: Off, both references, Optimized versus Fast A/B/B/A; then "
-                                  "Fast versus Fast + Cross5 A/B/B/A at P59/P65. P50 uses Fast with Cross5 disabled. "
+                                  "Forced Fast without Cross5 versus integrated Fast A/B/B/A at P59/P65. P50 disables Cross5. "
                                   "17 configurations / 29 windows, independent warmup. "
-                                  "Both Fast options include Low36 whenever shaping needs a low field. "
+                                  "Both use Low36 whenever shaping needs a low field; integrated Fast includes Cross5 outside P50. "
                                   "Summary/raw/paired CSV and TXT report whole-NR GPU ms. Negative delta means faster; "
                                   "positive gain means time saved. Paired CSV uses nearby Fast controls. "
                                   "Enable Hold for visual checks/captures. Inspect in motion separately from static timings. "
                                   "All changes are inter-pass only; final resolve unchanged. Settings restored on finish/cancel.");
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare Optimized / Fast / Fast + Cross5 below 50% (CSV)"))
+            if (ImGui::Button("Compare Optimized / integrated Fast / Fast without Cross5 below 50% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
                                               DlssNr::InterPassBenchmarkProfile::FastBelow50, inspectExperimentWindows,
                                               fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
@@ -343,9 +343,9 @@ void RenderMenu(Config* config, float menuResScale)
                 ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
                                   "P33/P40/P41/P42/P49 plus current scale below 50 if different. "
                                   "Off, both references, alternate Classic/RGB20; forced winner versus Optimized ABBA; "
-                                  "Optimized versus Fast ABBA; Fast versus Fast + Cross5 ABBA. "
+                                  "Optimized versus integrated Fast ABBA; forced Fast without Cross5 versus integrated Fast ABBA. "
                                   "40 configurations / 80 windows, or 48 / 96 with extra current scale; independent warmup. "
-                                  "Both Fast options include Low36. These lower-scale approximations need game validation. "
+                                  "Both use Low36. Fast includes Cross5; the old Fast is a benchmark-only control. "
                                   "Enable Hold for visual checks/captures; also inspect motion separately. "
                                   "Whole-NR summary/raw/paired CSV and TXT; negative delta means faster. Settings restored.");
             ImGui::BeginDisabled(!canBenchmark);

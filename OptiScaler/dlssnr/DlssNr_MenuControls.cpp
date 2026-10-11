@@ -1115,30 +1115,27 @@ void RenderModel(Config* config)
     if (interPassAvailable)
     {
         static const char* interPassNames[] = {
-            "Off", "Classic reference", "Fused reference", "Inter-pass optimized", "Inter-pass fast",
-            "Fast + Cross5 (experimental)"
+            "Off", "Classic reference", "Fused reference", "Inter-pass optimized", "Inter-pass fast"
         };
         const unsigned savedMode = std::min(config->DlssNrInterPassReconstruction.value_or_default(), 7u);
-        int interPass = savedMode == 7u ? 5 : savedMode >= 4u ? 4 : (int)savedMode;
+        int interPass = savedMode >= 4u ? 4 : (int)savedMode;
         if (ImGui::Combo("Inter-pass reconstruction", &interPass, interPassNames, IM_ARRAYSIZE(interPassNames)))
-            config->DlssNrInterPassReconstruction = interPass == 5 ? 7u : (uint32_t) interPass;
+            config->DlssNrInterPassReconstruction = (uint32_t) interPass;
         HelpMarker("Optimized automatically selects the retained path for actual texture dimensions, "
                    "filter and guide radius. Classic and Fused reference have no inter-pass optimizations.");
         HelpMarker("Fast estimates the guided edit once per working pixel and reuses the immutable Area proxy. "
-                   "It keeps the 3x3 weights and shaping, but approximates their native-resolution integration. "
+                   "It uses five axial neighbours with exact weights and shaping, approximating native-resolution integration. "
+                   "At 50% it keeps all nine neighbours instead of Cross5. "
                    "Small residual changes at edges, fine detail and shadows may compound over passes. "
                    "Area / radius 1 / actual 25-90% only; other settings use exact Optimized. "
-                   "Use the Fast benchmark and visual inspection before choosing it; speed/quality need in-game validation.");
+                   "Compare GPU time and inspect fine detail and motion with the Fast benchmarks.");
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
                    "feeds the corrected working-resolution image to the next NR pass. Final transfer remains unchanged.");
         HelpMarker("Fast includes the approved positive overlapping 6x6 Low36 filter BETWEEN passes. "
-                   "It is skipped when shaping does not need a low field. Fast + Cross5 uses this same complete "
-                   "Fast base and additionally removes the four diagonal neighbours, retaining exact exponential "
-                   "weights. At 50% it automatically uses ordinary Fast with Low36 and disables Cross5. Below 50%, "
-                   "Fast and Cross5 are new experiments: use the below-50 benchmark and inspect detail in motion "
-                   "with the combined benchmark. "
-                   "Ordinary/final low filtering keeps its original 8x8 kernel. Speed and image quality of the "
-                   "combined variant still need in-game validation.");
+                   "It is skipped when shaping does not need a low field. Cross5 is part of Fast outside 50%, "
+                   "removing the four diagonal neighbours and retaining exact exponential weights. "
+                   "At 50% Fast uses Low36 with all nine neighbours. Ordinary/final low filtering keeps its "
+                   "original 8x8 kernel. The benchmark retains a forced Fast control without Cross5 for comparison.");
         HelpMarker("Inter-pass frequency shaping uses the currently selected guided residual gains once per transition. "
                    "Pass-count compounding is ignored both between passes and in the final resolve while inter-pass "
                    "correction is actually being used; the final resolve still applies one normal shaping gain.");

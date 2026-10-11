@@ -566,9 +566,9 @@ class Config
     CustomOptional<uint32_t> DlssNrPasses { 1 };
     // Between-pass reconstruction only changes the input to the next NR feature. Final transfer stays independent.
     // 0 Off, 1 Classic reference, 2 Fused reference, 3 exact Optimized, 4 Fast (experimental quality tradeoff).
-    // Fast includes the approved Low36 inter-pass filter. 7 adds Cross5 to that complete Fast.
-    // At P50, 7 selects ordinary Fast; below P50 (down to actual P25) both are opt-in experiments.
-    // Retired values 5/6 migrate to 4; ordinary/final low filtering stays unchanged.
+    // Fast includes approved Low36 and Cross5, with nine neighbours instead of Cross5 at P50.
+    // Actual P25-P90 on both axes; retired values 5/6/7 migrate to 4.
+    // Ordinary/final low filtering stays unchanged.
     CustomOptional<uint32_t> DlssNrInterPassReconstruction { 0 };
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };
