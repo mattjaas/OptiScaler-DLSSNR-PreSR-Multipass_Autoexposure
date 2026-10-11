@@ -115,10 +115,23 @@ RTX 4090: 6528 porównań zachowanych dokładnych shaderów z bazą v20,
 Fast: 72 fixture GPU przeszły kontrolę równoważności PSO, zakresu i alfy.
 Lokalny WARP (`Microsoft Basic Render Driver`) kończy fixture błędem systemowym
 `0xc0000374`; wyników tego sterownika nie uznajemy za pozytywną weryfikację.
-Ocena percepcyjna i czas całego toru Temporal DLAA w grze pozostają do sprawdzenia.
+Na etapie tego pomiaru syntetycznego ocena percepcyjna i czas całego toru Temporal
+DLAA w grze nie były jeszcze sprawdzone. Późniejszy wynik z gry opisano poniżej.
 
 Kompilacja źródła Vulkan jest zablokowana przez istniejące odwołania `gAux2`/`gAux`
 w kodzie temporalnego carriera. Te same trzy błędy występują w czystej bazie v20;
 nowy Mode33 jest ograniczony do DX12. Zachowane binaria Vulkan nie zostały zmienione.
 Workflow kompiluje fixture Fast do uruchomienia na docelowym GPU; nie wymaga
 wykonania go na WARP hosta GitHub Actions. Kontrola lokalna odbyła się na RTX 4090.
+
+## Dostarczony wynik z gry
+
+[Analiza pomiaru z The Last of Us Part I](NR-v21-20261010-ingame-analysis.md)
+potwierdza w sprawdzonej scenie zysk Fast względem Optimized dla całego NR:
+P50 0,20941 ms, P59 0,61696 ms, P65 0,67738 ms. Przewaga powtarza się po obu
+stronach ABBA. RTX 4090, 3840×2160, sześć passów, Area/radius 1/guide 1,
+range sigma 0,015, spatial sigma 3,0, manual shaping, shadow gate wyłączony.
+Zysków nie należy przenosić bez pomiaru na inne sceny i ustawienia.
+Użytkownik zgłosił 11 października 2026, że nie zauważył problemów z wyglądem.
+Ta obserwacja dotyczy jego oceny testowanej sceny. Zachowujemy v21 i osobny,
+dokładny Optimized. Nie zmieniamy domyślnego wyboru ani shaderów na podstawie tego zapisu.
