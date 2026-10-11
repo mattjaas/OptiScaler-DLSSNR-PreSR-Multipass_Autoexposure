@@ -172,7 +172,8 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     c.DlssNrGuidedResidualGuideStrength = 1.0f;
     c.DlssNrInterPassReconstruction = uint32_t(v.mode);
     if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
-        benchmarkProfile == InterPassBenchmarkProfile::FastExperiments)
+        benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ||
+        benchmarkProfile == InterPassBenchmarkProfile::FastBelow50)
         c.DlssNrTransfer = 9u; // Temporal DLAA residual + P100-guided, as requested.
     benchmarkOverride.store(v.forcedPath, std::memory_order_relaxed);
     benchmarkPath.clear();
@@ -215,6 +216,38 @@ void AddLowBenchmarkScale(int scale)
 void BuildBenchmarkVariants()
 {
     benchmarkVariants.clear();
+    if (benchmarkProfile == InterPassBenchmarkProfile::FastBelow50)
+    {
+        const auto addScale = [&](int percent)
+        {
+            const size_t first = benchmarkVariants.size();
+            AddLowBenchmarkScale(percent); // Off, references, alternate, forced winner/automatic ABBA.
+            for (size_t i = first + 4; i < first + 8; ++i)
+                benchmarkVariants[i].comparison = 1;
+            const auto add = [&](int mode, const char* name, int comparison)
+            {
+                benchmarkVariants.push_back({percent, mode, -1, name, {}});
+                auto& v = benchmarkVariants.back();
+                v.historicalGain = std::numeric_limits<double>::quiet_NaN();
+                v.comparison = comparison;
+            };
+            const auto abba = [&](int control, const char* controlName, int candidate, const char* candidateName, int pair)
+            {
+                add(control, controlName, pair);
+                add(candidate, candidateName, pair);
+                add(candidate, candidateName, pair);
+                add(control, controlName, pair);
+            };
+            abba(3, "Inter-pass optimized", 4, "Inter-pass fast", 2);
+            abba(4, "Inter-pass fast", 7, "Fast + Cross5", 3);
+        };
+        for (const int percent : kInterPassLowVerificationScales) addScale(percent);
+        const int current = std::clamp(int(std::lround(savedBenchmarkConfig.scale * 100.0f)), 25, 99);
+        if (current < 50 && std::find(kInterPassLowVerificationScales.begin(),
+            kInterPassLowVerificationScales.end(), current) == kInterPassLowVerificationScales.end())
+            addScale(current);
+        return; // 40 configs / 80 windows, or 48 / 96 with an extra current low scale.
+    }
     if (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments)
     {
         for (const auto& scale : kInterPassBenchmarkScales)
@@ -237,9 +270,10 @@ void BuildBenchmarkVariants()
                 add(control, controlName, pair);
             };
             abba(3, "Inter-pass optimized", 4, "Inter-pass fast", 1);
-            abba(4, "Inter-pass fast", 7, "Fast + Cross5", 2);
+            if (scale.percent != 50)
+                abba(4, "Inter-pass fast", 7, "Fast + Cross5", 2);
         }
-        return; // Exactly P50/P59/P65; independent warmup for all 33 windows.
+        return; // Exactly P50/P59/P65; 29 windows, without duplicate Fast/Fast at P50.
     }
     if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality)
     {
@@ -321,8 +355,9 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ? "NR-v26-fast-cross5-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v26-fast-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v27-fast-low-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ? "NR-v27-fast-cross5-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v27-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
         name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
@@ -334,7 +369,8 @@ void FinishBenchmark(bool cancelled)
         std::ofstream individual(raw);
         std::ofstream description(info);
         std::ofstream paired;
-        if (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments)
+        if (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ||
+            benchmarkProfile == InterPassBenchmarkProfile::FastBelow50)
             paired.open(pairs);
         if (!out || !description || !individual)
             throw std::runtime_error("Cannot create benchmark report.");
@@ -414,7 +450,8 @@ void FinishBenchmark(bool cancelled)
                 << (fast.count(v.percent) ? fast.at(v.percent) - median : std::numeric_limits<double>::quiet_NaN()) << ','
                 << (fast.count(v.percent) ? median - fast.at(v.percent) : std::numeric_limits<double>::quiet_NaN()) << '\n';
         }
-        if (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments)
+        if (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ||
+            benchmarkProfile == InterPassBenchmarkProfile::FastBelow50)
         {
             if (!paired) throw std::runtime_error("Cannot create paired benchmark report.");
             paired << "scale_percent,comparison,control,variant,a1_window,b1_window,b2_window,a2_window,"
@@ -446,11 +483,23 @@ void FinishBenchmark(bool cancelled)
             if (!paired) throw std::runtime_error("Paired benchmark file write failed.");
         }
         description << "OptiScaler six-pass inter-pass GPU comparison\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ?
+                    << (benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ?
+                        "Low-scale Fast experiments: P33/P40/P41/P42/P49 plus current scale below 50 if different.\n"
+                        "40 unique configurations / 80 independent windows; 48 / 96 with extra current scale.\n"
+                        "Per scale: Off, both references, alternate Classic/RGB20; forced winner/Optimized ABBA;\n"
+                        "Optimized/Fast/Fast/Optimized; Fast/(Fast + Cross5)/(Fast + Cross5)/Fast.\n"
+                        "Transfer=9, six passes. Both Fast variants use Low36 when shaping needs a low field.\n"
+                        "Below-50 Fast is experimental and unmeasured in-game; inspect motion, detail and accumulated edits.\n"
+                        "Exact Optimized policy unchanged; no generic Fused optimized below 50.\n"
+                        "New Fast rows have no historical gain. Unmeasured current-scale controls are predictions.\n"
+                        "Raw comparisons: 1 forced/automatic, 2 Optimized/Fast, 3 Fast/Fast + Cross5.\n"
+                        "Use .pairs.csv local controls: negative symmetric_delta_ms means faster, positive gain means saved time.\n" :
+                        benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ?
                         "Combined Fast comparison: exactly P50/P59/P65, Transfer=9, six passes.\n"
-                        "18 unique configurations / 33 independent measurement windows.\n"
+                        "17 unique configurations / 29 independent measurement windows.\n"
                         "Per scale: Off, both references; Optimized/Fast/Fast/Optimized; then\n"
-                        "Fast/(Fast + Cross5)/(Fast + Cross5)/Fast. Both Fast modes include Low36.\n"
+                        "Fast/(Fast + Cross5)/(Fast + Cross5)/Fast at P59/P65. Both Fast modes include Low36.\n"
+                        "At P50 Cross5 is disabled and Mode7 uses the same Fast as Mode4; duplicate pair omitted.\n"
                         "Only inter-pass processing changes; ordinary/final 8x8 low filtering remains unchanged.\n"
                         "Low36 is skipped if shaping does not need the low field (including equal high/low gains).\n"
                         "Summary gain/delta_vs_fast_median_ms pool all Fast windows; use .pairs.csv for local controls.\n"

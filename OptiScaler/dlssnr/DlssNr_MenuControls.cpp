@@ -1127,14 +1127,16 @@ void RenderModel(Config* config)
         HelpMarker("Fast estimates the guided edit once per working pixel and reuses the immutable Area proxy. "
                    "It keeps the 3x3 weights and shaping, but approximates their native-resolution integration. "
                    "Small residual changes at edges, fine detail and shadows may compound over passes. "
-                   "Area / radius 1 / actual 50-90% only; other settings use exact Optimized. "
+                   "Area / radius 1 / actual 25-90% only; other settings use exact Optimized. "
                    "Use the Fast benchmark and visual inspection before choosing it; speed/quality need in-game validation.");
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
                    "feeds the corrected working-resolution image to the next NR pass. Final transfer remains unchanged.");
         HelpMarker("Fast includes the approved positive overlapping 6x6 Low36 filter BETWEEN passes. "
                    "It is skipped when shaping does not need a low field. Fast + Cross5 uses this same complete "
                    "Fast base and additionally removes the four diagonal neighbours, retaining exact exponential "
-                   "weights. Inspect diagonal edges, hair and vegetation in motion with the combined benchmark. "
+                   "weights. At 50% it automatically uses ordinary Fast with Low36 and disables Cross5. Below 50%, "
+                   "Fast and Cross5 are new experiments: use the below-50 benchmark and inspect detail in motion "
+                   "with the combined benchmark. "
                    "Ordinary/final low filtering keeps its original 8x8 kernel. Speed and image quality of the "
                    "combined variant still need in-game validation.");
         HelpMarker("Inter-pass frequency shaping uses the currently selected guided residual gains once per transition. "

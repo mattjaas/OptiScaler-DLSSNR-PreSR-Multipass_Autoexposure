@@ -62,13 +62,31 @@ int main()
         for (unsigned mode : {4u,5u,6u,7u})
         {
             const unsigned ww=(3840*percent+50)/100,wh=(2160*percent+50)/100;
-            const bool eligible=percent>=50 && percent<=90 && filter==0 && radius==1 && guide>0;
-            const auto expected = mode == 7 ? Path::FastCombinedCross5 : Path::FastGuided;
+            const bool eligible=percent>=25 && percent<=90 && filter==0 && radius==1 && guide>0;
+            const auto expected = mode == 7 && percent != 50 ? Path::FastCombinedCross5 : Path::FastGuided;
             require(Fast(expected) && Fused(expected) && Optimized(expected));
             require(Select(mode,3840,2160,ww,wh,filter,radius,guide)==
                 (eligible?expected:Select(3,3840,2160,ww,wh,filter,radius,guide)));
         }
-        require(Select(4,65,37,33,18,0,1,1)==Select(3,65,37,33,18,0,1,1));
+        require(Select(4,65,37,33,18,0,1,1)==Path::FastGuided);
+        require(Select(7,3840,2160,1920,1080,0,1,1)==Path::FastGuided);
+        require(Select(7,65,37,33,19,0,1,1)==Path::FastGuided); // rounded P50 on both axes
+        require(Select(7,64,37,32,19,0,1,1)==Path::FastGuided); // one odd native axis
+        require(Select(7,3840,2160,1921,1080,0,1,1)==Path::FastCombinedCross5); // not P50 geometry
+        require(Select(7,3840,2160,1920,1081,0,1,1)==Path::FastCombinedCross5);
+        require(Select(7,65,37,34,19,0,1,1)==Path::FastCombinedCross5);
+        require(Select(7,65,37,33,18,0,1,1)==Path::FastCombinedCross5); // below half on Y, not P50
+        require(Select(7,4000000000u,3000000000u,2000000000u,1500000000u,0,1,1)==Path::FastGuided);
+        require(Select(7,3840,2160,2266,1274,0,1,1)==Path::FastCombinedCross5);
+        require(Select(7,3840,2160,2496,1404,0,1,1)==Path::FastCombinedCross5);
+        for (unsigned mode : {4u,7u})
+        {
+            require(Select(mode,3840,2160,960,540,0,1,1)==
+                (mode==4?Path::FastGuided:Path::FastCombinedCross5));
+            require(Select(mode,3840,2160,959,540,0,1,1)==Select(3,3840,2160,959,540,0,1,1));
+            require(Select(mode,3840,2160,960,539,0,1,1)==Select(3,3840,2160,960,539,0,1,1));
+            require(Select(mode,65,37,17,9,0,1,1)==Select(3,65,37,17,9,0,1,1)); // actual Y below P25
+        }
         unsigned groups=0,guarded=0;
         for (auto dims : {std::pair<unsigned,unsigned>{65,37},{127,73},{1920,1080},{3840,2160}})
         for (unsigned percent=25;percent<100;++percent)

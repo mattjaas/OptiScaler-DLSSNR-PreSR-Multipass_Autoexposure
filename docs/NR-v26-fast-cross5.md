@@ -1,5 +1,8 @@
 # NR v26: Low36 w podstawowym Fast i połączony Fast + Cross5
 
+Dokument dotyczy v26. W [v27](NR-v27-fast-low.md) Cross5 przy P50 wybiera
+podstawowy Fast, a oba warianty są dostępne także poniżej P50 jako eksperyment.
+
 Low36 został zatwierdzony przez użytkownika po pomiarze całego NR w The Last
 of Us Part I i ocenie obrazu bez zauważonego pogorszenia. Od v26 podstawowy
 **Inter-pass fast** zawiera Low36. Jedyną dodatkową opcją jest

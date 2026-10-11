@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "interpass_timing_fixture.h"
 
-// Two-dispatch synthetic GPU timing with unequal high/low shaping; NOT whole NR or game timing.
+// Resident inter-pass GPU timing with unequal high/low shaping; NOT whole NR or game timing.
 int main(int argc, char** argv)
 {
     try
@@ -17,17 +17,20 @@ int main(int argc, char** argv)
         std::ofstream out(argv[2]);if(!out) throw std::runtime_error("Cannot open CSV");
         out<<"scale_percent,comparison,variant,window,sample_index,native_width,native_height,work_width,work_height,gpu_ms\n"
            <<std::setprecision(9);
-        for(const auto& scale:DlssNr::kInterPassBenchmarkScales)
+        for(int percent:{33,40,41,42,49,50,59,65})
         {
-            if(onlyScale && onlyScale!=scale.percent) continue;
-            LowFixture fixture(r,scale.percent,true);
-            auto* rgb=scale.expected==DlssNr::InterPass::Path::Rgb16?rgb16.Get():rgb20.Get();
+            if(onlyScale && onlyScale!=percent) continue;
+            const auto expected=DlssNr::InterPass::Select(3,3840,2160,
+                UINT(std::lround(3840*percent/100.0)),UINT(std::lround(2160*percent/100.0)),0,1,1);
+            LowFixture fixture(r,percent,true);
+            auto* rgb=expected==DlssNr::InterPass::Path::Rgb16?rgb16.Get():rgb20.Get();
             UINT window=0,pair=0;
             for(auto candidate:{DlssNr::InterPass::Path::FastGuided,DlssNr::InterPass::Path::FastCombinedCross5})
             {
                 ++pair;
                 if(onlyPair && onlyPair!=int(pair)) continue;
-                const auto control=pair==1?scale.expected:DlssNr::InterPass::Path::FastGuided;
+                if(pair==2 && percent==50) continue; // Production Mode7 uses the same Fast at P50.
+                const auto control=pair==1?expected:DlssNr::InterPass::Path::FastGuided;
                 auto* experimental=cross.Get();
                 for(auto path:{control,candidate,candidate,control})
                 {
@@ -37,13 +40,13 @@ int main(int argc, char** argv)
                     {
                         const auto times=fixture.batch(path,standard.Get(),rgb,16,fast.Get(),experimental,low.Get());
                         for(UINT i=0;i<times.size();++i)
-                            out<<scale.percent<<','<<pair<<",\""<<DlssNr::InterPass::Name(path)<<"\","<<window<<','<<sample+i<<','
+                            out<<percent<<','<<pair<<",\""<<DlssNr::InterPass::Name(path)<<"\","<<window<<','<<sample+i<<','
                                <<fixture.nw<<','<<fixture.nh<<','<<fixture.ww<<','<<fixture.wh<<','<<times[i]<<'\n';
                     }
                     out.flush();if(!out) throw std::runtime_error("CSV write failed");++window;
                 }
             }
-            std::cout<<"Synthetic experiments ABBA P"<<scale.percent<<" complete\n"<<std::flush;
+            std::cout<<"Synthetic experiments ABBA P"<<percent<<" complete\n"<<std::flush;
         }
         return 0;
     }

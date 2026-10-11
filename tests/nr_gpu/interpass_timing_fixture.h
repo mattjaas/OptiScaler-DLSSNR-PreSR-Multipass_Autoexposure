@@ -65,9 +65,10 @@ struct LowFixture
             {
                 D3D12_SHADER_RESOURCE_VIEW_DESC v{};v.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;
                 v.Format=(half&&i!=2)?DXGI_FORMAT_R16G16B16A16_FLOAT:DXGI_FORMAT_R32G32B32A32_FLOAT;
-                if(shaping && offset==0 && i==5) v.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;
+                const bool lowInput=shaping && (offset==0 || offset==8) && i==5;
+                if(lowInput) v.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;
                 v.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;v.Texture2D.MipLevels=1;
-                r.device->CreateShaderResourceView(shaping && offset==0 && i==5 ? low.Get() :
+                r.device->CreateShaderResourceView(lowInput ? low.Get() :
                     i==2?inputs[2].Get():i==1?model:source,&v,{cpu.ptr+SIZE_T(offset+i)*r.stride});
             }
             for(UINT i=6;i<8;++i)

@@ -1,4 +1,4 @@
-name: Build NR v26 Low36 Fast and combined Cross5
+name: Build NR v27 Fast below P50 and Cross5 P50 policy
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v26-${{ github.ref }}
+  group: nr-interpass-v27-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -86,13 +86,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v26-fast-cross5-20261011"
+        run: ./package_release.ps1 -Version "nr-interpass-v27-fast-cross5-20261011"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v26-fast-cross5-20261011
-          path: release/OptiScaler-NR-nr-interpass-v26-fast-cross5-20261011.zip
+          name: OptiScaler-NR-interpass-v27-fast-cross5-20261011
+          path: release/OptiScaler-NR-nr-interpass-v27-fast-cross5-20261011.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -101,24 +101,29 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v26-fast-cross5-20261011"
-          $archive = "release/OptiScaler-NR-nr-interpass-v26-fast-cross5-20261011.zip"
+          $tag = "nr-interpass-v27-fast-cross5-20261011"
+          $archive = "release/OptiScaler-NR-nr-interpass-v27-fast-cross5-20261011.zip"
           $notes = @"
           Low36-based Fast and combined Fast + Cross5 from $env:GITHUB_SHA.
           Mode4 Fast now includes the approved positive overlapping 6x6 Low36 inter-pass low filter.
-          Mode7 Fast + Cross5 uses that entire Fast base and removes the four diagonal guided neighbours.
+          Mode7 Fast + Cross5 uses ordinary Fast at P50, with Low36 and nine neighbours.
+          Fast and Fast + Cross5 extend to actual 25-49% as opt-in experiments; exact Optimized policy is unchanged.
           Exact exponential weights are retained. The standalone Weights and Low36 options are removed.
           Retired saved values 5/6 migrate to Fast (4); saved 7 selects the complete combined variant.
           Ordinary/final 8x8 low filtering and final resolve remain unchanged.
-          Area/radius-one/actual 50-90% only; other settings retain the exact v20 Optimized policy.
+          Area/radius-one/actual 25-90% only; other settings retain the exact v20 Optimized policy.
           Lazy isolated PSOs without LDS; no extra dispatches, textures or per-frame allocations.
           Combined benchmark: P50/P59/P65, Temporal DLAA residual + P100-guided, six passes.
-          Off, both references, Optimized versus Fast ABBA, then Fast versus Fast + Cross5 ABBA.
-          18 unique configurations / 33 measurement windows with independent warmup.
+          Off, both references, Optimized versus Fast ABBA, then Fast versus Fast + Cross5 ABBA at P59/P65.
+          17 unique configurations / 29 measurement windows with independent warmup.
           Optional manual holds after each warmed measurement permit visual checks and captures.
           Whole-NR summary/raw CSV, paired ABBA CSV and metadata TXT.
           Negative delta means faster; positive gain means time saved. Paired CSV uses nearby controls.
-          Low36 is skipped if low-field shaping is unnecessary. Combined quality/performance require game validation.
+          Low36 is skipped if low-field shaping is unnecessary. No shader math or bytecode changes.
+          P50 policy follows supplied v26 whole-NR measurements; below-50 speed/quality require game validation.
+          New low-scale benchmark: P33/P40/P41/P42/P49 plus current lower scale when different.
+          Off, both references, alternate Classic/RGB20, forced winner/automatic ABBA, Optimized/Fast ABBA, Fast/Cross5 ABBA.
+          40 configurations / 80 windows, or 48 / 96 with extra current scale; warmup and optional visual holds.
           Inspect fine detail, diagonal edges, shadows and moving patterns, especially in motion.
           Settings restored on finish/cancel; regular and below-50 benchmark profiles retained.
           "@
@@ -131,8 +136,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v26 - Fast Low36 and combined Cross5" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v27 - Fast below 50 and Cross5 P50 policy" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v26 - Fast Low36 and combined Cross5" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v27 - Fast below 50 and Cross5 P50 policy" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

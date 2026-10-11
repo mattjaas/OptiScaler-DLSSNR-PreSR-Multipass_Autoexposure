@@ -50,11 +50,17 @@ inline Path Select(uint32_t mode, uint32_t nativeW, uint32_t nativeH, uint32_t w
         // Opt-in quality tradeoff: commute native guided reconstruction with Area reduction.
         // Other filters/radii/scales retain the exact Optimized policy below.
         if (mode >= 4 && mode <= 7 && nativeW > workW && nativeH > workH &&
-            uint64_t(workW) * 2 >= nativeW && uint64_t(workH) * 2 >= nativeH &&
+            uint64_t(workW) * 4 >= nativeW && uint64_t(workH) * 4 >= nativeH &&
             uint64_t(workW) * 10 <= uint64_t(nativeW) * 9 &&
             uint64_t(workH) * 10 <= uint64_t(nativeH) * 9)
         {
-            return mode == 7 ? Path::FastCombinedCross5 : Path::FastGuided;
+            // v26 whole-NR ABBA: Cross5 has no useful P50 gain. Treat an odd
+            // native dimension rounded up by half a working texel as P50 too.
+            const bool halfScale = uint64_t(workW) * 2 >= nativeW &&
+                                   uint64_t(workH) * 2 >= nativeH &&
+                                   uint64_t(workW) * 2 <= uint64_t(nativeW) + 1 &&
+                                   uint64_t(workH) * 2 <= uint64_t(nativeH) + 1;
+            return mode == 7 && !halfScale ? Path::FastCombinedCross5 : Path::FastGuided;
         }
         if (uint64_t(workW) * 2 == nativeW && uint64_t(workH) * 2 == nativeH)
             return Path::FusedOptimized;

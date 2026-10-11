@@ -326,12 +326,28 @@ void RenderMenu(Config* config, float menuResScale)
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
                                   "P50/P59/P65: Off, both references, Optimized versus Fast A/B/B/A; then "
-                                  "Fast versus Fast + Cross5 A/B/B/A. 18 configurations / 33 windows, independent warmup. "
+                                  "Fast versus Fast + Cross5 A/B/B/A at P59/P65. P50 uses Fast with Cross5 disabled. "
+                                  "17 configurations / 29 windows, independent warmup. "
                                   "Both Fast options include Low36 whenever shaping needs a low field. "
                                   "Summary/raw/paired CSV and TXT report whole-NR GPU ms. Negative delta means faster; "
                                   "positive gain means time saved. Paired CSV uses nearby Fast controls. "
                                   "Enable Hold for visual checks/captures. Inspect in motion separately from static timings. "
                                   "All changes are inter-pass only; final resolve unchanged. Settings restored on finish/cancel.");
+            ImGui::BeginDisabled(!canBenchmark);
+            if (ImGui::Button("Compare Optimized / Fast / Fast + Cross5 below 50% (CSV)"))
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                              DlssNr::InterPassBenchmarkProfile::FastBelow50, inspectExperimentWindows,
+                                              fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
+                                  "P33/P40/P41/P42/P49 plus current scale below 50 if different. "
+                                  "Off, both references, alternate Classic/RGB20; forced winner versus Optimized ABBA; "
+                                  "Optimized versus Fast ABBA; Fast versus Fast + Cross5 ABBA. "
+                                  "40 configurations / 80 windows, or 48 / 96 with extra current scale; independent warmup. "
+                                  "Both Fast options include Low36. These lower-scale approximations need game validation. "
+                                  "Enable Hold for visual checks/captures; also inspect motion separately. "
+                                  "Whole-NR summary/raw/paired CSV and TXT; negative delta means faster. Settings restored.");
             ImGui::BeginDisabled(!canBenchmark);
             if (ImGui::Button("Verify automatic inter-pass performance (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);
