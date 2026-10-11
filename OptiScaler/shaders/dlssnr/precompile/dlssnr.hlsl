@@ -58,6 +58,15 @@ cbuffer Params : register(b0)
 // Isolate the approximate path; no native tile or unrelated reductions in its PSO.
 #define gMode 33u
 #endif
+#if defined(DLSSNR_INTERPASS_LOW36)
+#define gMode 34u
+#endif
+#if defined(DLSSNR_INTERPASS_FAST_WEIGHTS)
+#define gMode 35u
+#endif
+#if defined(DLSSNR_INTERPASS_CROSS5)
+#define gMode 36u
+#endif
 
 float3 InterPassGuideBlend(float3 bilinear, float3 guided, float strength)
 {
@@ -939,6 +948,20 @@ float3 InterPassGuidedEditAt(float2 uvq, float3 nativeGuide)
     return InterPassShapeEditAt(guidedEditRaw, uvq, nativeGuide);
 }
 
+// Cubic Hermite interpolation of exp2(-f), f in [0,1], times an exact power of two.
+// Positive, monotone weights; relative interpolation error < 0.062%.
+// Unlike a rational Gaussian, this does not introduce a heavy range-weight tail.
+float InterPassApproxWeight(float exponent)
+{
+    const float e = clamp(SanitizeFinite(exponent, 126.0), 0.0, 126.0);
+    const uint whole = (uint)e;
+    const float f = e - (float)whole;
+    const float scale = asfloat((127u - whole) << 23u);
+    return scale * (1.0 + f * (-0.69314718056 + f * (0.2328679514 - f * 0.03972077084)));
+}
+
+// Keep the v21 implementation separate: folding it into the experimental loop changed
+// DXC's FP32 rounding in the standard-PSO fallback. Its isolated bytecode stays identical.
 float4 InterPassFastGuided(int2 p)
 {
     // Reuse the immutable original Area proxy B. Approximate
@@ -966,6 +989,51 @@ float4 InterPassFastGuided(int2 p)
             const float2 spatialDelta = float2(q - p);
             const float w = exp2(-(dot(delta, delta) * rangeFactor +
                                    dot(spatialDelta, spatialDelta) * spatialFactor));
+            weighted += residual * w;
+            weightSum += w;
+        }
+    }
+    const float3 guided = weightSum > 1e-8 ? weighted / weightSum : centreResidual;
+    const float3 edit = InterPassShapeEditAt(
+        InterPassGuideBlend(centreResidual, guided, saturate(gResidualConfidenceUnused)), uvq, nativeGuide);
+    uint nativeW, nativeH;
+    gOriginal.GetDimensions(nativeW, nativeH);
+    const int2 nativeP = min(int2(uvq * float2(nativeW, nativeH)), int2(nativeW - 1, nativeH - 1));
+    const float alpha = gOriginal.Load(int3(nativeP, 0)).a;
+    return float4(saturate(SanitizeFinite3(base.rgb + edit, 0.5)), alpha);
+}
+
+float4 InterPassFastExperimental(int2 p, bool approximateWeights, bool cross5)
+{
+    // Reuse the immutable original Area proxy B. Approximate
+    // Area(P100 + shaped Guided(N-B, P100)) by B + shaped Guided(N-B, P100 at centre).
+    // Do not feed N-previousCorrected back as the residual; that changes the multi-pass contract.
+    const float4 base = gSource.Load(int3(p, 0));
+    const float3 centreResidual = gModel.Load(int3(p, 0)).rgb - base.rgb;
+    const float2 uvq = (float2(p) + 0.5) / float2(gWidth, gHeight);
+    const float3 nativeGuide = gOriginal.SampleLevel(gLinear, uvq, 0).rgb;
+    const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
+    const float spatialSigma = max(abs(gResidualScale), 1e-4);
+    const float rangeFactor = (0.7213475204444817 / 3.0) / (rangeSigma * rangeSigma);
+    const float spatialFactor = 0.7213475204444817 / (spatialSigma * spatialSigma);
+    float3 weighted = 0.0;
+    float weightSum = 0.0;
+    [unroll] for (int oy = -1; oy <= 1; ++oy)
+    {
+        [unroll] for (int ox = -1; ox <= 1; ++ox)
+        {
+            // Specialised Cross5 PSO eliminates corner loads and their weights.
+            if (cross5 && ox != 0 && oy != 0)
+                continue;
+            const int2 q = clamp(p + int2(ox, oy), int2(0, 0), int2(gWidth - 1, gHeight - 1));
+            const float3 candidate = gSource.Load(int3(q, 0)).rgb;
+            const float3 residual = gModel.Load(int3(q, 0)).rgb - candidate;
+            const float3 delta = candidate - nativeGuide;
+            // Use clamped coordinates just like the exact path at frame edges.
+            const float2 spatialDelta = float2(q - p);
+            const float exponent = dot(delta, delta) * rangeFactor +
+                                   dot(spatialDelta, spatialDelta) * spatialFactor;
+            const float w = approximateWeights ? InterPassApproxWeight(exponent) : exp2(-exponent);
             weighted += residual * w;
             weightSum += w;
         }
@@ -2417,7 +2485,50 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         gTarget[id.xy] = InterPassFastGuided(int2(id.xy));
         return;
     }
+    if (gMode == 35u || gMode == 36u)
+    {
+        gTarget[id.xy] = InterPassFastExperimental(int2(id.xy), gMode == 35u, gMode == 36u);
+        return;
+    }
 #endif
+
+    if (gMode == 34u)
+    {
+        // Inter-pass only: same signed N-B domain and low-field dimensions as Mode18.
+        // Keep the corrected Mode18 tap spacing; remove only its two outer taps per axis.
+        // Positive overlapping +/-0.625 output-pixel support, renormalised signed DC.
+        // A wider six-tap spacing introduced additional comb aliases in the frequency audit.
+        uint srcW, srcH, modelW, modelH;
+        gSource.GetDimensions(srcW, srcH);
+        gModel.GetDimensions(modelW, modelH);
+        if (srcW == 0u || srcH == 0u || modelW != srcW || modelH != srcH)
+        {
+            gTarget[id.xy] = float4(0.0, 0.0, 0.0, 1.0);
+            return;
+        }
+        const float2 srcSize = float2(srcW, srcH);
+        const float2 footprint = srcSize / float2(gWidth, gHeight);
+        const float2 srcCenter = (float2(id.xy) + 0.5) * footprint;
+        const float2 tapStep = 0.25 * footprint;
+        static const float weights[6] = { 11.0, 15.0, 17.0, 17.0, 15.0, 11.0 };
+        float3 sum = 0.0;
+        [unroll] for (uint y = 0u; y < 6u; ++y)
+        {
+            const float sy = clamp(srcCenter.y + ((float)y - 2.5) * tapStep.y,
+                                   0.5, srcSize.y - 0.5) / srcSize.y;
+            [unroll] for (uint x = 0u; x < 6u; ++x)
+            {
+                const float sx = clamp(srcCenter.x + ((float)x - 2.5) * tapStep.x,
+                                       0.5, srcSize.x - 0.5) / srcSize.x;
+                const float2 uv = float2(sx, sy);
+                const float3 residual = gModel.SampleLevel(gLinear, uv, 0).rgb -
+                                        gSource.SampleLevel(gLinear, uv, 0).rgb;
+                sum += SanitizeFinite3(residual, 0.0) * (weights[x] * weights[y]);
+            }
+        }
+        gTarget[id.xy] = float4(sum * (1.0 / 7396.0), 1.0);
+        return;
+    }
 
     if (gMode == 29)
     {

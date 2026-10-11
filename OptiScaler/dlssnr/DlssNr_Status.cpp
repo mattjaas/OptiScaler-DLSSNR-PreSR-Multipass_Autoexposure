@@ -109,6 +109,7 @@ struct BenchmarkVariant
     unsigned nativeW = 0, nativeH = 0, workW = 0, workH = 0, effectivePasses = 0;
     std::string path;
     double historicalGain = 0.0;
+    int comparison = 0; // Experimental ABBA block; 0 denotes unpaired reference windows.
 };
 std::atomic<int> benchmarkOverride { -1 };
 std::string benchmarkPath;
@@ -170,7 +171,8 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     c.DlssNrGuidedResidualRadius = 1u;
     c.DlssNrGuidedResidualGuideStrength = 1.0f;
     c.DlssNrInterPassReconstruction = uint32_t(v.mode);
-    if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality)
+    if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
+        benchmarkProfile == InterPassBenchmarkProfile::FastExperiments)
         c.DlssNrTransfer = 9u; // Temporal DLAA residual + P100-guided, as requested.
     benchmarkOverride.store(v.forcedPath, std::memory_order_relaxed);
     benchmarkPath.clear();
@@ -213,6 +215,34 @@ void AddLowBenchmarkScale(int scale)
 void BuildBenchmarkVariants()
 {
     benchmarkVariants.clear();
+    if (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments)
+    {
+        for (const auto& scale : kInterPassBenchmarkScales)
+        {
+            const auto add = [&](int mode, const char* name, int comparison)
+            {
+                benchmarkVariants.push_back({scale.percent, mode, -1, name, {}});
+                auto& v = benchmarkVariants.back();
+                v.historicalGain = std::numeric_limits<double>::quiet_NaN();
+                v.comparison = comparison;
+            };
+            add(0, "No inter-pass", 0);
+            add(1, "Classic reference", 0);
+            add(2, "Fused reference", 0);
+            const auto abba = [&](int control, const char* controlName, int candidate, const char* candidateName, int pair)
+            {
+                add(control, controlName, pair);
+                add(candidate, candidateName, pair);
+                add(candidate, candidateName, pair);
+                add(control, controlName, pair);
+            };
+            abba(3, "Inter-pass optimized", 4, "Inter-pass fast", 1);
+            abba(4, "Inter-pass fast", 5, "Fast low36", 2);
+            abba(4, "Inter-pass fast", 6, "Fast weights", 3);
+            abba(4, "Inter-pass fast", 7, "Fast cross5", 4);
+        }
+        return; // Exactly P50/P59/P65; independent warmup for all 57 windows.
+    }
     if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality)
     {
         for (const auto& scale : kInterPassBenchmarkScales)
@@ -293,24 +323,29 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v21-fast-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ? "NR-v25-fast-experiments-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v21-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
         name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
         const auto csv = directory / (name.str() + ".csv");
         const auto info = directory / (name.str() + ".txt");
         const auto raw = directory / (name.str() + ".samples.csv");
+        const auto pairs = directory / (name.str() + ".pairs.csv");
         std::ofstream out(csv);
         std::ofstream individual(raw);
         std::ofstream description(info);
+        std::ofstream paired;
+        if (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments)
+            paired.open(pairs);
         if (!out || !description || !individual)
             throw std::runtime_error("Cannot create benchmark report.");
         out << "scale_percent,variant,mode,forced_path,selected_path,native_width,native_height,"
                "work_width,work_height,effective_passes,samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,"
                "delta_vs_off_median_ms,delta_vs_fused_reference_ms,delta_vs_expected_path_ms,"
                "historical_gain_vs_fused_ms,actual_gain_vs_fused_ms,path_matches_control,"
-               "window_medians_ms,window_median_spread_ms,gain_vs_optimized_median_ms\n";
-        individual << "scale_percent,variant,window,sample_index,total_nr_gpu_ms\n";
+               "window_medians_ms,window_median_spread_ms,gain_vs_optimized_median_ms,gain_vs_fast_median_ms\n";
+        individual << "scale_percent,variant,window,sample_index,total_nr_gpu_ms,comparison\n";
         out << std::fixed << std::setprecision(5);
         individual << std::fixed << std::setprecision(6);
         std::vector<BenchmarkVariant> combined;
@@ -319,7 +354,8 @@ void FinishBenchmark(bool cancelled)
             const auto& v = benchmarkVariants[window];
             if (v.samples.empty()) continue;
             for (size_t i = 0; i < v.samples.size(); ++i)
-                individual << v.percent << ',' << '"' << v.name << '"' << ',' << window << ',' << i << ',' << v.samples[i] << '\n';
+                individual << v.percent << ',' << '"' << v.name << '"' << ',' << window << ',' << i << ',' << v.samples[i]
+                           << ',' << v.comparison << '\n';
             auto it = std::find_if(combined.begin(), combined.end(), [&](const auto& existing)
                 { return existing.percent == v.percent && std::string(existing.name) == v.name; });
             if (it == combined.end()) combined.push_back(v);
@@ -336,15 +372,17 @@ void FinishBenchmark(bool cancelled)
             const size_t n = sorted.size();
             return n % 2 ? sorted[n/2] : (sorted[n/2-1] + sorted[n/2]) * 0.5;
         };
-        std::map<int, double> off, fused, expected, optimized;
+        std::map<int, double> off, fused, expected, optimized, fast;
         std::map<int, std::string> expectedPath;
         for (const auto& v : combined)
         {
             if (v.mode == 0) off[v.percent] = medianOf(v);
             if (v.mode == 2) fused[v.percent] = medianOf(v);
             if (std::string(v.name) == "Inter-pass optimized") optimized[v.percent] = medianOf(v);
+            if (v.mode == 4) fast[v.percent] = medianOf(v);
             if (std::string(v.name) == "Expected path control" ||
-                (benchmarkProfile == InterPassBenchmarkProfile::FastQuality && v.mode == 3))
+                ((benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
+                  benchmarkProfile == InterPassBenchmarkProfile::FastExperiments) && v.mode == 3))
             {
                 expected[v.percent] = medianOf(v);
                 expectedPath[v.percent] = v.path;
@@ -374,10 +412,51 @@ void FinishBenchmark(bool cancelled)
             for (size_t i=0;i<windows.size();++i)
                 out << (i ? "|" : "") << windows[i];
             const auto range = std::minmax_element(windows.begin(), windows.end());
-            out << "\"," << *range.second - *range.first << ',' << optimized.at(v.percent) - median << '\n';
+            out << "\"," << *range.second - *range.first << ',' << optimized.at(v.percent) - median << ','
+                << (fast.count(v.percent) ? fast.at(v.percent) - median : std::numeric_limits<double>::quiet_NaN()) << '\n';
+        }
+        if (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments)
+        {
+            if (!paired) throw std::runtime_error("Cannot create paired benchmark report.");
+            paired << "scale_percent,comparison,control,variant,a1_window,b1_window,b2_window,a2_window,"
+                      "a1_median_ms,b1_median_ms,b2_median_ms,a2_median_ms,symmetric_gain_ms,"
+                      "first_gain_ms,last_gain_ms,control_window_spread_ms,variant_window_spread_ms\n"
+                   << std::fixed << std::setprecision(6);
+            for (size_t i = 0; i < benchmarkVariants.size(); ++i)
+            {
+                const auto& a1 = benchmarkVariants[i];
+                if (a1.comparison == 0) continue;
+                if (i + 3 >= benchmarkVariants.size()) throw std::runtime_error("Incomplete ABBA block.");
+                const auto& b1 = benchmarkVariants[i+1];
+                const auto& b2 = benchmarkVariants[i+2];
+                const auto& a2 = benchmarkVariants[i+3];
+                if (a1.percent != a2.percent || a1.comparison != a2.comparison ||
+                    a1.comparison != b1.comparison || a1.comparison != b2.comparison ||
+                    a1.mode != a2.mode || b1.mode != b2.mode)
+                    throw std::runtime_error("Invalid ABBA block.");
+                const double a = medianOf(a1), b = medianOf(b1), c = medianOf(b2), d = medianOf(a2);
+                paired << a1.percent << ',' << a1.comparison << ",\"" << a1.name << "\",\"" << b1.name << "\","
+                       << i << ',' << i+1 << ',' << i+2 << ',' << i+3 << ','
+                       << a << ',' << b << ',' << c << ',' << d << ',' << (a+d-b-c)*0.5 << ','
+                       << a-b << ',' << d-c << ',' << std::abs(a-d) << ',' << std::abs(b-c) << '\n';
+                i += 3;
+            }
+            paired.flush();
+            if (!paired) throw std::runtime_error("Paired benchmark file write failed.");
         }
         description << "OptiScaler six-pass inter-pass GPU comparison\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ?
+                    << (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ?
+                        "Fast experiments: exactly P50/P59/P65, Transfer=9, six passes.\n"
+                        "24 unique configurations / 57 independent measurement windows.\n"
+                        "Per scale: Off, both references; Optimized/Fast/Fast/Optimized; then separate\n"
+                        "Fast/Low36/Low36/Fast, Fast/Weights/Weights/Fast, Fast/Cross5/Cross5/Fast.\n"
+                        "Experiments change only one part of Fast v21, only between passes; final resolve unchanged.\n"
+                        "Low36 is identical to Fast if shaping does not need the low field (including equal high/low gains).\n"
+                        "Summary gain_vs_fast_median_ms pools all Fast windows; use .pairs.csv for local ABBA controls.\n"
+                        "pairs.csv symmetric_gain_ms is positive when faster; both neighbouring gains and spreads included.\n"
+                        "Raw comparison column identifies ABBA blocks (1 Optimized/Fast, 2 Low36, 3 Weights, 4 Cross5).\n"
+                        "No historical experiment measurements. Check motion, diagonals and moving low-frequency patterns.\n" :
+                        benchmarkProfile == InterPassBenchmarkProfile::FastQuality ?
                         "Fast quality profile: exactly P50/P59/P65, Temporal DLAA residual + P100-guided (Transfer=9).\n"
                         "Off and both unoptimized references; exact Optimized A / approximate Fast B / B / A.\n"
                         "15 configurations / 21 measurement windows. No historical Fast measurements.\n"
@@ -390,7 +469,8 @@ void FinishBenchmark(bool cancelled)
                         "Below-50 verification: P33/P40/P41/P42/P49 plus current lower scale if different.\n" :
                         "Regular profile: P50/P59/P65 plus current rounded percentage when different.\n")
                     << "Off, Classic reference and Fused reference retained.\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "" :
+                    << (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
+                        benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ? "" :
                         "All scales: expected path A / automatic B / B / A plus alternate retained path.\n")
                     << "Manual window inspection=" << benchmarkInspectEachWindow << "; held-frame samples excluded.\n"
                     << "Measured low controls: P33/P41 Classic; P40/P42/P45/P49 RGB20. Unmeasured scales are predictions.\n"

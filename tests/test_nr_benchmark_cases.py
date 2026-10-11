@@ -43,7 +43,8 @@ def test_benchmark():
     assert re.findall(r'CustomOptional<[^>]+> (DlssNrInterPass\w+)', cfg) == ['DlssNrInterPassReconstruction']
     dx = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp').read_text(encoding='utf-8')
     assert re.findall(r'#include "precompile/(dlssnr_.*)_Shader.h"', dx) == [
-        'dlssnr_interpass_rgb16', 'dlssnr_interpass_rgb20', 'dlssnr_interpass_fast', 'dlssnr_residual',
+        'dlssnr_interpass_rgb16', 'dlssnr_interpass_rgb20', 'dlssnr_interpass_fast',
+        'dlssnr_interpass_low36', 'dlssnr_interpass_weights', 'dlssnr_interpass_cross5', 'dlssnr_residual',
         'dlssnr_finished_color', 'dlssnr_spatial', 'dlssnr_spatial_guides']
     low = status[status.index('void AddLowBenchmarkScale'):status.index('void UpdateBenchmarkProgress')]
     assert 'kInterPassMeasuredLowScales' in low and 'measured->expected' in low
@@ -79,6 +80,19 @@ def test_benchmark():
     sample = status[status.index('void BenchmarkGpuSample'):status.index('int BenchmarkInterPassOverride')]
     assert sample.index('if (benchmarkProgress.awaitingVisualInspection)') < sample.index('variant.samples.push_back')
     assert 'c.DlssNrTransfer = 9u;' in status and 'c.DlssNrTransfer = v.transfer;' in status
+    experiments = build[build.index('InterPassBenchmarkProfile::FastExperiments'):build.index('InterPassBenchmarkProfile::FastQuality')]
+    assert re.findall(r'add\((\d), "([^"]+)", 0\);', experiments) == [
+        ('0', 'No inter-pass'), ('1', 'Classic reference'), ('2', 'Fused reference')]
+    pairs = re.findall(r'abba\((\d), "([^"]+)", (\d), "([^"]+)", (\d)\);', experiments)
+    assert pairs == [
+        ('3', 'Inter-pass optimized', '4', 'Inter-pass fast', '1'),
+        ('4', 'Inter-pass fast', '5', 'Fast low36', '2'),
+        ('4', 'Inter-pass fast', '6', 'Fast weights', '3'),
+        ('4', 'Inter-pass fast', '7', 'Fast cross5', '4')]
+    assert 'AddLowBenchmarkScale(current)' not in experiments and 'return;' in experiments
+    assert 'FastExperiments, inspectExperimentWindows' in ui
+    for field in ('gain_vs_fast_median_ms', '.pairs.csv', 'symmetric_gain_ms', 'first_gain_ms', 'last_gain_ms'):
+        assert field in status
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
     guard = run[run.index('const bool eligibleTiledDims'):run.index('if (workingScaleTiled && eligibleTiledDims')]
     assert '2u * modelWidth' not in guard and '2u * modelHeight' not in guard

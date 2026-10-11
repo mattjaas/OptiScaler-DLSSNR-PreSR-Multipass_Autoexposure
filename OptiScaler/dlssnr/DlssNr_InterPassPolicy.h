@@ -5,7 +5,8 @@ namespace DlssNr::InterPass
 {
 enum class Path : uint32_t
 {
-    Off, ClassicReference, FusedReference, ClassicOptimized, FusedOptimized, Rgb20, Rgb16, FastGuided
+    Off, ClassicReference, FusedReference, ClassicOptimized, FusedOptimized, Rgb20, Rgb16, FastGuided,
+    FastLow36, FastWeights, FastCross5
 };
 inline const char* Name(Path path)
 {
@@ -19,13 +20,20 @@ inline const char* Name(Path path)
     case Path::Rgb20: return "Fused RGB20";
     case Path::Rgb16: return "Fused RGB16";
     case Path::FastGuided: return "Fast guided (approximate)";
+    case Path::FastLow36: return "Fast low36 (approximate)";
+    case Path::FastWeights: return "Fast weights (approximate)";
+    case Path::FastCross5: return "Fast cross5 (approximate)";
     }
     return "Unknown";
+}
+inline bool Fast(Path path)
+{
+    return path >= Path::FastGuided && path <= Path::FastCross5;
 }
 inline bool Fused(Path path)
 {
     return path == Path::FusedReference || path == Path::FusedOptimized ||
-           path == Path::Rgb20 || path == Path::Rgb16 || path == Path::FastGuided;
+           path == Path::Rgb20 || path == Path::Rgb16 || Fast(path);
 }
 inline bool Optimized(Path path)
 {
@@ -43,11 +51,19 @@ inline Path Select(uint32_t mode, uint32_t nativeW, uint32_t nativeH, uint32_t w
     {
         // Opt-in quality tradeoff: commute native guided reconstruction with Area reduction.
         // Other filters/radii/scales retain the exact Optimized policy below.
-        if (mode == 4 && nativeW > workW && nativeH > workH &&
+        if (mode >= 4 && mode <= 7 && nativeW > workW && nativeH > workH &&
             uint64_t(workW) * 2 >= nativeW && uint64_t(workH) * 2 >= nativeH &&
             uint64_t(workW) * 10 <= uint64_t(nativeW) * 9 &&
             uint64_t(workH) * 10 <= uint64_t(nativeH) * 9)
-            return Path::FastGuided;
+        {
+            switch (mode)
+            {
+            case 5: return Path::FastLow36;
+            case 6: return Path::FastWeights;
+            case 7: return Path::FastCross5;
+            default: return Path::FastGuided;
+            }
+        }
         if (uint64_t(workW) * 2 == nativeW && uint64_t(workH) * 2 == nativeH)
             return Path::FusedOptimized;
         // v18/v19 whole-NR timings: aligned P40 and P42/P45/P49 favour RGB20;

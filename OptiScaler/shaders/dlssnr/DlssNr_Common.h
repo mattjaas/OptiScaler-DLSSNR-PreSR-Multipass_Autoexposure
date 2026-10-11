@@ -72,7 +72,10 @@ enum DlssNrMode : uint32_t
     // directly to the working input, avoiding the extra ClampProxy dispatch.
     DlssNrMode_DownsampleClampProxy = 32,
     // Opt-in approximation: one native guide and one 3x3 residual estimate per working pixel.
-    DlssNrMode_InterPassFastGuided = 33
+    DlssNrMode_InterPassFastGuided = 33,
+    DlssNrMode_InterPassLow36 = 34,
+    DlssNrMode_InterPassFastWeights = 35,
+    DlssNrMode_InterPassFastCross5 = 36
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)

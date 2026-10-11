@@ -91,7 +91,7 @@ struct Runner
         ComPtr<ID3D12PipelineState> p; check(device->CreateComputePipelineState(&d,IID_PPV_ARGS(&p))); return p;
     }
     std::vector<uint32_t> run(ID3D12PipelineState* pso, UINT nw, UINT nh, UINT ww, UINT wh,
-                              const DlssNrConstants& constants, int fixture, bool half, UINT groupWidth=8, UINT sourceW=0, UINT sourceH=0, double* gpuMs=nullptr)
+                              const DlssNrConstants& constants, int fixture, bool half, UINT groupWidth=8, UINT sourceW=0, UINT sourceH=0, double* gpuMs=nullptr, int pattern=0)
     {
         begin(); std::vector<ComPtr<ID3D12Resource>> keep;
         std::mt19937 rng(1414 + fixture);
@@ -115,6 +115,11 @@ struct Runner
                     if (fixture%4==2) v[c]*=64.0f;
                 }
                 if (fixture%4==3 && (x+y)%7==0) { uint32_t special=0x7fc00001; std::memcpy(&v[0],&special,4); }
+                if (pattern == 1) // Signed constant N-B tests DC preservation at clamped frame edges.
+                {
+                    for (int c=0;c<3;++c) v[c]=0.4f+(n==1 ? (fixture%2 ? -0.08f : 0.08f) : 0.0f);
+                    v[3]=0.7f;
+                }
                 std::memcpy(mapped+y*fp.Footprint.RowPitch+x*16,v,16);
             }
             upload->Unmap(0,nullptr); keep.push_back(upload);

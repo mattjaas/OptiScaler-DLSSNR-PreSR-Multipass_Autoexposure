@@ -566,6 +566,7 @@ class Config
     CustomOptional<uint32_t> DlssNrPasses { 1 };
     // Between-pass reconstruction only changes the input to the next NR feature. Final transfer stays independent.
     // 0 Off, 1 Classic reference, 2 Fused reference, 3 exact Optimized, 4 Fast (experimental quality tradeoff).
+    // 5 Fast low36, 6 Fast weights, 7 Fast cross5: independent inter-pass experiments based on Fast v21.
     CustomOptional<uint32_t> DlssNrInterPassReconstruction { 0 };
     // Manual white-point divisor for the HDR-to-model encode.
     CustomOptional<float> DlssNrWhitePointScale { 1.0f };

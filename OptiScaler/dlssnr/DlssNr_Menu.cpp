@@ -298,6 +298,7 @@ void RenderMenu(Config* config, float menuResScale)
             const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
                                       !ReadStatus(Backend::Vulkan).running;
             static bool inspectFastWindows = false;
+            static bool inspectExperimentWindows = false;
             static char fastBenchmarkScene[160] = "";
             ImGui::InputText("Fast benchmark scene (optional)", fastBenchmarkScene, sizeof(fastBenchmarkScene));
             ImGui::Checkbox("Hold each Fast benchmark window for visual inspection", &inspectFastWindows);
@@ -315,6 +316,21 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Enable Hold to inspect/capture each warmed result and advance manually. "
                                   "Check fine detail, edges, highlights and shadows, then also compare in motion. "
                                   "Keep the scene static for timings; original settings restored on finish/cancel.");
+            ImGui::Checkbox("Hold each experiment benchmark window for visual inspection", &inspectExperimentWindows);
+            ImGui::BeginDisabled(!canBenchmark);
+            if (ImGui::Button("Compare Fast / Low36 / Weights / Cross5 at 50% / 59% / 65% (CSV)"))
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                              DlssNr::InterPassBenchmarkProfile::FastExperiments, inspectExperimentWindows,
+                                              fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
+                                  "P50/P59/P65: Off, both references, Optimized versus Fast; each new experiment versus "
+                                  "Fast v21 in a separate A/B/B/A block. 24 configurations / 57 windows, independent warmup. "
+                                  "Keeps current shaping; Low36 has no effect when the low field is unnecessary. "
+                                  "Summary/raw/paired CSV and TXT report whole-NR GPU ms. Paired CSV uses nearby Fast controls. "
+                                  "Enable Hold for visual checks/captures. Inspect in motion separately from static timings. "
+                                  "All changes are inter-pass only; final resolve unchanged. Settings restored on finish/cancel.");
             ImGui::BeginDisabled(!canBenchmark);
             if (ImGui::Button("Verify automatic inter-pass performance (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);

@@ -59,11 +59,14 @@ int main()
         for (unsigned filter=0;filter<=11;++filter)
         for (unsigned radius : {1u,2u,3u})
         for (float guide : {0.0f,1.0f})
+        for (unsigned mode : {4u,5u,6u,7u})
         {
             const unsigned ww=(3840*percent+50)/100,wh=(2160*percent+50)/100;
             const bool eligible=percent>=50 && percent<=90 && filter==0 && radius==1 && guide>0;
-            require(Select(4,3840,2160,ww,wh,filter,radius,guide)==
-                (eligible?Path::FastGuided:Select(3,3840,2160,ww,wh,filter,radius,guide)));
+            const auto expected = static_cast<Path>(unsigned(Path::FastGuided) + mode - 4);
+            require(Fast(expected) && Fused(expected) && Optimized(expected));
+            require(Select(mode,3840,2160,ww,wh,filter,radius,guide)==
+                (eligible?expected:Select(3,3840,2160,ww,wh,filter,radius,guide)));
         }
         require(Select(4,65,37,33,18,0,1,1)==Select(3,65,37,33,18,0,1,1));
         unsigned groups=0,guarded=0;

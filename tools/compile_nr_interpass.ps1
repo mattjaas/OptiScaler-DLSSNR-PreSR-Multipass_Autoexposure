@@ -2,11 +2,24 @@ param([string]$Python = "python")
 $ErrorActionPreference = "Stop"
 Push-Location (Join-Path $PSScriptRoot "../OptiScaler/shaders/dlssnr/precompile")
 try {
-    foreach ($pitch in @(0,16,20,-1)) {
-        $stem = if ($pitch -eq 0) {"DlssNr"} elseif ($pitch -eq -1) {"dlssnr_interpass_fast"} else {"dlssnr_interpass_rgb$pitch"}
+    foreach ($pitch in @(0,16,20,-1,-2,-3,-4)) {
+        $stem = switch ($pitch) {
+            0 { "DlssNr" }
+            -1 { "dlssnr_interpass_fast" }
+            -2 { "dlssnr_interpass_low36" }
+            -3 { "dlssnr_interpass_weights" }
+            -4 { "dlssnr_interpass_cross5" }
+            default { "dlssnr_interpass_rgb$pitch" }
+        }
         $defines = @()
         if ($pitch -eq -1) {
             $defines = @("-D","DLSSNR_INTERPASS_FAST=1")
+        } elseif ($pitch -eq -2) {
+            $defines = @("-D","DLSSNR_INTERPASS_LOW36=1")
+        } elseif ($pitch -eq -3) {
+            $defines = @("-D","DLSSNR_INTERPASS_FAST_WEIGHTS=1")
+        } elseif ($pitch -eq -4) {
+            $defines = @("-D","DLSSNR_INTERPASS_CROSS5=1")
         } elseif ($pitch) {
             $defines = @("-D","DLSSNR_TILED_FUSED=1","-D","DLSSNR_TILED_PITCH=$pitch",
                          "-D","DLSSNR_INTERPASS_WEIGHTS=1",
@@ -19,7 +32,7 @@ try {
         $header = Join-Path (Get-Location) "${stem}_Shader.h"
         [IO.File]::WriteAllLines($header, @([IO.File]::ReadAllLines($header) | ForEach-Object { $_.TrimEnd() }), [Text.UTF8Encoding]::new($false))
         $lds = @(Select-String "${stem}.asm" -Pattern 'addrspace\(3\) global')
-        if ($pitch -eq -1) {
+        if ($pitch -lt 0) {
             if ($lds.Count -ne 0) { throw "Fast PSO unexpectedly allocates LDS" }
         } elseif ($pitch) {
             $floats = $pitch * $pitch * 3

@@ -1115,9 +1115,10 @@ void RenderModel(Config* config)
     if (interPassAvailable)
     {
         static const char* interPassNames[] = {
-            "Off", "Classic reference", "Fused reference", "Inter-pass optimized", "Inter-pass fast (experimental)"
+            "Off", "Classic reference", "Fused reference", "Inter-pass optimized", "Inter-pass fast (experimental)",
+            "Fast low36 (experimental)", "Fast weights (experimental)", "Fast cross5 (experimental)"
         };
-        int interPass = (int) std::min(config->DlssNrInterPassReconstruction.value_or_default(), 4u);
+        int interPass = (int) std::min(config->DlssNrInterPassReconstruction.value_or_default(), 7u);
         if (ImGui::Combo("Inter-pass reconstruction", &interPass, interPassNames, IM_ARRAYSIZE(interPassNames)))
             config->DlssNrInterPassReconstruction = (uint32_t) interPass;
         HelpMarker("Optimized automatically selects the retained path for actual texture dimensions, "
@@ -1129,6 +1130,12 @@ void RenderModel(Config* config)
                    "Use the Fast benchmark and visual inspection before choosing it; speed/quality need in-game validation.");
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
                    "feeds the corrected working-resolution image to the next NR pass. Final transfer remains unchanged.");
+        HelpMarker("Each new experiment changes one part of Fast v21 only BETWEEN passes. Low36 uses a positive "
+                   "overlapping 6x6 low-frequency filter; it may alias fine detail when low/high gains differ. "
+                   "It is identical to Fast when the low field is unnecessary. Weights retains 3x3 neighbours "
+                   "with a cubic exponential approximation. Cross5 drops the four diagonal neighbours; inspect "
+                   "diagonal edges, hair and vegetation in motion. Final resolve keeps its original 8x8 low filter. "
+                   "Use the separate experiment benchmark; none is a confirmed speed or quality winner.");
         HelpMarker("Inter-pass frequency shaping uses the currently selected guided residual gains once per transition. "
                    "Pass-count compounding is ignored both between passes and in the final resolve while inter-pass "
                    "correction is actually being used; the final resolve still applies one normal shaping gain.");

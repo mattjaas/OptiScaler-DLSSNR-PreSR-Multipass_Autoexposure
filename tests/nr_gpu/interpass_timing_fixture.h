@@ -12,10 +12,12 @@ struct LowFixture
     UINT nw=3840,nh=2160,ww,wh;
     std::array<ComPtr<ID3D12Resource>,3> inputs;
     ComPtr<ID3D12Resource> native,work,classicCb,fusedCb,rgbCb,compactCb,fastCb,downCb,times;
+    ComPtr<ID3D12Resource> low,lowCb,low36Cb,weightsCb,crossCb;
+    bool shaping;
     ComPtr<ID3D12QueryHeap> queries;
     UINT64 frequency;
-    LowFixture(Runner& runner,int scale):r(runner),
-        ww(UINT(std::lround(nw*scale/100.0f))),wh(UINT(std::lround(nh*scale/100.0f)))
+    LowFixture(Runner& runner,int scale,bool shape=false):r(runner),
+        ww(UINT(std::lround(nw*scale/100.0f))),wh(UINT(std::lround(nh*scale/100.0f))),shaping(shape)
     {
         r.begin();
         std::vector<ComPtr<ID3D12Resource>> uploads;
@@ -55,6 +57,7 @@ struct LowFixture
             return r.resource(d,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         };
         native=texture(nw,nh);work=texture(ww,wh);
+        if(shaping) low=texture((ww+7)/8,(wh+7)/8);
         const auto table=[&](UINT offset,ID3D12Resource* source,ID3D12Resource* model,ID3D12Resource* out,bool half)
         {
             const auto cpu=r.heap->GetCPUDescriptorHandleForHeapStart();
@@ -62,8 +65,10 @@ struct LowFixture
             {
                 D3D12_SHADER_RESOURCE_VIEW_DESC v{};v.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;
                 v.Format=(half&&i!=2)?DXGI_FORMAT_R16G16B16A16_FLOAT:DXGI_FORMAT_R32G32B32A32_FLOAT;
+                if(shaping && offset==0 && i==5) v.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;
                 v.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;v.Texture2D.MipLevels=1;
-                r.device->CreateShaderResourceView(i==2?inputs[2].Get():i==1?model:source,&v,{cpu.ptr+SIZE_T(offset+i)*r.stride});
+                r.device->CreateShaderResourceView(shaping && offset==0 && i==5 ? low.Get() :
+                    i==2?inputs[2].Get():i==1?model:source,&v,{cpu.ptr+SIZE_T(offset+i)*r.stride});
             }
             for(UINT i=6;i<8;++i)
             {
@@ -75,6 +80,7 @@ struct LowFixture
         table(0,inputs[0].Get(),inputs[1].Get(),work.Get(),false);
         table(8,inputs[0].Get(),inputs[1].Get(),native.Get(),false);
         table(16,native.Get(),native.Get(),work.Get(),true);
+        if(shaping) table(24,inputs[0].Get(),inputs[1].Get(),low.Get(),false);
         const auto cb=[&](const DlssNrConstants& c)
         {
             auto result=r.buffer(sizeof(c),D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -83,22 +89,29 @@ struct LowFixture
         };
         DlssNrConstants c{};c.Mode=28;c.Width=ww;c.Height=wh;
         c.ResidualHistoryValid=1;c.ResidualScale=1.2f;c.ResidualBlend=0.015f;c.ResidualConfidenceSensitivity=1;
+        if(shaping){c.GuideWidth=1;c.MvScaleX=1.13f;c.MvScaleY=0.71f;c.ResidualScale=3.0f;}
         c.DirectResolveFlags=16|64|128;
         const float rx=float(ww)/nw,ry=float(wh)/nh;
         std::memcpy(&c.ResidualMotionBaseX,&rx,4);std::memcpy(&c.ResidualMotionBaseY,&ry,4);
         fusedCb=cb(c);
         c.Mode=33;c.DirectResolveFlags=0;fastCb=cb(c);
+        c.Mode=35;weightsCb=cb(c);c.Mode=36;crossCb=cb(c);
         c.Mode=28;c.DirectResolveFlags=16|64|128|2048;rgbCb=cb(c);
         c.DirectResolveFlags|=8192;compactCb=cb(c);
         c.Mode=27;c.Width=nw;c.Height=nh;c.DirectResolveFlags=16|64|1024;
         c.DirectDetailMode=ww;c.DirectResolveUpscaler=wh;classicCb=cb(c);
         c={};c.Mode=32;c.Width=ww;c.Height=wh;c.DirectResolveFlags=512;downCb=cb(c);
+        if(shaping)
+        {
+            c={};c.Mode=18;c.Width=(ww+7)/8;c.Height=(wh+7)/8;lowCb=cb(c);
+            c.Mode=34;low36Cb=cb(c);
+        }
         D3D12_QUERY_HEAP_DESC q{};q.Type=D3D12_QUERY_HEAP_TYPE_TIMESTAMP;q.Count=32;
         check(r.device->CreateQueryHeap(&q,IID_PPV_ARGS(&queries)));
         times=r.buffer(32*sizeof(UINT64),D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);
         check(r.queue->GetTimestampFrequency(&frequency));
     }
-    std::vector<double> batch(DlssNr::InterPass::Path path,ID3D12PipelineState* standard,ID3D12PipelineState* rgb,UINT count,ID3D12PipelineState* fast=nullptr)
+    std::vector<double> batch(DlssNr::InterPass::Path path,ID3D12PipelineState* standard,ID3D12PipelineState* rgb,UINT count,ID3D12PipelineState* fast=nullptr,ID3D12PipelineState* experiment=nullptr)
     {
         r.begin();r.list->SetComputeRootSignature(r.root.Get());
         ID3D12DescriptorHeap* heaps[]={r.heap.Get()};r.list->SetDescriptorHeaps(1,heaps);
@@ -114,6 +127,13 @@ struct LowFixture
             r.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,sample*2);
             for(UINT repeat=0;repeat<8;++repeat)
             {
+                if(shaping)
+                {
+                    const bool low36=path==DlssNr::InterPass::Path::FastLow36;
+                    bind(low36?experiment:standard,low36?low36Cb.Get():lowCb.Get(),24);
+                    r.list->Dispatch(((ww+7)/8+7)/8,((wh+7)/8+7)/8,1);
+                    r.barrier(low.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                }
                 if(path==DlssNr::InterPass::Path::ClassicOptimized)
                 {
                     bind(standard,classicCb.Get(),8);r.list->Dispatch((nw+7)/8,(nh+7)/8,1);
@@ -124,15 +144,18 @@ struct LowFixture
                 else
                 {
                     const bool tiled=path==DlssNr::InterPass::Path::Rgb20 || path==DlssNr::InterPass::Path::Rgb16;
-                    const bool approximate=path==DlssNr::InterPass::Path::FastGuided;
+                    const bool approximate=DlssNr::InterPass::Fast(path);
+                    const bool weights=path==DlssNr::InterPass::Path::FastWeights;
+                    const bool cross=path==DlssNr::InterPass::Path::FastCross5;
                     if(approximate && !fast) throw std::runtime_error("Missing Fast PSO");
-                    bind(approximate?fast:tiled?rgb:standard,
-                         approximate?fastCb.Get():path==DlssNr::InterPass::Path::Rgb16?compactCb.Get():
+                    bind(weights || cross?experiment:approximate?fast:tiled?rgb:standard,
+                         weights?weightsCb.Get():cross?crossCb.Get():approximate?fastCb.Get():path==DlssNr::InterPass::Path::Rgb16?compactCb.Get():
                          tiled?rgbCb.Get():fusedCb.Get(),0);
                     r.list->Dispatch((ww+7)/8,(wh+7)/8,1);
                 }
                 D3D12_RESOURCE_BARRIER b{};b.Type=D3D12_RESOURCE_BARRIER_TYPE_UAV;b.UAV.pResource=work.Get();
                 r.list->ResourceBarrier(1,&b);
+                if(shaping) r.barrier(low.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
             }
             r.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,sample*2+1);
         }

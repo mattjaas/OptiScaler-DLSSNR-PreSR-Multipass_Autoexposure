@@ -6,7 +6,7 @@
 struct ID3D12Device;
 namespace DlssNr
 {
-enum class InterPassBenchmarkProfile { Regular, Below50, Boundary, FastQuality };
+enum class InterPassBenchmarkProfile { Regular, Below50, Boundary, FastQuality, FastExperiments };
 struct BenchmarkProgress
 {
     bool active = false;
