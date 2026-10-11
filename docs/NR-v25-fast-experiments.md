@@ -185,3 +185,18 @@ Suma zgadza się również z digestem assetu GitHub. Raport ten i surowe pomiary
 w repozytorium; paczka używa dotychczasowego zestawu dokumentacji instalacyjnej.
 Jakość percepcyjna oraz wydajność całego NR nowych eksperymentów nadal wymagają
 sprawdzenia w konkretnej scenie gry.
+
+## Dostarczony pomiar w grze — 11 października 2026
+
+Raport `NR-v25-fast-experiments-20261011-110644` z The Last of Us Part I,
+RTX 4090/4K/sześciu passów, daje Low36 zysk całego NR względem lokalnych kontroli
+Fast v21: **0,073472 / 0,142080 / 0,187648 ms** przy P50/P59/P65.
+Oba sąsiednie porównania każdej skali są dodatnie. Użytkownik zgłosił brak zauważonego
+pogorszenia obrazu w v25. W tym przebiegu Low36 jest najlepszym nowym wariantem.
+Cross5 daje mniejsze zyski i mniej stabilny wynik P50; Weights nie daje ogólnej poprawy.
+
+To wynik z gry, który ma pierwszeństwo przy wyborze dla tych ustawień nad odmiennym
+syntetycznym pomiarem P65 powyżej. Nie dowodzi przyczyny różnicy ani wyniku we wszystkich
+scenach/skalach. Kod i polityka pozostają bez zmian.
+Pełne czasy przed/po, SD/P95, audyt 9120 próbek/57 okien/12 par, ograniczenia i źródła:
+[analiza pomiaru 110644](NR-v25-20261011-ingame-analysis.md).
