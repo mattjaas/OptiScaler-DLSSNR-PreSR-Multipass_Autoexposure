@@ -17,19 +17,21 @@ int main(int argc, char** argv)
         std::ofstream out(argv[2]);if(!out) throw std::runtime_error("Cannot open CSV");
         out<<"scale_percent,comparison,variant,window,sample_index,native_width,native_height,work_width,work_height,gpu_ms\n"
            <<std::setprecision(9);
-        for(int percent:{33,40,41,42,49,50,59,65})
+        for(int percent:{33,40,41,42,49,50,59,65,90,91,95,99})
         {
             if(onlyScale && onlyScale!=percent) continue;
             const auto expected=DlssNr::InterPass::Select(3,3840,2160,
                 UINT(std::lround(3840*percent/100.0)),UINT(std::lround(2160*percent/100.0)),0,1,1);
+            const auto automaticFast=DlssNr::InterPass::Select(4,3840,2160,
+                UINT(std::lround(3840*percent/100.0)),UINT(std::lround(2160*percent/100.0)),0,1,1);
             LowFixture fixture(r,percent,true);
             auto* rgb=expected==DlssNr::InterPass::Path::Rgb16?rgb16.Get():rgb20.Get();
             UINT window=0,pair=0;
-            for(auto candidate:{DlssNr::InterPass::Path::FastGuided,DlssNr::InterPass::Path::FastCombinedCross5})
+            for(auto candidate:{automaticFast,DlssNr::InterPass::Path::FastCombinedCross5})
             {
                 ++pair;
                 if(onlyPair && onlyPair!=int(pair)) continue;
-                if(pair==2 && percent==50) continue; // Production Mode7 uses the same Fast at P50.
+                if(pair==2 && onlyPair!=2) continue; // Old no-Cross5 control is opt-in fixture diagnostics only.
                 const auto control=pair==1?expected:DlssNr::InterPass::Path::FastGuided;
                 auto* experimental=cross.Get();
                 for(auto path:{control,candidate,candidate,control})

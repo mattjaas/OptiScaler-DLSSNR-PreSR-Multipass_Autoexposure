@@ -16,7 +16,7 @@ int main(int argc, char** argv)
         auto low=r.pipeline(argv[1],"dlssnr_interpass_low36");
         unsigned checks=0;
         for(auto dims:{std::pair<UINT,UINT>{17,11},{65,37},{127,73}})
-        for(int scale:{25,33,40,41,42,49,50,59,65})
+        for(int scale:{25,33,40,41,42,49,50,59,65,90,91,95,99})
         for(int stress=0;stress<4;++stress)
         for(bool half:{false,true})
         {

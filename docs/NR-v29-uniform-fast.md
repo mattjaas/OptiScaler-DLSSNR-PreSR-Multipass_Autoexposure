@@ -1,5 +1,8 @@
 # NR v29: Cross5 w Fast również przy P50
 
+Aktualna wersja: [v30 — cały zakres pomniejszenia i krótsze benchmarki](NR-v30-full-range-fast.md).
+Poniżej zachowano opis pośredniej zmiany v29, z dawnym progiem P90 i większym benchmarkiem.
+
 **Fast (INI 4) zawsze zawiera Cross5 w swoim obsługiwanym zakresie,
 również przy 50%.** Usuwamy wyjątek P50 zgodnie z poleceniem użytkownika:
 remis w dostarczonym pomiarze i brak zauważonego pogorszenia jakości nie
@@ -91,4 +94,5 @@ w tym Cross5 przy P50, rzeczywisty Low36 + guiding, Mode18, FP16/FP32,
 HDR/nonfinite, signed DC, krawędzie, alfa i izolowane/fallback PSO.
 To kontrola poprawności, nie nowy pomiar wydajności ani ocena percepcyjna.
 
-Wynik GitHub Actions i weryfikacja paczki zostaną zapisane po zakończeniu buildu.
+Źródła v29: `76d6cf80633e05e96f1355f8b6de3b3bd964ec5a`;
+dalszą weryfikację i paczkę bieżącej wersji opisuje dokument v30 powyżej.

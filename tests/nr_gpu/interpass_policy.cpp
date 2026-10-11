@@ -55,14 +55,14 @@ int main()
             require(Select(3,3840,2160,2496,1404,filter,1,1)==Path::ClassicOptimized);
         for (unsigned radius : {2u,3u})
             require(Select(3,3840,2160,2496,1404,0,radius,1)==Path::ClassicOptimized);
-        for (unsigned percent=25;percent<=100;++percent)
+        for (unsigned percent=25;percent<=200;++percent)
         for (unsigned filter=0;filter<=11;++filter)
         for (unsigned radius : {1u,2u,3u})
         for (float guide : {0.0f,1.0f})
         for (unsigned mode : {4u,5u,6u,7u})
         {
             const unsigned ww=(3840*percent+50)/100,wh=(2160*percent+50)/100;
-            const bool eligible=percent>=25 && percent<=90 && filter==0 && radius==1 && guide>0;
+            const bool eligible=percent<100 && filter==0 && radius==1 && guide>0;
             const auto expected = Path::FastCombinedCross5;
             require(Fast(expected) && Fused(expected) && Optimized(expected));
             require(Select(mode,3840,2160,ww,wh,filter,radius,guide)==
@@ -86,9 +86,16 @@ int main()
         for (unsigned mode : {4u,7u})
         {
             require(Select(mode,3840,2160,960,540,0,1,1)==Path::FastCombinedCross5);
-            require(Select(mode,3840,2160,959,540,0,1,1)==Select(3,3840,2160,959,540,0,1,1));
-            require(Select(mode,3840,2160,960,539,0,1,1)==Select(3,3840,2160,960,539,0,1,1));
-            require(Select(mode,65,37,17,9,0,1,1)==Select(3,65,37,17,9,0,1,1)); // actual Y below P25
+            require(Select(mode,3840,2160,959,540,0,1,1)==Path::FastCombinedCross5);
+            require(Select(mode,3840,2160,960,539,0,1,1)==Path::FastCombinedCross5);
+            require(Select(mode,65,37,17,9,0,1,1)==Path::FastCombinedCross5); // rounded P25 can be below P25 on one axis
+            require(Select(mode,65,37,64,37,0,1,1)==Path::FastCombinedCross5); // only X reduced at P99
+            require(Select(mode,65,37,65,36,0,1,1)==Path::FastCombinedCross5); // only Y reduced
+            require(Select(mode,65,37,65,37,0,1,1)==Select(3,65,37,65,37,0,1,1)); // no actual reduction
+            require(Select(mode,65,37,66,36,0,1,1)==Select(3,65,37,66,36,0,1,1)); // supersampling on X
+            require(Select(mode,65,37,64,38,0,1,1)==Select(3,65,37,64,38,0,1,1));
+            require(Select(mode,65,37,1,1,0,1,1)==Path::FastCombinedCross5);
+            require(Select(mode,65,37,0,1,0,1,1)==Select(3,65,37,0,1,0,1,1));
         }
         unsigned groups=0,guarded=0;
         for (auto dims : {std::pair<unsigned,unsigned>{65,37},{127,73},{1920,1080},{3840,2160}})

@@ -68,46 +68,38 @@ def test_benchmark():
     assert 'Verify optimized inter-pass 41% / 42% (CSV)' in ui
     assert 'DlssNr::InterPassBenchmarkProfile::Boundary' in ui
     fast_start = build.index('InterPassBenchmarkProfile::FastQuality')
-    fast = build[fast_start:build.index('const int current', fast_start)]
+    fast = build[fast_start:build.index('InterPassBenchmarkProfile::Boundary', fast_start)]
     assert 'for (const auto& scale : kInterPassBenchmarkScales)' in fast
-    assert re.findall(r'add\((\d), "([^"]+)"\);', fast) == [
-        ('0', 'No inter-pass'), ('1', 'Classic reference'), ('2', 'Fused reference'),
-        ('3', 'Inter-pass optimized'), ('4', 'Inter-pass fast'),
-        ('4', 'Inter-pass fast'), ('3', 'Inter-pass optimized')]
+    assert re.findall(r'add\((\d), "([^"]+)", (\d)\);', fast) == [
+        ('0', 'No inter-pass', '0'), ('1', 'Classic reference', '0'), ('2', 'Fused reference', '0'),
+        ('3', 'Inter-pass optimized', '1'), ('4', 'Inter-pass fast', '1'),
+        ('4', 'Inter-pass fast', '1'), ('3', 'Inter-pass optimized', '1')]
     assert 'AddLowBenchmarkScale(current)' not in fast and 'return;' in fast
     assert 'InterPassBenchmarkProfile::FastQuality, inspectFastWindows' in ui
     assert 'bench.awaitingVisualInspection' in ui and 'DlssNr::AdvanceInterPassBenchmark()' in ui
-    assert 'gain_vs_optimized_median_ms' in status and 'NR-v29-fast-' in status
+    assert 'gain_vs_optimized_median_ms' in status and 'NR-v30-fast-' in status
     sample = status[status.index('void BenchmarkGpuSample'):status.index('int BenchmarkInterPassOverride')]
     assert sample.index('if (benchmarkProgress.awaitingVisualInspection)') < sample.index('variant.samples.push_back')
     assert 'c.DlssNrTransfer = 9u;' in status and 'c.DlssNrTransfer = v.transfer;' in status
-    experiments = build[build.index('InterPassBenchmarkProfile::FastExperiments'):build.index('InterPassBenchmarkProfile::FastQuality')]
-    assert re.findall(r'add\((\d), "([^"]+)", 0\);', experiments) == [
-        ('0', 'No inter-pass'), ('1', 'Classic reference'), ('2', 'Fused reference')]
-    pairs = re.findall(r'abba\((\d), "([^"]+)", (\d), "([^"]+)", (\d)(?:, int\(InterPass::Path::(\w+)\))?\);', experiments)
-    assert pairs == [
-        ('3', 'Inter-pass optimized', '4', 'Inter-pass fast', '1', ''),
-        ('4', 'Fast without Cross5 control', '4', 'Inter-pass fast', '2', 'FastGuided')]
-    assert 'AddLowBenchmarkScale(current)' not in experiments and 'return;' in experiments
-    assert 'FastExperiments, inspectExperimentWindows' in ui
-    assert '18 configurations / 33 windows' in ui
-    assert 'if (scale.percent != 50)' not in experiments
-    low_fast = build[build.index('InterPassBenchmarkProfile::FastBelow50'):build.index('InterPassBenchmarkProfile::FastExperiments')]
-    assert 'AddLowBenchmarkScale(percent)' in low_fast
-    assert 'first + 4; i < first + 8' in low_fast and 'comparison = 1' in low_fast
-    assert 'kInterPassLowVerificationScales' in low_fast and 'addScale(current)' in low_fast
-    assert re.findall(r'abba\((\d), "([^"]+)", (\d), "([^"]+)", (\d)(?:, int\(InterPass::Path::(\w+)\))?\);', low_fast) == [
-        ('3', 'Inter-pass optimized', '4', 'Inter-pass fast', '2', ''),
-        ('4', 'Fast without Cross5 control', '4', 'Inter-pass fast', '3', 'FastGuided')]
-    for profile in (experiments, low_fast):
-        assert 'int controlPath = -1' in profile
-        assert profile.count('add(control, controlName, pair, controlPath);') == 2
-        assert 'mode, forcedPath, name' in profile
+    assert 'FastExperiments' not in status and 'FastExperiments' not in ui
+    assert 'Fast without Cross5 control' not in status and 'without Cross5' not in ui
+    assert 'mode, -1, name' in fast
+    assert 'kInterPassLowVerificationScales' in fast and 'addScale(current)' in fast
+    assert 'kInterPassFastHighScales {91, 95, 99}' in header
+    assert 'for (const int percent : kInterPassFastHighScales) addScale(percent);' in fast
+    assert 'current > 90 && current < 100' in fast and 'current < 50' in fast
+    assert 'FastHigh, inspectExperimentWindows' in ui
     assert 'if (std::string(v.name) == "Inter-pass fast") fast[v.percent]' in status
     assert 'a1.forcedPath != a2.forcedPath || b1.forcedPath != b2.forcedPath' in status
     assert 'FastBelow50, inspectExperimentWindows' in ui
-    assert '40 configurations / 80 windows' in ui and '48 / 96' in ui
-    assert 'NR-v29-fast-low-' in status and 'NR-v29-fast-baseline-' in status
+    assert '25 configurations / 35 windows' in ui and '30 / 42' in ui
+    assert '15 configurations / 21 windows, or 20 / 28' in ui
+    assert 'NR-v30-fast-low-' in status and 'NR-v30-fast-high-' in status
+    open_pairs = status[status.index('std::ofstream paired;'):status.index('paired.open(pairs);')]
+    write_pairs = status[status.index('if (!paired) throw'):status.index('description <<')]
+    for profile in ('FastQuality','FastBelow50','FastHigh'):
+        assert f'InterPassBenchmarkProfile::{profile}' in open_pairs
+    assert 'a1.comparison == 0' in write_pairs and 'i += 3;' in write_pairs
     assert 'Fast low36 (experimental)' not in menu and 'Fast weights (experimental)' not in menu
     assert 'Fast + Cross5 (experimental)' not in menu
     assert 'interPass == 5 ? 7u' not in menu
@@ -117,13 +109,14 @@ def test_benchmark():
     fast_policy = policy[policy.index('if (mode >= 4'):policy.index('if (uint64_t(workW) * 2 == nativeW')]
     assert 'return Path::FastCombinedCross5;' in fast_policy and 'halfScale' not in fast_policy
     assert 'Path::FastGuided;' not in fast_policy
+    assert '* 4 >=' not in fast_policy and '* 10 <=' not in fast_policy
+    assert 'nativeW >= workW && nativeH >= workH' in fast_policy
     for field in ('gain_vs_fast_median_ms', '.pairs.csv', 'symmetric_gain_ms', 'first_gain_ms', 'last_gain_ms', 'symmetric_delta_ms', 'first_delta_ms', 'last_delta_ms', 'delta_vs_fast_median_ms'):
         assert field in status
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
-    override = run[run.index('if (configuredInterPassMode == 3u ||'):run.index('const bool interPassOptimized')]
-    assert 'DlssNr::InterPass::Fast(interPassPath)' in override
-    assert 'configuredInterPassMode == 3u && overridePath >= 0' in override
-    assert 'else if (overridePath == int(DlssNr::InterPass::Path::FastGuided))' in override
+    override = run[run.index('if (configuredInterPassMode == 3u)'):run.index('const bool interPassOptimized')]
+    assert 'DlssNr::InterPass::Fast(interPassPath)' not in override
+    assert 'if (overridePath >= 0)' in override
     guard = run[run.index('const bool eligibleTiledDims'):run.index('if (workingScaleTiled && eligibleTiledDims')]
     assert '2u * modelWidth' not in guard and '2u * modelHeight' not in guard
 

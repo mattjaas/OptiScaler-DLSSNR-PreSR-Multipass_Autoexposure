@@ -316,25 +316,9 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Enable Hold to inspect/capture each warmed result and advance manually. "
                                   "Check fine detail, edges, highlights and shadows, then also compare in motion. "
                                   "Keep the scene static for timings; original settings restored on finish/cancel.");
-            ImGui::Checkbox("Hold each experiment benchmark window for visual inspection", &inspectExperimentWindows);
+            ImGui::Checkbox("Hold each extended Fast benchmark window for visual inspection", &inspectExperimentWindows);
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare integrated Fast / Fast without Cross5 at 50% / 59% / 65% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
-                                              DlssNr::InterPassBenchmarkProfile::FastExperiments, inspectExperimentWindows,
-                                              fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
-                                  "P50/P59/P65: Off, both references, Optimized versus Fast A/B/B/A; then "
-                                  "Forced Fast without Cross5 versus integrated Fast A/B/B/A at P50/P59/P65. "
-                                  "18 configurations / 33 windows, independent warmup. "
-                                  "Both use Low36 whenever shaping needs a low field; integrated Fast includes Cross5 at every eligible scale. "
-                                  "Summary/raw/paired CSV and TXT report whole-NR GPU ms. Negative delta means faster; "
-                                  "positive gain means time saved. Paired CSV uses nearby Fast controls. "
-                                  "Enable Hold for visual checks/captures. Inspect in motion separately from static timings. "
-                                  "All changes are inter-pass only; final resolve unchanged. Settings restored on finish/cancel.");
-            ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare Optimized / integrated Fast / Fast without Cross5 below 50% (CSV)"))
+            if (ImGui::Button("Compare reference / Optimized / Fast below 50% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
                                               DlssNr::InterPassBenchmarkProfile::FastBelow50, inspectExperimentWindows,
                                               fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
@@ -342,12 +326,25 @@ void RenderMenu(Config* config, float menuResScale)
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
                                   "P33/P40/P41/P42/P49 plus current scale below 50 if different. "
-                                  "Off, both references, alternate Classic/RGB20; forced winner versus Optimized ABBA; "
-                                  "Optimized versus integrated Fast ABBA; forced Fast without Cross5 versus integrated Fast ABBA. "
-                                  "40 configurations / 80 windows, or 48 / 96 with extra current scale; independent warmup. "
-                                  "Both use Low36. Fast includes Cross5; the old Fast is a benchmark-only control. "
+                                  "Off, both references, then Optimized versus Fast ABBA. "
+                                  "25 configurations / 35 windows, or 30 / 42 with extra current scale; independent warmup. "
+                                  "Fast includes Low36 and Cross5. Exact-path controls remain in Verify optimized inter-pass below 50%. "
                                   "Enable Hold for visual checks/captures; also inspect motion separately. "
                                   "Whole-NR summary/raw/paired CSV and TXT; negative delta means faster. Settings restored.");
+            ImGui::BeginDisabled(!canBenchmark);
+            if (ImGui::Button("Compare reference / Optimized / Fast at 91% / 95% / 99% (CSV)"))
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                              DlssNr::InterPassBenchmarkProfile::FastHigh, inspectExperimentWindows,
+                                              fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
+                                  "91%, 95%, 99% plus current 91-99% if different: Off, both references, "
+                                  "then Optimized versus Fast ABBA. "
+                                  "15 configurations / 21 windows, or 20 / 28 with extra current scale; independent warmup. "
+                                  "Tests removal of the old 90% Fast cutoff. Enable Hold to inspect image quality; "
+                                  "check motion separately. Whole-NR summary/raw/paired CSV and TXT, negative delta means faster. "
+                                  "Original settings restored on finish/cancel.");
             ImGui::BeginDisabled(!canBenchmark);
             if (ImGui::Button("Verify automatic inter-pass performance (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);

@@ -49,13 +49,11 @@ inline Path Select(uint32_t mode, uint32_t nativeW, uint32_t nativeH, uint32_t w
     {
         // Opt-in quality tradeoff: commute native guided reconstruction with Area reduction.
         // Other filters/radii/scales retain the exact Optimized policy below.
-        if (mode >= 4 && mode <= 7 && nativeW > workW && nativeH > workH &&
-            uint64_t(workW) * 4 >= nativeW && uint64_t(workH) * 4 >= nativeH &&
-            uint64_t(workW) * 10 <= uint64_t(nativeW) * 9 &&
-            uint64_t(workH) * 10 <= uint64_t(nativeH) * 9)
+        if (mode >= 4 && mode <= 7 && nativeW >= workW && nativeH >= workH &&
+            (nativeW > workW || nativeH > workH))
         {
             // Approved Cross5 is part of Fast throughout its eligible range, including P50.
-            // FastGuided remains available only as the benchmark control without Cross5.
+            // FastGuided remains only as a shader regression/diagnostic control without Cross5.
             return Path::FastCombinedCross5;
         }
         if (uint64_t(workW) * 2 == nativeW && uint64_t(workH) * 2 == nativeH)

@@ -1,6 +1,6 @@
 # NR v28: Cross5 w podstawowym Fast, z wyjątkiem P50
 
-Aktualna wersja: [v29 — Cross5 również przy P50](NR-v29-uniform-fast.md).
+Aktualna wersja: [v30 — cały zakres pomniejszenia Fast](NR-v30-full-range-fast.md).
 Poniższy opis zachowuje historyczny wyjątek v28.
 
 **Inter-pass fast (INI 4) zawiera teraz Low36 i Cross5. Przy P50 zachowuje

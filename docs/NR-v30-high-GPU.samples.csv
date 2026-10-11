@@ -1,0 +1,1921 @@
+scale_percent,comparison,variant,window,sample_index,native_width,native_height,work_width,work_height,gpu_ms
+91,1,"Classic optimized",0,0,3840,2160,3494,1966,1.15392
+91,1,"Classic optimized",0,1,3840,2160,3494,1966,1.286016
+91,1,"Classic optimized",0,2,3840,2160,3494,1966,1.214976
+91,1,"Classic optimized",0,3,3840,2160,3494,1966,1.204864
+91,1,"Classic optimized",0,4,3840,2160,3494,1966,1.209984
+91,1,"Classic optimized",0,5,3840,2160,3494,1966,1.251456
+91,1,"Classic optimized",0,6,3840,2160,3494,1966,1.246848
+91,1,"Classic optimized",0,7,3840,2160,3494,1966,1.113472
+91,1,"Classic optimized",0,8,3840,2160,3494,1966,1.264896
+91,1,"Classic optimized",0,9,3840,2160,3494,1966,1.2416
+91,1,"Classic optimized",0,10,3840,2160,3494,1966,1.244288
+91,1,"Classic optimized",0,11,3840,2160,3494,1966,1.313664
+91,1,"Classic optimized",0,12,3840,2160,3494,1966,1.253632
+91,1,"Classic optimized",0,13,3840,2160,3494,1966,1.24224
+91,1,"Classic optimized",0,14,3840,2160,3494,1966,1.238912
+91,1,"Classic optimized",0,15,3840,2160,3494,1966,1.30944
+91,1,"Classic optimized",0,16,3840,2160,3494,1966,1.256064
+91,1,"Classic optimized",0,17,3840,2160,3494,1966,1.236352
+91,1,"Classic optimized",0,18,3840,2160,3494,1966,1.242368
+91,1,"Classic optimized",0,19,3840,2160,3494,1966,1.222784
+91,1,"Classic optimized",0,20,3840,2160,3494,1966,1.204864
+91,1,"Classic optimized",0,21,3840,2160,3494,1966,1.270528
+91,1,"Classic optimized",0,22,3840,2160,3494,1966,1.236352
+91,1,"Classic optimized",0,23,3840,2160,3494,1966,1.242368
+91,1,"Classic optimized",0,24,3840,2160,3494,1966,1.24032
+91,1,"Classic optimized",0,25,3840,2160,3494,1966,1.309952
+91,1,"Classic optimized",0,26,3840,2160,3494,1966,1.27488
+91,1,"Classic optimized",0,27,3840,2160,3494,1966,1.270528
+91,1,"Classic optimized",0,28,3840,2160,3494,1966,1.208832
+91,1,"Classic optimized",0,29,3840,2160,3494,1966,1.23328
+91,1,"Classic optimized",0,30,3840,2160,3494,1966,1.181952
+91,1,"Classic optimized",0,31,3840,2160,3494,1966,1.277056
+91,1,"Classic optimized",0,32,3840,2160,3494,1966,1.246336
+91,1,"Classic optimized",0,33,3840,2160,3494,1966,1.237504
+91,1,"Classic optimized",0,34,3840,2160,3494,1966,1.238784
+91,1,"Classic optimized",0,35,3840,2160,3494,1966,1.291136
+91,1,"Classic optimized",0,36,3840,2160,3494,1966,1.241856
+91,1,"Classic optimized",0,37,3840,2160,3494,1966,1.239936
+91,1,"Classic optimized",0,38,3840,2160,3494,1966,1.225216
+91,1,"Classic optimized",0,39,3840,2160,3494,1966,1.290368
+91,1,"Classic optimized",0,40,3840,2160,3494,1966,1.241088
+91,1,"Classic optimized",0,41,3840,2160,3494,1966,1.214592
+91,1,"Classic optimized",0,42,3840,2160,3494,1966,1.185024
+91,1,"Classic optimized",0,43,3840,2160,3494,1966,1.244544
+91,1,"Classic optimized",0,44,3840,2160,3494,1966,1.247488
+91,1,"Classic optimized",0,45,3840,2160,3494,1966,1.262208
+91,1,"Classic optimized",0,46,3840,2160,3494,1966,1.24032
+91,1,"Classic optimized",0,47,3840,2160,3494,1966,1.248768
+91,1,"Classic optimized",0,48,3840,2160,3494,1966,1.223296
+91,1,"Classic optimized",0,49,3840,2160,3494,1966,1.336576
+91,1,"Classic optimized",0,50,3840,2160,3494,1966,1.230592
+91,1,"Classic optimized",0,51,3840,2160,3494,1966,1.214848
+91,1,"Classic optimized",0,52,3840,2160,3494,1966,1.234816
+91,1,"Classic optimized",0,53,3840,2160,3494,1966,1.188224
+91,1,"Classic optimized",0,54,3840,2160,3494,1966,1.238784
+91,1,"Classic optimized",0,55,3840,2160,3494,1966,1.272064
+91,1,"Classic optimized",0,56,3840,2160,3494,1966,1.269632
+91,1,"Classic optimized",0,57,3840,2160,3494,1966,1.23456
+91,1,"Classic optimized",0,58,3840,2160,3494,1966,1.281664
+91,1,"Classic optimized",0,59,3840,2160,3494,1966,1.179392
+91,1,"Classic optimized",0,60,3840,2160,3494,1966,1.33312
+91,1,"Classic optimized",0,61,3840,2160,3494,1966,1.257216
+91,1,"Classic optimized",0,62,3840,2160,3494,1966,1.167488
+91,1,"Classic optimized",0,63,3840,2160,3494,1966,1.184384
+91,1,"Classic optimized",0,64,3840,2160,3494,1966,1.197952
+91,1,"Classic optimized",0,65,3840,2160,3494,1966,1.28064
+91,1,"Classic optimized",0,66,3840,2160,3494,1966,1.259008
+91,1,"Classic optimized",0,67,3840,2160,3494,1966,1.321728
+91,1,"Classic optimized",0,68,3840,2160,3494,1966,1.16608
+91,1,"Classic optimized",0,69,3840,2160,3494,1966,1.281024
+91,1,"Classic optimized",0,70,3840,2160,3494,1966,1.245312
+91,1,"Classic optimized",0,71,3840,2160,3494,1966,1.272448
+91,1,"Classic optimized",0,72,3840,2160,3494,1966,1.193856
+91,1,"Classic optimized",0,73,3840,2160,3494,1966,1.24608
+91,1,"Classic optimized",0,74,3840,2160,3494,1966,1.232512
+91,1,"Classic optimized",0,75,3840,2160,3494,1966,1.275904
+91,1,"Classic optimized",0,76,3840,2160,3494,1966,1.245056
+91,1,"Classic optimized",0,77,3840,2160,3494,1966,1.277056
+91,1,"Classic optimized",0,78,3840,2160,3494,1966,1.156864
+91,1,"Classic optimized",0,79,3840,2160,3494,1966,1.263104
+91,1,"Classic optimized",0,80,3840,2160,3494,1966,1.277056
+91,1,"Classic optimized",0,81,3840,2160,3494,1966,1.165184
+91,1,"Classic optimized",0,82,3840,2160,3494,1966,1.218432
+91,1,"Classic optimized",0,83,3840,2160,3494,1966,1.21088
+91,1,"Classic optimized",0,84,3840,2160,3494,1966,1.239168
+91,1,"Classic optimized",0,85,3840,2160,3494,1966,1.249536
+91,1,"Classic optimized",0,86,3840,2160,3494,1966,1.223808
+91,1,"Classic optimized",0,87,3840,2160,3494,1966,1.280896
+91,1,"Classic optimized",0,88,3840,2160,3494,1966,1.188608
+91,1,"Classic optimized",0,89,3840,2160,3494,1966,1.32928
+91,1,"Classic optimized",0,90,3840,2160,3494,1966,1.205632
+91,1,"Classic optimized",0,91,3840,2160,3494,1966,1.288448
+91,1,"Classic optimized",0,92,3840,2160,3494,1966,1.210496
+91,1,"Classic optimized",0,93,3840,2160,3494,1966,1.243264
+91,1,"Classic optimized",0,94,3840,2160,3494,1966,1.210368
+91,1,"Classic optimized",0,95,3840,2160,3494,1966,1.237632
+91,1,"Classic optimized",0,96,3840,2160,3494,1966,1.220096
+91,1,"Classic optimized",0,97,3840,2160,3494,1966,1.322112
+91,1,"Classic optimized",0,98,3840,2160,3494,1966,1.210752
+91,1,"Classic optimized",0,99,3840,2160,3494,1966,1.248896
+91,1,"Classic optimized",0,100,3840,2160,3494,1966,1.2608
+91,1,"Classic optimized",0,101,3840,2160,3494,1966,1.267328
+91,1,"Classic optimized",0,102,3840,2160,3494,1966,1.165312
+91,1,"Classic optimized",0,103,3840,2160,3494,1966,1.310976
+91,1,"Classic optimized",0,104,3840,2160,3494,1966,1.261952
+91,1,"Classic optimized",0,105,3840,2160,3494,1966,1.247488
+91,1,"Classic optimized",0,106,3840,2160,3494,1966,1.169536
+91,1,"Classic optimized",0,107,3840,2160,3494,1966,1.300992
+91,1,"Classic optimized",0,108,3840,2160,3494,1966,1.177984
+91,1,"Classic optimized",0,109,3840,2160,3494,1966,1.222912
+91,1,"Classic optimized",0,110,3840,2160,3494,1966,1.296512
+91,1,"Classic optimized",0,111,3840,2160,3494,1966,1.265792
+91,1,"Classic optimized",0,112,3840,2160,3494,1966,1.171328
+91,1,"Classic optimized",0,113,3840,2160,3494,1966,1.277952
+91,1,"Classic optimized",0,114,3840,2160,3494,1966,1.296
+91,1,"Classic optimized",0,115,3840,2160,3494,1966,1.319168
+91,1,"Classic optimized",0,116,3840,2160,3494,1966,1.202816
+91,1,"Classic optimized",0,117,3840,2160,3494,1966,1.314432
+91,1,"Classic optimized",0,118,3840,2160,3494,1966,1.320448
+91,1,"Classic optimized",0,119,3840,2160,3494,1966,1.243648
+91,1,"Classic optimized",0,120,3840,2160,3494,1966,1.239552
+91,1,"Classic optimized",0,121,3840,2160,3494,1966,1.22496
+91,1,"Classic optimized",0,122,3840,2160,3494,1966,1.25632
+91,1,"Classic optimized",0,123,3840,2160,3494,1966,1.256576
+91,1,"Classic optimized",0,124,3840,2160,3494,1966,1.301632
+91,1,"Classic optimized",0,125,3840,2160,3494,1966,1.228032
+91,1,"Classic optimized",0,126,3840,2160,3494,1966,1.24672
+91,1,"Classic optimized",0,127,3840,2160,3494,1966,1.204992
+91,1,"Classic optimized",0,128,3840,2160,3494,1966,1.284224
+91,1,"Classic optimized",0,129,3840,2160,3494,1966,1.264256
+91,1,"Classic optimized",0,130,3840,2160,3494,1966,1.222784
+91,1,"Classic optimized",0,131,3840,2160,3494,1966,1.315072
+91,1,"Classic optimized",0,132,3840,2160,3494,1966,1.211776
+91,1,"Classic optimized",0,133,3840,2160,3494,1966,1.243648
+91,1,"Classic optimized",0,134,3840,2160,3494,1966,1.228672
+91,1,"Classic optimized",0,135,3840,2160,3494,1966,1.262976
+91,1,"Classic optimized",0,136,3840,2160,3494,1966,1.271808
+91,1,"Classic optimized",0,137,3840,2160,3494,1966,1.336064
+91,1,"Classic optimized",0,138,3840,2160,3494,1966,1.243904
+91,1,"Classic optimized",0,139,3840,2160,3494,1966,1.26464
+91,1,"Classic optimized",0,140,3840,2160,3494,1966,1.268608
+91,1,"Classic optimized",0,141,3840,2160,3494,1966,1.293824
+91,1,"Classic optimized",0,142,3840,2160,3494,1966,1.22624
+91,1,"Classic optimized",0,143,3840,2160,3494,1966,1.245568
+91,1,"Classic optimized",0,144,3840,2160,3494,1966,1.238784
+91,1,"Classic optimized",0,145,3840,2160,3494,1966,1.185792
+91,1,"Classic optimized",0,146,3840,2160,3494,1966,1.268352
+91,1,"Classic optimized",0,147,3840,2160,3494,1966,1.243264
+91,1,"Classic optimized",0,148,3840,2160,3494,1966,1.235968
+91,1,"Classic optimized",0,149,3840,2160,3494,1966,1.237632
+91,1,"Classic optimized",0,150,3840,2160,3494,1966,1.271552
+91,1,"Classic optimized",0,151,3840,2160,3494,1966,1.241216
+91,1,"Classic optimized",0,152,3840,2160,3494,1966,1.238144
+91,1,"Classic optimized",0,153,3840,2160,3494,1966,1.250304
+91,1,"Classic optimized",0,154,3840,2160,3494,1966,1.180288
+91,1,"Classic optimized",0,155,3840,2160,3494,1966,1.23712
+91,1,"Classic optimized",0,156,3840,2160,3494,1966,1.35936
+91,1,"Classic optimized",0,157,3840,2160,3494,1966,1.189632
+91,1,"Classic optimized",0,158,3840,2160,3494,1966,1.229184
+91,1,"Classic optimized",0,159,3840,2160,3494,1966,1.235968
+91,1,"Fast + Low36 + Cross5 (approximate)",1,0,3840,2160,3494,1966,1.445888
+91,1,"Fast + Low36 + Cross5 (approximate)",1,1,3840,2160,3494,1966,1.497216
+91,1,"Fast + Low36 + Cross5 (approximate)",1,2,3840,2160,3494,1966,1.440896
+91,1,"Fast + Low36 + Cross5 (approximate)",1,3,3840,2160,3494,1966,1.412992
+91,1,"Fast + Low36 + Cross5 (approximate)",1,4,3840,2160,3494,1966,1.496704
+91,1,"Fast + Low36 + Cross5 (approximate)",1,5,3840,2160,3494,1966,1.43808
+91,1,"Fast + Low36 + Cross5 (approximate)",1,6,3840,2160,3494,1966,1.481472
+91,1,"Fast + Low36 + Cross5 (approximate)",1,7,3840,2160,3494,1966,1.44384
+91,1,"Fast + Low36 + Cross5 (approximate)",1,8,3840,2160,3494,1966,1.433856
+91,1,"Fast + Low36 + Cross5 (approximate)",1,9,3840,2160,3494,1966,1.472512
+91,1,"Fast + Low36 + Cross5 (approximate)",1,10,3840,2160,3494,1966,1.43808
+91,1,"Fast + Low36 + Cross5 (approximate)",1,11,3840,2160,3494,1966,1.433344
+91,1,"Fast + Low36 + Cross5 (approximate)",1,12,3840,2160,3494,1966,1.478528
+91,1,"Fast + Low36 + Cross5 (approximate)",1,13,3840,2160,3494,1966,1.481088
+91,1,"Fast + Low36 + Cross5 (approximate)",1,14,3840,2160,3494,1966,1.493504
+91,1,"Fast + Low36 + Cross5 (approximate)",1,15,3840,2160,3494,1966,1.442816
+91,1,"Fast + Low36 + Cross5 (approximate)",1,16,3840,2160,3494,1966,1.4976
+91,1,"Fast + Low36 + Cross5 (approximate)",1,17,3840,2160,3494,1966,1.476736
+91,1,"Fast + Low36 + Cross5 (approximate)",1,18,3840,2160,3494,1966,1.406208
+91,1,"Fast + Low36 + Cross5 (approximate)",1,19,3840,2160,3494,1966,1.4976
+91,1,"Fast + Low36 + Cross5 (approximate)",1,20,3840,2160,3494,1966,1.453568
+91,1,"Fast + Low36 + Cross5 (approximate)",1,21,3840,2160,3494,1966,1.434368
+91,1,"Fast + Low36 + Cross5 (approximate)",1,22,3840,2160,3494,1966,1.443456
+91,1,"Fast + Low36 + Cross5 (approximate)",1,23,3840,2160,3494,1966,1.448576
+91,1,"Fast + Low36 + Cross5 (approximate)",1,24,3840,2160,3494,1966,1.44
+91,1,"Fast + Low36 + Cross5 (approximate)",1,25,3840,2160,3494,1966,1.438848
+91,1,"Fast + Low36 + Cross5 (approximate)",1,26,3840,2160,3494,1966,1.454464
+91,1,"Fast + Low36 + Cross5 (approximate)",1,27,3840,2160,3494,1966,1.439616
+91,1,"Fast + Low36 + Cross5 (approximate)",1,28,3840,2160,3494,1966,1.438464
+91,1,"Fast + Low36 + Cross5 (approximate)",1,29,3840,2160,3494,1966,1.454848
+91,1,"Fast + Low36 + Cross5 (approximate)",1,30,3840,2160,3494,1966,1.469952
+91,1,"Fast + Low36 + Cross5 (approximate)",1,31,3840,2160,3494,1966,1.439232
+91,1,"Fast + Low36 + Cross5 (approximate)",1,32,3840,2160,3494,1966,1.461376
+91,1,"Fast + Low36 + Cross5 (approximate)",1,33,3840,2160,3494,1966,1.43872
+91,1,"Fast + Low36 + Cross5 (approximate)",1,34,3840,2160,3494,1966,1.466112
+91,1,"Fast + Low36 + Cross5 (approximate)",1,35,3840,2160,3494,1966,1.470336
+91,1,"Fast + Low36 + Cross5 (approximate)",1,36,3840,2160,3494,1966,1.497856
+91,1,"Fast + Low36 + Cross5 (approximate)",1,37,3840,2160,3494,1966,1.431424
+91,1,"Fast + Low36 + Cross5 (approximate)",1,38,3840,2160,3494,1966,1.491968
+91,1,"Fast + Low36 + Cross5 (approximate)",1,39,3840,2160,3494,1966,1.443456
+91,1,"Fast + Low36 + Cross5 (approximate)",1,40,3840,2160,3494,1966,1.396736
+91,1,"Fast + Low36 + Cross5 (approximate)",1,41,3840,2160,3494,1966,1.500672
+91,1,"Fast + Low36 + Cross5 (approximate)",1,42,3840,2160,3494,1966,1.439488
+91,1,"Fast + Low36 + Cross5 (approximate)",1,43,3840,2160,3494,1966,1.468288
+91,1,"Fast + Low36 + Cross5 (approximate)",1,44,3840,2160,3494,1966,1.46944
+91,1,"Fast + Low36 + Cross5 (approximate)",1,45,3840,2160,3494,1966,1.437952
+91,1,"Fast + Low36 + Cross5 (approximate)",1,46,3840,2160,3494,1966,1.46624
+91,1,"Fast + Low36 + Cross5 (approximate)",1,47,3840,2160,3494,1966,1.468032
+91,1,"Fast + Low36 + Cross5 (approximate)",1,48,3840,2160,3494,1966,1.515776
+91,1,"Fast + Low36 + Cross5 (approximate)",1,49,3840,2160,3494,1966,1.442432
+91,1,"Fast + Low36 + Cross5 (approximate)",1,50,3840,2160,3494,1966,1.469824
+91,1,"Fast + Low36 + Cross5 (approximate)",1,51,3840,2160,3494,1966,1.507328
+91,1,"Fast + Low36 + Cross5 (approximate)",1,52,3840,2160,3494,1966,1.385984
+91,1,"Fast + Low36 + Cross5 (approximate)",1,53,3840,2160,3494,1966,1.494016
+91,1,"Fast + Low36 + Cross5 (approximate)",1,54,3840,2160,3494,1966,1.484416
+91,1,"Fast + Low36 + Cross5 (approximate)",1,55,3840,2160,3494,1966,1.380224
+91,1,"Fast + Low36 + Cross5 (approximate)",1,56,3840,2160,3494,1966,1.537792
+91,1,"Fast + Low36 + Cross5 (approximate)",1,57,3840,2160,3494,1966,1.465472
+91,1,"Fast + Low36 + Cross5 (approximate)",1,58,3840,2160,3494,1966,1.432832
+91,1,"Fast + Low36 + Cross5 (approximate)",1,59,3840,2160,3494,1966,1.44256
+91,1,"Fast + Low36 + Cross5 (approximate)",1,60,3840,2160,3494,1966,1.396096
+91,1,"Fast + Low36 + Cross5 (approximate)",1,61,3840,2160,3494,1966,1.497216
+91,1,"Fast + Low36 + Cross5 (approximate)",1,62,3840,2160,3494,1966,1.438464
+91,1,"Fast + Low36 + Cross5 (approximate)",1,63,3840,2160,3494,1966,1.47456
+91,1,"Fast + Low36 + Cross5 (approximate)",1,64,3840,2160,3494,1966,1.444352
+91,1,"Fast + Low36 + Cross5 (approximate)",1,65,3840,2160,3494,1966,1.43808
+91,1,"Fast + Low36 + Cross5 (approximate)",1,66,3840,2160,3494,1966,1.485696
+91,1,"Fast + Low36 + Cross5 (approximate)",1,67,3840,2160,3494,1966,1.438336
+91,1,"Fast + Low36 + Cross5 (approximate)",1,68,3840,2160,3494,1966,1.543168
+91,1,"Fast + Low36 + Cross5 (approximate)",1,69,3840,2160,3494,1966,1.468928
+91,1,"Fast + Low36 + Cross5 (approximate)",1,70,3840,2160,3494,1966,1.489408
+91,1,"Fast + Low36 + Cross5 (approximate)",1,71,3840,2160,3494,1966,1.421312
+91,1,"Fast + Low36 + Cross5 (approximate)",1,72,3840,2160,3494,1966,1.438592
+91,1,"Fast + Low36 + Cross5 (approximate)",1,73,3840,2160,3494,1966,1.4976
+91,1,"Fast + Low36 + Cross5 (approximate)",1,74,3840,2160,3494,1966,1.449088
+91,1,"Fast + Low36 + Cross5 (approximate)",1,75,3840,2160,3494,1966,1.434368
+91,1,"Fast + Low36 + Cross5 (approximate)",1,76,3840,2160,3494,1966,1.443328
+91,1,"Fast + Low36 + Cross5 (approximate)",1,77,3840,2160,3494,1966,1.472
+91,1,"Fast + Low36 + Cross5 (approximate)",1,78,3840,2160,3494,1966,1.440384
+91,1,"Fast + Low36 + Cross5 (approximate)",1,79,3840,2160,3494,1966,1.485824
+91,1,"Fast + Low36 + Cross5 (approximate)",1,80,3840,2160,3494,1966,1.477504
+91,1,"Fast + Low36 + Cross5 (approximate)",1,81,3840,2160,3494,1966,1.439104
+91,1,"Fast + Low36 + Cross5 (approximate)",1,82,3840,2160,3494,1966,1.517952
+91,1,"Fast + Low36 + Cross5 (approximate)",1,83,3840,2160,3494,1966,1.419136
+91,1,"Fast + Low36 + Cross5 (approximate)",1,84,3840,2160,3494,1966,1.439104
+91,1,"Fast + Low36 + Cross5 (approximate)",1,85,3840,2160,3494,1966,1.52576
+91,1,"Fast + Low36 + Cross5 (approximate)",1,86,3840,2160,3494,1966,1.44448
+91,1,"Fast + Low36 + Cross5 (approximate)",1,87,3840,2160,3494,1966,1.435648
+91,1,"Fast + Low36 + Cross5 (approximate)",1,88,3840,2160,3494,1966,1.467008
+91,1,"Fast + Low36 + Cross5 (approximate)",1,89,3840,2160,3494,1966,1.438336
+91,1,"Fast + Low36 + Cross5 (approximate)",1,90,3840,2160,3494,1966,1.488384
+91,1,"Fast + Low36 + Cross5 (approximate)",1,91,3840,2160,3494,1966,1.47648
+91,1,"Fast + Low36 + Cross5 (approximate)",1,92,3840,2160,3494,1966,1.492992
+91,1,"Fast + Low36 + Cross5 (approximate)",1,93,3840,2160,3494,1966,1.457792
+91,1,"Fast + Low36 + Cross5 (approximate)",1,94,3840,2160,3494,1966,1.414016
+91,1,"Fast + Low36 + Cross5 (approximate)",1,95,3840,2160,3494,1966,1.497728
+91,1,"Fast + Low36 + Cross5 (approximate)",1,96,3840,2160,3494,1966,1.459072
+91,1,"Fast + Low36 + Cross5 (approximate)",1,97,3840,2160,3494,1966,1.471232
+91,1,"Fast + Low36 + Cross5 (approximate)",1,98,3840,2160,3494,1966,1.437824
+91,1,"Fast + Low36 + Cross5 (approximate)",1,99,3840,2160,3494,1966,1.439488
+91,1,"Fast + Low36 + Cross5 (approximate)",1,100,3840,2160,3494,1966,1.502976
+91,1,"Fast + Low36 + Cross5 (approximate)",1,101,3840,2160,3494,1966,1.438208
+91,1,"Fast + Low36 + Cross5 (approximate)",1,102,3840,2160,3494,1966,1.517312
+91,1,"Fast + Low36 + Cross5 (approximate)",1,103,3840,2160,3494,1966,1.437056
+91,1,"Fast + Low36 + Cross5 (approximate)",1,104,3840,2160,3494,1966,1.48608
+91,1,"Fast + Low36 + Cross5 (approximate)",1,105,3840,2160,3494,1966,1.470592
+91,1,"Fast + Low36 + Cross5 (approximate)",1,106,3840,2160,3494,1966,1.443584
+91,1,"Fast + Low36 + Cross5 (approximate)",1,107,3840,2160,3494,1966,1.492736
+91,1,"Fast + Low36 + Cross5 (approximate)",1,108,3840,2160,3494,1966,1.46944
+91,1,"Fast + Low36 + Cross5 (approximate)",1,109,3840,2160,3494,1966,1.434752
+91,1,"Fast + Low36 + Cross5 (approximate)",1,110,3840,2160,3494,1966,1.439104
+91,1,"Fast + Low36 + Cross5 (approximate)",1,111,3840,2160,3494,1966,1.419648
+91,1,"Fast + Low36 + Cross5 (approximate)",1,112,3840,2160,3494,1966,1.451264
+91,1,"Fast + Low36 + Cross5 (approximate)",1,113,3840,2160,3494,1966,1.433984
+91,1,"Fast + Low36 + Cross5 (approximate)",1,114,3840,2160,3494,1966,1.463936
+91,1,"Fast + Low36 + Cross5 (approximate)",1,115,3840,2160,3494,1966,1.443968
+91,1,"Fast + Low36 + Cross5 (approximate)",1,116,3840,2160,3494,1966,1.43808
+91,1,"Fast + Low36 + Cross5 (approximate)",1,117,3840,2160,3494,1966,1.4688
+91,1,"Fast + Low36 + Cross5 (approximate)",1,118,3840,2160,3494,1966,1.438848
+91,1,"Fast + Low36 + Cross5 (approximate)",1,119,3840,2160,3494,1966,1.452928
+91,1,"Fast + Low36 + Cross5 (approximate)",1,120,3840,2160,3494,1966,1.454592
+91,1,"Fast + Low36 + Cross5 (approximate)",1,121,3840,2160,3494,1966,1.438464
+91,1,"Fast + Low36 + Cross5 (approximate)",1,122,3840,2160,3494,1966,1.454336
+91,1,"Fast + Low36 + Cross5 (approximate)",1,123,3840,2160,3494,1966,1.454592
+91,1,"Fast + Low36 + Cross5 (approximate)",1,124,3840,2160,3494,1966,1.536512
+91,1,"Fast + Low36 + Cross5 (approximate)",1,125,3840,2160,3494,1966,1.423104
+91,1,"Fast + Low36 + Cross5 (approximate)",1,126,3840,2160,3494,1966,1.437952
+91,1,"Fast + Low36 + Cross5 (approximate)",1,127,3840,2160,3494,1966,1.497088
+91,1,"Fast + Low36 + Cross5 (approximate)",1,128,3840,2160,3494,1966,1.459584
+91,1,"Fast + Low36 + Cross5 (approximate)",1,129,3840,2160,3494,1966,1.44
+91,1,"Fast + Low36 + Cross5 (approximate)",1,130,3840,2160,3494,1966,1.437696
+91,1,"Fast + Low36 + Cross5 (approximate)",1,131,3840,2160,3494,1966,1.453952
+91,1,"Fast + Low36 + Cross5 (approximate)",1,132,3840,2160,3494,1966,1.44
+91,1,"Fast + Low36 + Cross5 (approximate)",1,133,3840,2160,3494,1966,1.469312
+91,1,"Fast + Low36 + Cross5 (approximate)",1,134,3840,2160,3494,1966,1.454976
+91,1,"Fast + Low36 + Cross5 (approximate)",1,135,3840,2160,3494,1966,1.439872
+91,1,"Fast + Low36 + Cross5 (approximate)",1,136,3840,2160,3494,1966,1.439104
+91,1,"Fast + Low36 + Cross5 (approximate)",1,137,3840,2160,3494,1966,1.455616
+91,1,"Fast + Low36 + Cross5 (approximate)",1,138,3840,2160,3494,1966,1.438464
+91,1,"Fast + Low36 + Cross5 (approximate)",1,139,3840,2160,3494,1966,1.545984
+91,1,"Fast + Low36 + Cross5 (approximate)",1,140,3840,2160,3494,1966,1.390976
+91,1,"Fast + Low36 + Cross5 (approximate)",1,141,3840,2160,3494,1966,1.438208
+91,1,"Fast + Low36 + Cross5 (approximate)",1,142,3840,2160,3494,1966,1.526144
+91,1,"Fast + Low36 + Cross5 (approximate)",1,143,3840,2160,3494,1966,1.380992
+91,1,"Fast + Low36 + Cross5 (approximate)",1,144,3840,2160,3494,1966,1.502848
+91,1,"Fast + Low36 + Cross5 (approximate)",1,145,3840,2160,3494,1966,1.474176
+91,1,"Fast + Low36 + Cross5 (approximate)",1,146,3840,2160,3494,1966,1.434112
+91,1,"Fast + Low36 + Cross5 (approximate)",1,147,3840,2160,3494,1966,1.476352
+91,1,"Fast + Low36 + Cross5 (approximate)",1,148,3840,2160,3494,1966,1.472384
+91,1,"Fast + Low36 + Cross5 (approximate)",1,149,3840,2160,3494,1966,1.491968
+91,1,"Fast + Low36 + Cross5 (approximate)",1,150,3840,2160,3494,1966,1.43872
+91,1,"Fast + Low36 + Cross5 (approximate)",1,151,3840,2160,3494,1966,1.52
+91,1,"Fast + Low36 + Cross5 (approximate)",1,152,3840,2160,3494,1966,1.44448
+91,1,"Fast + Low36 + Cross5 (approximate)",1,153,3840,2160,3494,1966,1.439616
+91,1,"Fast + Low36 + Cross5 (approximate)",1,154,3840,2160,3494,1966,1.472896
+91,1,"Fast + Low36 + Cross5 (approximate)",1,155,3840,2160,3494,1966,1.438336
+91,1,"Fast + Low36 + Cross5 (approximate)",1,156,3840,2160,3494,1966,1.523584
+91,1,"Fast + Low36 + Cross5 (approximate)",1,157,3840,2160,3494,1966,1.444224
+91,1,"Fast + Low36 + Cross5 (approximate)",1,158,3840,2160,3494,1966,1.435392
+91,1,"Fast + Low36 + Cross5 (approximate)",1,159,3840,2160,3494,1966,1.4688
+91,1,"Fast + Low36 + Cross5 (approximate)",2,0,3840,2160,3494,1966,1.486848
+91,1,"Fast + Low36 + Cross5 (approximate)",2,1,3840,2160,3494,1966,1.44064
+91,1,"Fast + Low36 + Cross5 (approximate)",2,2,3840,2160,3494,1966,1.439104
+91,1,"Fast + Low36 + Cross5 (approximate)",2,3,3840,2160,3494,1966,1.45472
+91,1,"Fast + Low36 + Cross5 (approximate)",2,4,3840,2160,3494,1966,1.439104
+91,1,"Fast + Low36 + Cross5 (approximate)",2,5,3840,2160,3494,1966,1.439872
+91,1,"Fast + Low36 + Cross5 (approximate)",2,6,3840,2160,3494,1966,1.546752
+91,1,"Fast + Low36 + Cross5 (approximate)",2,7,3840,2160,3494,1966,1.444992
+91,1,"Fast + Low36 + Cross5 (approximate)",2,8,3840,2160,3494,1966,1.497344
+91,1,"Fast + Low36 + Cross5 (approximate)",2,9,3840,2160,3494,1966,1.418752
+91,1,"Fast + Low36 + Cross5 (approximate)",2,10,3840,2160,3494,1966,1.470464
+91,1,"Fast + Low36 + Cross5 (approximate)",2,11,3840,2160,3494,1966,1.52448
+91,1,"Fast + Low36 + Cross5 (approximate)",2,12,3840,2160,3494,1966,1.419136
+91,1,"Fast + Low36 + Cross5 (approximate)",2,13,3840,2160,3494,1966,1.491968
+91,1,"Fast + Low36 + Cross5 (approximate)",2,14,3840,2160,3494,1966,1.47648
+91,1,"Fast + Low36 + Cross5 (approximate)",2,15,3840,2160,3494,1966,1.381376
+91,1,"Fast + Low36 + Cross5 (approximate)",2,16,3840,2160,3494,1966,1.503488
+91,1,"Fast + Low36 + Cross5 (approximate)",2,17,3840,2160,3494,1966,1.50272
+91,1,"Fast + Low36 + Cross5 (approximate)",2,18,3840,2160,3494,1966,1.48736
+91,1,"Fast + Low36 + Cross5 (approximate)",2,19,3840,2160,3494,1966,1.444224
+91,1,"Fast + Low36 + Cross5 (approximate)",2,20,3840,2160,3494,1966,1.412992
+91,1,"Fast + Low36 + Cross5 (approximate)",2,21,3840,2160,3494,1966,1.498368
+91,1,"Fast + Low36 + Cross5 (approximate)",2,22,3840,2160,3494,1966,1.437312
+91,1,"Fast + Low36 + Cross5 (approximate)",2,23,3840,2160,3494,1966,1.46752
+91,1,"Fast + Low36 + Cross5 (approximate)",2,24,3840,2160,3494,1966,1.444608
+91,1,"Fast + Low36 + Cross5 (approximate)",2,25,3840,2160,3494,1966,1.489152
+91,1,"Fast + Low36 + Cross5 (approximate)",2,26,3840,2160,3494,1966,1.52576
+91,1,"Fast + Low36 + Cross5 (approximate)",2,27,3840,2160,3494,1966,1.43744
+91,1,"Fast + Low36 + Cross5 (approximate)",2,28,3840,2160,3494,1966,1.513088
+91,1,"Fast + Low36 + Cross5 (approximate)",2,29,3840,2160,3494,1966,1.380608
+91,1,"Fast + Low36 + Cross5 (approximate)",2,30,3840,2160,3494,1966,1.491456
+91,1,"Fast + Low36 + Cross5 (approximate)",2,31,3840,2160,3494,1966,1.460096
+91,1,"Fast + Low36 + Cross5 (approximate)",2,32,3840,2160,3494,1966,1.387648
+91,1,"Fast + Low36 + Cross5 (approximate)",2,33,3840,2160,3494,1966,1.492864
+91,1,"Fast + Low36 + Cross5 (approximate)",2,34,3840,2160,3494,1966,1.454336
+91,1,"Fast + Low36 + Cross5 (approximate)",2,35,3840,2160,3494,1966,1.4848
+91,1,"Fast + Low36 + Cross5 (approximate)",2,36,3840,2160,3494,1966,1.495936
+91,1,"Fast + Low36 + Cross5 (approximate)",2,37,3840,2160,3494,1966,1.419776
+91,1,"Fast + Low36 + Cross5 (approximate)",2,38,3840,2160,3494,1966,1.496704
+91,1,"Fast + Low36 + Cross5 (approximate)",2,39,3840,2160,3494,1966,1.438976
+91,1,"Fast + Low36 + Cross5 (approximate)",2,40,3840,2160,3494,1966,1.414912
+91,1,"Fast + Low36 + Cross5 (approximate)",2,41,3840,2160,3494,1966,1.49632
+91,1,"Fast + Low36 + Cross5 (approximate)",2,42,3840,2160,3494,1966,1.435648
+91,1,"Fast + Low36 + Cross5 (approximate)",2,43,3840,2160,3494,1966,1.470592
+91,1,"Fast + Low36 + Cross5 (approximate)",2,44,3840,2160,3494,1966,1.439232
+91,1,"Fast + Low36 + Cross5 (approximate)",2,45,3840,2160,3494,1966,1.439488
+91,1,"Fast + Low36 + Cross5 (approximate)",2,46,3840,2160,3494,1966,1.497216
+91,1,"Fast + Low36 + Cross5 (approximate)",2,47,3840,2160,3494,1966,1.44384
+91,1,"Fast + Low36 + Cross5 (approximate)",2,48,3840,2160,3494,1966,1.522176
+91,1,"Fast + Low36 + Cross5 (approximate)",2,49,3840,2160,3494,1966,1.382016
+91,1,"Fast + Low36 + Cross5 (approximate)",2,50,3840,2160,3494,1966,1.49248
+91,1,"Fast + Low36 + Cross5 (approximate)",2,51,3840,2160,3494,1966,1.459456
+91,1,"Fast + Low36 + Cross5 (approximate)",2,52,3840,2160,3494,1966,1.439872
+91,1,"Fast + Low36 + Cross5 (approximate)",2,53,3840,2160,3494,1966,1.434368
+91,1,"Fast + Low36 + Cross5 (approximate)",2,54,3840,2160,3494,1966,1.514624
+91,1,"Fast + Low36 + Cross5 (approximate)",2,55,3840,2160,3494,1966,1.497088
+91,1,"Fast + Low36 + Cross5 (approximate)",2,56,3840,2160,3494,1966,1.438976
+91,1,"Fast + Low36 + Cross5 (approximate)",2,57,3840,2160,3494,1966,1.413376
+91,1,"Fast + Low36 + Cross5 (approximate)",2,58,3840,2160,3494,1966,1.496192
+91,1,"Fast + Low36 + Cross5 (approximate)",2,59,3840,2160,3494,1966,1.433984
+91,1,"Fast + Low36 + Cross5 (approximate)",2,60,3840,2160,3494,1966,1.463808
+91,1,"Fast + Low36 + Cross5 (approximate)",2,61,3840,2160,3494,1966,1.443456
+91,1,"Fast + Low36 + Cross5 (approximate)",2,62,3840,2160,3494,1966,1.438336
+91,1,"Fast + Low36 + Cross5 (approximate)",2,63,3840,2160,3494,1966,1.496576
+91,1,"Fast + Low36 + Cross5 (approximate)",2,64,3840,2160,3494,1966,1.44384
+91,1,"Fast + Low36 + Cross5 (approximate)",2,65,3840,2160,3494,1966,1.507968
+91,1,"Fast + Low36 + Cross5 (approximate)",2,66,3840,2160,3494,1966,1.385984
+91,1,"Fast + Low36 + Cross5 (approximate)",2,67,3840,2160,3494,1966,1.437696
+91,1,"Fast + Low36 + Cross5 (approximate)",2,68,3840,2160,3494,1966,1.512576
+91,1,"Fast + Low36 + Cross5 (approximate)",2,69,3840,2160,3494,1966,1.439744
+91,1,"Fast + Low36 + Cross5 (approximate)",2,70,3840,2160,3494,1966,1.434752
+91,1,"Fast + Low36 + Cross5 (approximate)",2,71,3840,2160,3494,1966,1.47008
+91,1,"Fast + Low36 + Cross5 (approximate)",2,72,3840,2160,3494,1966,1.43808
+91,1,"Fast + Low36 + Cross5 (approximate)",2,73,3840,2160,3494,1966,1.530752
+91,1,"Fast + Low36 + Cross5 (approximate)",2,74,3840,2160,3494,1966,1.424384
+91,1,"Fast + Low36 + Cross5 (approximate)",2,75,3840,2160,3494,1966,1.494272
+91,1,"Fast + Low36 + Cross5 (approximate)",2,76,3840,2160,3494,1966,1.443584
+91,1,"Fast + Low36 + Cross5 (approximate)",2,77,3840,2160,3494,1966,1.409536
+91,1,"Fast + Low36 + Cross5 (approximate)",2,78,3840,2160,3494,1966,1.497728
+91,1,"Fast + Low36 + Cross5 (approximate)",2,79,3840,2160,3494,1966,1.438592
+91,1,"Fast + Low36 + Cross5 (approximate)",2,80,3840,2160,3494,1966,1.458816
+91,1,"Fast + Low36 + Cross5 (approximate)",2,81,3840,2160,3494,1966,1.438208
+91,1,"Fast + Low36 + Cross5 (approximate)",2,82,3840,2160,3494,1966,1.485184
+91,1,"Fast + Low36 + Cross5 (approximate)",2,83,3840,2160,3494,1966,1.458688
+91,1,"Fast + Low36 + Cross5 (approximate)",2,84,3840,2160,3494,1966,1.439104
+91,1,"Fast + Low36 + Cross5 (approximate)",2,85,3840,2160,3494,1966,1.505408
+91,1,"Fast + Low36 + Cross5 (approximate)",2,86,3840,2160,3494,1966,1.3888
+91,1,"Fast + Low36 + Cross5 (approximate)",2,87,3840,2160,3494,1966,1.41888
+91,1,"Fast + Low36 + Cross5 (approximate)",2,88,3840,2160,3494,1966,1.537792
+91,1,"Fast + Low36 + Cross5 (approximate)",2,89,3840,2160,3494,1966,1.439488
+91,1,"Fast + Low36 + Cross5 (approximate)",2,90,3840,2160,3494,1966,1.433856
+91,1,"Fast + Low36 + Cross5 (approximate)",2,91,3840,2160,3494,1966,1.513728
+91,1,"Fast + Low36 + Cross5 (approximate)",2,92,3840,2160,3494,1966,1.443328
+91,1,"Fast + Low36 + Cross5 (approximate)",2,93,3840,2160,3494,1966,1.49696
+91,1,"Fast + Low36 + Cross5 (approximate)",2,94,3840,2160,3494,1966,1.410176
+91,1,"Fast + Low36 + Cross5 (approximate)",2,95,3840,2160,3494,1966,1.490944
+91,1,"Fast + Low36 + Cross5 (approximate)",2,96,3840,2160,3494,1966,1.44384
+91,1,"Fast + Low36 + Cross5 (approximate)",2,97,3840,2160,3494,1966,1.478656
+91,1,"Fast + Low36 + Cross5 (approximate)",2,98,3840,2160,3494,1966,1.46368
+91,1,"Fast + Low36 + Cross5 (approximate)",2,99,3840,2160,3494,1966,1.439616
+91,1,"Fast + Low36 + Cross5 (approximate)",2,100,3840,2160,3494,1966,1.513088
+91,1,"Fast + Low36 + Cross5 (approximate)",2,101,3840,2160,3494,1966,1.44384
+91,1,"Fast + Low36 + Cross5 (approximate)",2,102,3840,2160,3494,1966,1.437184
+91,1,"Fast + Low36 + Cross5 (approximate)",2,103,3840,2160,3494,1966,1.531008
+91,1,"Fast + Low36 + Cross5 (approximate)",2,104,3840,2160,3494,1966,1.471616
+91,1,"Fast + Low36 + Cross5 (approximate)",2,105,3840,2160,3494,1966,1.463424
+91,1,"Fast + Low36 + Cross5 (approximate)",2,106,3840,2160,3494,1966,1.561344
+91,1,"Fast + Low36 + Cross5 (approximate)",2,107,3840,2160,3494,1966,1.464448
+91,1,"Fast + Low36 + Cross5 (approximate)",2,108,3840,2160,3494,1966,1.480704
+91,1,"Fast + Low36 + Cross5 (approximate)",2,109,3840,2160,3494,1966,1.470464
+91,1,"Fast + Low36 + Cross5 (approximate)",2,110,3840,2160,3494,1966,1.45408
+91,1,"Fast + Low36 + Cross5 (approximate)",2,111,3840,2160,3494,1966,1.522688
+91,1,"Fast + Low36 + Cross5 (approximate)",2,112,3840,2160,3494,1966,1.4752
+91,1,"Fast + Low36 + Cross5 (approximate)",2,113,3840,2160,3494,1966,1.438208
+91,1,"Fast + Low36 + Cross5 (approximate)",2,114,3840,2160,3494,1966,1.453696
+91,1,"Fast + Low36 + Cross5 (approximate)",2,115,3840,2160,3494,1966,1.440512
+91,1,"Fast + Low36 + Cross5 (approximate)",2,116,3840,2160,3494,1966,1.48608
+91,1,"Fast + Low36 + Cross5 (approximate)",2,117,3840,2160,3494,1966,1.452544
+91,1,"Fast + Low36 + Cross5 (approximate)",2,118,3840,2160,3494,1966,1.495424
+91,1,"Fast + Low36 + Cross5 (approximate)",2,119,3840,2160,3494,1966,1.537536
+91,1,"Fast + Low36 + Cross5 (approximate)",2,120,3840,2160,3494,1966,1.388032
+91,1,"Fast + Low36 + Cross5 (approximate)",2,121,3840,2160,3494,1966,1.524352
+91,1,"Fast + Low36 + Cross5 (approximate)",2,122,3840,2160,3494,1966,1.504768
+91,1,"Fast + Low36 + Cross5 (approximate)",2,123,3840,2160,3494,1966,1.380224
+91,1,"Fast + Low36 + Cross5 (approximate)",2,124,3840,2160,3494,1966,1.497984
+91,1,"Fast + Low36 + Cross5 (approximate)",2,125,3840,2160,3494,1966,1.472768
+91,1,"Fast + Low36 + Cross5 (approximate)",2,126,3840,2160,3494,1966,1.477248
+91,1,"Fast + Low36 + Cross5 (approximate)",2,127,3840,2160,3494,1966,1.470464
+91,1,"Fast + Low36 + Cross5 (approximate)",2,128,3840,2160,3494,1966,1.562496
+91,1,"Fast + Low36 + Cross5 (approximate)",2,129,3840,2160,3494,1966,1.462912
+91,1,"Fast + Low36 + Cross5 (approximate)",2,130,3840,2160,3494,1966,1.539328
+91,1,"Fast + Low36 + Cross5 (approximate)",2,131,3840,2160,3494,1966,1.387008
+91,1,"Fast + Low36 + Cross5 (approximate)",2,132,3840,2160,3494,1966,1.546752
+91,1,"Fast + Low36 + Cross5 (approximate)",2,133,3840,2160,3494,1966,1.512192
+91,1,"Fast + Low36 + Cross5 (approximate)",2,134,3840,2160,3494,1966,1.38624
+91,1,"Fast + Low36 + Cross5 (approximate)",2,135,3840,2160,3494,1966,1.52256
+91,1,"Fast + Low36 + Cross5 (approximate)",2,136,3840,2160,3494,1966,1.479808
+91,1,"Fast + Low36 + Cross5 (approximate)",2,137,3840,2160,3494,1966,1.494656
+91,1,"Fast + Low36 + Cross5 (approximate)",2,138,3840,2160,3494,1966,1.444352
+91,1,"Fast + Low36 + Cross5 (approximate)",2,139,3840,2160,3494,1966,1.45344
+91,1,"Fast + Low36 + Cross5 (approximate)",2,140,3840,2160,3494,1966,1.45344
+91,1,"Fast + Low36 + Cross5 (approximate)",2,141,3840,2160,3494,1966,1.438592
+91,1,"Fast + Low36 + Cross5 (approximate)",2,142,3840,2160,3494,1966,1.503744
+91,1,"Fast + Low36 + Cross5 (approximate)",2,143,3840,2160,3494,1966,1.471488
+91,1,"Fast + Low36 + Cross5 (approximate)",2,144,3840,2160,3494,1966,1.49824
+91,1,"Fast + Low36 + Cross5 (approximate)",2,145,3840,2160,3494,1966,1.444864
+91,1,"Fast + Low36 + Cross5 (approximate)",2,146,3840,2160,3494,1966,1.43488
+91,1,"Fast + Low36 + Cross5 (approximate)",2,147,3840,2160,3494,1966,1.471616
+91,1,"Fast + Low36 + Cross5 (approximate)",2,148,3840,2160,3494,1966,1.43744
+91,1,"Fast + Low36 + Cross5 (approximate)",2,149,3840,2160,3494,1966,1.487616
+91,1,"Fast + Low36 + Cross5 (approximate)",2,150,3840,2160,3494,1966,1.503232
+91,1,"Fast + Low36 + Cross5 (approximate)",2,151,3840,2160,3494,1966,1.472896
+91,1,"Fast + Low36 + Cross5 (approximate)",2,152,3840,2160,3494,1966,1.522048
+91,1,"Fast + Low36 + Cross5 (approximate)",2,153,3840,2160,3494,1966,1.527296
+91,1,"Fast + Low36 + Cross5 (approximate)",2,154,3840,2160,3494,1966,1.444736
+91,1,"Fast + Low36 + Cross5 (approximate)",2,155,3840,2160,3494,1966,1.452032
+91,1,"Fast + Low36 + Cross5 (approximate)",2,156,3840,2160,3494,1966,1.472512
+91,1,"Fast + Low36 + Cross5 (approximate)",2,157,3840,2160,3494,1966,1.438976
+91,1,"Fast + Low36 + Cross5 (approximate)",2,158,3840,2160,3494,1966,1.434496
+91,1,"Fast + Low36 + Cross5 (approximate)",2,159,3840,2160,3494,1966,1.472
+91,1,"Classic optimized",3,0,3840,2160,3494,1966,1.260288
+91,1,"Classic optimized",3,1,3840,2160,3494,1966,1.236224
+91,1,"Classic optimized",3,2,3840,2160,3494,1966,1.247744
+91,1,"Classic optimized",3,3,3840,2160,3494,1966,1.25696
+91,1,"Classic optimized",3,4,3840,2160,3494,1966,1.1872
+91,1,"Classic optimized",3,5,3840,2160,3494,1966,1.245056
+91,1,"Classic optimized",3,6,3840,2160,3494,1966,1.298688
+91,1,"Classic optimized",3,7,3840,2160,3494,1966,1.22048
+91,1,"Classic optimized",3,8,3840,2160,3494,1966,1.194752
+91,1,"Classic optimized",3,9,3840,2160,3494,1966,1.239168
+91,1,"Classic optimized",3,10,3840,2160,3494,1966,1.276544
+91,1,"Classic optimized",3,11,3840,2160,3494,1966,1.188736
+91,1,"Classic optimized",3,12,3840,2160,3494,1966,1.307392
+91,1,"Classic optimized",3,13,3840,2160,3494,1966,1.25568
+91,1,"Classic optimized",3,14,3840,2160,3494,1966,1.239168
+91,1,"Classic optimized",3,15,3840,2160,3494,1966,1.241856
+91,1,"Classic optimized",3,16,3840,2160,3494,1966,1.26848
+91,1,"Classic optimized",3,17,3840,2160,3494,1966,1.242496
+91,1,"Classic optimized",3,18,3840,2160,3494,1966,1.228288
+91,1,"Classic optimized",3,19,3840,2160,3494,1966,1.235968
+91,1,"Classic optimized",3,20,3840,2160,3494,1966,1.211008
+91,1,"Classic optimized",3,21,3840,2160,3494,1966,1.284992
+91,1,"Classic optimized",3,22,3840,2160,3494,1966,1.177984
+91,1,"Classic optimized",3,23,3840,2160,3494,1966,1.22624
+91,1,"Classic optimized",3,24,3840,2160,3494,1966,1.225856
+91,1,"Classic optimized",3,25,3840,2160,3494,1966,1.23328
+91,1,"Classic optimized",3,26,3840,2160,3494,1966,1.231744
+91,1,"Classic optimized",3,27,3840,2160,3494,1966,1.259648
+91,1,"Classic optimized",3,28,3840,2160,3494,1966,1.229952
+91,1,"Classic optimized",3,29,3840,2160,3494,1966,1.220352
+91,1,"Classic optimized",3,30,3840,2160,3494,1966,1.200768
+91,1,"Classic optimized",3,31,3840,2160,3494,1966,1.21984
+91,1,"Classic optimized",3,32,3840,2160,3494,1966,1.17312
+91,1,"Classic optimized",3,33,3840,2160,3494,1966,1.24864
+91,1,"Classic optimized",3,34,3840,2160,3494,1966,1.2352
+91,1,"Classic optimized",3,35,3840,2160,3494,1966,1.226496
+91,1,"Classic optimized",3,36,3840,2160,3494,1966,1.214848
+91,1,"Classic optimized",3,37,3840,2160,3494,1966,1.194496
+91,1,"Classic optimized",3,38,3840,2160,3494,1966,1.222784
+91,1,"Classic optimized",3,39,3840,2160,3494,1966,1.28768
+91,1,"Classic optimized",3,40,3840,2160,3494,1966,1.194752
+91,1,"Classic optimized",3,41,3840,2160,3494,1966,1.17248
+91,1,"Classic optimized",3,42,3840,2160,3494,1966,1.220096
+91,1,"Classic optimized",3,43,3840,2160,3494,1966,1.216128
+91,1,"Classic optimized",3,44,3840,2160,3494,1966,1.196672
+91,1,"Classic optimized",3,45,3840,2160,3494,1966,1.280896
+91,1,"Classic optimized",3,46,3840,2160,3494,1966,1.223168
+91,1,"Classic optimized",3,47,3840,2160,3494,1966,1.195904
+91,1,"Classic optimized",3,48,3840,2160,3494,1966,1.168128
+91,1,"Classic optimized",3,49,3840,2160,3494,1966,1.225216
+91,1,"Classic optimized",3,50,3840,2160,3494,1966,1.2192
+91,1,"Classic optimized",3,51,3840,2160,3494,1966,1.252352
+91,1,"Classic optimized",3,52,3840,2160,3494,1966,1.22048
+91,1,"Classic optimized",3,53,3840,2160,3494,1966,1.24608
+91,1,"Classic optimized",3,54,3840,2160,3494,1966,1.262976
+91,1,"Classic optimized",3,55,3840,2160,3494,1966,1.237888
+91,1,"Classic optimized",3,56,3840,2160,3494,1966,1.297408
+91,1,"Classic optimized",3,57,3840,2160,3494,1966,1.194752
+91,1,"Classic optimized",3,58,3840,2160,3494,1966,1.214592
+91,1,"Classic optimized",3,59,3840,2160,3494,1966,1.19552
+91,1,"Classic optimized",3,60,3840,2160,3494,1966,1.232
+91,1,"Classic optimized",3,61,3840,2160,3494,1966,1.24416
+91,1,"Classic optimized",3,62,3840,2160,3494,1966,1.228288
+91,1,"Classic optimized",3,63,3840,2160,3494,1966,1.247872
+91,1,"Classic optimized",3,64,3840,2160,3494,1966,1.24992
+91,1,"Classic optimized",3,65,3840,2160,3494,1966,1.18976
+91,1,"Classic optimized",3,66,3840,2160,3494,1966,1.288704
+91,1,"Classic optimized",3,67,3840,2160,3494,1966,1.271296
+91,1,"Classic optimized",3,68,3840,2160,3494,1966,1.232
+91,1,"Classic optimized",3,69,3840,2160,3494,1966,1.216128
+91,1,"Classic optimized",3,70,3840,2160,3494,1966,1.234048
+91,1,"Classic optimized",3,71,3840,2160,3494,1966,1.321088
+91,1,"Classic optimized",3,72,3840,2160,3494,1966,1.175808
+91,1,"Classic optimized",3,73,3840,2160,3494,1966,1.257472
+91,1,"Classic optimized",3,74,3840,2160,3494,1966,1.25056
+91,1,"Classic optimized",3,75,3840,2160,3494,1966,1.188736
+91,1,"Classic optimized",3,76,3840,2160,3494,1966,1.258752
+91,1,"Classic optimized",3,77,3840,2160,3494,1966,1.26208
+91,1,"Classic optimized",3,78,3840,2160,3494,1966,1.236736
+91,1,"Classic optimized",3,79,3840,2160,3494,1966,1.238144
+91,1,"Classic optimized",3,80,3840,2160,3494,1966,1.265664
+91,1,"Classic optimized",3,81,3840,2160,3494,1966,1.17632
+91,1,"Classic optimized",3,82,3840,2160,3494,1966,1.31328
+91,1,"Classic optimized",3,83,3840,2160,3494,1966,1.25696
+91,1,"Classic optimized",3,84,3840,2160,3494,1966,1.253888
+91,1,"Classic optimized",3,85,3840,2160,3494,1966,1.184768
+91,1,"Classic optimized",3,86,3840,2160,3494,1966,1.273088
+91,1,"Classic optimized",3,87,3840,2160,3494,1966,1.263104
+91,1,"Classic optimized",3,88,3840,2160,3494,1966,1.260032
+91,1,"Classic optimized",3,89,3840,2160,3494,1966,1.241472
+91,1,"Classic optimized",3,90,3840,2160,3494,1966,1.267968
+91,1,"Classic optimized",3,91,3840,2160,3494,1966,1.240064
+91,1,"Classic optimized",3,92,3840,2160,3494,1966,1.238016
+91,1,"Classic optimized",3,93,3840,2160,3494,1966,1.272704
+91,1,"Classic optimized",3,94,3840,2160,3494,1966,1.2576
+91,1,"Classic optimized",3,95,3840,2160,3494,1966,1.245696
+91,1,"Classic optimized",3,96,3840,2160,3494,1966,1.251456
+91,1,"Classic optimized",3,97,3840,2160,3494,1966,1.272192
+91,1,"Classic optimized",3,98,3840,2160,3494,1966,1.257728
+91,1,"Classic optimized",3,99,3840,2160,3494,1966,1.178752
+91,1,"Classic optimized",3,100,3840,2160,3494,1966,1.283584
+91,1,"Classic optimized",3,101,3840,2160,3494,1966,1.34016
+91,1,"Classic optimized",3,102,3840,2160,3494,1966,1.28576
+91,1,"Classic optimized",3,103,3840,2160,3494,1966,1.195136
+91,1,"Classic optimized",3,104,3840,2160,3494,1966,1.236992
+91,1,"Classic optimized",3,105,3840,2160,3494,1966,1.265408
+91,1,"Classic optimized",3,106,3840,2160,3494,1966,1.321728
+91,1,"Classic optimized",3,107,3840,2160,3494,1966,1.186944
+91,1,"Classic optimized",3,108,3840,2160,3494,1966,1.239424
+91,1,"Classic optimized",3,109,3840,2160,3494,1966,1.228288
+91,1,"Classic optimized",3,110,3840,2160,3494,1966,1.280384
+91,1,"Classic optimized",3,111,3840,2160,3494,1966,1.31584
+91,1,"Classic optimized",3,112,3840,2160,3494,1966,1.283328
+91,1,"Classic optimized",3,113,3840,2160,3494,1966,1.275008
+91,1,"Classic optimized",3,114,3840,2160,3494,1966,1.179648
+91,1,"Classic optimized",3,115,3840,2160,3494,1966,1.231616
+91,1,"Classic optimized",3,116,3840,2160,3494,1966,1.329152
+91,1,"Classic optimized",3,117,3840,2160,3494,1966,1.252096
+91,1,"Classic optimized",3,118,3840,2160,3494,1966,1.235328
+91,1,"Classic optimized",3,119,3840,2160,3494,1966,1.233152
+91,1,"Classic optimized",3,120,3840,2160,3494,1966,1.212032
+91,1,"Classic optimized",3,121,3840,2160,3494,1966,1.292544
+91,1,"Classic optimized",3,122,3840,2160,3494,1966,1.120512
+91,1,"Classic optimized",3,123,3840,2160,3494,1966,1.266048
+91,1,"Classic optimized",3,124,3840,2160,3494,1966,1.238016
+91,1,"Classic optimized",3,125,3840,2160,3494,1966,1.228672
+91,1,"Classic optimized",3,126,3840,2160,3494,1966,1.2384
+91,1,"Classic optimized",3,127,3840,2160,3494,1966,1.261568
+91,1,"Classic optimized",3,128,3840,2160,3494,1966,1.236352
+91,1,"Classic optimized",3,129,3840,2160,3494,1966,1.223296
+91,1,"Classic optimized",3,130,3840,2160,3494,1966,1.231488
+91,1,"Classic optimized",3,131,3840,2160,3494,1966,1.2256
+91,1,"Classic optimized",3,132,3840,2160,3494,1966,1.178752
+91,1,"Classic optimized",3,133,3840,2160,3494,1966,1.257984
+91,1,"Classic optimized",3,134,3840,2160,3494,1966,1.222528
+91,1,"Classic optimized",3,135,3840,2160,3494,1966,1.218304
+91,1,"Classic optimized",3,136,3840,2160,3494,1966,1.226368
+91,1,"Classic optimized",3,137,3840,2160,3494,1966,1.259776
+91,1,"Classic optimized",3,138,3840,2160,3494,1966,1.230592
+91,1,"Classic optimized",3,139,3840,2160,3494,1966,1.236736
+91,1,"Classic optimized",3,140,3840,2160,3494,1966,1.20384
+91,1,"Classic optimized",3,141,3840,2160,3494,1966,1.223424
+91,1,"Classic optimized",3,142,3840,2160,3494,1966,1.219328
+91,1,"Classic optimized",3,143,3840,2160,3494,1966,1.284608
+91,1,"Classic optimized",3,144,3840,2160,3494,1966,1.118336
+91,1,"Classic optimized",3,145,3840,2160,3494,1966,1.222272
+91,1,"Classic optimized",3,146,3840,2160,3494,1966,1.21728
+91,1,"Classic optimized",3,147,3840,2160,3494,1966,1.227776
+91,1,"Classic optimized",3,148,3840,2160,3494,1966,1.168256
+91,1,"Classic optimized",3,149,3840,2160,3494,1966,1.280384
+91,1,"Classic optimized",3,150,3840,2160,3494,1966,1.244928
+91,1,"Classic optimized",3,151,3840,2160,3494,1966,1.164416
+91,1,"Classic optimized",3,152,3840,2160,3494,1966,1.179264
+91,1,"Classic optimized",3,153,3840,2160,3494,1966,1.299968
+91,1,"Classic optimized",3,154,3840,2160,3494,1966,1.27232
+91,1,"Classic optimized",3,155,3840,2160,3494,1966,1.230592
+91,1,"Classic optimized",3,156,3840,2160,3494,1966,1.231104
+91,1,"Classic optimized",3,157,3840,2160,3494,1966,1.257728
+91,1,"Classic optimized",3,158,3840,2160,3494,1966,1.163392
+91,1,"Classic optimized",3,159,3840,2160,3494,1966,1.228288
+95,1,"Classic optimized",0,0,3840,2160,3648,2052,1.246208
+95,1,"Classic optimized",0,1,3840,2160,3648,2052,1.291648
+95,1,"Classic optimized",0,2,3840,2160,3648,2052,1.235456
+95,1,"Classic optimized",0,3,3840,2160,3648,2052,1.243904
+95,1,"Classic optimized",0,4,3840,2160,3648,2052,1.258112
+95,1,"Classic optimized",0,5,3840,2160,3648,2052,1.351808
+95,1,"Classic optimized",0,6,3840,2160,3648,2052,1.262208
+95,1,"Classic optimized",0,7,3840,2160,3648,2052,1.281408
+95,1,"Classic optimized",0,8,3840,2160,3648,2052,1.237888
+95,1,"Classic optimized",0,9,3840,2160,3648,2052,1.2096
+95,1,"Classic optimized",0,10,3840,2160,3648,2052,1.289472
+95,1,"Classic optimized",0,11,3840,2160,3648,2052,1.337216
+95,1,"Classic optimized",0,12,3840,2160,3648,2052,1.286144
+95,1,"Classic optimized",0,13,3840,2160,3648,2052,1.261952
+95,1,"Classic optimized",0,14,3840,2160,3648,2052,1.266304
+95,1,"Classic optimized",0,15,3840,2160,3648,2052,1.299968
+95,1,"Classic optimized",0,16,3840,2160,3648,2052,1.267712
+95,1,"Classic optimized",0,17,3840,2160,3648,2052,1.254016
+95,1,"Classic optimized",0,18,3840,2160,3648,2052,1.29024
+95,1,"Classic optimized",0,19,3840,2160,3648,2052,1.243264
+95,1,"Classic optimized",0,20,3840,2160,3648,2052,1.249792
+95,1,"Classic optimized",0,21,3840,2160,3648,2052,1.237376
+95,1,"Classic optimized",0,22,3840,2160,3648,2052,1.211904
+95,1,"Classic optimized",0,23,3840,2160,3648,2052,1.255424
+95,1,"Classic optimized",0,24,3840,2160,3648,2052,1.352576
+95,1,"Classic optimized",0,25,3840,2160,3648,2052,1.293184
+95,1,"Classic optimized",0,26,3840,2160,3648,2052,1.25376
+95,1,"Classic optimized",0,27,3840,2160,3648,2052,1.313664
+95,1,"Classic optimized",0,28,3840,2160,3648,2052,1.293312
+95,1,"Classic optimized",0,29,3840,2160,3648,2052,1.261184
+95,1,"Classic optimized",0,30,3840,2160,3648,2052,1.285632
+95,1,"Classic optimized",0,31,3840,2160,3648,2052,1.325056
+95,1,"Classic optimized",0,32,3840,2160,3648,2052,1.268352
+95,1,"Classic optimized",0,33,3840,2160,3648,2052,1.261568
+95,1,"Classic optimized",0,34,3840,2160,3648,2052,1.28704
+95,1,"Classic optimized",0,35,3840,2160,3648,2052,1.260928
+95,1,"Classic optimized",0,36,3840,2160,3648,2052,1.255424
+95,1,"Classic optimized",0,37,3840,2160,3648,2052,1.237376
+95,1,"Classic optimized",0,38,3840,2160,3648,2052,1.260032
+95,1,"Classic optimized",0,39,3840,2160,3648,2052,1.214592
+95,1,"Classic optimized",0,40,3840,2160,3648,2052,1.287296
+95,1,"Classic optimized",0,41,3840,2160,3648,2052,1.29792
+95,1,"Classic optimized",0,42,3840,2160,3648,2052,1.261568
+95,1,"Classic optimized",0,43,3840,2160,3648,2052,1.270528
+95,1,"Classic optimized",0,44,3840,2160,3648,2052,1.327744
+95,1,"Classic optimized",0,45,3840,2160,3648,2052,1.259264
+95,1,"Classic optimized",0,46,3840,2160,3648,2052,1.257984
+95,1,"Classic optimized",0,47,3840,2160,3648,2052,1.231744
+95,1,"Classic optimized",0,48,3840,2160,3648,2052,1.2704
+95,1,"Classic optimized",0,49,3840,2160,3648,2052,1.258624
+95,1,"Classic optimized",0,50,3840,2160,3648,2052,1.22624
+95,1,"Classic optimized",0,51,3840,2160,3648,2052,1.273984
+95,1,"Classic optimized",0,52,3840,2160,3648,2052,1.215616
+95,1,"Classic optimized",0,53,3840,2160,3648,2052,1.336192
+95,1,"Classic optimized",0,54,3840,2160,3648,2052,1.25632
+95,1,"Classic optimized",0,55,3840,2160,3648,2052,1.249792
+95,1,"Classic optimized",0,56,3840,2160,3648,2052,1.244288
+95,1,"Classic optimized",0,57,3840,2160,3648,2052,1.28896
+95,1,"Classic optimized",0,58,3840,2160,3648,2052,1.251968
+95,1,"Classic optimized",0,59,3840,2160,3648,2052,1.249024
+95,1,"Classic optimized",0,60,3840,2160,3648,2052,1.258496
+95,1,"Classic optimized",0,61,3840,2160,3648,2052,1.186048
+95,1,"Classic optimized",0,62,3840,2160,3648,2052,1.303808
+95,1,"Classic optimized",0,63,3840,2160,3648,2052,1.31968
+95,1,"Classic optimized",0,64,3840,2160,3648,2052,1.192192
+95,1,"Classic optimized",0,65,3840,2160,3648,2052,1.24288
+95,1,"Classic optimized",0,66,3840,2160,3648,2052,1.323008
+95,1,"Classic optimized",0,67,3840,2160,3648,2052,1.223296
+95,1,"Classic optimized",0,68,3840,2160,3648,2052,1.237504
+95,1,"Classic optimized",0,69,3840,2160,3648,2052,1.235712
+95,1,"Classic optimized",0,70,3840,2160,3648,2052,1.269632
+95,1,"Classic optimized",0,71,3840,2160,3648,2052,1.187328
+95,1,"Classic optimized",0,72,3840,2160,3648,2052,1.236736
+95,1,"Classic optimized",0,73,3840,2160,3648,2052,1.269248
+95,1,"Classic optimized",0,74,3840,2160,3648,2052,1.246976
+95,1,"Classic optimized",0,75,3840,2160,3648,2052,1.24544
+95,1,"Classic optimized",0,76,3840,2160,3648,2052,1.234688
+95,1,"Classic optimized",0,77,3840,2160,3648,2052,1.278464
+95,1,"Classic optimized",0,78,3840,2160,3648,2052,1.237248
+95,1,"Classic optimized",0,79,3840,2160,3648,2052,1.239168
+95,1,"Classic optimized",0,80,3840,2160,3648,2052,1.216128
+95,1,"Classic optimized",0,81,3840,2160,3648,2052,1.294592
+95,1,"Classic optimized",0,82,3840,2160,3648,2052,1.244288
+95,1,"Classic optimized",0,83,3840,2160,3648,2052,1.211776
+95,1,"Classic optimized",0,84,3840,2160,3648,2052,1.2352
+95,1,"Classic optimized",0,85,3840,2160,3648,2052,1.190912
+95,1,"Classic optimized",0,86,3840,2160,3648,2052,1.231872
+95,1,"Classic optimized",0,87,3840,2160,3648,2052,1.300736
+95,1,"Classic optimized",0,88,3840,2160,3648,2052,1.271296
+95,1,"Classic optimized",0,89,3840,2160,3648,2052,1.239552
+95,1,"Classic optimized",0,90,3840,2160,3648,2052,1.23904
+95,1,"Classic optimized",0,91,3840,2160,3648,2052,1.332736
+95,1,"Classic optimized",0,92,3840,2160,3648,2052,1.206912
+95,1,"Classic optimized",0,93,3840,2160,3648,2052,1.275648
+95,1,"Classic optimized",0,94,3840,2160,3648,2052,1.225344
+95,1,"Classic optimized",0,95,3840,2160,3648,2052,1.23584
+95,1,"Classic optimized",0,96,3840,2160,3648,2052,1.255168
+95,1,"Classic optimized",0,97,3840,2160,3648,2052,1.236608
+95,1,"Classic optimized",0,98,3840,2160,3648,2052,1.252224
+95,1,"Classic optimized",0,99,3840,2160,3648,2052,1.271552
+95,1,"Classic optimized",0,100,3840,2160,3648,2052,1.312384
+95,1,"Classic optimized",0,101,3840,2160,3648,2052,1.25056
+95,1,"Classic optimized",0,102,3840,2160,3648,2052,1.254144
+95,1,"Classic optimized",0,103,3840,2160,3648,2052,1.254784
+95,1,"Classic optimized",0,104,3840,2160,3648,2052,1.310336
+95,1,"Classic optimized",0,105,3840,2160,3648,2052,1.254912
+95,1,"Classic optimized",0,106,3840,2160,3648,2052,1.1808
+95,1,"Classic optimized",0,107,3840,2160,3648,2052,1.250432
+95,1,"Classic optimized",0,108,3840,2160,3648,2052,1.28
+95,1,"Classic optimized",0,109,3840,2160,3648,2052,1.277952
+95,1,"Classic optimized",0,110,3840,2160,3648,2052,1.284096
+95,1,"Classic optimized",0,111,3840,2160,3648,2052,1.2608
+95,1,"Classic optimized",0,112,3840,2160,3648,2052,1.25312
+95,1,"Classic optimized",0,113,3840,2160,3648,2052,1.285504
+95,1,"Classic optimized",0,114,3840,2160,3648,2052,1.251072
+95,1,"Classic optimized",0,115,3840,2160,3648,2052,1.258368
+95,1,"Classic optimized",0,116,3840,2160,3648,2052,1.26144
+95,1,"Classic optimized",0,117,3840,2160,3648,2052,1.312256
+95,1,"Classic optimized",0,118,3840,2160,3648,2052,1.154816
+95,1,"Classic optimized",0,119,3840,2160,3648,2052,1.354112
+95,1,"Classic optimized",0,120,3840,2160,3648,2052,1.261056
+95,1,"Classic optimized",0,121,3840,2160,3648,2052,1.261824
+95,1,"Classic optimized",0,122,3840,2160,3648,2052,1.266304
+95,1,"Classic optimized",0,123,3840,2160,3648,2052,1.298176
+95,1,"Classic optimized",0,124,3840,2160,3648,2052,1.300352
+95,1,"Classic optimized",0,125,3840,2160,3648,2052,1.25312
+95,1,"Classic optimized",0,126,3840,2160,3648,2052,1.292288
+95,1,"Classic optimized",0,127,3840,2160,3648,2052,1.26208
+95,1,"Classic optimized",0,128,3840,2160,3648,2052,1.265536
+95,1,"Classic optimized",0,129,3840,2160,3648,2052,1.26272
+95,1,"Classic optimized",0,130,3840,2160,3648,2052,1.31328
+95,1,"Classic optimized",0,131,3840,2160,3648,2052,1.25504
+95,1,"Classic optimized",0,132,3840,2160,3648,2052,1.279616
+95,1,"Classic optimized",0,133,3840,2160,3648,2052,1.264128
+95,1,"Classic optimized",0,134,3840,2160,3648,2052,1.249536
+95,1,"Classic optimized",0,135,3840,2160,3648,2052,1.265792
+95,1,"Classic optimized",0,136,3840,2160,3648,2052,1.327616
+95,1,"Classic optimized",0,137,3840,2160,3648,2052,1.261056
+95,1,"Classic optimized",0,138,3840,2160,3648,2052,1.289728
+95,1,"Classic optimized",0,139,3840,2160,3648,2052,1.287168
+95,1,"Classic optimized",0,140,3840,2160,3648,2052,1.262848
+95,1,"Classic optimized",0,141,3840,2160,3648,2052,1.258752
+95,1,"Classic optimized",0,142,3840,2160,3648,2052,1.29856
+95,1,"Classic optimized",0,143,3840,2160,3648,2052,1.202944
+95,1,"Classic optimized",0,144,3840,2160,3648,2052,1.271936
+95,1,"Classic optimized",0,145,3840,2160,3648,2052,1.265536
+95,1,"Classic optimized",0,146,3840,2160,3648,2052,1.268864
+95,1,"Classic optimized",0,147,3840,2160,3648,2052,1.19744
+95,1,"Classic optimized",0,148,3840,2160,3648,2052,1.247104
+95,1,"Classic optimized",0,149,3840,2160,3648,2052,1.28512
+95,1,"Classic optimized",0,150,3840,2160,3648,2052,1.250432
+95,1,"Classic optimized",0,151,3840,2160,3648,2052,1.258112
+95,1,"Classic optimized",0,152,3840,2160,3648,2052,1.295872
+95,1,"Classic optimized",0,153,3840,2160,3648,2052,1.268352
+95,1,"Classic optimized",0,154,3840,2160,3648,2052,1.258752
+95,1,"Classic optimized",0,155,3840,2160,3648,2052,1.233024
+95,1,"Classic optimized",0,156,3840,2160,3648,2052,1.248128
+95,1,"Classic optimized",0,157,3840,2160,3648,2052,1.307136
+95,1,"Classic optimized",0,158,3840,2160,3648,2052,1.318144
+95,1,"Classic optimized",0,159,3840,2160,3648,2052,1.188736
+95,1,"Fast + Low36 + Cross5 (approximate)",1,0,3840,2160,3648,2052,1.618816
+95,1,"Fast + Low36 + Cross5 (approximate)",1,1,3840,2160,3648,2052,1.583872
+95,1,"Fast + Low36 + Cross5 (approximate)",1,2,3840,2160,3648,2052,1.671424
+95,1,"Fast + Low36 + Cross5 (approximate)",1,3,3840,2160,3648,2052,1.63968
+95,1,"Fast + Low36 + Cross5 (approximate)",1,4,3840,2160,3648,2052,1.584512
+95,1,"Fast + Low36 + Cross5 (approximate)",1,5,3840,2160,3648,2052,1.62432
+95,1,"Fast + Low36 + Cross5 (approximate)",1,6,3840,2160,3648,2052,1.618688
+95,1,"Fast + Low36 + Cross5 (approximate)",1,7,3840,2160,3648,2052,1.583488
+95,1,"Fast + Low36 + Cross5 (approximate)",1,8,3840,2160,3648,2052,1.627264
+95,1,"Fast + Low36 + Cross5 (approximate)",1,9,3840,2160,3648,2052,1.661568
+95,1,"Fast + Low36 + Cross5 (approximate)",1,10,3840,2160,3648,2052,1.642496
+95,1,"Fast + Low36 + Cross5 (approximate)",1,11,3840,2160,3648,2052,1.616256
+95,1,"Fast + Low36 + Cross5 (approximate)",1,12,3840,2160,3648,2052,1.651584
+95,1,"Fast + Low36 + Cross5 (approximate)",1,13,3840,2160,3648,2052,1.625856
+95,1,"Fast + Low36 + Cross5 (approximate)",1,14,3840,2160,3648,2052,1.679616
+95,1,"Fast + Low36 + Cross5 (approximate)",1,15,3840,2160,3648,2052,1.5616
+95,1,"Fast + Low36 + Cross5 (approximate)",1,16,3840,2160,3648,2052,1.642496
+95,1,"Fast + Low36 + Cross5 (approximate)",1,17,3840,2160,3648,2052,1.583232
+95,1,"Fast + Low36 + Cross5 (approximate)",1,18,3840,2160,3648,2052,1.612544
+95,1,"Fast + Low36 + Cross5 (approximate)",1,19,3840,2160,3648,2052,1.630336
+95,1,"Fast + Low36 + Cross5 (approximate)",1,20,3840,2160,3648,2052,1.6672
+95,1,"Fast + Low36 + Cross5 (approximate)",1,21,3840,2160,3648,2052,1.584384
+95,1,"Fast + Low36 + Cross5 (approximate)",1,22,3840,2160,3648,2052,1.585664
+95,1,"Fast + Low36 + Cross5 (approximate)",1,23,3840,2160,3648,2052,1.61216
+95,1,"Fast + Low36 + Cross5 (approximate)",1,24,3840,2160,3648,2052,1.615104
+95,1,"Fast + Low36 + Cross5 (approximate)",1,25,3840,2160,3648,2052,1.583232
+95,1,"Fast + Low36 + Cross5 (approximate)",1,26,3840,2160,3648,2052,1.644288
+95,1,"Fast + Low36 + Cross5 (approximate)",1,27,3840,2160,3648,2052,1.639936
+95,1,"Fast + Low36 + Cross5 (approximate)",1,28,3840,2160,3648,2052,1.546112
+95,1,"Fast + Low36 + Cross5 (approximate)",1,29,3840,2160,3648,2052,1.6416
+95,1,"Fast + Low36 + Cross5 (approximate)",1,30,3840,2160,3648,2052,1.582336
+95,1,"Fast + Low36 + Cross5 (approximate)",1,31,3840,2160,3648,2052,1.59488
+95,1,"Fast + Low36 + Cross5 (approximate)",1,32,3840,2160,3648,2052,1.63456
+95,1,"Fast + Low36 + Cross5 (approximate)",1,33,3840,2160,3648,2052,1.679744
+95,1,"Fast + Low36 + Cross5 (approximate)",1,34,3840,2160,3648,2052,1.607424
+95,1,"Fast + Low36 + Cross5 (approximate)",1,35,3840,2160,3648,2052,1.62624
+95,1,"Fast + Low36 + Cross5 (approximate)",1,36,3840,2160,3648,2052,1.643264
+95,1,"Fast + Low36 + Cross5 (approximate)",1,37,3840,2160,3648,2052,1.584896
+95,1,"Fast + Low36 + Cross5 (approximate)",1,38,3840,2160,3648,2052,1.615232
+95,1,"Fast + Low36 + Cross5 (approximate)",1,39,3840,2160,3648,2052,1.700608
+95,1,"Fast + Low36 + Cross5 (approximate)",1,40,3840,2160,3648,2052,1.586816
+95,1,"Fast + Low36 + Cross5 (approximate)",1,41,3840,2160,3648,2052,1.614464
+95,1,"Fast + Low36 + Cross5 (approximate)",1,42,3840,2160,3648,2052,1.584
+95,1,"Fast + Low36 + Cross5 (approximate)",1,43,3840,2160,3648,2052,1.624448
+95,1,"Fast + Low36 + Cross5 (approximate)",1,44,3840,2160,3648,2052,1.65888
+95,1,"Fast + Low36 + Cross5 (approximate)",1,45,3840,2160,3648,2052,1.640576
+95,1,"Fast + Low36 + Cross5 (approximate)",1,46,3840,2160,3648,2052,1.562496
+95,1,"Fast + Low36 + Cross5 (approximate)",1,47,3840,2160,3648,2052,1.639296
+95,1,"Fast + Low36 + Cross5 (approximate)",1,48,3840,2160,3648,2052,1.613824
+95,1,"Fast + Low36 + Cross5 (approximate)",1,49,3840,2160,3648,2052,1.662208
+95,1,"Fast + Low36 + Cross5 (approximate)",1,50,3840,2160,3648,2052,1.640064
+95,1,"Fast + Low36 + Cross5 (approximate)",1,51,3840,2160,3648,2052,1.558272
+95,1,"Fast + Low36 + Cross5 (approximate)",1,52,3840,2160,3648,2052,1.641216
+95,1,"Fast + Low36 + Cross5 (approximate)",1,53,3840,2160,3648,2052,1.614848
+95,1,"Fast + Low36 + Cross5 (approximate)",1,54,3840,2160,3648,2052,1.598976
+95,1,"Fast + Low36 + Cross5 (approximate)",1,55,3840,2160,3648,2052,1.688192
+95,1,"Fast + Low36 + Cross5 (approximate)",1,56,3840,2160,3648,2052,1.598336
+95,1,"Fast + Low36 + Cross5 (approximate)",1,57,3840,2160,3648,2052,1.582208
+95,1,"Fast + Low36 + Cross5 (approximate)",1,58,3840,2160,3648,2052,1.57952
+95,1,"Fast + Low36 + Cross5 (approximate)",1,59,3840,2160,3648,2052,1.612416
+95,1,"Fast + Low36 + Cross5 (approximate)",1,60,3840,2160,3648,2052,1.62944
+95,1,"Fast + Low36 + Cross5 (approximate)",1,61,3840,2160,3648,2052,1.669888
+95,1,"Fast + Low36 + Cross5 (approximate)",1,62,3840,2160,3648,2052,1.526016
+95,1,"Fast + Low36 + Cross5 (approximate)",1,63,3840,2160,3648,2052,1.63904
+95,1,"Fast + Low36 + Cross5 (approximate)",1,64,3840,2160,3648,2052,1.695744
+95,1,"Fast + Low36 + Cross5 (approximate)",1,65,3840,2160,3648,2052,1.612288
+95,1,"Fast + Low36 + Cross5 (approximate)",1,66,3840,2160,3648,2052,1.672064
+95,1,"Fast + Low36 + Cross5 (approximate)",1,67,3840,2160,3648,2052,1.555712
+95,1,"Fast + Low36 + Cross5 (approximate)",1,68,3840,2160,3648,2052,1.66464
+95,1,"Fast + Low36 + Cross5 (approximate)",1,69,3840,2160,3648,2052,1.615488
+95,1,"Fast + Low36 + Cross5 (approximate)",1,70,3840,2160,3648,2052,1.664768
+95,1,"Fast + Low36 + Cross5 (approximate)",1,71,3840,2160,3648,2052,1.69344
+95,1,"Fast + Low36 + Cross5 (approximate)",1,72,3840,2160,3648,2052,1.53088
+95,1,"Fast + Low36 + Cross5 (approximate)",1,73,3840,2160,3648,2052,1.640064
+95,1,"Fast + Low36 + Cross5 (approximate)",1,74,3840,2160,3648,2052,1.688704
+95,1,"Fast + Low36 + Cross5 (approximate)",1,75,3840,2160,3648,2052,1.587328
+95,1,"Fast + Low36 + Cross5 (approximate)",1,76,3840,2160,3648,2052,1.634944
+95,1,"Fast + Low36 + Cross5 (approximate)",1,77,3840,2160,3648,2052,1.617408
+95,1,"Fast + Low36 + Cross5 (approximate)",1,78,3840,2160,3648,2052,1.58272
+95,1,"Fast + Low36 + Cross5 (approximate)",1,79,3840,2160,3648,2052,1.661824
+95,1,"Fast + Low36 + Cross5 (approximate)",1,80,3840,2160,3648,2052,1.657984
+95,1,"Fast + Low36 + Cross5 (approximate)",1,81,3840,2160,3648,2052,1.614976
+95,1,"Fast + Low36 + Cross5 (approximate)",1,82,3840,2160,3648,2052,1.64352
+95,1,"Fast + Low36 + Cross5 (approximate)",1,83,3840,2160,3648,2052,1.58528
+95,1,"Fast + Low36 + Cross5 (approximate)",1,84,3840,2160,3648,2052,1.676544
+95,1,"Fast + Low36 + Cross5 (approximate)",1,85,3840,2160,3648,2052,1.666304
+95,1,"Fast + Low36 + Cross5 (approximate)",1,86,3840,2160,3648,2052,1.587712
+95,1,"Fast + Low36 + Cross5 (approximate)",1,87,3840,2160,3648,2052,1.616256
+95,1,"Fast + Low36 + Cross5 (approximate)",1,88,3840,2160,3648,2052,1.622016
+95,1,"Fast + Low36 + Cross5 (approximate)",1,89,3840,2160,3648,2052,1.614464
+95,1,"Fast + Low36 + Cross5 (approximate)",1,90,3840,2160,3648,2052,1.711488
+95,1,"Fast + Low36 + Cross5 (approximate)",1,91,3840,2160,3648,2052,1.590656
+95,1,"Fast + Low36 + Cross5 (approximate)",1,92,3840,2160,3648,2052,1.610752
+95,1,"Fast + Low36 + Cross5 (approximate)",1,93,3840,2160,3648,2052,1.587712
+95,1,"Fast + Low36 + Cross5 (approximate)",1,94,3840,2160,3648,2052,1.625088
+95,1,"Fast + Low36 + Cross5 (approximate)",1,95,3840,2160,3648,2052,1.63456
+95,1,"Fast + Low36 + Cross5 (approximate)",1,96,3840,2160,3648,2052,1.592704
+95,1,"Fast + Low36 + Cross5 (approximate)",1,97,3840,2160,3648,2052,1.625344
+95,1,"Fast + Low36 + Cross5 (approximate)",1,98,3840,2160,3648,2052,1.586432
+95,1,"Fast + Low36 + Cross5 (approximate)",1,99,3840,2160,3648,2052,1.578624
+95,1,"Fast + Low36 + Cross5 (approximate)",1,100,3840,2160,3648,2052,1.646592
+95,1,"Fast + Low36 + Cross5 (approximate)",1,101,3840,2160,3648,2052,1.663488
+95,1,"Fast + Low36 + Cross5 (approximate)",1,102,3840,2160,3648,2052,1.629952
+95,1,"Fast + Low36 + Cross5 (approximate)",1,103,3840,2160,3648,2052,1.640448
+95,1,"Fast + Low36 + Cross5 (approximate)",1,104,3840,2160,3648,2052,1.613952
+95,1,"Fast + Low36 + Cross5 (approximate)",1,105,3840,2160,3648,2052,1.627264
+95,1,"Fast + Low36 + Cross5 (approximate)",1,106,3840,2160,3648,2052,1.631232
+95,1,"Fast + Low36 + Cross5 (approximate)",1,107,3840,2160,3648,2052,1.617408
+95,1,"Fast + Low36 + Cross5 (approximate)",1,108,3840,2160,3648,2052,1.639936
+95,1,"Fast + Low36 + Cross5 (approximate)",1,109,3840,2160,3648,2052,1.58464
+95,1,"Fast + Low36 + Cross5 (approximate)",1,110,3840,2160,3648,2052,1.623936
+95,1,"Fast + Low36 + Cross5 (approximate)",1,111,3840,2160,3648,2052,1.584128
+95,1,"Fast + Low36 + Cross5 (approximate)",1,112,3840,2160,3648,2052,1.631104
+95,1,"Fast + Low36 + Cross5 (approximate)",1,113,3840,2160,3648,2052,1.613184
+95,1,"Fast + Low36 + Cross5 (approximate)",1,114,3840,2160,3648,2052,1.598592
+95,1,"Fast + Low36 + Cross5 (approximate)",1,115,3840,2160,3648,2052,1.615488
+95,1,"Fast + Low36 + Cross5 (approximate)",1,116,3840,2160,3648,2052,1.584128
+95,1,"Fast + Low36 + Cross5 (approximate)",1,117,3840,2160,3648,2052,1.636352
+95,1,"Fast + Low36 + Cross5 (approximate)",1,118,3840,2160,3648,2052,1.634304
+95,1,"Fast + Low36 + Cross5 (approximate)",1,119,3840,2160,3648,2052,1.6704
+95,1,"Fast + Low36 + Cross5 (approximate)",1,120,3840,2160,3648,2052,1.62496
+95,1,"Fast + Low36 + Cross5 (approximate)",1,121,3840,2160,3648,2052,1.611648
+95,1,"Fast + Low36 + Cross5 (approximate)",1,122,3840,2160,3648,2052,1.583232
+95,1,"Fast + Low36 + Cross5 (approximate)",1,123,3840,2160,3648,2052,1.627648
+95,1,"Fast + Low36 + Cross5 (approximate)",1,124,3840,2160,3648,2052,1.629568
+95,1,"Fast + Low36 + Cross5 (approximate)",1,125,3840,2160,3648,2052,1.619328
+95,1,"Fast + Low36 + Cross5 (approximate)",1,126,3840,2160,3648,2052,1.668224
+95,1,"Fast + Low36 + Cross5 (approximate)",1,127,3840,2160,3648,2052,1.583488
+95,1,"Fast + Low36 + Cross5 (approximate)",1,128,3840,2160,3648,2052,1.6192
+95,1,"Fast + Low36 + Cross5 (approximate)",1,129,3840,2160,3648,2052,1.583872
+95,1,"Fast + Low36 + Cross5 (approximate)",1,130,3840,2160,3648,2052,1.663616
+95,1,"Fast + Low36 + Cross5 (approximate)",1,131,3840,2160,3648,2052,1.654784
+95,1,"Fast + Low36 + Cross5 (approximate)",1,132,3840,2160,3648,2052,1.6
+95,1,"Fast + Low36 + Cross5 (approximate)",1,133,3840,2160,3648,2052,1.616
+95,1,"Fast + Low36 + Cross5 (approximate)",1,134,3840,2160,3648,2052,1.576704
+95,1,"Fast + Low36 + Cross5 (approximate)",1,135,3840,2160,3648,2052,1.584768
+95,1,"Fast + Low36 + Cross5 (approximate)",1,136,3840,2160,3648,2052,1.638528
+95,1,"Fast + Low36 + Cross5 (approximate)",1,137,3840,2160,3648,2052,1.58272
+95,1,"Fast + Low36 + Cross5 (approximate)",1,138,3840,2160,3648,2052,1.610752
+95,1,"Fast + Low36 + Cross5 (approximate)",1,139,3840,2160,3648,2052,1.586816
+95,1,"Fast + Low36 + Cross5 (approximate)",1,140,3840,2160,3648,2052,1.714176
+95,1,"Fast + Low36 + Cross5 (approximate)",1,141,3840,2160,3648,2052,1.530112
+95,1,"Fast + Low36 + Cross5 (approximate)",1,142,3840,2160,3648,2052,1.63904
+95,1,"Fast + Low36 + Cross5 (approximate)",1,143,3840,2160,3648,2052,1.597824
+95,1,"Fast + Low36 + Cross5 (approximate)",1,144,3840,2160,3648,2052,1.664512
+95,1,"Fast + Low36 + Cross5 (approximate)",1,145,3840,2160,3648,2052,1.679104
+95,1,"Fast + Low36 + Cross5 (approximate)",1,146,3840,2160,3648,2052,1.531776
+95,1,"Fast + Low36 + Cross5 (approximate)",1,147,3840,2160,3648,2052,1.639552
+95,1,"Fast + Low36 + Cross5 (approximate)",1,148,3840,2160,3648,2052,1.613824
+95,1,"Fast + Low36 + Cross5 (approximate)",1,149,3840,2160,3648,2052,1.631104
+95,1,"Fast + Low36 + Cross5 (approximate)",1,150,3840,2160,3648,2052,1.586176
+95,1,"Fast + Low36 + Cross5 (approximate)",1,151,3840,2160,3648,2052,1.641088
+95,1,"Fast + Low36 + Cross5 (approximate)",1,152,3840,2160,3648,2052,1.635072
+95,1,"Fast + Low36 + Cross5 (approximate)",1,153,3840,2160,3648,2052,1.601408
+95,1,"Fast + Low36 + Cross5 (approximate)",1,154,3840,2160,3648,2052,1.686656
+95,1,"Fast + Low36 + Cross5 (approximate)",1,155,3840,2160,3648,2052,1.583744
+95,1,"Fast + Low36 + Cross5 (approximate)",1,156,3840,2160,3648,2052,1.614464
+95,1,"Fast + Low36 + Cross5 (approximate)",1,157,3840,2160,3648,2052,1.583232
+95,1,"Fast + Low36 + Cross5 (approximate)",1,158,3840,2160,3648,2052,1.689984
+95,1,"Fast + Low36 + Cross5 (approximate)",1,159,3840,2160,3648,2052,1.670272
+95,1,"Fast + Low36 + Cross5 (approximate)",2,0,3840,2160,3648,2052,1.648256
+95,1,"Fast + Low36 + Cross5 (approximate)",2,1,3840,2160,3648,2052,1.61984
+95,1,"Fast + Low36 + Cross5 (approximate)",2,2,3840,2160,3648,2052,1.666048
+95,1,"Fast + Low36 + Cross5 (approximate)",2,3,3840,2160,3648,2052,1.558784
+95,1,"Fast + Low36 + Cross5 (approximate)",2,4,3840,2160,3648,2052,1.671808
+95,1,"Fast + Low36 + Cross5 (approximate)",2,5,3840,2160,3648,2052,1.631232
+95,1,"Fast + Low36 + Cross5 (approximate)",2,6,3840,2160,3648,2052,1.634816
+95,1,"Fast + Low36 + Cross5 (approximate)",2,7,3840,2160,3648,2052,1.636224
+95,1,"Fast + Low36 + Cross5 (approximate)",2,8,3840,2160,3648,2052,1.627008
+95,1,"Fast + Low36 + Cross5 (approximate)",2,9,3840,2160,3648,2052,1.68128
+95,1,"Fast + Low36 + Cross5 (approximate)",2,10,3840,2160,3648,2052,1.6288
+95,1,"Fast + Low36 + Cross5 (approximate)",2,11,3840,2160,3648,2052,1.647488
+95,1,"Fast + Low36 + Cross5 (approximate)",2,12,3840,2160,3648,2052,1.682688
+95,1,"Fast + Low36 + Cross5 (approximate)",2,13,3840,2160,3648,2052,1.617792
+95,1,"Fast + Low36 + Cross5 (approximate)",2,14,3840,2160,3648,2052,1.616512
+95,1,"Fast + Low36 + Cross5 (approximate)",2,15,3840,2160,3648,2052,1.66208
+95,1,"Fast + Low36 + Cross5 (approximate)",2,16,3840,2160,3648,2052,1.597568
+95,1,"Fast + Low36 + Cross5 (approximate)",2,17,3840,2160,3648,2052,1.6512
+95,1,"Fast + Low36 + Cross5 (approximate)",2,18,3840,2160,3648,2052,1.6512
+95,1,"Fast + Low36 + Cross5 (approximate)",2,19,3840,2160,3648,2052,1.638528
+95,1,"Fast + Low36 + Cross5 (approximate)",2,20,3840,2160,3648,2052,1.561088
+95,1,"Fast + Low36 + Cross5 (approximate)",2,21,3840,2160,3648,2052,1.712
+95,1,"Fast + Low36 + Cross5 (approximate)",2,22,3840,2160,3648,2052,1.525504
+95,1,"Fast + Low36 + Cross5 (approximate)",2,23,3840,2160,3648,2052,1.76768
+95,1,"Fast + Low36 + Cross5 (approximate)",2,24,3840,2160,3648,2052,1.667328
+95,1,"Fast + Low36 + Cross5 (approximate)",2,25,3840,2160,3648,2052,1.587584
+95,1,"Fast + Low36 + Cross5 (approximate)",2,26,3840,2160,3648,2052,1.643648
+95,1,"Fast + Low36 + Cross5 (approximate)",2,27,3840,2160,3648,2052,1.583104
+95,1,"Fast + Low36 + Cross5 (approximate)",2,28,3840,2160,3648,2052,1.610112
+95,1,"Fast + Low36 + Cross5 (approximate)",2,29,3840,2160,3648,2052,1.586944
+95,1,"Fast + Low36 + Cross5 (approximate)",2,30,3840,2160,3648,2052,1.630976
+95,1,"Fast + Low36 + Cross5 (approximate)",2,31,3840,2160,3648,2052,1.61664
+95,1,"Fast + Low36 + Cross5 (approximate)",2,32,3840,2160,3648,2052,1.591936
+95,1,"Fast + Low36 + Cross5 (approximate)",2,33,3840,2160,3648,2052,1.635968
+95,1,"Fast + Low36 + Cross5 (approximate)",2,34,3840,2160,3648,2052,1.665664
+95,1,"Fast + Low36 + Cross5 (approximate)",2,35,3840,2160,3648,2052,1.639424
+95,1,"Fast + Low36 + Cross5 (approximate)",2,36,3840,2160,3648,2052,1.561088
+95,1,"Fast + Low36 + Cross5 (approximate)",2,37,3840,2160,3648,2052,1.638272
+95,1,"Fast + Low36 + Cross5 (approximate)",2,38,3840,2160,3648,2052,1.606016
+95,1,"Fast + Low36 + Cross5 (approximate)",2,39,3840,2160,3648,2052,1.639808
+95,1,"Fast + Low36 + Cross5 (approximate)",2,40,3840,2160,3648,2052,1.637888
+95,1,"Fast + Low36 + Cross5 (approximate)",2,41,3840,2160,3648,2052,1.601792
+95,1,"Fast + Low36 + Cross5 (approximate)",2,42,3840,2160,3648,2052,1.584768
+95,1,"Fast + Low36 + Cross5 (approximate)",2,43,3840,2160,3648,2052,1.632128
+95,1,"Fast + Low36 + Cross5 (approximate)",2,44,3840,2160,3648,2052,1.613696
+95,1,"Fast + Low36 + Cross5 (approximate)",2,45,3840,2160,3648,2052,1.583232
+95,1,"Fast + Low36 + Cross5 (approximate)",2,46,3840,2160,3648,2052,1.7024
+95,1,"Fast + Low36 + Cross5 (approximate)",2,47,3840,2160,3648,2052,1.576448
+95,1,"Fast + Low36 + Cross5 (approximate)",2,48,3840,2160,3648,2052,1.63904
+95,1,"Fast + Low36 + Cross5 (approximate)",2,49,3840,2160,3648,2052,1.61728
+95,1,"Fast + Low36 + Cross5 (approximate)",2,50,3840,2160,3648,2052,1.583232
+95,1,"Fast + Low36 + Cross5 (approximate)",2,51,3840,2160,3648,2052,1.666304
+95,1,"Fast + Low36 + Cross5 (approximate)",2,52,3840,2160,3648,2052,1.529344
+95,1,"Fast + Low36 + Cross5 (approximate)",2,53,3840,2160,3648,2052,1.640064
+95,1,"Fast + Low36 + Cross5 (approximate)",2,54,3840,2160,3648,2052,1.662848
+95,1,"Fast + Low36 + Cross5 (approximate)",2,55,3840,2160,3648,2052,1.587968
+95,1,"Fast + Low36 + Cross5 (approximate)",2,56,3840,2160,3648,2052,1.637376
+95,1,"Fast + Low36 + Cross5 (approximate)",2,57,3840,2160,3648,2052,1.645184
+95,1,"Fast + Low36 + Cross5 (approximate)",2,58,3840,2160,3648,2052,1.58272
+95,1,"Fast + Low36 + Cross5 (approximate)",2,59,3840,2160,3648,2052,1.661696
+95,1,"Fast + Low36 + Cross5 (approximate)",2,60,3840,2160,3648,2052,1.639808
+95,1,"Fast + Low36 + Cross5 (approximate)",2,61,3840,2160,3648,2052,1.609984
+95,1,"Fast + Low36 + Cross5 (approximate)",2,62,3840,2160,3648,2052,1.616128
+95,1,"Fast + Low36 + Cross5 (approximate)",2,63,3840,2160,3648,2052,1.58208
+95,1,"Fast + Low36 + Cross5 (approximate)",2,64,3840,2160,3648,2052,1.619328
+95,1,"Fast + Low36 + Cross5 (approximate)",2,65,3840,2160,3648,2052,1.682176
+95,1,"Fast + Low36 + Cross5 (approximate)",2,66,3840,2160,3648,2052,1.586304
+95,1,"Fast + Low36 + Cross5 (approximate)",2,67,3840,2160,3648,2052,1.602176
+95,1,"Fast + Low36 + Cross5 (approximate)",2,68,3840,2160,3648,2052,1.579776
+95,1,"Fast + Low36 + Cross5 (approximate)",2,69,3840,2160,3648,2052,1.661056
+95,1,"Fast + Low36 + Cross5 (approximate)",2,70,3840,2160,3648,2052,1.68128
+95,1,"Fast + Low36 + Cross5 (approximate)",2,71,3840,2160,3648,2052,1.586304
+95,1,"Fast + Low36 + Cross5 (approximate)",2,72,3840,2160,3648,2052,1.6128
+95,1,"Fast + Low36 + Cross5 (approximate)",2,73,3840,2160,3648,2052,1.586944
+95,1,"Fast + Low36 + Cross5 (approximate)",2,74,3840,2160,3648,2052,1.584128
+95,1,"Fast + Low36 + Cross5 (approximate)",2,75,3840,2160,3648,2052,1.659648
+95,1,"Fast + Low36 + Cross5 (approximate)",2,76,3840,2160,3648,2052,1.640704
+95,1,"Fast + Low36 + Cross5 (approximate)",2,77,3840,2160,3648,2052,1.588864
+95,1,"Fast + Low36 + Cross5 (approximate)",2,78,3840,2160,3648,2052,1.638656
+95,1,"Fast + Low36 + Cross5 (approximate)",2,79,3840,2160,3648,2052,1.577472
+95,1,"Fast + Low36 + Cross5 (approximate)",2,80,3840,2160,3648,2052,1.638144
+95,1,"Fast + Low36 + Cross5 (approximate)",2,81,3840,2160,3648,2052,1.634688
+95,1,"Fast + Low36 + Cross5 (approximate)",2,82,3840,2160,3648,2052,1.59808
+95,1,"Fast + Low36 + Cross5 (approximate)",2,83,3840,2160,3648,2052,1.582848
+95,1,"Fast + Low36 + Cross5 (approximate)",2,84,3840,2160,3648,2052,1.58272
+95,1,"Fast + Low36 + Cross5 (approximate)",2,85,3840,2160,3648,2052,1.662336
+95,1,"Fast + Low36 + Cross5 (approximate)",2,86,3840,2160,3648,2052,1.584
+95,1,"Fast + Low36 + Cross5 (approximate)",2,87,3840,2160,3648,2052,1.654912
+95,1,"Fast + Low36 + Cross5 (approximate)",2,88,3840,2160,3648,2052,1.525504
+95,1,"Fast + Low36 + Cross5 (approximate)",2,89,3840,2160,3648,2052,1.668352
+95,1,"Fast + Low36 + Cross5 (approximate)",2,90,3840,2160,3648,2052,1.650944
+95,1,"Fast + Low36 + Cross5 (approximate)",2,91,3840,2160,3648,2052,1.582464
+95,1,"Fast + Low36 + Cross5 (approximate)",2,92,3840,2160,3648,2052,1.61152
+95,1,"Fast + Low36 + Cross5 (approximate)",2,93,3840,2160,3648,2052,1.634176
+95,1,"Fast + Low36 + Cross5 (approximate)",2,94,3840,2160,3648,2052,1.6384
+95,1,"Fast + Low36 + Cross5 (approximate)",2,95,3840,2160,3648,2052,1.540864
+95,1,"Fast + Low36 + Cross5 (approximate)",2,96,3840,2160,3648,2052,1.644288
+95,1,"Fast + Low36 + Cross5 (approximate)",2,97,3840,2160,3648,2052,1.679616
+95,1,"Fast + Low36 + Cross5 (approximate)",2,98,3840,2160,3648,2052,1.56672
+95,1,"Fast + Low36 + Cross5 (approximate)",2,99,3840,2160,3648,2052,1.58336
+95,1,"Fast + Low36 + Cross5 (approximate)",2,100,3840,2160,3648,2052,1.678592
+95,1,"Fast + Low36 + Cross5 (approximate)",2,101,3840,2160,3648,2052,1.580416
+95,1,"Fast + Low36 + Cross5 (approximate)",2,102,3840,2160,3648,2052,1.64032
+95,1,"Fast + Low36 + Cross5 (approximate)",2,103,3840,2160,3648,2052,1.671168
+95,1,"Fast + Low36 + Cross5 (approximate)",2,104,3840,2160,3648,2052,1.582464
+95,1,"Fast + Low36 + Cross5 (approximate)",2,105,3840,2160,3648,2052,1.6096
+95,1,"Fast + Low36 + Cross5 (approximate)",2,106,3840,2160,3648,2052,1.586176
+95,1,"Fast + Low36 + Cross5 (approximate)",2,107,3840,2160,3648,2052,1.584768
+95,1,"Fast + Low36 + Cross5 (approximate)",2,108,3840,2160,3648,2052,1.748736
+95,1,"Fast + Low36 + Cross5 (approximate)",2,109,3840,2160,3648,2052,1.61216
+95,1,"Fast + Low36 + Cross5 (approximate)",2,110,3840,2160,3648,2052,1.580672
+95,1,"Fast + Low36 + Cross5 (approximate)",2,111,3840,2160,3648,2052,1.614848
+95,1,"Fast + Low36 + Cross5 (approximate)",2,112,3840,2160,3648,2052,1.584256
+95,1,"Fast + Low36 + Cross5 (approximate)",2,113,3840,2160,3648,2052,1.657344
+95,1,"Fast + Low36 + Cross5 (approximate)",2,114,3840,2160,3648,2052,1.639168
+95,1,"Fast + Low36 + Cross5 (approximate)",2,115,3840,2160,3648,2052,1.582464
+95,1,"Fast + Low36 + Cross5 (approximate)",2,116,3840,2160,3648,2052,1.613824
+95,1,"Fast + Low36 + Cross5 (approximate)",2,117,3840,2160,3648,2052,1.583616
+95,1,"Fast + Low36 + Cross5 (approximate)",2,118,3840,2160,3648,2052,1.65696
+95,1,"Fast + Low36 + Cross5 (approximate)",2,119,3840,2160,3648,2052,1.633664
+95,1,"Fast + Low36 + Cross5 (approximate)",2,120,3840,2160,3648,2052,1.585792
+95,1,"Fast + Low36 + Cross5 (approximate)",2,121,3840,2160,3648,2052,1.613312
+95,1,"Fast + Low36 + Cross5 (approximate)",2,122,3840,2160,3648,2052,1.584
+95,1,"Fast + Low36 + Cross5 (approximate)",2,123,3840,2160,3648,2052,1.61088
+95,1,"Fast + Low36 + Cross5 (approximate)",2,124,3840,2160,3648,2052,1.686912
+95,1,"Fast + Low36 + Cross5 (approximate)",2,125,3840,2160,3648,2052,1.641728
+95,1,"Fast + Low36 + Cross5 (approximate)",2,126,3840,2160,3648,2052,1.617536
+95,1,"Fast + Low36 + Cross5 (approximate)",2,127,3840,2160,3648,2052,1.586304
+95,1,"Fast + Low36 + Cross5 (approximate)",2,128,3840,2160,3648,2052,1.61472
+95,1,"Fast + Low36 + Cross5 (approximate)",2,129,3840,2160,3648,2052,1.633792
+95,1,"Fast + Low36 + Cross5 (approximate)",2,130,3840,2160,3648,2052,1.641088
+95,1,"Fast + Low36 + Cross5 (approximate)",2,131,3840,2160,3648,2052,1.557248
+95,1,"Fast + Low36 + Cross5 (approximate)",2,132,3840,2160,3648,2052,1.64096
+95,1,"Fast + Low36 + Cross5 (approximate)",2,133,3840,2160,3648,2052,1.582464
+95,1,"Fast + Low36 + Cross5 (approximate)",2,134,3840,2160,3648,2052,1.67488
+95,1,"Fast + Low36 + Cross5 (approximate)",2,135,3840,2160,3648,2052,1.639936
+95,1,"Fast + Low36 + Cross5 (approximate)",2,136,3840,2160,3648,2052,1.561472
+95,1,"Fast + Low36 + Cross5 (approximate)",2,137,3840,2160,3648,2052,1.641088
+95,1,"Fast + Low36 + Cross5 (approximate)",2,138,3840,2160,3648,2052,1.582848
+95,1,"Fast + Low36 + Cross5 (approximate)",2,139,3840,2160,3648,2052,1.644544
+95,1,"Fast + Low36 + Cross5 (approximate)",2,140,3840,2160,3648,2052,1.585408
+95,1,"Fast + Low36 + Cross5 (approximate)",2,141,3840,2160,3648,2052,1.682944
+95,1,"Fast + Low36 + Cross5 (approximate)",2,142,3840,2160,3648,2052,1.531776
+95,1,"Fast + Low36 + Cross5 (approximate)",2,143,3840,2160,3648,2052,1.695104
+95,1,"Fast + Low36 + Cross5 (approximate)",2,144,3840,2160,3648,2052,1.6032
+95,1,"Fast + Low36 + Cross5 (approximate)",2,145,3840,2160,3648,2052,1.629312
+95,1,"Fast + Low36 + Cross5 (approximate)",2,146,3840,2160,3648,2052,1.60384
+95,1,"Fast + Low36 + Cross5 (approximate)",2,147,3840,2160,3648,2052,1.63584
+95,1,"Fast + Low36 + Cross5 (approximate)",2,148,3840,2160,3648,2052,1.586688
+95,1,"Fast + Low36 + Cross5 (approximate)",2,149,3840,2160,3648,2052,1.657472
+95,1,"Fast + Low36 + Cross5 (approximate)",2,150,3840,2160,3648,2052,1.586816
+95,1,"Fast + Low36 + Cross5 (approximate)",2,151,3840,2160,3648,2052,1.693568
+95,1,"Fast + Low36 + Cross5 (approximate)",2,152,3840,2160,3648,2052,1.529472
+95,1,"Fast + Low36 + Cross5 (approximate)",2,153,3840,2160,3648,2052,1.640576
+95,1,"Fast + Low36 + Cross5 (approximate)",2,154,3840,2160,3648,2052,1.689856
+95,1,"Fast + Low36 + Cross5 (approximate)",2,155,3840,2160,3648,2052,1.640832
+95,1,"Fast + Low36 + Cross5 (approximate)",2,156,3840,2160,3648,2052,1.57952
+95,1,"Fast + Low36 + Cross5 (approximate)",2,157,3840,2160,3648,2052,1.616768
+95,1,"Fast + Low36 + Cross5 (approximate)",2,158,3840,2160,3648,2052,1.583616
+95,1,"Fast + Low36 + Cross5 (approximate)",2,159,3840,2160,3648,2052,1.662592
+95,1,"Classic optimized",3,0,3840,2160,3648,2052,1.216384
+95,1,"Classic optimized",3,1,3840,2160,3648,2052,1.26464
+95,1,"Classic optimized",3,2,3840,2160,3648,2052,1.29152
+95,1,"Classic optimized",3,3,3840,2160,3648,2052,1.254144
+95,1,"Classic optimized",3,4,3840,2160,3648,2052,1.261824
+95,1,"Classic optimized",3,5,3840,2160,3648,2052,1.294208
+95,1,"Classic optimized",3,6,3840,2160,3648,2052,1.26592
+95,1,"Classic optimized",3,7,3840,2160,3648,2052,1.289728
+95,1,"Classic optimized",3,8,3840,2160,3648,2052,1.297536
+95,1,"Classic optimized",3,9,3840,2160,3648,2052,1.267328
+95,1,"Classic optimized",3,10,3840,2160,3648,2052,1.257472
+95,1,"Classic optimized",3,11,3840,2160,3648,2052,1.2128
+95,1,"Classic optimized",3,12,3840,2160,3648,2052,1.255552
+95,1,"Classic optimized",3,13,3840,2160,3648,2052,1.294208
+95,1,"Classic optimized",3,14,3840,2160,3648,2052,1.266432
+95,1,"Classic optimized",3,15,3840,2160,3648,2052,1.298816
+95,1,"Classic optimized",3,16,3840,2160,3648,2052,1.296768
+95,1,"Classic optimized",3,17,3840,2160,3648,2052,1.284864
+95,1,"Classic optimized",3,18,3840,2160,3648,2052,1.292672
+95,1,"Classic optimized",3,19,3840,2160,3648,2052,1.254784
+95,1,"Classic optimized",3,20,3840,2160,3648,2052,1.278336
+95,1,"Classic optimized",3,21,3840,2160,3648,2052,1.21984
+95,1,"Classic optimized",3,22,3840,2160,3648,2052,1.32608
+95,1,"Classic optimized",3,23,3840,2160,3648,2052,1.19168
+95,1,"Classic optimized",3,24,3840,2160,3648,2052,1.283968
+95,1,"Classic optimized",3,25,3840,2160,3648,2052,1.20192
+95,1,"Classic optimized",3,26,3840,2160,3648,2052,1.275136
+95,1,"Classic optimized",3,27,3840,2160,3648,2052,1.247616
+95,1,"Classic optimized",3,28,3840,2160,3648,2052,1.275776
+95,1,"Classic optimized",3,29,3840,2160,3648,2052,1.243776
+95,1,"Classic optimized",3,30,3840,2160,3648,2052,1.24096
+95,1,"Classic optimized",3,31,3840,2160,3648,2052,1.204608
+95,1,"Classic optimized",3,32,3840,2160,3648,2052,1.285248
+95,1,"Classic optimized",3,33,3840,2160,3648,2052,1.282176
+95,1,"Classic optimized",3,34,3840,2160,3648,2052,1.241984
+95,1,"Classic optimized",3,35,3840,2160,3648,2052,1.275392
+95,1,"Classic optimized",3,36,3840,2160,3648,2052,1.23776
+95,1,"Classic optimized",3,37,3840,2160,3648,2052,1.25696
+95,1,"Classic optimized",3,38,3840,2160,3648,2052,1.247232
+95,1,"Classic optimized",3,39,3840,2160,3648,2052,1.239936
+95,1,"Classic optimized",3,40,3840,2160,3648,2052,1.243008
+95,1,"Classic optimized",3,41,3840,2160,3648,2052,1.310848
+95,1,"Classic optimized",3,42,3840,2160,3648,2052,1.246336
+95,1,"Classic optimized",3,43,3840,2160,3648,2052,1.24032
+95,1,"Classic optimized",3,44,3840,2160,3648,2052,1.2832
+95,1,"Classic optimized",3,45,3840,2160,3648,2052,1.180672
+95,1,"Classic optimized",3,46,3840,2160,3648,2052,1.197184
+95,1,"Classic optimized",3,47,3840,2160,3648,2052,1.2672
+95,1,"Classic optimized",3,48,3840,2160,3648,2052,1.246336
+95,1,"Classic optimized",3,49,3840,2160,3648,2052,1.245184
+95,1,"Classic optimized",3,50,3840,2160,3648,2052,1.235968
+95,1,"Classic optimized",3,51,3840,2160,3648,2052,1.275648
+95,1,"Classic optimized",3,52,3840,2160,3648,2052,1.25056
+95,1,"Classic optimized",3,53,3840,2160,3648,2052,1.244032
+95,1,"Classic optimized",3,54,3840,2160,3648,2052,1.26272
+95,1,"Classic optimized",3,55,3840,2160,3648,2052,1.186944
+95,1,"Classic optimized",3,56,3840,2160,3648,2052,1.293696
+95,1,"Classic optimized",3,57,3840,2160,3648,2052,1.289856
+95,1,"Classic optimized",3,58,3840,2160,3648,2052,1.193856
+95,1,"Classic optimized",3,59,3840,2160,3648,2052,1.253248
+95,1,"Classic optimized",3,60,3840,2160,3648,2052,1.25056
+95,1,"Classic optimized",3,61,3840,2160,3648,2052,1.240576
+95,1,"Classic optimized",3,62,3840,2160,3648,2052,1.252096
+95,1,"Classic optimized",3,63,3840,2160,3648,2052,1.254272
+95,1,"Classic optimized",3,64,3840,2160,3648,2052,1.29344
+95,1,"Classic optimized",3,65,3840,2160,3648,2052,1.254528
+95,1,"Classic optimized",3,66,3840,2160,3648,2052,1.259648
+95,1,"Classic optimized",3,67,3840,2160,3648,2052,1.292416
+95,1,"Classic optimized",3,68,3840,2160,3648,2052,1.249024
+95,1,"Classic optimized",3,69,3840,2160,3648,2052,1.262592
+95,1,"Classic optimized",3,70,3840,2160,3648,2052,1.289472
+95,1,"Classic optimized",3,71,3840,2160,3648,2052,1.295488
+95,1,"Classic optimized",3,72,3840,2160,3648,2052,1.260416
+95,1,"Classic optimized",3,73,3840,2160,3648,2052,1.258752
+95,1,"Classic optimized",3,74,3840,2160,3648,2052,1.23392
+95,1,"Classic optimized",3,75,3840,2160,3648,2052,1.210624
+95,1,"Classic optimized",3,76,3840,2160,3648,2052,1.251584
+95,1,"Classic optimized",3,77,3840,2160,3648,2052,1.290752
+95,1,"Classic optimized",3,78,3840,2160,3648,2052,1.260672
+95,1,"Classic optimized",3,79,3840,2160,3648,2052,1.266176
+95,1,"Classic optimized",3,80,3840,2160,3648,2052,1.293568
+95,1,"Classic optimized",3,81,3840,2160,3648,2052,1.250048
+95,1,"Classic optimized",3,82,3840,2160,3648,2052,1.255296
+95,1,"Classic optimized",3,83,3840,2160,3648,2052,1.278592
+95,1,"Classic optimized",3,84,3840,2160,3648,2052,1.359104
+95,1,"Classic optimized",3,85,3840,2160,3648,2052,1.294336
+95,1,"Classic optimized",3,86,3840,2160,3648,2052,1.262336
+95,1,"Classic optimized",3,87,3840,2160,3648,2052,1.247872
+95,1,"Classic optimized",3,88,3840,2160,3648,2052,1.351552
+95,1,"Classic optimized",3,89,3840,2160,3648,2052,1.264896
+95,1,"Classic optimized",3,90,3840,2160,3648,2052,1.364864
+95,1,"Classic optimized",3,91,3840,2160,3648,2052,1.242624
+95,1,"Classic optimized",3,92,3840,2160,3648,2052,1.346944
+95,1,"Classic optimized",3,93,3840,2160,3648,2052,1.229696
+95,1,"Classic optimized",3,94,3840,2160,3648,2052,1.293184
+95,1,"Classic optimized",3,95,3840,2160,3648,2052,1.258752
+95,1,"Classic optimized",3,96,3840,2160,3648,2052,1.339136
+95,1,"Classic optimized",3,97,3840,2160,3648,2052,1.20256
+95,1,"Classic optimized",3,98,3840,2160,3648,2052,1.32288
+95,1,"Classic optimized",3,99,3840,2160,3648,2052,1.248384
+95,1,"Classic optimized",3,100,3840,2160,3648,2052,1.34272
+95,1,"Classic optimized",3,101,3840,2160,3648,2052,1.292032
+95,1,"Classic optimized",3,102,3840,2160,3648,2052,1.243392
+95,1,"Classic optimized",3,103,3840,2160,3648,2052,1.301504
+95,1,"Classic optimized",3,104,3840,2160,3648,2052,1.286656
+95,1,"Classic optimized",3,105,3840,2160,3648,2052,1.260032
+95,1,"Classic optimized",3,106,3840,2160,3648,2052,1.300096
+95,1,"Classic optimized",3,107,3840,2160,3648,2052,1.261568
+95,1,"Classic optimized",3,108,3840,2160,3648,2052,1.259904
+95,1,"Classic optimized",3,109,3840,2160,3648,2052,1.331712
+95,1,"Classic optimized",3,110,3840,2160,3648,2052,1.29216
+95,1,"Classic optimized",3,111,3840,2160,3648,2052,1.198208
+95,1,"Classic optimized",3,112,3840,2160,3648,2052,1.315456
+95,1,"Classic optimized",3,113,3840,2160,3648,2052,1.292928
+95,1,"Classic optimized",3,114,3840,2160,3648,2052,1.283712
+95,1,"Classic optimized",3,115,3840,2160,3648,2052,1.188992
+95,1,"Classic optimized",3,116,3840,2160,3648,2052,1.285632
+95,1,"Classic optimized",3,117,3840,2160,3648,2052,1.348224
+95,1,"Classic optimized",3,118,3840,2160,3648,2052,1.288832
+95,1,"Classic optimized",3,119,3840,2160,3648,2052,1.228672
+95,1,"Classic optimized",3,120,3840,2160,3648,2052,1.249152
+95,1,"Classic optimized",3,121,3840,2160,3648,2052,1.32032
+95,1,"Classic optimized",3,122,3840,2160,3648,2052,1.28768
+95,1,"Classic optimized",3,123,3840,2160,3648,2052,1.237248
+95,1,"Classic optimized",3,124,3840,2160,3648,2052,1.24736
+95,1,"Classic optimized",3,125,3840,2160,3648,2052,1.317632
+95,1,"Classic optimized",3,126,3840,2160,3648,2052,1.316992
+95,1,"Classic optimized",3,127,3840,2160,3648,2052,1.242496
+95,1,"Classic optimized",3,128,3840,2160,3648,2052,1.249408
+95,1,"Classic optimized",3,129,3840,2160,3648,2052,1.243904
+95,1,"Classic optimized",3,130,3840,2160,3648,2052,1.303808
+95,1,"Classic optimized",3,131,3840,2160,3648,2052,1.23968
+95,1,"Classic optimized",3,132,3840,2160,3648,2052,1.252992
+95,1,"Classic optimized",3,133,3840,2160,3648,2052,1.191808
+95,1,"Classic optimized",3,134,3840,2160,3648,2052,1.276544
+95,1,"Classic optimized",3,135,3840,2160,3648,2052,1.274624
+95,1,"Classic optimized",3,136,3840,2160,3648,2052,1.284992
+95,1,"Classic optimized",3,137,3840,2160,3648,2052,1.24032
+95,1,"Classic optimized",3,138,3840,2160,3648,2052,1.27616
+95,1,"Classic optimized",3,139,3840,2160,3648,2052,1.318656
+95,1,"Classic optimized",3,140,3840,2160,3648,2052,1.241856
+95,1,"Classic optimized",3,141,3840,2160,3648,2052,1.241728
+95,1,"Classic optimized",3,142,3840,2160,3648,2052,1.257728
+95,1,"Classic optimized",3,143,3840,2160,3648,2052,1.186304
+95,1,"Classic optimized",3,144,3840,2160,3648,2052,1.25248
+95,1,"Classic optimized",3,145,3840,2160,3648,2052,1.227136
+95,1,"Classic optimized",3,146,3840,2160,3648,2052,1.241984
+95,1,"Classic optimized",3,147,3840,2160,3648,2052,1.269248
+95,1,"Classic optimized",3,148,3840,2160,3648,2052,1.335168
+95,1,"Classic optimized",3,149,3840,2160,3648,2052,1.191296
+95,1,"Classic optimized",3,150,3840,2160,3648,2052,1.24416
+95,1,"Classic optimized",3,151,3840,2160,3648,2052,1.248
+95,1,"Classic optimized",3,152,3840,2160,3648,2052,1.28576
+95,1,"Classic optimized",3,153,3840,2160,3648,2052,1.201536
+95,1,"Classic optimized",3,154,3840,2160,3648,2052,1.248512
+95,1,"Classic optimized",3,155,3840,2160,3648,2052,1.279104
+95,1,"Classic optimized",3,156,3840,2160,3648,2052,1.248256
+95,1,"Classic optimized",3,157,3840,2160,3648,2052,1.261184
+95,1,"Classic optimized",3,158,3840,2160,3648,2052,1.252736
+95,1,"Classic optimized",3,159,3840,2160,3648,2052,1.290496
+99,1,"Classic optimized",0,0,3840,2160,3802,2138,1.357184
+99,1,"Classic optimized",0,1,3840,2160,3802,2138,1.3856
+99,1,"Classic optimized",0,2,3840,2160,3802,2138,1.345792
+99,1,"Classic optimized",0,3,3840,2160,3802,2138,1.29216
+99,1,"Classic optimized",0,4,3840,2160,3802,2138,1.342592
+99,1,"Classic optimized",0,5,3840,2160,3802,2138,1.455232
+99,1,"Classic optimized",0,6,3840,2160,3802,2138,1.28704
+99,1,"Classic optimized",0,7,3840,2160,3802,2138,1.350528
+99,1,"Classic optimized",0,8,3840,2160,3802,2138,1.33568
+99,1,"Classic optimized",0,9,3840,2160,3802,2138,1.400064
+99,1,"Classic optimized",0,10,3840,2160,3802,2138,1.337472
+99,1,"Classic optimized",0,11,3840,2160,3802,2138,1.34208
+99,1,"Classic optimized",0,12,3840,2160,3802,2138,1.43808
+99,1,"Classic optimized",0,13,3840,2160,3802,2138,1.348992
+99,1,"Classic optimized",0,14,3840,2160,3802,2138,1.293824
+99,1,"Classic optimized",0,15,3840,2160,3802,2138,1.382784
+99,1,"Classic optimized",0,16,3840,2160,3802,2138,1.379968
+99,1,"Classic optimized",0,17,3840,2160,3802,2138,1.334528
+99,1,"Classic optimized",0,18,3840,2160,3802,2138,1.34144
+99,1,"Classic optimized",0,19,3840,2160,3802,2138,1.366528
+99,1,"Classic optimized",0,20,3840,2160,3802,2138,1.34976
+99,1,"Classic optimized",0,21,3840,2160,3802,2138,1.387008
+99,1,"Classic optimized",0,22,3840,2160,3802,2138,1.388416
+99,1,"Classic optimized",0,23,3840,2160,3802,2138,1.354496
+99,1,"Classic optimized",0,24,3840,2160,3802,2138,1.357824
+99,1,"Classic optimized",0,25,3840,2160,3802,2138,1.372928
+99,1,"Classic optimized",0,26,3840,2160,3802,2138,1.338624
+99,1,"Classic optimized",0,27,3840,2160,3802,2138,1.395456
+99,1,"Classic optimized",0,28,3840,2160,3802,2138,1.342976
+99,1,"Classic optimized",0,29,3840,2160,3802,2138,1.351936
+99,1,"Classic optimized",0,30,3840,2160,3802,2138,1.36128
+99,1,"Classic optimized",0,31,3840,2160,3802,2138,1.34784
+99,1,"Classic optimized",0,32,3840,2160,3802,2138,1.352832
+99,1,"Classic optimized",0,33,3840,2160,3802,2138,1.400832
+99,1,"Classic optimized",0,34,3840,2160,3802,2138,1.37344
+99,1,"Classic optimized",0,35,3840,2160,3802,2138,1.33824
+99,1,"Classic optimized",0,36,3840,2160,3802,2138,1.395072
+99,1,"Classic optimized",0,37,3840,2160,3802,2138,1.343104
+99,1,"Classic optimized",0,38,3840,2160,3802,2138,1.34272
+99,1,"Classic optimized",0,39,3840,2160,3802,2138,1.390592
+99,1,"Classic optimized",0,40,3840,2160,3802,2138,1.34144
+99,1,"Classic optimized",0,41,3840,2160,3802,2138,1.36064
+99,1,"Classic optimized",0,42,3840,2160,3802,2138,1.33824
+99,1,"Classic optimized",0,43,3840,2160,3802,2138,1.442048
+99,1,"Classic optimized",0,44,3840,2160,3802,2138,1.378176
+99,1,"Classic optimized",0,45,3840,2160,3802,2138,1.311744
+99,1,"Classic optimized",0,46,3840,2160,3802,2138,1.426688
+99,1,"Classic optimized",0,47,3840,2160,3802,2138,1.344512
+99,1,"Classic optimized",0,48,3840,2160,3802,2138,1.400192
+99,1,"Classic optimized",0,49,3840,2160,3802,2138,1.331328
+99,1,"Classic optimized",0,50,3840,2160,3802,2138,1.3376
+99,1,"Classic optimized",0,51,3840,2160,3802,2138,1.297664
+99,1,"Classic optimized",0,52,3840,2160,3802,2138,1.391744
+99,1,"Classic optimized",0,53,3840,2160,3802,2138,1.349632
+99,1,"Classic optimized",0,54,3840,2160,3802,2138,1.30176
+99,1,"Classic optimized",0,55,3840,2160,3802,2138,1.431936
+99,1,"Classic optimized",0,56,3840,2160,3802,2138,1.325312
+99,1,"Classic optimized",0,57,3840,2160,3802,2138,1.30112
+99,1,"Classic optimized",0,58,3840,2160,3802,2138,1.315968
+99,1,"Classic optimized",0,59,3840,2160,3802,2138,1.322496
+99,1,"Classic optimized",0,60,3840,2160,3802,2138,1.35296
+99,1,"Classic optimized",0,61,3840,2160,3802,2138,1.324032
+99,1,"Classic optimized",0,62,3840,2160,3802,2138,1.268992
+99,1,"Classic optimized",0,63,3840,2160,3802,2138,1.361536
+99,1,"Classic optimized",0,64,3840,2160,3802,2138,1.3088
+99,1,"Classic optimized",0,65,3840,2160,3802,2138,1.311488
+99,1,"Classic optimized",0,66,3840,2160,3802,2138,1.310848
+99,1,"Classic optimized",0,67,3840,2160,3802,2138,1.357056
+99,1,"Classic optimized",0,68,3840,2160,3802,2138,1.3216
+99,1,"Classic optimized",0,69,3840,2160,3802,2138,1.320448
+99,1,"Classic optimized",0,70,3840,2160,3802,2138,1.361536
+99,1,"Classic optimized",0,71,3840,2160,3802,2138,1.333376
+99,1,"Classic optimized",0,72,3840,2160,3802,2138,1.331584
+99,1,"Classic optimized",0,73,3840,2160,3802,2138,1.348992
+99,1,"Classic optimized",0,74,3840,2160,3802,2138,1.32736
+99,1,"Classic optimized",0,75,3840,2160,3802,2138,1.315712
+99,1,"Classic optimized",0,76,3840,2160,3802,2138,1.333504
+99,1,"Classic optimized",0,77,3840,2160,3802,2138,1.34848
+99,1,"Classic optimized",0,78,3840,2160,3802,2138,1.348992
+99,1,"Classic optimized",0,79,3840,2160,3802,2138,1.382656
+99,1,"Classic optimized",0,80,3840,2160,3802,2138,1.326976
+99,1,"Classic optimized",0,81,3840,2160,3802,2138,1.379456
+99,1,"Classic optimized",0,82,3840,2160,3802,2138,1.330944
+99,1,"Classic optimized",0,83,3840,2160,3802,2138,1.31264
+99,1,"Classic optimized",0,84,3840,2160,3802,2138,1.244032
+99,1,"Classic optimized",0,85,3840,2160,3802,2138,1.356032
+99,1,"Classic optimized",0,86,3840,2160,3802,2138,1.33248
+99,1,"Classic optimized",0,87,3840,2160,3802,2138,1.34144
+99,1,"Classic optimized",0,88,3840,2160,3802,2138,1.366656
+99,1,"Classic optimized",0,89,3840,2160,3802,2138,1.327232
+99,1,"Classic optimized",0,90,3840,2160,3802,2138,1.383424
+99,1,"Classic optimized",0,91,3840,2160,3802,2138,1.378304
+99,1,"Classic optimized",0,92,3840,2160,3802,2138,1.33376
+99,1,"Classic optimized",0,93,3840,2160,3802,2138,1.284992
+99,1,"Classic optimized",0,94,3840,2160,3802,2138,1.451648
+99,1,"Classic optimized",0,95,3840,2160,3802,2138,1.290368
+99,1,"Classic optimized",0,96,3840,2160,3802,2138,1.339136
+99,1,"Classic optimized",0,97,3840,2160,3802,2138,1.3984
+99,1,"Classic optimized",0,98,3840,2160,3802,2138,1.337856
+99,1,"Classic optimized",0,99,3840,2160,3802,2138,1.328128
+99,1,"Classic optimized",0,100,3840,2160,3802,2138,1.369472
+99,1,"Classic optimized",0,101,3840,2160,3802,2138,1.336448
+99,1,"Classic optimized",0,102,3840,2160,3802,2138,1.290624
+99,1,"Classic optimized",0,103,3840,2160,3802,2138,1.35552
+99,1,"Classic optimized",0,104,3840,2160,3802,2138,1.34528
+99,1,"Classic optimized",0,105,3840,2160,3802,2138,1.33184
+99,1,"Classic optimized",0,106,3840,2160,3802,2138,1.373824
+99,1,"Classic optimized",0,107,3840,2160,3802,2138,1.398656
+99,1,"Classic optimized",0,108,3840,2160,3802,2138,1.346432
+99,1,"Classic optimized",0,109,3840,2160,3802,2138,1.369856
+99,1,"Classic optimized",0,110,3840,2160,3802,2138,1.41056
+99,1,"Classic optimized",0,111,3840,2160,3802,2138,1.37664
+99,1,"Classic optimized",0,112,3840,2160,3802,2138,1.344
+99,1,"Classic optimized",0,113,3840,2160,3802,2138,1.35552
+99,1,"Classic optimized",0,114,3840,2160,3802,2138,1.364224
+99,1,"Classic optimized",0,115,3840,2160,3802,2138,1.405568
+99,1,"Classic optimized",0,116,3840,2160,3802,2138,1.348352
+99,1,"Classic optimized",0,117,3840,2160,3802,2138,1.355264
+99,1,"Classic optimized",0,118,3840,2160,3802,2138,1.37728
+99,1,"Classic optimized",0,119,3840,2160,3802,2138,1.423744
+99,1,"Classic optimized",0,120,3840,2160,3802,2138,1.351808
+99,1,"Classic optimized",0,121,3840,2160,3802,2138,1.369856
+99,1,"Classic optimized",0,122,3840,2160,3802,2138,1.406848
+99,1,"Classic optimized",0,123,3840,2160,3802,2138,1.385984
+99,1,"Classic optimized",0,124,3840,2160,3802,2138,1.343872
+99,1,"Classic optimized",0,125,3840,2160,3802,2138,1.401472
+99,1,"Classic optimized",0,126,3840,2160,3802,2138,1.331456
+99,1,"Classic optimized",0,127,3840,2160,3802,2138,1.338368
+99,1,"Classic optimized",0,128,3840,2160,3802,2138,1.381248
+99,1,"Classic optimized",0,129,3840,2160,3802,2138,1.355648
+99,1,"Classic optimized",0,130,3840,2160,3802,2138,1.338624
+99,1,"Classic optimized",0,131,3840,2160,3802,2138,1.395712
+99,1,"Classic optimized",0,132,3840,2160,3802,2138,1.368704
+99,1,"Classic optimized",0,133,3840,2160,3802,2138,1.351808
+99,1,"Classic optimized",0,134,3840,2160,3802,2138,1.37856
+99,1,"Classic optimized",0,135,3840,2160,3802,2138,1.34784
+99,1,"Classic optimized",0,136,3840,2160,3802,2138,1.330176
+99,1,"Classic optimized",0,137,3840,2160,3802,2138,1.41376
+99,1,"Classic optimized",0,138,3840,2160,3802,2138,1.360128
+99,1,"Classic optimized",0,139,3840,2160,3802,2138,1.33376
+99,1,"Classic optimized",0,140,3840,2160,3802,2138,1.360896
+99,1,"Classic optimized",0,141,3840,2160,3802,2138,1.335936
+99,1,"Classic optimized",0,142,3840,2160,3802,2138,1.329408
+99,1,"Classic optimized",0,143,3840,2160,3802,2138,1.311232
+99,1,"Classic optimized",0,144,3840,2160,3802,2138,1.345664
+99,1,"Classic optimized",0,145,3840,2160,3802,2138,1.359232
+99,1,"Classic optimized",0,146,3840,2160,3802,2138,1.377408
+99,1,"Classic optimized",0,147,3840,2160,3802,2138,1.324416
+99,1,"Classic optimized",0,148,3840,2160,3802,2138,1.319936
+99,1,"Classic optimized",0,149,3840,2160,3802,2138,1.324416
+99,1,"Classic optimized",0,150,3840,2160,3802,2138,1.380608
+99,1,"Classic optimized",0,151,3840,2160,3802,2138,1.360128
+99,1,"Classic optimized",0,152,3840,2160,3802,2138,1.299584
+99,1,"Classic optimized",0,153,3840,2160,3802,2138,1.408384
+99,1,"Classic optimized",0,154,3840,2160,3802,2138,1.324544
+99,1,"Classic optimized",0,155,3840,2160,3802,2138,1.301504
+99,1,"Classic optimized",0,156,3840,2160,3802,2138,1.414528
+99,1,"Classic optimized",0,157,3840,2160,3802,2138,1.329408
+99,1,"Classic optimized",0,158,3840,2160,3802,2138,1.328512
+99,1,"Classic optimized",0,159,3840,2160,3802,2138,1.357696
+99,1,"Fast + Low36 + Cross5 (approximate)",1,0,3840,2160,3802,2138,1.821184
+99,1,"Fast + Low36 + Cross5 (approximate)",1,1,3840,2160,3802,2138,1.905792
+99,1,"Fast + Low36 + Cross5 (approximate)",1,2,3840,2160,3802,2138,1.815808
+99,1,"Fast + Low36 + Cross5 (approximate)",1,3,3840,2160,3802,2138,1.80288
+99,1,"Fast + Low36 + Cross5 (approximate)",1,4,3840,2160,3802,2138,1.921408
+99,1,"Fast + Low36 + Cross5 (approximate)",1,5,3840,2160,3802,2138,1.800704
+99,1,"Fast + Low36 + Cross5 (approximate)",1,6,3840,2160,3802,2138,1.806464
+99,1,"Fast + Low36 + Cross5 (approximate)",1,7,3840,2160,3802,2138,1.8688
+99,1,"Fast + Low36 + Cross5 (approximate)",1,8,3840,2160,3802,2138,1.858816
+99,1,"Fast + Low36 + Cross5 (approximate)",1,9,3840,2160,3802,2138,1.861888
+99,1,"Fast + Low36 + Cross5 (approximate)",1,10,3840,2160,3802,2138,1.8816
+99,1,"Fast + Low36 + Cross5 (approximate)",1,11,3840,2160,3802,2138,1.903488
+99,1,"Fast + Low36 + Cross5 (approximate)",1,12,3840,2160,3802,2138,1.8016
+99,1,"Fast + Low36 + Cross5 (approximate)",1,13,3840,2160,3802,2138,1.912064
+99,1,"Fast + Low36 + Cross5 (approximate)",1,14,3840,2160,3802,2138,1.807104
+99,1,"Fast + Low36 + Cross5 (approximate)",1,15,3840,2160,3802,2138,1.802624
+99,1,"Fast + Low36 + Cross5 (approximate)",1,16,3840,2160,3802,2138,1.823744
+99,1,"Fast + Low36 + Cross5 (approximate)",1,17,3840,2160,3802,2138,1.860736
+99,1,"Fast + Low36 + Cross5 (approximate)",1,18,3840,2160,3802,2138,1.883776
+99,1,"Fast + Low36 + Cross5 (approximate)",1,19,3840,2160,3802,2138,1.853056
+99,1,"Fast + Low36 + Cross5 (approximate)",1,20,3840,2160,3802,2138,1.838464
+99,1,"Fast + Low36 + Cross5 (approximate)",1,21,3840,2160,3802,2138,1.853696
+99,1,"Fast + Low36 + Cross5 (approximate)",1,22,3840,2160,3802,2138,1.918336
+99,1,"Fast + Low36 + Cross5 (approximate)",1,23,3840,2160,3802,2138,1.849088
+99,1,"Fast + Low36 + Cross5 (approximate)",1,24,3840,2160,3802,2138,1.88544
+99,1,"Fast + Low36 + Cross5 (approximate)",1,25,3840,2160,3802,2138,1.806976
+99,1,"Fast + Low36 + Cross5 (approximate)",1,26,3840,2160,3802,2138,1.882112
+99,1,"Fast + Low36 + Cross5 (approximate)",1,27,3840,2160,3802,2138,1.922176
+99,1,"Fast + Low36 + Cross5 (approximate)",1,28,3840,2160,3802,2138,1.80096
+99,1,"Fast + Low36 + Cross5 (approximate)",1,29,3840,2160,3802,2138,1.969152
+99,1,"Fast + Low36 + Cross5 (approximate)",1,30,3840,2160,3802,2138,1.803392
+99,1,"Fast + Low36 + Cross5 (approximate)",1,31,3840,2160,3802,2138,1.83488
+99,1,"Fast + Low36 + Cross5 (approximate)",1,32,3840,2160,3802,2138,1.908736
+99,1,"Fast + Low36 + Cross5 (approximate)",1,33,3840,2160,3802,2138,1.828992
+99,1,"Fast + Low36 + Cross5 (approximate)",1,34,3840,2160,3802,2138,1.85408
+99,1,"Fast + Low36 + Cross5 (approximate)",1,35,3840,2160,3802,2138,1.862784
+99,1,"Fast + Low36 + Cross5 (approximate)",1,36,3840,2160,3802,2138,1.835904
+99,1,"Fast + Low36 + Cross5 (approximate)",1,37,3840,2160,3802,2138,1.845248
+99,1,"Fast + Low36 + Cross5 (approximate)",1,38,3840,2160,3802,2138,1.895296
+99,1,"Fast + Low36 + Cross5 (approximate)",1,39,3840,2160,3802,2138,1.801344
+99,1,"Fast + Low36 + Cross5 (approximate)",1,40,3840,2160,3802,2138,1.893632
+99,1,"Fast + Low36 + Cross5 (approximate)",1,41,3840,2160,3802,2138,1.878912
+99,1,"Fast + Low36 + Cross5 (approximate)",1,42,3840,2160,3802,2138,1.843328
+99,1,"Fast + Low36 + Cross5 (approximate)",1,43,3840,2160,3802,2138,1.910016
+99,1,"Fast + Low36 + Cross5 (approximate)",1,44,3840,2160,3802,2138,1.83488
+99,1,"Fast + Low36 + Cross5 (approximate)",1,45,3840,2160,3802,2138,1.802624
+99,1,"Fast + Low36 + Cross5 (approximate)",1,46,3840,2160,3802,2138,1.870208
+99,1,"Fast + Low36 + Cross5 (approximate)",1,47,3840,2160,3802,2138,1.858304
+99,1,"Fast + Low36 + Cross5 (approximate)",1,48,3840,2160,3802,2138,1.8784
+99,1,"Fast + Low36 + Cross5 (approximate)",1,49,3840,2160,3802,2138,1.821184
+99,1,"Fast + Low36 + Cross5 (approximate)",1,50,3840,2160,3802,2138,1.858816
+99,1,"Fast + Low36 + Cross5 (approximate)",1,51,3840,2160,3802,2138,1.859584
+99,1,"Fast + Low36 + Cross5 (approximate)",1,52,3840,2160,3802,2138,1.862784
+99,1,"Fast + Low36 + Cross5 (approximate)",1,53,3840,2160,3802,2138,1.828992
+99,1,"Fast + Low36 + Cross5 (approximate)",1,54,3840,2160,3802,2138,1.872896
+99,1,"Fast + Low36 + Cross5 (approximate)",1,55,3840,2160,3802,2138,1.821824
+99,1,"Fast + Low36 + Cross5 (approximate)",1,56,3840,2160,3802,2138,1.859072
+99,1,"Fast + Low36 + Cross5 (approximate)",1,57,3840,2160,3802,2138,1.93152
+99,1,"Fast + Low36 + Cross5 (approximate)",1,58,3840,2160,3802,2138,1.749504
+99,1,"Fast + Low36 + Cross5 (approximate)",1,59,3840,2160,3802,2138,1.90656
+99,1,"Fast + Low36 + Cross5 (approximate)",1,60,3840,2160,3802,2138,1.838848
+99,1,"Fast + Low36 + Cross5 (approximate)",1,61,3840,2160,3802,2138,1.85344
+99,1,"Fast + Low36 + Cross5 (approximate)",1,62,3840,2160,3802,2138,1.964032
+99,1,"Fast + Low36 + Cross5 (approximate)",1,63,3840,2160,3802,2138,1.801344
+99,1,"Fast + Low36 + Cross5 (approximate)",1,64,3840,2160,3802,2138,1.885696
+99,1,"Fast + Low36 + Cross5 (approximate)",1,65,3840,2160,3802,2138,1.860096
+99,1,"Fast + Low36 + Cross5 (approximate)",1,66,3840,2160,3802,2138,1.82848
+99,1,"Fast + Low36 + Cross5 (approximate)",1,67,3840,2160,3802,2138,1.910784
+99,1,"Fast + Low36 + Cross5 (approximate)",1,68,3840,2160,3802,2138,1.801728
+99,1,"Fast + Low36 + Cross5 (approximate)",1,69,3840,2160,3802,2138,1.881856
+99,1,"Fast + Low36 + Cross5 (approximate)",1,70,3840,2160,3802,2138,1.85984
+99,1,"Fast + Low36 + Cross5 (approximate)",1,71,3840,2160,3802,2138,1.815936
+99,1,"Fast + Low36 + Cross5 (approximate)",1,72,3840,2160,3802,2138,1.805824
+99,1,"Fast + Low36 + Cross5 (approximate)",1,73,3840,2160,3802,2138,1.881984
+99,1,"Fast + Low36 + Cross5 (approximate)",1,74,3840,2160,3802,2138,1.858944
+99,1,"Fast + Low36 + Cross5 (approximate)",1,75,3840,2160,3802,2138,1.868416
+99,1,"Fast + Low36 + Cross5 (approximate)",1,76,3840,2160,3802,2138,1.86368
+99,1,"Fast + Low36 + Cross5 (approximate)",1,77,3840,2160,3802,2138,1.805696
+99,1,"Fast + Low36 + Cross5 (approximate)",1,78,3840,2160,3802,2138,1.891328
+99,1,"Fast + Low36 + Cross5 (approximate)",1,79,3840,2160,3802,2138,1.879936
+99,1,"Fast + Low36 + Cross5 (approximate)",1,80,3840,2160,3802,2138,1.822208
+99,1,"Fast + Low36 + Cross5 (approximate)",1,81,3840,2160,3802,2138,1.899008
+99,1,"Fast + Low36 + Cross5 (approximate)",1,82,3840,2160,3802,2138,1.764352
+99,1,"Fast + Low36 + Cross5 (approximate)",1,83,3840,2160,3802,2138,1.859072
+99,1,"Fast + Low36 + Cross5 (approximate)",1,84,3840,2160,3802,2138,1.876992
+99,1,"Fast + Low36 + Cross5 (approximate)",1,85,3840,2160,3802,2138,1.91104
+99,1,"Fast + Low36 + Cross5 (approximate)",1,86,3840,2160,3802,2138,1.806464
+99,1,"Fast + Low36 + Cross5 (approximate)",1,87,3840,2160,3802,2138,1.88928
+99,1,"Fast + Low36 + Cross5 (approximate)",1,88,3840,2160,3802,2138,1.858304
+99,1,"Fast + Low36 + Cross5 (approximate)",1,89,3840,2160,3802,2138,1.835008
+99,1,"Fast + Low36 + Cross5 (approximate)",1,90,3840,2160,3802,2138,1.909888
+99,1,"Fast + Low36 + Cross5 (approximate)",1,91,3840,2160,3802,2138,1.838336
+99,1,"Fast + Low36 + Cross5 (approximate)",1,92,3840,2160,3802,2138,1.88928
+99,1,"Fast + Low36 + Cross5 (approximate)",1,93,3840,2160,3802,2138,1.919744
+99,1,"Fast + Low36 + Cross5 (approximate)",1,94,3840,2160,3802,2138,1.85856
+99,1,"Fast + Low36 + Cross5 (approximate)",1,95,3840,2160,3802,2138,1.8016
+99,1,"Fast + Low36 + Cross5 (approximate)",1,96,3840,2160,3802,2138,1.912192
+99,1,"Fast + Low36 + Cross5 (approximate)",1,97,3840,2160,3802,2138,1.801344
+99,1,"Fast + Low36 + Cross5 (approximate)",1,98,3840,2160,3802,2138,1.883776
+99,1,"Fast + Low36 + Cross5 (approximate)",1,99,3840,2160,3802,2138,1.88864
+99,1,"Fast + Low36 + Cross5 (approximate)",1,100,3840,2160,3802,2138,1.843584
+99,1,"Fast + Low36 + Cross5 (approximate)",1,101,3840,2160,3802,2138,1.826816
+99,1,"Fast + Low36 + Cross5 (approximate)",1,102,3840,2160,3802,2138,1.885312
+99,1,"Fast + Low36 + Cross5 (approximate)",1,103,3840,2160,3802,2138,1.858944
+99,1,"Fast + Low36 + Cross5 (approximate)",1,104,3840,2160,3802,2138,1.831296
+99,1,"Fast + Low36 + Cross5 (approximate)",1,105,3840,2160,3802,2138,1.912576
+99,1,"Fast + Low36 + Cross5 (approximate)",1,106,3840,2160,3802,2138,1.804928
+99,1,"Fast + Low36 + Cross5 (approximate)",1,107,3840,2160,3802,2138,1.834368
+99,1,"Fast + Low36 + Cross5 (approximate)",1,108,3840,2160,3802,2138,1.907072
+99,1,"Fast + Low36 + Cross5 (approximate)",1,109,3840,2160,3802,2138,1.838592
+99,1,"Fast + Low36 + Cross5 (approximate)",1,110,3840,2160,3802,2138,1.80096
+99,1,"Fast + Low36 + Cross5 (approximate)",1,111,3840,2160,3802,2138,1.91104
+99,1,"Fast + Low36 + Cross5 (approximate)",1,112,3840,2160,3802,2138,1.879296
+99,1,"Fast + Low36 + Cross5 (approximate)",1,113,3840,2160,3802,2138,1.883392
+99,1,"Fast + Low36 + Cross5 (approximate)",1,114,3840,2160,3802,2138,1.862528
+99,1,"Fast + Low36 + Cross5 (approximate)",1,115,3840,2160,3802,2138,1.7984
+99,1,"Fast + Low36 + Cross5 (approximate)",1,116,3840,2160,3802,2138,1.900544
+99,1,"Fast + Low36 + Cross5 (approximate)",1,117,3840,2160,3802,2138,1.8592
+99,1,"Fast + Low36 + Cross5 (approximate)",1,118,3840,2160,3802,2138,1.831424
+99,1,"Fast + Low36 + Cross5 (approximate)",1,119,3840,2160,3802,2138,1.87264
+99,1,"Fast + Low36 + Cross5 (approximate)",1,120,3840,2160,3802,2138,1.893248
+99,1,"Fast + Low36 + Cross5 (approximate)",1,121,3840,2160,3802,2138,1.805952
+99,1,"Fast + Low36 + Cross5 (approximate)",1,122,3840,2160,3802,2138,1.876992
+99,1,"Fast + Low36 + Cross5 (approximate)",1,123,3840,2160,3802,2138,1.858432
+99,1,"Fast + Low36 + Cross5 (approximate)",1,124,3840,2160,3802,2138,1.913728
+99,1,"Fast + Low36 + Cross5 (approximate)",1,125,3840,2160,3802,2138,1.749248
+99,1,"Fast + Low36 + Cross5 (approximate)",1,126,3840,2160,3802,2138,1.85408
+99,1,"Fast + Low36 + Cross5 (approximate)",1,127,3840,2160,3802,2138,1.863168
+99,1,"Fast + Low36 + Cross5 (approximate)",1,128,3840,2160,3802,2138,1.86368
+99,1,"Fast + Low36 + Cross5 (approximate)",1,129,3840,2160,3802,2138,1.816832
+99,1,"Fast + Low36 + Cross5 (approximate)",1,130,3840,2160,3802,2138,1.848704
+99,1,"Fast + Low36 + Cross5 (approximate)",1,131,3840,2160,3802,2138,1.90464
+99,1,"Fast + Low36 + Cross5 (approximate)",1,132,3840,2160,3802,2138,1.801984
+99,1,"Fast + Low36 + Cross5 (approximate)",1,133,3840,2160,3802,2138,1.958272
+99,1,"Fast + Low36 + Cross5 (approximate)",1,134,3840,2160,3802,2138,1.74784
+99,1,"Fast + Low36 + Cross5 (approximate)",1,135,3840,2160,3802,2138,1.860224
+99,1,"Fast + Low36 + Cross5 (approximate)",1,136,3840,2160,3802,2138,1.8816
+99,1,"Fast + Low36 + Cross5 (approximate)",1,137,3840,2160,3802,2138,1.857536
+99,1,"Fast + Low36 + Cross5 (approximate)",1,138,3840,2160,3802,2138,1.863552
+99,1,"Fast + Low36 + Cross5 (approximate)",1,139,3840,2160,3802,2138,1.806592
+99,1,"Fast + Low36 + Cross5 (approximate)",1,140,3840,2160,3802,2138,1.886976
+99,1,"Fast + Low36 + Cross5 (approximate)",1,141,3840,2160,3802,2138,1.90592
+99,1,"Fast + Low36 + Cross5 (approximate)",1,142,3840,2160,3802,2138,1.826688
+99,1,"Fast + Low36 + Cross5 (approximate)",1,143,3840,2160,3802,2138,1.836672
+99,1,"Fast + Low36 + Cross5 (approximate)",1,144,3840,2160,3802,2138,1.838848
+99,1,"Fast + Low36 + Cross5 (approximate)",1,145,3840,2160,3802,2138,1.835392
+99,1,"Fast + Low36 + Cross5 (approximate)",1,146,3840,2160,3802,2138,1.843968
+99,1,"Fast + Low36 + Cross5 (approximate)",1,147,3840,2160,3802,2138,1.89632
+99,1,"Fast + Low36 + Cross5 (approximate)",1,148,3840,2160,3802,2138,1.798144
+99,1,"Fast + Low36 + Cross5 (approximate)",1,149,3840,2160,3802,2138,1.88608
+99,1,"Fast + Low36 + Cross5 (approximate)",1,150,3840,2160,3802,2138,1.860096
+99,1,"Fast + Low36 + Cross5 (approximate)",1,151,3840,2160,3802,2138,1.828736
+99,1,"Fast + Low36 + Cross5 (approximate)",1,152,3840,2160,3802,2138,1.9104
+99,1,"Fast + Low36 + Cross5 (approximate)",1,153,3840,2160,3802,2138,1.806464
+99,1,"Fast + Low36 + Cross5 (approximate)",1,154,3840,2160,3802,2138,1.83744
+99,1,"Fast + Low36 + Cross5 (approximate)",1,155,3840,2160,3802,2138,1.905536
+99,1,"Fast + Low36 + Cross5 (approximate)",1,156,3840,2160,3802,2138,1.830016
+99,1,"Fast + Low36 + Cross5 (approximate)",1,157,3840,2160,3802,2138,1.849984
+99,1,"Fast + Low36 + Cross5 (approximate)",1,158,3840,2160,3802,2138,1.821568
+99,1,"Fast + Low36 + Cross5 (approximate)",1,159,3840,2160,3802,2138,1.857792
+99,1,"Fast + Low36 + Cross5 (approximate)",2,0,3840,2160,3802,2138,1.802368
+99,1,"Fast + Low36 + Cross5 (approximate)",2,1,3840,2160,3802,2138,1.85792
+99,1,"Fast + Low36 + Cross5 (approximate)",2,2,3840,2160,3802,2138,1.835776
+99,1,"Fast + Low36 + Cross5 (approximate)",2,3,3840,2160,3802,2138,1.859456
+99,1,"Fast + Low36 + Cross5 (approximate)",2,4,3840,2160,3802,2138,1.870464
+99,1,"Fast + Low36 + Cross5 (approximate)",2,5,3840,2160,3802,2138,1.853312
+99,1,"Fast + Low36 + Cross5 (approximate)",2,6,3840,2160,3802,2138,1.867648
+99,1,"Fast + Low36 + Cross5 (approximate)",2,7,3840,2160,3802,2138,1.859584
+99,1,"Fast + Low36 + Cross5 (approximate)",2,8,3840,2160,3802,2138,1.82912
+99,1,"Fast + Low36 + Cross5 (approximate)",2,9,3840,2160,3802,2138,1.906432
+99,1,"Fast + Low36 + Cross5 (approximate)",2,10,3840,2160,3802,2138,1.805696
+99,1,"Fast + Low36 + Cross5 (approximate)",2,11,3840,2160,3802,2138,1.835648
+99,1,"Fast + Low36 + Cross5 (approximate)",2,12,3840,2160,3802,2138,1.905792
+99,1,"Fast + Low36 + Cross5 (approximate)",2,13,3840,2160,3802,2138,1.852032
+99,1,"Fast + Low36 + Cross5 (approximate)",2,14,3840,2160,3802,2138,1.802112
+99,1,"Fast + Low36 + Cross5 (approximate)",2,15,3840,2160,3802,2138,1.893504
+99,1,"Fast + Low36 + Cross5 (approximate)",2,16,3840,2160,3802,2138,1.811328
+99,1,"Fast + Low36 + Cross5 (approximate)",2,17,3840,2160,3802,2138,1.89632
+99,1,"Fast + Low36 + Cross5 (approximate)",2,18,3840,2160,3802,2138,1.86368
+99,1,"Fast + Low36 + Cross5 (approximate)",2,19,3840,2160,3802,2138,1.798272
+99,1,"Fast + Low36 + Cross5 (approximate)",2,20,3840,2160,3802,2138,1.8688
+99,1,"Fast + Low36 + Cross5 (approximate)",2,21,3840,2160,3802,2138,1.859712
+99,1,"Fast + Low36 + Cross5 (approximate)",2,22,3840,2160,3802,2138,1.863808
+99,1,"Fast + Low36 + Cross5 (approximate)",2,23,3840,2160,3802,2138,1.858048
+99,1,"Fast + Low36 + Cross5 (approximate)",2,24,3840,2160,3802,2138,1.863936
+99,1,"Fast + Low36 + Cross5 (approximate)",2,25,3840,2160,3802,2138,1.85024
+99,1,"Fast + Low36 + Cross5 (approximate)",2,26,3840,2160,3802,2138,1.878528
+99,1,"Fast + Low36 + Cross5 (approximate)",2,27,3840,2160,3802,2138,1.801728
+99,1,"Fast + Low36 + Cross5 (approximate)",2,28,3840,2160,3802,2138,1.9072
+99,1,"Fast + Low36 + Cross5 (approximate)",2,29,3840,2160,3802,2138,1.78048
+99,1,"Fast + Low36 + Cross5 (approximate)",2,30,3840,2160,3802,2138,1.906304
+99,1,"Fast + Low36 + Cross5 (approximate)",2,31,3840,2160,3802,2138,1.869184
+99,1,"Fast + Low36 + Cross5 (approximate)",2,32,3840,2160,3802,2138,1.86304
+99,1,"Fast + Low36 + Cross5 (approximate)",2,33,3840,2160,3802,2138,1.944192
+99,1,"Fast + Low36 + Cross5 (approximate)",2,34,3840,2160,3802,2138,1.800832
+99,1,"Fast + Low36 + Cross5 (approximate)",2,35,3840,2160,3802,2138,1.9392
+99,1,"Fast + Low36 + Cross5 (approximate)",2,36,3840,2160,3802,2138,1.86368
+99,1,"Fast + Low36 + Cross5 (approximate)",2,37,3840,2160,3802,2138,1.828608
+99,1,"Fast + Low36 + Cross5 (approximate)",2,38,3840,2160,3802,2138,1.85472
+99,1,"Fast + Low36 + Cross5 (approximate)",2,39,3840,2160,3802,2138,1.861248
+99,1,"Fast + Low36 + Cross5 (approximate)",2,40,3840,2160,3802,2138,1.836032
+99,1,"Fast + Low36 + Cross5 (approximate)",2,41,3840,2160,3802,2138,1.9072
+99,1,"Fast + Low36 + Cross5 (approximate)",2,42,3840,2160,3802,2138,1.83424
+99,1,"Fast + Low36 + Cross5 (approximate)",2,43,3840,2160,3802,2138,1.880576
+99,1,"Fast + Low36 + Cross5 (approximate)",2,44,3840,2160,3802,2138,1.890048
+99,1,"Fast + Low36 + Cross5 (approximate)",2,45,3840,2160,3802,2138,1.802368
+99,1,"Fast + Low36 + Cross5 (approximate)",2,46,3840,2160,3802,2138,1.921664
+99,1,"Fast + Low36 + Cross5 (approximate)",2,47,3840,2160,3802,2138,1.802624
+99,1,"Fast + Low36 + Cross5 (approximate)",2,48,3840,2160,3802,2138,1.943552
+99,1,"Fast + Low36 + Cross5 (approximate)",2,49,3840,2160,3802,2138,1.783808
+99,1,"Fast + Low36 + Cross5 (approximate)",2,50,3840,2160,3802,2138,1.859328
+99,1,"Fast + Low36 + Cross5 (approximate)",2,51,3840,2160,3802,2138,1.877632
+99,1,"Fast + Low36 + Cross5 (approximate)",2,52,3840,2160,3802,2138,1.864192
+99,1,"Fast + Low36 + Cross5 (approximate)",2,53,3840,2160,3802,2138,1.8304
+99,1,"Fast + Low36 + Cross5 (approximate)",2,54,3840,2160,3802,2138,1.880064
+99,1,"Fast + Low36 + Cross5 (approximate)",2,55,3840,2160,3802,2138,1.9104
+99,1,"Fast + Low36 + Cross5 (approximate)",2,56,3840,2160,3802,2138,1.858176
+99,1,"Fast + Low36 + Cross5 (approximate)",2,57,3840,2160,3802,2138,1.997184
+99,1,"Fast + Low36 + Cross5 (approximate)",2,58,3840,2160,3802,2138,1.801216
+99,1,"Fast + Low36 + Cross5 (approximate)",2,59,3840,2160,3802,2138,1.806592
+99,1,"Fast + Low36 + Cross5 (approximate)",2,60,3840,2160,3802,2138,1.88032
+99,1,"Fast + Low36 + Cross5 (approximate)",2,61,3840,2160,3802,2138,1.890304
+99,1,"Fast + Low36 + Cross5 (approximate)",2,62,3840,2160,3802,2138,1.893504
+99,1,"Fast + Low36 + Cross5 (approximate)",2,63,3840,2160,3802,2138,1.80736
+99,1,"Fast + Low36 + Cross5 (approximate)",2,64,3840,2160,3802,2138,1.843712
+99,1,"Fast + Low36 + Cross5 (approximate)",2,65,3840,2160,3802,2138,1.853056
+99,1,"Fast + Low36 + Cross5 (approximate)",2,66,3840,2160,3802,2138,1.892096
+99,1,"Fast + Low36 + Cross5 (approximate)",2,67,3840,2160,3802,2138,1.800704
+99,1,"Fast + Low36 + Cross5 (approximate)",2,68,3840,2160,3802,2138,1.906304
+99,1,"Fast + Low36 + Cross5 (approximate)",2,69,3840,2160,3802,2138,1.781376
+99,1,"Fast + Low36 + Cross5 (approximate)",2,70,3840,2160,3802,2138,1.931776
+99,1,"Fast + Low36 + Cross5 (approximate)",2,71,3840,2160,3802,2138,1.835264
+99,1,"Fast + Low36 + Cross5 (approximate)",2,72,3840,2160,3802,2138,1.85728
+99,1,"Fast + Low36 + Cross5 (approximate)",2,73,3840,2160,3802,2138,1.920256
+99,1,"Fast + Low36 + Cross5 (approximate)",2,74,3840,2160,3802,2138,1.807232
+99,1,"Fast + Low36 + Cross5 (approximate)",2,75,3840,2160,3802,2138,1.876992
+99,1,"Fast + Low36 + Cross5 (approximate)",2,76,3840,2160,3802,2138,1.862912
+99,1,"Fast + Low36 + Cross5 (approximate)",2,77,3840,2160,3802,2138,1.828992
+99,1,"Fast + Low36 + Cross5 (approximate)",2,78,3840,2160,3802,2138,1.857152
+99,1,"Fast + Low36 + Cross5 (approximate)",2,79,3840,2160,3802,2138,1.859584
+99,1,"Fast + Low36 + Cross5 (approximate)",2,80,3840,2160,3802,2138,1.871488
+99,1,"Fast + Low36 + Cross5 (approximate)",2,81,3840,2160,3802,2138,1.859584
+99,1,"Fast + Low36 + Cross5 (approximate)",2,82,3840,2160,3802,2138,1.876608
+99,1,"Fast + Low36 + Cross5 (approximate)",2,83,3840,2160,3802,2138,1.860608
+99,1,"Fast + Low36 + Cross5 (approximate)",2,84,3840,2160,3802,2138,1.846272
+99,1,"Fast + Low36 + Cross5 (approximate)",2,85,3840,2160,3802,2138,1.880576
+99,1,"Fast + Low36 + Cross5 (approximate)",2,86,3840,2160,3802,2138,1.891328
+99,1,"Fast + Low36 + Cross5 (approximate)",2,87,3840,2160,3802,2138,1.802752
+99,1,"Fast + Low36 + Cross5 (approximate)",2,88,3840,2160,3802,2138,1.85856
+99,1,"Fast + Low36 + Cross5 (approximate)",2,89,3840,2160,3802,2138,1.843712
+99,1,"Fast + Low36 + Cross5 (approximate)",2,90,3840,2160,3802,2138,1.883904
+99,1,"Fast + Low36 + Cross5 (approximate)",2,91,3840,2160,3802,2138,1.885568
+99,1,"Fast + Low36 + Cross5 (approximate)",2,92,3840,2160,3802,2138,1.853952
+99,1,"Fast + Low36 + Cross5 (approximate)",2,93,3840,2160,3802,2138,1.838592
+99,1,"Fast + Low36 + Cross5 (approximate)",2,94,3840,2160,3802,2138,1.854592
+99,1,"Fast + Low36 + Cross5 (approximate)",2,95,3840,2160,3802,2138,1.892352
+99,1,"Fast + Low36 + Cross5 (approximate)",2,96,3840,2160,3802,2138,1.855104
+99,1,"Fast + Low36 + Cross5 (approximate)",2,97,3840,2160,3802,2138,1.858816
+99,1,"Fast + Low36 + Cross5 (approximate)",2,98,3840,2160,3802,2138,1.782016
+99,1,"Fast + Low36 + Cross5 (approximate)",2,99,3840,2160,3802,2138,1.908096
+99,1,"Fast + Low36 + Cross5 (approximate)",2,100,3840,2160,3802,2138,1.895424
+99,1,"Fast + Low36 + Cross5 (approximate)",2,101,3840,2160,3802,2138,1.79712
+99,1,"Fast + Low36 + Cross5 (approximate)",2,102,3840,2160,3802,2138,1.933056
+99,1,"Fast + Low36 + Cross5 (approximate)",2,103,3840,2160,3802,2138,1.806848
+99,1,"Fast + Low36 + Cross5 (approximate)",2,104,3840,2160,3802,2138,1.882112
+99,1,"Fast + Low36 + Cross5 (approximate)",2,105,3840,2160,3802,2138,1.86624
+99,1,"Fast + Low36 + Cross5 (approximate)",2,106,3840,2160,3802,2138,1.822976
+99,1,"Fast + Low36 + Cross5 (approximate)",2,107,3840,2160,3802,2138,1.910656
+99,1,"Fast + Low36 + Cross5 (approximate)",2,108,3840,2160,3802,2138,1.802496
+99,1,"Fast + Low36 + Cross5 (approximate)",2,109,3840,2160,3802,2138,1.866112
+99,1,"Fast + Low36 + Cross5 (approximate)",2,110,3840,2160,3802,2138,1.863168
+99,1,"Fast + Low36 + Cross5 (approximate)",2,111,3840,2160,3802,2138,1.817472
+99,1,"Fast + Low36 + Cross5 (approximate)",2,112,3840,2160,3802,2138,1.91168
+99,1,"Fast + Low36 + Cross5 (approximate)",2,113,3840,2160,3802,2138,1.847168
+99,1,"Fast + Low36 + Cross5 (approximate)",2,114,3840,2160,3802,2138,1.802368
+99,1,"Fast + Low36 + Cross5 (approximate)",2,115,3840,2160,3802,2138,1.921024
+99,1,"Fast + Low36 + Cross5 (approximate)",2,116,3840,2160,3802,2138,1.801984
+99,1,"Fast + Low36 + Cross5 (approximate)",2,117,3840,2160,3802,2138,1.806336
+99,1,"Fast + Low36 + Cross5 (approximate)",2,118,3840,2160,3802,2138,1.893504
+99,1,"Fast + Low36 + Cross5 (approximate)",2,119,3840,2160,3802,2138,1.922432
+99,1,"Fast + Low36 + Cross5 (approximate)",2,120,3840,2160,3802,2138,1.828736
+99,1,"Fast + Low36 + Cross5 (approximate)",2,121,3840,2160,3802,2138,1.873024
+99,1,"Fast + Low36 + Cross5 (approximate)",2,122,3840,2160,3802,2138,1.890048
+99,1,"Fast + Low36 + Cross5 (approximate)",2,123,3840,2160,3802,2138,1.80288
+99,1,"Fast + Low36 + Cross5 (approximate)",2,124,3840,2160,3802,2138,1.932928
+99,1,"Fast + Low36 + Cross5 (approximate)",2,125,3840,2160,3802,2138,1.907584
+99,1,"Fast + Low36 + Cross5 (approximate)",2,126,3840,2160,3802,2138,1.807488
+99,1,"Fast + Low36 + Cross5 (approximate)",2,127,3840,2160,3802,2138,1.907712
+99,1,"Fast + Low36 + Cross5 (approximate)",2,128,3840,2160,3802,2138,1.811712
+99,1,"Fast + Low36 + Cross5 (approximate)",2,129,3840,2160,3802,2138,1.834496
+99,1,"Fast + Low36 + Cross5 (approximate)",2,130,3840,2160,3802,2138,1.84832
+99,1,"Fast + Low36 + Cross5 (approximate)",2,131,3840,2160,3802,2138,1.888384
+99,1,"Fast + Low36 + Cross5 (approximate)",2,132,3840,2160,3802,2138,1.805696
+99,1,"Fast + Low36 + Cross5 (approximate)",2,133,3840,2160,3802,2138,1.896448
+99,1,"Fast + Low36 + Cross5 (approximate)",2,134,3840,2160,3802,2138,1.859328
+99,1,"Fast + Low36 + Cross5 (approximate)",2,135,3840,2160,3802,2138,1.82208
+99,1,"Fast + Low36 + Cross5 (approximate)",2,136,3840,2160,3802,2138,1.926272
+99,1,"Fast + Low36 + Cross5 (approximate)",2,137,3840,2160,3802,2138,1.801088
+99,1,"Fast + Low36 + Cross5 (approximate)",2,138,3840,2160,3802,2138,1.87648
+99,1,"Fast + Low36 + Cross5 (approximate)",2,139,3840,2160,3802,2138,1.862144
+99,1,"Fast + Low36 + Cross5 (approximate)",2,140,3840,2160,3802,2138,1.812864
+99,1,"Fast + Low36 + Cross5 (approximate)",2,141,3840,2160,3802,2138,1.857536
+99,1,"Fast + Low36 + Cross5 (approximate)",2,142,3840,2160,3802,2138,1.886976
+99,1,"Fast + Low36 + Cross5 (approximate)",2,143,3840,2160,3802,2138,1.801472
+99,1,"Fast + Low36 + Cross5 (approximate)",2,144,3840,2160,3802,2138,1.90912
+99,1,"Fast + Low36 + Cross5 (approximate)",2,145,3840,2160,3802,2138,1.796736
+99,1,"Fast + Low36 + Cross5 (approximate)",2,146,3840,2160,3802,2138,1.85856
+99,1,"Fast + Low36 + Cross5 (approximate)",2,147,3840,2160,3802,2138,1.843584
+99,1,"Fast + Low36 + Cross5 (approximate)",2,148,3840,2160,3802,2138,1.858304
+99,1,"Fast + Low36 + Cross5 (approximate)",2,149,3840,2160,3802,2138,1.869568
+99,1,"Fast + Low36 + Cross5 (approximate)",2,150,3840,2160,3802,2138,1.85472
+99,1,"Fast + Low36 + Cross5 (approximate)",2,151,3840,2160,3802,2138,1.865984
+99,1,"Fast + Low36 + Cross5 (approximate)",2,152,3840,2160,3802,2138,1.854848
+99,1,"Fast + Low36 + Cross5 (approximate)",2,153,3840,2160,3802,2138,1.9008
+99,1,"Fast + Low36 + Cross5 (approximate)",2,154,3840,2160,3802,2138,1.79712
+99,1,"Fast + Low36 + Cross5 (approximate)",2,155,3840,2160,3802,2138,1.859584
+99,1,"Fast + Low36 + Cross5 (approximate)",2,156,3840,2160,3802,2138,1.917184
+99,1,"Fast + Low36 + Cross5 (approximate)",2,157,3840,2160,3802,2138,1.848832
+99,1,"Fast + Low36 + Cross5 (approximate)",2,158,3840,2160,3802,2138,1.916032
+99,1,"Fast + Low36 + Cross5 (approximate)",2,159,3840,2160,3802,2138,1.798144
+99,1,"Classic optimized",3,0,3840,2160,3802,2138,1.396864
+99,1,"Classic optimized",3,1,3840,2160,3802,2138,1.356928
+99,1,"Classic optimized",3,2,3840,2160,3802,2138,1.385088
+99,1,"Classic optimized",3,3,3840,2160,3802,2138,1.378816
+99,1,"Classic optimized",3,4,3840,2160,3802,2138,1.380096
+99,1,"Classic optimized",3,5,3840,2160,3802,2138,1.349504
+99,1,"Classic optimized",3,6,3840,2160,3802,2138,1.375616
+99,1,"Classic optimized",3,7,3840,2160,3802,2138,1.37088
+99,1,"Classic optimized",3,8,3840,2160,3802,2138,1.346304
+99,1,"Classic optimized",3,9,3840,2160,3802,2138,1.367552
+99,1,"Classic optimized",3,10,3840,2160,3802,2138,1.339136
+99,1,"Classic optimized",3,11,3840,2160,3802,2138,1.336192
+99,1,"Classic optimized",3,12,3840,2160,3802,2138,1.442944
+99,1,"Classic optimized",3,13,3840,2160,3802,2138,1.332224
+99,1,"Classic optimized",3,14,3840,2160,3802,2138,1.332992
+99,1,"Classic optimized",3,15,3840,2160,3802,2138,1.396864
+99,1,"Classic optimized",3,16,3840,2160,3802,2138,1.329664
+99,1,"Classic optimized",3,17,3840,2160,3802,2138,1.327232
+99,1,"Classic optimized",3,18,3840,2160,3802,2138,1.339008
+99,1,"Classic optimized",3,19,3840,2160,3802,2138,1.35232
+99,1,"Classic optimized",3,20,3840,2160,3802,2138,1.313792
+99,1,"Classic optimized",3,21,3840,2160,3802,2138,1.361024
+99,1,"Classic optimized",3,22,3840,2160,3802,2138,1.380224
+99,1,"Classic optimized",3,23,3840,2160,3802,2138,1.368064
+99,1,"Classic optimized",3,24,3840,2160,3802,2138,1.296
+99,1,"Classic optimized",3,25,3840,2160,3802,2138,1.416192
+99,1,"Classic optimized",3,26,3840,2160,3802,2138,1.32032
+99,1,"Classic optimized",3,27,3840,2160,3802,2138,1.35168
+99,1,"Classic optimized",3,28,3840,2160,3802,2138,1.315456
+99,1,"Classic optimized",3,29,3840,2160,3802,2138,1.365632
+99,1,"Classic optimized",3,30,3840,2160,3802,2138,1.389696
+99,1,"Classic optimized",3,31,3840,2160,3802,2138,1.297536
+99,1,"Classic optimized",3,32,3840,2160,3802,2138,1.33056
+99,1,"Classic optimized",3,33,3840,2160,3802,2138,1.352832
+99,1,"Classic optimized",3,34,3840,2160,3802,2138,1.253632
+99,1,"Classic optimized",3,35,3840,2160,3802,2138,1.440768
+99,1,"Classic optimized",3,36,3840,2160,3802,2138,1.364736
+99,1,"Classic optimized",3,37,3840,2160,3802,2138,1.336832
+99,1,"Classic optimized",3,38,3840,2160,3802,2138,1.405696
+99,1,"Classic optimized",3,39,3840,2160,3802,2138,1.3568
+99,1,"Classic optimized",3,40,3840,2160,3802,2138,1.272832
+99,1,"Classic optimized",3,41,3840,2160,3802,2138,1.429504
+99,1,"Classic optimized",3,42,3840,2160,3802,2138,1.389568
+99,1,"Classic optimized",3,43,3840,2160,3802,2138,1.294464
+99,1,"Classic optimized",3,44,3840,2160,3802,2138,1.412096
+99,1,"Classic optimized",3,45,3840,2160,3802,2138,1.452032
+99,1,"Classic optimized",3,46,3840,2160,3802,2138,1.329792
+99,1,"Classic optimized",3,47,3840,2160,3802,2138,1.372928
+99,1,"Classic optimized",3,48,3840,2160,3802,2138,1.370368
+99,1,"Classic optimized",3,49,3840,2160,3802,2138,1.268224
+99,1,"Classic optimized",3,50,3840,2160,3802,2138,1.373056
+99,1,"Classic optimized",3,51,3840,2160,3802,2138,1.416192
+99,1,"Classic optimized",3,52,3840,2160,3802,2138,1.28064
+99,1,"Classic optimized",3,53,3840,2160,3802,2138,1.342336
+99,1,"Classic optimized",3,54,3840,2160,3802,2138,1.49888
+99,1,"Classic optimized",3,55,3840,2160,3802,2138,1.318016
+99,1,"Classic optimized",3,56,3840,2160,3802,2138,1.38432
+99,1,"Classic optimized",3,57,3840,2160,3802,2138,1.520384
+99,1,"Classic optimized",3,58,3840,2160,3802,2138,1.272576
+99,1,"Classic optimized",3,59,3840,2160,3802,2138,1.333376
+99,1,"Classic optimized",3,60,3840,2160,3802,2138,1.436416
+99,1,"Classic optimized",3,61,3840,2160,3802,2138,1.284608
+99,1,"Classic optimized",3,62,3840,2160,3802,2138,1.343488
+99,1,"Classic optimized",3,63,3840,2160,3802,2138,1.437056
+99,1,"Classic optimized",3,64,3840,2160,3802,2138,1.30496
+99,1,"Classic optimized",3,65,3840,2160,3802,2138,1.36256
+99,1,"Classic optimized",3,66,3840,2160,3802,2138,1.43424
+99,1,"Classic optimized",3,67,3840,2160,3802,2138,1.283072
+99,1,"Classic optimized",3,68,3840,2160,3802,2138,1.339264
+99,1,"Classic optimized",3,69,3840,2160,3802,2138,1.398272
+99,1,"Classic optimized",3,70,3840,2160,3802,2138,1.412864
+99,1,"Classic optimized",3,71,3840,2160,3802,2138,1.355264
+99,1,"Classic optimized",3,72,3840,2160,3802,2138,1.34592
+99,1,"Classic optimized",3,73,3840,2160,3802,2138,1.379456
+99,1,"Classic optimized",3,74,3840,2160,3802,2138,1.338112
+99,1,"Classic optimized",3,75,3840,2160,3802,2138,1.358464
+99,1,"Classic optimized",3,76,3840,2160,3802,2138,1.385216
+99,1,"Classic optimized",3,77,3840,2160,3802,2138,1.334528
+99,1,"Classic optimized",3,78,3840,2160,3802,2138,1.344
+99,1,"Classic optimized",3,79,3840,2160,3802,2138,1.373312
+99,1,"Classic optimized",3,80,3840,2160,3802,2138,1.34528
+99,1,"Classic optimized",3,81,3840,2160,3802,2138,1.34464
+99,1,"Classic optimized",3,82,3840,2160,3802,2138,1.413632
+99,1,"Classic optimized",3,83,3840,2160,3802,2138,1.361408
+99,1,"Classic optimized",3,84,3840,2160,3802,2138,1.35104
+99,1,"Classic optimized",3,85,3840,2160,3802,2138,1.37408
+99,1,"Classic optimized",3,86,3840,2160,3802,2138,1.346176
+99,1,"Classic optimized",3,87,3840,2160,3802,2138,1.345024
+99,1,"Classic optimized",3,88,3840,2160,3802,2138,1.324672
+99,1,"Classic optimized",3,89,3840,2160,3802,2138,1.469312
+99,1,"Classic optimized",3,90,3840,2160,3802,2138,1.363584
+99,1,"Classic optimized",3,91,3840,2160,3802,2138,1.315712
+99,1,"Classic optimized",3,92,3840,2160,3802,2138,1.35872
+99,1,"Classic optimized",3,93,3840,2160,3802,2138,1.288832
+99,1,"Classic optimized",3,94,3840,2160,3802,2138,1.376
+99,1,"Classic optimized",3,95,3840,2160,3802,2138,1.351552
+99,1,"Classic optimized",3,96,3840,2160,3802,2138,1.28512
+99,1,"Classic optimized",3,97,3840,2160,3802,2138,1.46752
+99,1,"Classic optimized",3,98,3840,2160,3802,2138,1.35424
+99,1,"Classic optimized",3,99,3840,2160,3802,2138,1.366144
+99,1,"Classic optimized",3,100,3840,2160,3802,2138,1.399552
+99,1,"Classic optimized",3,101,3840,2160,3802,2138,1.333888
+99,1,"Classic optimized",3,102,3840,2160,3802,2138,1.3536
+99,1,"Classic optimized",3,103,3840,2160,3802,2138,1.399936
+99,1,"Classic optimized",3,104,3840,2160,3802,2138,1.339264
+99,1,"Classic optimized",3,105,3840,2160,3802,2138,1.32288
+99,1,"Classic optimized",3,106,3840,2160,3802,2138,1.36448
+99,1,"Classic optimized",3,107,3840,2160,3802,2138,1.3184
+99,1,"Classic optimized",3,108,3840,2160,3802,2138,1.328384
+99,1,"Classic optimized",3,109,3840,2160,3802,2138,1.38368
+99,1,"Classic optimized",3,110,3840,2160,3802,2138,1.365888
+99,1,"Classic optimized",3,111,3840,2160,3802,2138,1.326336
+99,1,"Classic optimized",3,112,3840,2160,3802,2138,1.368192
+99,1,"Classic optimized",3,113,3840,2160,3802,2138,1.320064
+99,1,"Classic optimized",3,114,3840,2160,3802,2138,1.346432
+99,1,"Classic optimized",3,115,3840,2160,3802,2138,1.38624
+99,1,"Classic optimized",3,116,3840,2160,3802,2138,1.356672
+99,1,"Classic optimized",3,117,3840,2160,3802,2138,1.368064
+99,1,"Classic optimized",3,118,3840,2160,3802,2138,1.425536
+99,1,"Classic optimized",3,119,3840,2160,3802,2138,1.315968
+99,1,"Classic optimized",3,120,3840,2160,3802,2138,1.345024
+99,1,"Classic optimized",3,121,3840,2160,3802,2138,1.34656
+99,1,"Classic optimized",3,122,3840,2160,3802,2138,1.369216
+99,1,"Classic optimized",3,123,3840,2160,3802,2138,1.318912
+99,1,"Classic optimized",3,124,3840,2160,3802,2138,1.323648
+99,1,"Classic optimized",3,125,3840,2160,3802,2138,1.427712
+99,1,"Classic optimized",3,126,3840,2160,3802,2138,1.3536
+99,1,"Classic optimized",3,127,3840,2160,3802,2138,1.323776
+99,1,"Classic optimized",3,128,3840,2160,3802,2138,1.341184
+99,1,"Classic optimized",3,129,3840,2160,3802,2138,1.349248
+99,1,"Classic optimized",3,130,3840,2160,3802,2138,1.384064
+99,1,"Classic optimized",3,131,3840,2160,3802,2138,1.327232
+99,1,"Classic optimized",3,132,3840,2160,3802,2138,1.351168
+99,1,"Classic optimized",3,133,3840,2160,3802,2138,1.369088
+99,1,"Classic optimized",3,134,3840,2160,3802,2138,1.389952
+99,1,"Classic optimized",3,135,3840,2160,3802,2138,1.360896
+99,1,"Classic optimized",3,136,3840,2160,3802,2138,1.369984
+99,1,"Classic optimized",3,137,3840,2160,3802,2138,1.3344
+99,1,"Classic optimized",3,138,3840,2160,3802,2138,1.426944
+99,1,"Classic optimized",3,139,3840,2160,3802,2138,1.262464
+99,1,"Classic optimized",3,140,3840,2160,3802,2138,1.393536
+99,1,"Classic optimized",3,141,3840,2160,3802,2138,1.32352
+99,1,"Classic optimized",3,142,3840,2160,3802,2138,1.334656
+99,1,"Classic optimized",3,143,3840,2160,3802,2138,1.395328
+99,1,"Classic optimized",3,144,3840,2160,3802,2138,1.398272
+99,1,"Classic optimized",3,145,3840,2160,3802,2138,1.308544
+99,1,"Classic optimized",3,146,3840,2160,3802,2138,1.357184
+99,1,"Classic optimized",3,147,3840,2160,3802,2138,1.324032
+99,1,"Classic optimized",3,148,3840,2160,3802,2138,1.357696
+99,1,"Classic optimized",3,149,3840,2160,3802,2138,1.415168
+99,1,"Classic optimized",3,150,3840,2160,3802,2138,1.32672
+99,1,"Classic optimized",3,151,3840,2160,3802,2138,1.326848
+99,1,"Classic optimized",3,152,3840,2160,3802,2138,1.35168
+99,1,"Classic optimized",3,153,3840,2160,3802,2138,1.35296
+99,1,"Classic optimized",3,154,3840,2160,3802,2138,1.34528
+99,1,"Classic optimized",3,155,3840,2160,3802,2138,1.353984
+99,1,"Classic optimized",3,156,3840,2160,3802,2138,1.375104
+99,1,"Classic optimized",3,157,3840,2160,3802,2138,1.335936
+99,1,"Classic optimized",3,158,3840,2160,3802,2138,1.322496
+99,1,"Classic optimized",3,159,3840,2160,3802,2138,1.401344

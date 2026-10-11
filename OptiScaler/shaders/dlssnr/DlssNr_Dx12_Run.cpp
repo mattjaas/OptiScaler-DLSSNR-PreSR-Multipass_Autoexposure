@@ -971,13 +971,10 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     auto interPassPath = DlssNr::InterPass::Select(configuredInterPassMode, width, height, modelWidth, modelHeight,
         interPassFilter, std::clamp(cfg.DlssNrGuidedResidualRadius.value_or_default(), 1u, 3u),
         std::isfinite(configuredGuide) ? configuredGuide : 0.75f);
-    if (configuredInterPassMode == 3u || DlssNr::InterPass::Fast(interPassPath))
+    if (configuredInterPassMode == 3u)
     {
         const auto overridePath = DlssNr::BenchmarkInterPassOverride();
-        if (configuredInterPassMode == 3u && overridePath >= 0)
-            interPassPath = static_cast<DlssNr::InterPass::Path>(overridePath);
-        else if (overridePath == int(DlssNr::InterPass::Path::FastGuided))
-            interPassPath = DlssNr::InterPass::Path::FastGuided; // Benchmark-only v27 Fast control.
+        if (overridePath >= 0) interPassPath = static_cast<DlssNr::InterPass::Path>(overridePath);
     }
     const bool interPassOptimized = DlssNr::InterPass::Optimized(interPassPath);
     const uint32_t selectedInterPassMode = DlssNr::InterPass::Fused(interPassPath) ? 2u : 1u;
