@@ -109,6 +109,23 @@ Na RTX 4090 przeszło 648 kontroli GPU (w tym nowe niższe skale), test
 polityki, wszystkie testy arytmetyki inter-pass i test planów benchmarku.
 Shaderów produkcyjnych nie zmieniano; pełny build ponownie je kompiluje.
 
+## Zweryfikowana paczka v27
+
+[Build 38132850846](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38132850846)
+przeszedł testy Python/C++, kompilację shaderów i fixture GPU, pełny build
+DLL, pakowanie i publikację. Kod paczki:
+`d63c28fc9c42560e6d5500f88a339ce34b5215e3`.
+
+[Pobierz ZIP v27](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v27-fast-cross5-20261011/OptiScaler-NR-nr-interpass-v27-fast-cross5-20261011.zip).
+SHA256: `1f60293330c7b8477ea892914e09c033c8b47caf071a04139d2c1131fa1da021`.
+
+Pobrany ZIP przeszedł CRC i wszystkie 62 wpisy SHA256SUMS. DLL zawiera
+nowy przycisk i prefiksy benchmarku niższych skal, opis wyjątku P50,
+identyfikator commita oraz sześć shaderów identycznych z v26.
+Dawne opcje i bytecode Weights są nieobecne. Dokument jest dostępny
+w repozytorium; istniejący skrypt pakowania nie dołącza go do ZIP.
+Paczka nie została automatycznie podmieniona w grze.
+
 ## Syntetyczny pomiar GPU — 11 października 2026
 
 RTX 4090, sterownik NVIDIA 616.56. Rezydujące sinusoidy RGB 3840×2160,
