@@ -1,5 +1,16 @@
 # NR v27: Fast poniżej P50 i Cross5 wyłączony przy P50
 
+**Wynik z gry:** [raport 130323](NR-v27-20261011-ingame-analysis.md),
+RTX 4090, 4K, sześć passów: Fast względem Optimized skraca cały NR
+o 1,142016 / 0,465920 / 1,223424 / 0,697088 / 0,707328 ms przy
+P33/P40/P41/P42/P49. Cross5 dodatkowo oszczędza odpowiednio
+0,006912 / 0,014848 / 0,001792 / 0,011776 / 0,022528 ms; obie strony
+każdego ABBA wskazują przyspieszenie. P41 to praktycznie remis,
+P49 ma różną wielkość zysku po obu stronach. Użytkownik nie zauważył
+pogorszenia jakości, także po pytaniu o ruch. Wszystkie 12 800 próbek
+uzgodniono z summary i 15 parami. To wynik tych pięciu punktów i sceny,
+nie potwierdzenie całego zakresu 25–49%. Kod i polityka pozostają bez zmian.
+
 Opcja **Fast + Cross5** przy 50% używa podstawowego **Fast z Low36**,
 z dziewięcioma sąsiadami i dokładnymi wagami. Przy P59/P65 Cross5 nadal
 działa. Zgodnie z poleceniem użytkownika rozszerzamy oba warianty Fast
@@ -11,7 +22,8 @@ Nie dodajemy nowego trybu menu. INI 4 wybiera Fast z Low36, a 7 ten sam
 Fast z Cross5, z wyjątkiem P50. Wagi pozostają dokładnym `exp2`.
 Warunki Fast: Area, radius 1, guide >0, native większe od working,
 rzeczywiste working/native 25–90% na każdej osi. Pozostałe ustawienia
-zachowują dokładny fallback. Jakość niższych skal wymaga oceny w grze.
+zachowują dokładny fallback. Ocena jakości niższych skal z gry jest
+zapisana w raporcie powyżej; inne sceny i niezmierzone skale wymagają oceny.
 
 ## Dlaczego warto zbadać niższe skale
 
@@ -26,7 +38,8 @@ Jeden piksel working obejmuje większy fragment native. Przybliżenie
 guidingu próbką native w centrum może więc bardziej zmieniać krawędzie
 i drobne detale. Cross5 może dodatkowo zmieniać ukośne wzory. To hipoteza
 o możliwym kompromisie jakości, nie stwierdzony artefakt ani jego gwarancja.
-Bez pomiaru całego NR w grze nie wskazujemy zwycięzców poniżej P50.
+Pomiar całego NR w grze wskazuje przyspieszenie Fast w pięciu punktach
+opisanych powyżej; nie rozszerzamy tego wniosku na niezmierzone skale.
 
 Zwykły i końcowy filtr Mode18 nadal ma 8×8 próbek. Oba Fast używają Low36
 wyłącznie między passami i pomijają low field, gdy shaping go nie potrzebuje.
