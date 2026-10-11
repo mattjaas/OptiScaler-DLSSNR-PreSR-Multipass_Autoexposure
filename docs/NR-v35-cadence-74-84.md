@@ -39,3 +39,18 @@ Prefixy Fast to `NR-v35-fast-*` i `NR-v35-fast-low-*`.
 Zmiany nie dodają dispatchy ani zasobów GPU i nie modyfikują HLSL/bytecode.
 Testy granic harmonogramu powyżej 65% są testami poprawności CPU, nie oknami benchmarku.
 Nie ma nowego pomiaru GPU w grze ani oceny obrazu dla harmonogramu 74–84%.
+
+## Weryfikacja wydania
+
+Źródła wydania: `7a0fca484146ab01213f342cd82f806499b62ba0`.
+[GitHub Actions 38145058337](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38145058337)
+zakończył się sukcesem: wszystkie testy Python, test polityki C++, kompilacja shaderów,
+fixture GPU, DLL i paczka. Lokalnie przeszły testy benchmarku i harmonogramu oraz C++.
+
+[Paczka v35](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/tag/nr-interpass-v35-scale-cadence-20261011)
+ma 131120629 bajtów. Zweryfikowano CRC ZIP, wszystkie 62 wpisy SHA256SUMS,
+identyfikator commita w DLL, brak przycisku wysokich skal, obecność limitu P65,
+gainów per-pass i konfiguracji 74–84%. Sześć payloadów CSO w DLL jest identycznych z v27.
+Kompilacja fixture GPU nie oznacza wykonania benchmarku w grze.
+
+SHA256 ZIP: `aa7a087ae7aa1c3a8a2673e16df1312240049a82289e9a58532aecaa5d17a5c8`.
