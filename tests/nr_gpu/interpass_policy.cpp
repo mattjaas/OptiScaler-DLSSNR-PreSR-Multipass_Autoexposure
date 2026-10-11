@@ -9,13 +9,13 @@ void require(bool condition) { if (!condition) throw std::runtime_error("Inter-p
 int main()
 {
     try {
-        require(DlssNr::kInterPassFastHighScales == std::array<int,3>{80,85,90});
+        require(DlssNr::kInterPassFastHighScales == std::array<int,3>{74,84,85});
         for (unsigned percent=25;percent<=200;++percent)
         for (unsigned mode=0;mode<=7;++mode)
         for (unsigned passes=0;passes<=32;++passes)
         for (bool spatial : {false,true})
         {
-            const unsigned expected = mode==0 || spatial || percent>=90 ? 0u : percent>=80 ? 2u : 1u;
+            const unsigned expected = mode==0 || spatial || percent>84 ? 0u : percent>=74 ? 2u : 1u;
             const unsigned stride = Cadence(mode, float(percent)/100.0f, passes, spatial);
             require(stride == (passes>expected ? expected : 0u));
             unsigned corrections=0;
@@ -28,11 +28,12 @@ int main()
             require(corrections == (stride ? (passes-1)/stride : 0u));
             require(!Due(passes,passes,stride));
         }
-        require(Cadence(4,std::nextafter(0.80f,0.0f),6,false)==1);
-        require(Cadence(4,0.80f,6,false)==2);
-        require(Cadence(4,std::nextafter(0.90f,0.0f),6,false)==2);
-        require(Cadence(4,0.90f,6,false)==0);
-        require(Cadence(4,std::nextafter(0.90f,1.0f),6,false)==0);
+        require(Cadence(4,std::nextafter(0.74f,0.0f),6,false)==1);
+        require(Cadence(4,0.74f,6,false)==2);
+        require(Cadence(4,std::nextafter(0.74f,1.0f),6,false)==2);
+        require(Cadence(4,std::nextafter(0.84f,0.0f),6,false)==2);
+        require(Cadence(4,0.84f,6,false)==2);
+        require(Cadence(4,std::nextafter(0.84f,1.0f),6,false)==0);
         require(Cadence(4,std::numeric_limits<float>::quiet_NaN(),6,false)==0);
         require(Cadence(4,std::numeric_limits<float>::infinity(),6,false)==0);
         require(Cadence(4,-1.0f,6,false)==0 && Cadence(4,0.0f,6,false)==0);

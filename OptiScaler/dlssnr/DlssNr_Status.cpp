@@ -263,7 +263,7 @@ void BuildBenchmarkVariants()
         else if (benchmarkProfile == InterPassBenchmarkProfile::FastHigh)
         {
             for (const int percent : kInterPassFastHighScales) addScale(percent);
-            if (current >= 80 && current < 100 && std::find(kInterPassFastHighScales.begin(),
+            if (current >= 74 && current <= 84 && std::find(kInterPassFastHighScales.begin(),
                 kInterPassFastHighScales.end(), current) == kInterPassFastHighScales.end())
                 addScale(current);
         }
@@ -331,9 +331,9 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastHigh ? "NR-v33-cadence-high-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v33-fast-low-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v33-fast-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastHigh ? "NR-v34-cadence-high-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v34-fast-low-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v34-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
         name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
@@ -467,9 +467,9 @@ void FinishBenchmark(bool cancelled)
         }
         description << "OptiScaler six-pass inter-pass GPU comparison\n"
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastHigh ?
-                        "High-scale cadence verification: P80/P85/P90 plus current P80-P99 if different.\n"
+                        "High-scale cadence verification: P74/P84/P85 plus current P74-P84 if different.\n"
                         "15 unique configurations / 21 independent windows; 20 / 28 with extra current scale.\n"
-                        "User observed worse inter-pass quality near native: P80-P89 corrections after passes 2/4; from P90 Off.\n" :
+                        "User-requested cadence: P74-P84 corrections after passes 2/4; above P84 Off.\n" :
                         benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ?
                         "Low-scale Fast verification: P33/P40/P41/P42/P49 plus current below 50 if different.\n"
                         "25 unique configurations / 35 independent windows; 30 / 42 with extra current scale.\n"
@@ -483,7 +483,7 @@ void FinishBenchmark(bool cancelled)
                         "Below-50 verification: P33/P40/P41/P42/P49 plus current lower scale if different.\n" :
                         "Regular profile: P50/P59/P65 plus current rounded percentage when different.\n")
                     << "Off, Classic reference and Fused reference retained.\n"
-                    << "All modes: below P80 every transition; P80 to below P90 after passes 2,4,...; from P90 disabled.\n"
+                    << "All modes: below P74 every transition; P74 through P84 after passes 2,4,...; above P84 disabled.\n"
                     << "Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.\n"
                     << "Structure adjustment: 1+(scale_corrected_high-1)*clamp(configured Structure,0,1); Low unchanged.\n"
                     << "All pass styles/Structure settings are recorded; there is no repetition of the last model's gain.\n"
@@ -492,7 +492,7 @@ void FinishBenchmark(bool cancelled)
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastHigh ?
                         "Each scale: both references, Optimized, Off/Fast/Fast/Off with separate warmup.\n"
                         "Raw comparison 1 is Off/Fast ABBA; expected-path baseline is Off.\n"
-                        "P90 checks disabling: all modes report Off, stride 0 and zero corrections.\n" :
+                        "P85 checks disabling: all modes report Off, stride 0 and zero corrections.\n" :
                         benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
                         benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ?
                         "Each scale: Off, both references, Optimized/Fast/Fast/Optimized with separate warmup.\n"

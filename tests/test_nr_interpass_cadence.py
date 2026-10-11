@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_cadence():
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
     policy = (ROOT / 'OptiScaler/dlssnr/DlssNr_InterPassPolicy.h').read_text(encoding='utf-8')
-    assert 'scale < 0.90f' in policy and 'scale >= 0.80f ? 2u : 1u' in policy
+    assert 'scale <= 0.84f' in policy and 'scale >= 0.74f ? 2u : 1u' in policy
     assert 'return passes > stride ? stride : 0u;' in policy
     assert 'pass + 1 < passes' in policy  # never correct after the final model pass
     select = run[run.index('const uint32_t configuredInterPassMode'):run.index('// Cache only dimension')]

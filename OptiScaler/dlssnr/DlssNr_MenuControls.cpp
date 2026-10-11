@@ -535,7 +535,7 @@ void RenderInput(Config* config)
                 ImGui::EndDisabled();
                 HelpMarker("Multiply each pass's actual high/mid gain using its configured style and Structure. "
                            "Each successful inter-pass correction consumes only its block; final resolve consumes the rest. "
-                           "Six passes at 80-89% cover 2+2+2, five cover 2+2+1. Without inter-pass the final block covers all passes. "
+                           "Six passes at 74-84% cover 2+2+2, five cover 2+2+1. Without inter-pass the final block covers all passes. "
                            "Structure below 1 moves the scale-corrected high/mid gain proportionally toward neutral 1; "
                            "Structure 0 is neutral, above 1 uses the Structure=1 calibration. Low is never multiplied. "
                            "Disabling multiplication keeps the last pass's adjusted high/mid gain per correction/resolve.");
@@ -1142,12 +1142,12 @@ void RenderModel(Config* config)
         HelpMarker("Fast estimates the guided edit once per working pixel and reuses the immutable Area proxy. "
                    "It uses five axial neighbours with exact weights and shaping, approximating native-resolution integration. "
                    "Small residual changes at edges, fine detail and shadows may compound over passes. "
-                   "Area / radius 1 below 90%; other settings use exact Optimized at the same cadence. "
+                   "Area / radius 1 up to and including 84%; other settings use exact Optimized at the same cadence. "
                    "Compare GPU time and inspect fine detail and motion with the Fast benchmarks.");
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
-                   "feeds the corrected working-resolution image to the next NR pass. Below 80%: every transition. "
-                   "80% to below 90%: after passes 2, 4, ... (six passes: two corrections). "
-                   "From 90%: disabled for every inter-pass mode. Skipped transitions use ordinary ClampProxy. "
+                   "feeds the corrected working-resolution image to the next NR pass. Below 74%: every transition. "
+                   "74% through 84%: after passes 2, 4, ... (six passes: two corrections). "
+                   "Above 84%: disabled for every inter-pass mode. Skipped transitions use ordinary ClampProxy. "
                    "The saved mode is retained when changing scale.");
         HelpMarker("Fast includes the approved positive overlapping 6x6 Low36 filter BETWEEN passes. "
                    "It is skipped when shaping does not need a low field. Cross5 is part of Fast at every eligible scale, "
@@ -1156,7 +1156,7 @@ void RenderModel(Config* config)
                    "original 8x8 kernel. The high-scale benchmark compares scheduled Fast against Off.");
         HelpMarker("Inter-pass frequency shaping accounts for each model since the "
                    "previous successful correction. High/mid multiplies the individual style/Structure gains in each block "
-                   "and final resolve: six passes at 80-89% cover 2+2+2, five passes cover 2+2+1. "
+                   "and final resolve: six passes at 74-84% cover 2+2+2, five passes cover 2+2+1. "
                    "Low frequency retains one gain per correction/resolve. No extra shaping dispatch is needed.");
     }
 

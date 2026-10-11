@@ -83,7 +83,7 @@ def test_benchmark():
     assert 'AddLowBenchmarkScale(current)' not in fast and 'return;' in fast
     assert 'InterPassBenchmarkProfile::FastQuality, inspectFastWindows' in ui
     assert 'bench.awaitingVisualInspection' in ui and 'DlssNr::AdvanceInterPassBenchmark()' in ui
-    assert 'gain_vs_optimized_median_ms' in status and 'NR-v33-fast-' in status
+    assert 'gain_vs_optimized_median_ms' in status and 'NR-v34-fast-' in status
     sample = status[status.index('void BenchmarkGpuSample'):status.index('int BenchmarkInterPassOverride')]
     assert sample.index('if (benchmarkProgress.awaitingVisualInspection)') < sample.index('variant.samples.push_back')
     assert 'c.DlssNrTransfer = 9u;' in status and 'c.DlssNrTransfer = v.transfer;' in status
@@ -91,16 +91,16 @@ def test_benchmark():
     assert 'Fast without Cross5 control' not in status and 'without Cross5' not in ui
     assert 'mode, -1, name' in fast
     assert 'kInterPassLowVerificationScales' in fast and 'addScale(current)' in fast
-    assert 'kInterPassFastHighScales {80, 85, 90}' in header
+    assert 'kInterPassFastHighScales {74, 84, 85}' in header
     assert 'for (const int percent : kInterPassFastHighScales) addScale(percent);' in fast
-    assert 'current >= 80 && current < 100' in fast and 'current < 50' in fast
+    assert 'current >= 74 && current <= 84' in fast and 'current < 50' in fast
     assert 'FastHigh, inspectExperimentWindows' in ui
     assert 'if (std::string(v.name) == "Inter-pass fast") fast[v.percent]' in status
     assert 'a1.forcedPath != a2.forcedPath || b1.forcedPath != b2.forcedPath' in status
     assert 'FastBelow50, inspectExperimentWindows' in ui
     assert '25 configurations / 35 windows' in ui and '30 / 42' in ui
     assert '15 configurations / 21 windows, or 20 / 28' in ui
-    assert 'NR-v33-fast-low-' in status and 'NR-v33-cadence-high-' in status
+    assert 'NR-v34-fast-low-' in status and 'NR-v34-cadence-high-' in status
     open_pairs = status[status.index('std::ofstream paired;'):status.index('paired.open(pairs);')]
     write_pairs = status[status.index('if (!paired) throw'):status.index('description <<')]
     for profile in ('FastQuality','FastBelow50','FastHigh'):

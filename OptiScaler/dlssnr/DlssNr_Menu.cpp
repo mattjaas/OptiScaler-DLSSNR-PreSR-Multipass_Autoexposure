@@ -332,17 +332,17 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Enable Hold for visual checks/captures; also inspect motion separately. "
                                   "Whole-NR summary/raw/paired CSV and TXT; negative delta means faster. Settings restored.");
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare Off / scheduled Fast at 80% / 85% / 90% (CSV)"))
+            if (ImGui::Button("Compare Off / scheduled Fast at 74% / 84% / 85% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
                                               DlssNr::InterPassBenchmarkProfile::FastHigh, inspectExperimentWindows,
                                               fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
-                                  "80%, 85%, 90% plus current 80-99% if different: both references and Optimized, "
+                                  "74%, 84%, 85% plus current 74-84% if different: both references and Optimized, "
                                   "then Off versus scheduled Fast ABBA. "
                                   "15 configurations / 21 windows, or 20 / 28 with extra current scale; independent warmup. "
-                                  "80-89%: corrections after passes 2 and 4. From 90%: inter-pass Off in every mode. "
+                                  "74-84%: corrections after passes 2 and 4. Above 84%: inter-pass Off in every mode. "
                                   "Enable Hold to compare image quality against Off; "
                                   "check motion separately. Whole-NR summary/raw/paired CSV and TXT, negative delta means faster. "
                                   "Original settings restored on finish/cancel.");

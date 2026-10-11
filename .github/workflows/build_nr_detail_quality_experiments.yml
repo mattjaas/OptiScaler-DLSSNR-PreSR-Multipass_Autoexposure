@@ -1,4 +1,4 @@
-name: Build NR v33 per-pass style and Structure shaping
+name: Build NR v34 inter-pass every two passes at P74-P84
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v33-${{ github.ref }}
+  group: nr-interpass-v34-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -86,13 +86,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v33-scale-cadence-20261011"
+        run: ./package_release.ps1 -Version "nr-interpass-v34-scale-cadence-20261011"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v33-scale-cadence-20261011
-          path: release/OptiScaler-NR-nr-interpass-v33-scale-cadence-20261011.zip
+          name: OptiScaler-NR-interpass-v34-scale-cadence-20261011
+          path: release/OptiScaler-NR-nr-interpass-v34-scale-cadence-20261011.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -101,12 +101,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v33-scale-cadence-20261011"
-          $archive = "release/OptiScaler-NR-nr-interpass-v33-scale-cadence-20261011.zip"
+          $tag = "nr-interpass-v34-scale-cadence-20261011"
+          $archive = "release/OptiScaler-NR-nr-interpass-v34-scale-cadence-20261011.zip"
           $notes = @"
           Scale-aware inter-pass cadence from $env:GITHUB_SHA.
           User observed worse inter-pass image quality near native resolution.
-          All modes: below P80 after each pass; P80 to below P90 after model passes 2,4,...; from P90 disabled.
+          All modes: below P74 after each pass; P74 through P84 after model passes 2,4,...; above P84 disabled.
           Six passes: five, two, or zero corrections. No correction after the final model pass.
           Thresholds use requested WorkingScale before rounding actual texture dimensions.
           Off, reference, Optimized and Fast modes share the same schedule; saved selection is retained.
@@ -121,14 +121,14 @@ jobs:
           Existing high/mid multiplication option retained; low remains a single gain of the block's last model.
           Configuration metadata records preset, style and configured Structure for all six benchmark models.
           Low keeps one gain per correction/resolve; disabling compounding keeps high/mid at one gain per correction/resolve.
-          From P90 the ordinary Off final resolve covers all effective passes. No extra GPU shaping dispatch.
+          Above P84 the ordinary Off final resolve covers all effective passes. No extra GPU shaping dispatch.
           Low36 and Cross5 remain integrated Fast at eligible active scales, including P50.
           No HLSL or bytecode changes; skipped transitions avoid low/correction dispatches and related barriers/resources.
-          Compact high-scale validation replaces P91/P95/P99 with P80/P85/P90 plus current P80-P99 when different.
+          Compact cadence validation: P74/P84/P85 plus current P74-P84 when different.
           Five mode configurations per scale, seven windows: references, Optimized, Off/Fast/Fast/Off ABBA.
-          15 configurations / 21 windows; 20 / 28 with extra current scale. P90 is the disable-boundary check.
+          15 configurations / 21 windows; 20 / 28 with extra current scale. P85 is the disable-boundary check.
           Separate warmup, whole-NR GPU timestamps, optional visual holds with held samples excluded.
-          Summary/raw/paired CSV and TXT. New stride and successful-correction columns; P90 rows report Off/0/0.
+          Summary/raw/paired CSV and TXT. New stride and successful-correction columns; P85 rows report Off/0/0.
           Negative paired delta means faster. Scene, geometry, GPU, dispersion and raw windows retained.
           No game performance or visual improvement claim before user validation.
           Existing regular, Below50, Boundary and compact lower Fast profiles retain their configurations.
@@ -143,8 +143,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v33 - Per-pass style and Structure shaping" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v34 - Inter-pass cadence at 74-84 percent" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v33 - Per-pass style and Structure shaping" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v34 - Inter-pass cadence at 74-84 percent" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

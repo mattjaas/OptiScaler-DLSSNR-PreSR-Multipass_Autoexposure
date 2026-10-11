@@ -1,5 +1,7 @@
 # NR v33 — inter-pass zależny od skali
 
+> Aktualizacja progów w [NR v34](NR-v34-cadence-74-84.md): inter-pass co dwa przebiegi przy 74–84% włącznie, powyżej 84% wyłączony. Reguła gainów z v33 pozostaje bez zmian.
+
 Użytkownik zgłosił gorszy obraz z inter-pass powyżej 90% oraz wątpliwości w zakresie 80–90%.
 Na jego prośbę harmonogram obowiązuje wszystkie tryby inter-pass, łącznie z referencjami,
 Optimized i Fast. Zapisany wybór trybu pozostaje zachowany przy zmianach skali.
