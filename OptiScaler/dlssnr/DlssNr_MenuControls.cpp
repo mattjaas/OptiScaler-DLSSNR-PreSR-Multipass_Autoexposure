@@ -1153,7 +1153,7 @@ void RenderModel(Config* config)
                    "It is skipped when shaping does not need a low field. Cross5 is part of Fast at every eligible scale, "
                    "removing the four diagonal neighbours and retaining exact exponential weights. "
                    "including 50%. Ordinary/final low filtering keeps its "
-                   "original 8x8 kernel. The high-scale benchmark compares scheduled Fast against Off.");
+                   "original 8x8 kernel. Fast benchmarks compare Fast against Optimized at scales up to 65%.");
         HelpMarker("Inter-pass frequency shaping accounts for each model since the "
                    "previous successful correction. High/mid multiplies the individual style/Structure gains in each block "
                    "and final resolve: six passes at 74-84% cover 2+2+2, five passes cover 2+2+1. "

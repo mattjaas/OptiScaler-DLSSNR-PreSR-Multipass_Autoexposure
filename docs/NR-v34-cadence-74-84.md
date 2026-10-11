@@ -1,5 +1,8 @@
 # NR v34 — inter-pass co dwa przebiegi przy 74–84%
 
+> Wersja historyczna. [NR v35](NR-v35-cadence-74-84.md) zachowuje ten harmonogram,
+> ale usuwa profil wysokich skal i ogranicza wszystkie benchmarki do 65%.
+
 Na prośbę użytkownika zmieniamy wyłącznie progi harmonogramu z v33:
 
 | Żądany WorkingScale | Inter-pass przy sześciu modelach |

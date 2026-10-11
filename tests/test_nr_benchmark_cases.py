@@ -70,12 +70,7 @@ def test_benchmark():
     fast_start = build.index('InterPassBenchmarkProfile::FastQuality')
     fast = build[fast_start:build.index('InterPassBenchmarkProfile::Boundary', fast_start)]
     assert 'for (const auto& scale : kInterPassBenchmarkScales)' in fast
-    normal = fast[fast.index('            else\n            {'):fast.index('        const int current')]
-    high_plan = fast[fast.index('if (benchmarkProfile == InterPassBenchmarkProfile::FastHigh)'):fast.index('            else\n            {')]
-    assert re.findall(r'add\((\d), "([^"]+)", (\d)\);', high_plan) == [
-        ('1', 'Classic reference', '0'), ('2', 'Fused reference', '0'), ('3', 'Inter-pass optimized', '0'),
-        ('0', 'No inter-pass', '1'), ('4', 'Inter-pass fast', '1'),
-        ('4', 'Inter-pass fast', '1'), ('0', 'No inter-pass', '1')]
+    normal = fast
     assert re.findall(r'add\((\d), "([^"]+)", (\d)\);', normal) == [
         ('0', 'No inter-pass', '0'), ('1', 'Classic reference', '0'), ('2', 'Fused reference', '0'),
         ('3', 'Inter-pass optimized', '1'), ('4', 'Inter-pass fast', '1'),
@@ -83,7 +78,7 @@ def test_benchmark():
     assert 'AddLowBenchmarkScale(current)' not in fast and 'return;' in fast
     assert 'InterPassBenchmarkProfile::FastQuality, inspectFastWindows' in ui
     assert 'bench.awaitingVisualInspection' in ui and 'DlssNr::AdvanceInterPassBenchmark()' in ui
-    assert 'gain_vs_optimized_median_ms' in status and 'NR-v34-fast-' in status
+    assert 'gain_vs_optimized_median_ms' in status and 'NR-v35-fast-' in status
     sample = status[status.index('void BenchmarkGpuSample'):status.index('int BenchmarkInterPassOverride')]
     assert sample.index('if (benchmarkProgress.awaitingVisualInspection)') < sample.index('variant.samples.push_back')
     assert 'c.DlssNrTransfer = 9u;' in status and 'c.DlssNrTransfer = v.transfer;' in status
@@ -91,19 +86,21 @@ def test_benchmark():
     assert 'Fast without Cross5 control' not in status and 'without Cross5' not in ui
     assert 'mode, -1, name' in fast
     assert 'kInterPassLowVerificationScales' in fast and 'addScale(current)' in fast
-    assert 'kInterPassFastHighScales {74, 84, 85}' in header
-    assert 'for (const int percent : kInterPassFastHighScales) addScale(percent);' in fast
-    assert 'current >= 74 && current <= 84' in fast and 'current < 50' in fast
-    assert 'FastHigh, inspectExperimentWindows' in ui
+    assert 'current < 50' in fast
+    assert 'current <= 65 && current != 50' in build
+    assert all(int(p) <= 65 for p, route, gain in rows)
+    assert 'FastHigh' not in status and 'FastHigh' not in ui and 'kInterPassFastHighScales' not in header
+    assert 'Compare Off / scheduled Fast' not in ui
+    timing = (ROOT / 'tests/nr_gpu/interpass_experiments_timing.cpp').read_text(encoding='utf-8')
+    assert all(int(p) <= 65 for p in re.search(r'for\(int percent:\{([^}]+)\}', timing)[1].split(','))
     assert 'if (std::string(v.name) == "Inter-pass fast") fast[v.percent]' in status
     assert 'a1.forcedPath != a2.forcedPath || b1.forcedPath != b2.forcedPath' in status
     assert 'FastBelow50, inspectExperimentWindows' in ui
     assert '25 configurations / 35 windows' in ui and '30 / 42' in ui
-    assert '15 configurations / 21 windows, or 20 / 28' in ui
-    assert 'NR-v34-fast-low-' in status and 'NR-v34-cadence-high-' in status
+    assert 'NR-v35-fast-low-' in status
     open_pairs = status[status.index('std::ofstream paired;'):status.index('paired.open(pairs);')]
     write_pairs = status[status.index('if (!paired) throw'):status.index('description <<')]
-    for profile in ('FastQuality','FastBelow50','FastHigh'):
+    for profile in ('FastQuality','FastBelow50'):
         assert f'InterPassBenchmarkProfile::{profile}' in open_pairs
     assert 'a1.comparison == 0' in write_pairs and 'i += 3;' in write_pairs
     assert 'Fast low36 (experimental)' not in menu and 'Fast weights (experimental)' not in menu

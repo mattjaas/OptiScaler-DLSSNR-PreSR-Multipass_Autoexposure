@@ -9,7 +9,8 @@ void require(bool condition) { if (!condition) throw std::runtime_error("Inter-p
 int main()
 {
     try {
-        require(DlssNr::kInterPassFastHighScales == std::array<int,3>{74,84,85});
+        for (const auto& scale : DlssNr::kInterPassBenchmarkScales) require(scale.percent <= 65);
+        for (const int scale : DlssNr::kInterPassLowVerificationScales) require(scale <= 65);
         for (unsigned percent=25;percent<=200;++percent)
         for (unsigned mode=0;mode<=7;++mode)
         for (unsigned passes=0;passes<=32;++passes)

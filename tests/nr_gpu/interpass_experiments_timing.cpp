@@ -17,7 +17,7 @@ int main(int argc, char** argv)
         std::ofstream out(argv[2]);if(!out) throw std::runtime_error("Cannot open CSV");
         out<<"scale_percent,comparison,variant,window,sample_index,native_width,native_height,work_width,work_height,gpu_ms\n"
            <<std::setprecision(9);
-        for(int percent:{33,40,41,42,49,50,59,65,90,91,95,99})
+        for(int percent:{33,40,41,42,49,50,59,65})
         {
             if(onlyScale && onlyScale!=percent) continue;
             const auto expected=DlssNr::InterPass::Select(3,3840,2160,

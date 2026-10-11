@@ -1,4 +1,4 @@
-name: Build NR v34 inter-pass every two passes at P74-P84
+name: Build NR v35 cadence P74-P84 and benchmarks up to P65
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v34-${{ github.ref }}
+  group: nr-interpass-v35-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -86,13 +86,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v34-scale-cadence-20261011"
+        run: ./package_release.ps1 -Version "nr-interpass-v35-scale-cadence-20261011"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v34-scale-cadence-20261011
-          path: release/OptiScaler-NR-nr-interpass-v34-scale-cadence-20261011.zip
+          name: OptiScaler-NR-interpass-v35-scale-cadence-20261011
+          path: release/OptiScaler-NR-nr-interpass-v35-scale-cadence-20261011.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -101,8 +101,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v34-scale-cadence-20261011"
-          $archive = "release/OptiScaler-NR-nr-interpass-v34-scale-cadence-20261011.zip"
+          $tag = "nr-interpass-v35-scale-cadence-20261011"
+          $archive = "release/OptiScaler-NR-nr-interpass-v35-scale-cadence-20261011.zip"
           $notes = @"
           Scale-aware inter-pass cadence from $env:GITHUB_SHA.
           User observed worse inter-pass image quality near native resolution.
@@ -124,14 +124,16 @@ jobs:
           Above P84 the ordinary Off final resolve covers all effective passes. No extra GPU shaping dispatch.
           Low36 and Cross5 remain integrated Fast at eligible active scales, including P50.
           No HLSL or bytecode changes; skipped transitions avoid low/correction dispatches and related barriers/resources.
-          Compact cadence validation: P74/P84/P85 plus current P74-P84 when different.
-          Five mode configurations per scale, seven windows: references, Optimized, Off/Fast/Fast/Off ABBA.
-          15 configurations / 21 windows; 20 / 28 with extra current scale. P85 is the disable-boundary check.
+          All benchmarks are limited to P65; the high-scale cadence profile was removed at user request.
+          Compact Fast comparison: P50/P59/P65, five configurations and seven windows per scale.
+          Off and both references retained, then Optimized/Fast/Fast/Optimized ABBA: 15 configurations / 21 windows.
+          Lower Fast profile retains P33/P40/P41/P42/P49 plus a distinct current lower scale.
+          Regular exact profile appends a distinct current scale only when at most P65.
           Separate warmup, whole-NR GPU timestamps, optional visual holds with held samples excluded.
-          Summary/raw/paired CSV and TXT. New stride and successful-correction columns; P85 rows report Off/0/0.
+          Summary/raw/paired CSV and TXT retain stride and successful-correction columns.
           Negative paired delta means faster. Scene, geometry, GPU, dispersion and raw windows retained.
           No game performance or visual improvement claim before user validation.
-          Existing regular, Below50, Boundary and compact lower Fast profiles retain their configurations.
+          Below50 and Boundary profiles retain their controls; no benchmark appends a current scale above P65.
           Settings restored on benchmark finish/cancel. Debug view 7 shows actual pass-2 input even when correction is skipped.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
@@ -143,8 +145,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v34 - Inter-pass cadence at 74-84 percent" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v35 - Cadence 74-84 percent, benchmarks up to 65 percent" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v34 - Inter-pass cadence at 74-84 percent" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v35 - Cadence 74-84 percent, benchmarks up to 65 percent" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

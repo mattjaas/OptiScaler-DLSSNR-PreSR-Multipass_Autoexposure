@@ -21,8 +21,6 @@ inline constexpr std::array<InterPassBenchmarkScale, 6> kInterPassMeasuredLowSca
     {49, InterPass::Path::Rgb20, 3.07046},
 }};
 inline constexpr std::array<int, 5> kInterPassLowVerificationScales {33, 40, 41, 42, 49};
-// Verify both ends of the every-two-pass range and the first disabled integer scale.
-inline constexpr std::array<int, 3> kInterPassFastHighScales {74, 84, 85};
 // Historical three-candidate component fixture, outside the in-game verification.
 inline constexpr std::array<int, 4> kInterPassLowBenchmarkScales {33, 40, 45, 49};
 // Resolve partial RGB20 tile coverage; do not repeat already measured scales.

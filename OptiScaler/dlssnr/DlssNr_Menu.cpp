@@ -316,7 +316,7 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Enable Hold to inspect/capture each warmed result and advance manually. "
                                   "Check fine detail, edges, highlights and shadows, then also compare in motion. "
                                   "Keep the scene static for timings; original settings restored on finish/cancel.");
-            ImGui::Checkbox("Hold each extended Fast benchmark window for visual inspection", &inspectExperimentWindows);
+            ImGui::Checkbox("Hold each low-scale Fast benchmark window for visual inspection", &inspectExperimentWindows);
             ImGui::BeginDisabled(!canBenchmark);
             if (ImGui::Button("Compare reference / Optimized / Fast below 50% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
@@ -332,21 +332,6 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Enable Hold for visual checks/captures; also inspect motion separately. "
                                   "Whole-NR summary/raw/paired CSV and TXT; negative delta means faster. Settings restored.");
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare Off / scheduled Fast at 74% / 84% / 85% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
-                                              DlssNr::InterPassBenchmarkProfile::FastHigh, inspectExperimentWindows,
-                                              fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
-                                  "74%, 84%, 85% plus current 74-84% if different: both references and Optimized, "
-                                  "then Off versus scheduled Fast ABBA. "
-                                  "15 configurations / 21 windows, or 20 / 28 with extra current scale; independent warmup. "
-                                  "74-84%: corrections after passes 2 and 4. Above 84%: inter-pass Off in every mode. "
-                                  "Enable Hold to compare image quality against Off; "
-                                  "check motion separately. Whole-NR summary/raw/paired CSV and TXT, negative delta means faster. "
-                                  "Original settings restored on finish/cancel.");
-            ImGui::BeginDisabled(!canBenchmark);
             if (ImGui::Button("Verify automatic inter-pass performance (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);
             ImGui::EndDisabled();
@@ -356,7 +341,7 @@ void RenderMenu(Config* config, float menuResScale)
                                   "A/B/B/A windows for Optimized versus its expected path. Saves summary CSV, raw per-frame "
                                   "samples CSV and metadata TXT in game/OptiScaler-NR-Benchmarks. "
                                   "Includes GPU adapter, actual texture resolutions and complete-NR overhead. "
-                                  "50%, 59%, 65% plus current percentage if different; both references and off retained. "
+                                  "50%, 59%, 65% plus current percentage up to 65% if different; both references and off retained. "
                                   "A current scale below 50 compares its measured or predicted path with the alternate in ABBA. "
                                   "Keep the scene static. Original configuration restored.");
             ImGui::BeginDisabled(!canBenchmark);
