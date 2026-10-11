@@ -12,7 +12,7 @@ struct LowFixture
     UINT nw=3840,nh=2160,ww,wh;
     std::array<ComPtr<ID3D12Resource>,3> inputs;
     ComPtr<ID3D12Resource> native,work,classicCb,fusedCb,rgbCb,compactCb,fastCb,downCb,times;
-    ComPtr<ID3D12Resource> low,lowCb,low36Cb,weightsCb,crossCb;
+    ComPtr<ID3D12Resource> low,lowCb,low36Cb,crossCb;
     bool shaping;
     ComPtr<ID3D12QueryHeap> queries;
     UINT64 frequency;
@@ -95,7 +95,7 @@ struct LowFixture
         std::memcpy(&c.ResidualMotionBaseX,&rx,4);std::memcpy(&c.ResidualMotionBaseY,&ry,4);
         fusedCb=cb(c);
         c.Mode=33;c.DirectResolveFlags=0;fastCb=cb(c);
-        c.Mode=35;weightsCb=cb(c);c.Mode=36;crossCb=cb(c);
+        c.Mode=36;crossCb=cb(c);
         c.Mode=28;c.DirectResolveFlags=16|64|128|2048;rgbCb=cb(c);
         c.DirectResolveFlags|=8192;compactCb=cb(c);
         c.Mode=27;c.Width=nw;c.Height=nh;c.DirectResolveFlags=16|64|1024;
@@ -111,7 +111,7 @@ struct LowFixture
         times=r.buffer(32*sizeof(UINT64),D3D12_HEAP_TYPE_READBACK,D3D12_RESOURCE_STATE_COPY_DEST);
         check(r.queue->GetTimestampFrequency(&frequency));
     }
-    std::vector<double> batch(DlssNr::InterPass::Path path,ID3D12PipelineState* standard,ID3D12PipelineState* rgb,UINT count,ID3D12PipelineState* fast=nullptr,ID3D12PipelineState* experiment=nullptr)
+    std::vector<double> batch(DlssNr::InterPass::Path path,ID3D12PipelineState* standard,ID3D12PipelineState* rgb,UINT count,ID3D12PipelineState* fast=nullptr,ID3D12PipelineState* experiment=nullptr,ID3D12PipelineState* lowPipeline=nullptr)
     {
         r.begin();r.list->SetComputeRootSignature(r.root.Get());
         ID3D12DescriptorHeap* heaps[]={r.heap.Get()};r.list->SetDescriptorHeaps(1,heaps);
@@ -129,8 +129,8 @@ struct LowFixture
             {
                 if(shaping)
                 {
-                    const bool low36=path==DlssNr::InterPass::Path::FastLow36;
-                    bind(low36?experiment:standard,low36?low36Cb.Get():lowCb.Get(),24);
+                    const bool low36=DlssNr::InterPass::Fast(path);
+                    bind(low36 && lowPipeline?lowPipeline:standard,low36?low36Cb.Get():lowCb.Get(),24);
                     r.list->Dispatch(((ww+7)/8+7)/8,((wh+7)/8+7)/8,1);
                     r.barrier(low.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
                 }
@@ -145,11 +145,10 @@ struct LowFixture
                 {
                     const bool tiled=path==DlssNr::InterPass::Path::Rgb20 || path==DlssNr::InterPass::Path::Rgb16;
                     const bool approximate=DlssNr::InterPass::Fast(path);
-                    const bool weights=path==DlssNr::InterPass::Path::FastWeights;
-                    const bool cross=path==DlssNr::InterPass::Path::FastCross5;
+                    const bool cross=path==DlssNr::InterPass::Path::FastCombinedCross5;
                     if(approximate && !fast) throw std::runtime_error("Missing Fast PSO");
-                    bind(weights || cross?experiment:approximate?fast:tiled?rgb:standard,
-                         weights?weightsCb.Get():cross?crossCb.Get():approximate?fastCb.Get():path==DlssNr::InterPass::Path::Rgb16?compactCb.Get():
+                    bind(cross?experiment:approximate?fast:tiled?rgb:standard,
+                         cross?crossCb.Get():approximate?fastCb.Get():path==DlssNr::InterPass::Path::Rgb16?compactCb.Get():
                          tiled?rgbCb.Get():fusedCb.Get(),0);
                     r.list->Dispatch((ww+7)/8,(wh+7)/8,1);
                 }

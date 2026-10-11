@@ -63,7 +63,7 @@ int main()
         {
             const unsigned ww=(3840*percent+50)/100,wh=(2160*percent+50)/100;
             const bool eligible=percent>=50 && percent<=90 && filter==0 && radius==1 && guide>0;
-            const auto expected = static_cast<Path>(unsigned(Path::FastGuided) + mode - 4);
+            const auto expected = mode == 7 ? Path::FastCombinedCross5 : Path::FastGuided;
             require(Fast(expected) && Fused(expected) && Optimized(expected));
             require(Select(mode,3840,2160,ww,wh,filter,radius,guide)==
                 (eligible?expected:Select(3,3840,2160,ww,wh,filter,radius,guide)));

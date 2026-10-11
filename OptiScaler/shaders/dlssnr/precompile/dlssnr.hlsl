@@ -61,9 +61,6 @@ cbuffer Params : register(b0)
 #if defined(DLSSNR_INTERPASS_LOW36)
 #define gMode 34u
 #endif
-#if defined(DLSSNR_INTERPASS_FAST_WEIGHTS)
-#define gMode 35u
-#endif
 #if defined(DLSSNR_INTERPASS_CROSS5)
 #define gMode 36u
 #endif
@@ -948,18 +945,6 @@ float3 InterPassGuidedEditAt(float2 uvq, float3 nativeGuide)
     return InterPassShapeEditAt(guidedEditRaw, uvq, nativeGuide);
 }
 
-// Cubic Hermite interpolation of exp2(-f), f in [0,1], times an exact power of two.
-// Positive, monotone weights; relative interpolation error < 0.062%.
-// Unlike a rational Gaussian, this does not introduce a heavy range-weight tail.
-float InterPassApproxWeight(float exponent)
-{
-    const float e = clamp(SanitizeFinite(exponent, 126.0), 0.0, 126.0);
-    const uint whole = (uint)e;
-    const float f = e - (float)whole;
-    const float scale = asfloat((127u - whole) << 23u);
-    return scale * (1.0 + f * (-0.69314718056 + f * (0.2328679514 - f * 0.03972077084)));
-}
-
 // Keep the v21 implementation separate: folding it into the experimental loop changed
 // DXC's FP32 rounding in the standard-PSO fallback. Its isolated bytecode stays identical.
 float4 InterPassFastGuided(int2 p)
@@ -1003,7 +988,7 @@ float4 InterPassFastGuided(int2 p)
     return float4(saturate(SanitizeFinite3(base.rgb + edit, 0.5)), alpha);
 }
 
-float4 InterPassFastExperimental(int2 p, bool approximateWeights, bool cross5)
+float4 InterPassFastCross5(int2 p)
 {
     // Reuse the immutable original Area proxy B. Approximate
     // Area(P100 + shaped Guided(N-B, P100)) by B + shaped Guided(N-B, P100 at centre).
@@ -1023,7 +1008,7 @@ float4 InterPassFastExperimental(int2 p, bool approximateWeights, bool cross5)
         [unroll] for (int ox = -1; ox <= 1; ++ox)
         {
             // Specialised Cross5 PSO eliminates corner loads and their weights.
-            if (cross5 && ox != 0 && oy != 0)
+            if (ox != 0 && oy != 0)
                 continue;
             const int2 q = clamp(p + int2(ox, oy), int2(0, 0), int2(gWidth - 1, gHeight - 1));
             const float3 candidate = gSource.Load(int3(q, 0)).rgb;
@@ -1033,7 +1018,7 @@ float4 InterPassFastExperimental(int2 p, bool approximateWeights, bool cross5)
             const float2 spatialDelta = float2(q - p);
             const float exponent = dot(delta, delta) * rangeFactor +
                                    dot(spatialDelta, spatialDelta) * spatialFactor;
-            const float w = approximateWeights ? InterPassApproxWeight(exponent) : exp2(-exponent);
+            const float w = exp2(-exponent);
             weighted += residual * w;
             weightSum += w;
         }
@@ -2485,9 +2470,9 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
         gTarget[id.xy] = InterPassFastGuided(int2(id.xy));
         return;
     }
-    if (gMode == 35u || gMode == 36u)
+    if (gMode == 36u)
     {
-        gTarget[id.xy] = InterPassFastExperimental(int2(id.xy), gMode == 35u, gMode == 36u);
+        gTarget[id.xy] = InterPassFastCross5(int2(id.xy));
         return;
     }
 #endif

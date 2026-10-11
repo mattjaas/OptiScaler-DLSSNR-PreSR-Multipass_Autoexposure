@@ -9,7 +9,6 @@
 #include "precompile/dlssnr_interpass_rgb20_Shader.h"
 #include "precompile/dlssnr_interpass_fast_Shader.h"
 #include "precompile/dlssnr_interpass_low36_Shader.h"
-#include "precompile/dlssnr_interpass_weights_Shader.h"
 #include "precompile/dlssnr_interpass_cross5_Shader.h"
 
 #include "precompile/dlssnr_residual_Shader.h"
@@ -148,15 +147,13 @@ DlssNr_Dx12::DlssNr_Dx12(std::string InName, ID3D12Device* InDevice)
 ID3D12PipelineState* DlssNr_Dx12::InterPassExperimentPipeline(uint32_t mode)
 {
     // Called under the owner/state locks; no experimental PSO creation on ordinary paths.
-    if (mode < DlssNrMode_InterPassLow36 || mode > DlssNrMode_InterPassFastCross5)
+    if (mode != DlssNrMode_InterPassLow36 && mode != DlssNrMode_InterPassFastCross5)
         return _pipelineState;
-    const unsigned index = mode - DlssNrMode_InterPassLow36;
-    const void* const blobs[] = { dlssnr_interpass_low36_cso, dlssnr_interpass_weights_cso,
-                                 dlssnr_interpass_cross5_cso };
-    const size_t sizes[] = { sizeof(dlssnr_interpass_low36_cso), sizeof(dlssnr_interpass_weights_cso),
-                            sizeof(dlssnr_interpass_cross5_cso) };
+    const unsigned index = mode == DlssNrMode_InterPassLow36 ? 0u : 1u;
+    const void* const blobs[] = { dlssnr_interpass_low36_cso, dlssnr_interpass_cross5_cso };
+    const size_t sizes[] = { sizeof(dlssnr_interpass_low36_cso), sizeof(dlssnr_interpass_cross5_cso) };
     const char* const fallback[] = { "Fast low36 (standard low PSO fallback)",
-                                     "Fast weights (standard PSO fallback)", "Fast cross5 (standard PSO fallback)" };
+                                     "Fast + Low36 + Cross5 (standard PSO fallback)" };
     if (!_interPassExperimentAttempted[index])
     {
         _interPassExperimentAttempted[index] = true;
@@ -192,7 +189,7 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
     // Lazy, isolated RGB PSOs; references stay on the standard shader.
     ID3D12PipelineState* pipeline = _pipelineState;
     const auto flags = InConstants.DirectResolveFlags;
-    if (InConstants.Mode == DlssNrMode_InterPassFastWeights || InConstants.Mode == DlssNrMode_InterPassFastCross5)
+    if (InConstants.Mode == DlssNrMode_InterPassFastCross5)
         pipeline = InterPassExperimentPipeline(InConstants.Mode);
     if (InConstants.Mode == DlssNrMode_InterPassFastGuided)
     {
@@ -206,7 +203,7 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
         if (_interPassFastPipeline)
             pipeline = _interPassFastPipeline;
         else
-            DlssNr::BenchmarkReportInterPassPath("Fast guided (standard PSO fallback)");
+            DlssNr::BenchmarkReportInterPassPath("Fast + Low36 (standard PSO fallback)");
     }
     if (InConstants.Mode == DlssNrMode_InterPassGuidedWorking && InConstants.Transfer == 0u &&
         (flags & 2048u) != 0u)

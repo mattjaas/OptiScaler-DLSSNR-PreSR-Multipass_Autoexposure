@@ -1332,7 +1332,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 interPassLowReadable = false;
             }
             DlssNrConstants low {};
-            low.Mode = interPassPath == DlssNr::InterPass::Path::FastLow36
+            low.Mode = DlssNr::InterPass::Fast(interPassPath)
                            ? DlssNrMode_InterPassLow36 : DlssNrMode_GuidedResidualLow;
             low.Width = lowW;
             low.Height = lowH;
@@ -1366,9 +1366,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             guided.Transfer = proxyFilter;
             if (DlssNr::InterPass::Fast(interPassPath))
                 guided.Mode = DlssNrMode_InterPassFastGuided;
-            if (interPassPath == DlssNr::InterPass::Path::FastWeights)
-                guided.Mode = DlssNrMode_InterPassFastWeights;
-            if (interPassPath == DlssNr::InterPass::Path::FastCross5)
+            if (interPassPath == DlssNr::InterPass::Path::FastCombinedCross5)
                 guided.Mode = DlssNrMode_InterPassFastCross5;
             // Use the all-scale path only for the Area mode and radius-one
             // guided reconstruction. The exact P50 2x2 specialization in HLSL

@@ -318,17 +318,18 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Keep the scene static for timings; original settings restored on finish/cancel.");
             ImGui::Checkbox("Hold each experiment benchmark window for visual inspection", &inspectExperimentWindows);
             ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare Fast / Low36 / Weights / Cross5 at 50% / 59% / 65% (CSV)"))
+            if (ImGui::Button("Compare Fast / Fast + Cross5 at 50% / 59% / 65% (CSV)"))
                 DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
                                               DlssNr::InterPassBenchmarkProfile::FastExperiments, inspectExperimentWindows,
                                               fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
                 ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
-                                  "P50/P59/P65: Off, both references, Optimized versus Fast; each new experiment versus "
-                                  "Fast v21 in a separate A/B/B/A block. 24 configurations / 57 windows, independent warmup. "
-                                  "Keeps current shaping; Low36 has no effect when the low field is unnecessary. "
-                                  "Summary/raw/paired CSV and TXT report whole-NR GPU ms. Paired CSV uses nearby Fast controls. "
+                                  "P50/P59/P65: Off, both references, Optimized versus Fast A/B/B/A; then "
+                                  "Fast versus Fast + Cross5 A/B/B/A. 18 configurations / 33 windows, independent warmup. "
+                                  "Both Fast options include Low36 whenever shaping needs a low field. "
+                                  "Summary/raw/paired CSV and TXT report whole-NR GPU ms. Negative delta means faster; "
+                                  "positive gain means time saved. Paired CSV uses nearby Fast controls. "
                                   "Enable Hold for visual checks/captures. Inspect in motion separately from static timings. "
                                   "All changes are inter-pass only; final resolve unchanged. Settings restored on finish/cancel.");
             ImGui::BeginDisabled(!canBenchmark);

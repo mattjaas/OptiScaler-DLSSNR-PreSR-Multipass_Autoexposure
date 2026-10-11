@@ -1,4 +1,4 @@
-name: Build NR v25 independent fast inter-pass experiments
+name: Build NR v26 Low36 Fast and combined Cross5
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v25-${{ github.ref }}
+  group: nr-interpass-v26-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -86,13 +86,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v25-fast-experiments-20261011"
+        run: ./package_release.ps1 -Version "nr-interpass-v26-fast-cross5-20261011"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v25-fast-experiments-20261011
-          path: release/OptiScaler-NR-nr-interpass-v25-fast-experiments-20261011.zip
+          name: OptiScaler-NR-interpass-v26-fast-cross5-20261011
+          path: release/OptiScaler-NR-nr-interpass-v26-fast-cross5-20261011.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -101,24 +101,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v25-fast-experiments-20261011"
-          $archive = "release/OptiScaler-NR-nr-interpass-v25-fast-experiments-20261011.zip"
+          $tag = "nr-interpass-v26-fast-cross5-20261011"
+          $archive = "release/OptiScaler-NR-nr-interpass-v26-fast-cross5-20261011.zip"
           $notes = @"
-          Three independent inter-pass experiments from $env:GITHUB_SHA, each based on unchanged Fast v21.
-          Mode5 Low36 removes outer taps from the corrected low-frequency kernel, retaining spacing and signed DC.
-          Mode6 Weights retains nine neighbours, approximates exp2 with bounded cubic fractional interpolation.
-          Mode7 Cross5 removes four diagonal neighbours, retains exact exponential weights and 64-tap low filtering.
-          Each modifies only one part of Fast. Ordinary/final low filtering and final resolve are unchanged.
+          Low36-based Fast and combined Fast + Cross5 from $env:GITHUB_SHA.
+          Mode4 Fast now includes the approved positive overlapping 6x6 Low36 inter-pass low filter.
+          Mode7 Fast + Cross5 uses that entire Fast base and removes the four diagonal guided neighbours.
+          Exact exponential weights are retained. The standalone Weights and Low36 options are removed.
+          Retired saved values 5/6 migrate to Fast (4); saved 7 selects the complete combined variant.
+          Ordinary/final 8x8 low filtering and final resolve remain unchanged.
           Area/radius-one/actual 50-90% only; other settings retain the exact v20 Optimized policy.
           Lazy isolated PSOs without LDS; no extra dispatches, textures or per-frame allocations.
-          New benchmark: P50/P59/P65, Temporal DLAA residual + P100-guided, six passes.
-          Off, both references, Optimized versus Fast ABBA, then each candidate versus Fast in separate ABBA blocks.
-          24 unique configurations / 57 measurement windows with independent warmup.
-          Optional manual holds after each warmed measurement permit visual checks and before/after captures.
-          Whole-NR summary/raw CSV, independent paired ABBA CSV and metadata TXT; positive gains mean faster.
-          Low36 has no effect when low-field shaping is unnecessary. It is not guaranteed better than the old box filter.
-          Inspect fine detail, diagonal edges, shadows and moving low-frequency patterns; quality may degrade.
-          Original settings restored; existing benchmark profiles retained. No universal speed/quality winner claimed.
+          Combined benchmark: P50/P59/P65, Temporal DLAA residual + P100-guided, six passes.
+          Off, both references, Optimized versus Fast ABBA, then Fast versus Fast + Cross5 ABBA.
+          18 unique configurations / 33 measurement windows with independent warmup.
+          Optional manual holds after each warmed measurement permit visual checks and captures.
+          Whole-NR summary/raw CSV, paired ABBA CSV and metadata TXT.
+          Negative delta means faster; positive gain means time saved. Paired CSV uses nearby controls.
+          Low36 is skipped if low-field shaping is unnecessary. Combined quality/performance require game validation.
+          Inspect fine detail, diagonal edges, shadows and moving patterns, especially in motion.
+          Settings restored on finish/cancel; regular and below-50 benchmark profiles retained.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -129,8 +131,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v25 - Independent Fast experiments" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v26 - Fast Low36 and combined Cross5" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v25 - Independent Fast experiments" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v26 - Fast Low36 and combined Cross5" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

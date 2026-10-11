@@ -237,11 +237,9 @@ void BuildBenchmarkVariants()
                 add(control, controlName, pair);
             };
             abba(3, "Inter-pass optimized", 4, "Inter-pass fast", 1);
-            abba(4, "Inter-pass fast", 5, "Fast low36", 2);
-            abba(4, "Inter-pass fast", 6, "Fast weights", 3);
-            abba(4, "Inter-pass fast", 7, "Fast cross5", 4);
+            abba(4, "Inter-pass fast", 7, "Fast + Cross5", 2);
         }
-        return; // Exactly P50/P59/P65; independent warmup for all 57 windows.
+        return; // Exactly P50/P59/P65; independent warmup for all 33 windows.
     }
     if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality)
     {
@@ -323,8 +321,8 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ? "NR-v25-fast-experiments-" :
-                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v21-fast-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ? "NR-v26-fast-cross5-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v26-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
         name << prefix << std::put_time(&local, "%Y%m%d-%H%M%S");
@@ -344,7 +342,7 @@ void FinishBenchmark(bool cancelled)
                "work_width,work_height,effective_passes,samples,mean_ms,median_ms,p95_ms,min_ms,max_ms,stddev_ms,"
                "delta_vs_off_median_ms,delta_vs_fused_reference_ms,delta_vs_expected_path_ms,"
                "historical_gain_vs_fused_ms,actual_gain_vs_fused_ms,path_matches_control,"
-               "window_medians_ms,window_median_spread_ms,gain_vs_optimized_median_ms,gain_vs_fast_median_ms\n";
+               "window_medians_ms,window_median_spread_ms,gain_vs_optimized_median_ms,gain_vs_fast_median_ms,delta_vs_fast_median_ms\n";
         individual << "scale_percent,variant,window,sample_index,total_nr_gpu_ms,comparison\n";
         out << std::fixed << std::setprecision(5);
         individual << std::fixed << std::setprecision(6);
@@ -413,14 +411,16 @@ void FinishBenchmark(bool cancelled)
                 out << (i ? "|" : "") << windows[i];
             const auto range = std::minmax_element(windows.begin(), windows.end());
             out << "\"," << *range.second - *range.first << ',' << optimized.at(v.percent) - median << ','
-                << (fast.count(v.percent) ? fast.at(v.percent) - median : std::numeric_limits<double>::quiet_NaN()) << '\n';
+                << (fast.count(v.percent) ? fast.at(v.percent) - median : std::numeric_limits<double>::quiet_NaN()) << ','
+                << (fast.count(v.percent) ? median - fast.at(v.percent) : std::numeric_limits<double>::quiet_NaN()) << '\n';
         }
         if (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments)
         {
             if (!paired) throw std::runtime_error("Cannot create paired benchmark report.");
             paired << "scale_percent,comparison,control,variant,a1_window,b1_window,b2_window,a2_window,"
                       "a1_median_ms,b1_median_ms,b2_median_ms,a2_median_ms,symmetric_gain_ms,"
-                      "first_gain_ms,last_gain_ms,control_window_spread_ms,variant_window_spread_ms\n"
+                      "first_gain_ms,last_gain_ms,control_window_spread_ms,variant_window_spread_ms,"
+                      "symmetric_delta_ms,first_delta_ms,last_delta_ms\n"
                    << std::fixed << std::setprecision(6);
             for (size_t i = 0; i < benchmarkVariants.size(); ++i)
             {
@@ -438,7 +438,8 @@ void FinishBenchmark(bool cancelled)
                 paired << a1.percent << ',' << a1.comparison << ",\"" << a1.name << "\",\"" << b1.name << "\","
                        << i << ',' << i+1 << ',' << i+2 << ',' << i+3 << ','
                        << a << ',' << b << ',' << c << ',' << d << ',' << (a+d-b-c)*0.5 << ','
-                       << a-b << ',' << d-c << ',' << std::abs(a-d) << ',' << std::abs(b-c) << '\n';
+                       << a-b << ',' << d-c << ',' << std::abs(a-d) << ',' << std::abs(b-c) << ','
+                       << (b+c-a-d)*0.5 << ',' << b-a << ',' << c-d << '\n';
                 i += 3;
             }
             paired.flush();
@@ -446,16 +447,18 @@ void FinishBenchmark(bool cancelled)
         }
         description << "OptiScaler six-pass inter-pass GPU comparison\n"
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastExperiments ?
-                        "Fast experiments: exactly P50/P59/P65, Transfer=9, six passes.\n"
-                        "24 unique configurations / 57 independent measurement windows.\n"
-                        "Per scale: Off, both references; Optimized/Fast/Fast/Optimized; then separate\n"
-                        "Fast/Low36/Low36/Fast, Fast/Weights/Weights/Fast, Fast/Cross5/Cross5/Fast.\n"
-                        "Experiments change only one part of Fast v21, only between passes; final resolve unchanged.\n"
-                        "Low36 is identical to Fast if shaping does not need the low field (including equal high/low gains).\n"
-                        "Summary gain_vs_fast_median_ms pools all Fast windows; use .pairs.csv for local ABBA controls.\n"
-                        "pairs.csv symmetric_gain_ms is positive when faster; both neighbouring gains and spreads included.\n"
-                        "Raw comparison column identifies ABBA blocks (1 Optimized/Fast, 2 Low36, 3 Weights, 4 Cross5).\n"
-                        "No historical experiment measurements. Check motion, diagonals and moving low-frequency patterns.\n" :
+                        "Combined Fast comparison: exactly P50/P59/P65, Transfer=9, six passes.\n"
+                        "18 unique configurations / 33 independent measurement windows.\n"
+                        "Per scale: Off, both references; Optimized/Fast/Fast/Optimized; then\n"
+                        "Fast/(Fast + Cross5)/(Fast + Cross5)/Fast. Both Fast modes include Low36.\n"
+                        "Only inter-pass processing changes; ordinary/final 8x8 low filtering remains unchanged.\n"
+                        "Low36 is skipped if shaping does not need the low field (including equal high/low gains).\n"
+                        "Summary gain/delta_vs_fast_median_ms pool all Fast windows; use .pairs.csv for local controls.\n"
+                        "pairs.csv symmetric_delta_ms is candidate minus control: negative means faster.\n"
+                        "symmetric_gain_ms is control minus candidate: positive means time saved.\n"
+                        "Both neighbouring deltas/gains and window spreads are included.\n"
+                        "Raw comparison column identifies ABBA blocks (1 Optimized/Fast, 2 Fast/Fast + Cross5).\n"
+                        "No historical combined measurements. Check motion, diagonals and moving low-frequency patterns.\n" :
                         benchmarkProfile == InterPassBenchmarkProfile::FastQuality ?
                         "Fast quality profile: exactly P50/P59/P65, Temporal DLAA residual + P100-guided (Transfer=9).\n"
                         "Off and both unoptimized references; exact Optimized A / approximate Fast B / B / A.\n"

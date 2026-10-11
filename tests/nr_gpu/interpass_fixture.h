@@ -91,7 +91,8 @@ struct Runner
         ComPtr<ID3D12PipelineState> p; check(device->CreateComputePipelineState(&d,IID_PPV_ARGS(&p))); return p;
     }
     std::vector<uint32_t> run(ID3D12PipelineState* pso, UINT nw, UINT nh, UINT ww, UINT wh,
-                              const DlssNrConstants& constants, int fixture, bool half, UINT groupWidth=8, UINT sourceW=0, UINT sourceH=0, double* gpuMs=nullptr, int pattern=0)
+                              const DlssNrConstants& constants, int fixture, bool half, UINT groupWidth=8, UINT sourceW=0, UINT sourceH=0, double* gpuMs=nullptr, int pattern=0,
+                              const std::vector<uint32_t>* lowWords=nullptr, UINT lowW=0, UINT lowH=0)
     {
         begin(); std::vector<ComPtr<ID3D12Resource>> keep;
         std::mt19937 rng(1414 + fixture);
@@ -129,11 +130,34 @@ struct Runner
             list->CopyTextureRegion(&dst,0,0,0,&src,nullptr);
             barrier(inputs[n].Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
         }
+        ComPtr<ID3D12Resource> suppliedLow;
+        if (lowWords) {
+            const UINT pixelBytes=half?8:16;
+            if (!lowW || !lowH || lowWords->size()!=size_t(lowW)*lowH*pixelBytes/4)
+                throw std::runtime_error("Invalid supplied low field");
+            D3D12_RESOURCE_DESC lowDesc{};lowDesc.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+            lowDesc.Width=lowW;lowDesc.Height=lowH;lowDesc.DepthOrArraySize=lowDesc.MipLevels=1;
+            lowDesc.SampleDesc.Count=1;lowDesc.Format=half?DXGI_FORMAT_R16G16B16A16_FLOAT:DXGI_FORMAT_R32G32B32A32_FLOAT;
+            suppliedLow=resource(lowDesc,D3D12_HEAP_TYPE_DEFAULT,D3D12_RESOURCE_STATE_COPY_DEST);
+            D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp{};UINT64 bytes;
+            device->GetCopyableFootprints(&lowDesc,0,1,0,&fp,nullptr,nullptr,&bytes);
+            auto upload=buffer(bytes,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ);
+            char* data;check(upload->Map(0,nullptr,reinterpret_cast<void**>(&data)));
+            for(UINT y=0;y<lowH;++y)
+                std::memcpy(data+y*fp.Footprint.RowPitch,lowWords->data()+size_t(y)*lowW*pixelBytes/4,lowW*pixelBytes);
+            upload->Unmap(0,nullptr);keep.push_back(upload);
+            D3D12_TEXTURE_COPY_LOCATION src{},dst{};
+            src.pResource=upload.Get();src.Type=D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;src.PlacedFootprint=fp;
+            dst.pResource=suppliedLow.Get();dst.Type=D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            list->CopyTextureRegion(&dst,0,0,0,&src,nullptr);
+            barrier(suppliedLow.Get(),D3D12_RESOURCE_STATE_COPY_DEST,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        }
         for (int i=0;i<6;++i) {
             D3D12_SHADER_RESOURCE_VIEW_DESC v{}; v.Format=DXGI_FORMAT_R32G32B32A32_FLOAT;
             v.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D; v.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
             v.Texture2D.MipLevels=1;
-            device->CreateShaderResourceView(inputs[i<3?i:0].Get(),&v,{cpu.ptr+SIZE_T(i)*stride});
+            if (i==5 && suppliedLow) v.Format=half?DXGI_FORMAT_R16G16B16A16_FLOAT:DXGI_FORMAT_R32G32B32A32_FLOAT;
+            device->CreateShaderResourceView(i==5 && suppliedLow?suppliedLow.Get():inputs[i<3?i:0].Get(),&v,{cpu.ptr+SIZE_T(i)*stride});
         }
         D3D12_RESOURCE_DESC d{}; d.Dimension=D3D12_RESOURCE_DIMENSION_TEXTURE2D; d.Width=ww; d.Height=wh;
         d.DepthOrArraySize=d.MipLevels=1; d.SampleDesc.Count=1;

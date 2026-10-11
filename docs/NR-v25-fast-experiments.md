@@ -1,5 +1,9 @@
 # NR v25: trzy niezależne eksperymenty inter-pass
 
+Dokument opisuje historyczny v25. W [v26](NR-v26-fast-cross5.md) Low36
+wchodzi do podstawowego Fast, Weights usunięto, a Cross5 jest opcją
+połączoną z całym nowym Fast. Wyniki poniżej dotyczą oddzielnych wariantów v25.
+
 W **Model → Inter-pass reconstruction** są trzy nowe opcje po Fast v21.
 Każda zmienia tylko jeden element Fast v21. Nie łączą się ze sobą i nie zastępują
 dotychczasowego Optimized ani Fast. Domyślnie pozostaje Off.

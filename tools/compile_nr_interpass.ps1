@@ -2,12 +2,11 @@ param([string]$Python = "python")
 $ErrorActionPreference = "Stop"
 Push-Location (Join-Path $PSScriptRoot "../OptiScaler/shaders/dlssnr/precompile")
 try {
-    foreach ($pitch in @(0,16,20,-1,-2,-3,-4)) {
+    foreach ($pitch in @(0,16,20,-1,-2,-4)) {
         $stem = switch ($pitch) {
             0 { "DlssNr" }
             -1 { "dlssnr_interpass_fast" }
             -2 { "dlssnr_interpass_low36" }
-            -3 { "dlssnr_interpass_weights" }
             -4 { "dlssnr_interpass_cross5" }
             default { "dlssnr_interpass_rgb$pitch" }
         }
@@ -16,8 +15,6 @@ try {
             $defines = @("-D","DLSSNR_INTERPASS_FAST=1")
         } elseif ($pitch -eq -2) {
             $defines = @("-D","DLSSNR_INTERPASS_LOW36=1")
-        } elseif ($pitch -eq -3) {
-            $defines = @("-D","DLSSNR_INTERPASS_FAST_WEIGHTS=1")
         } elseif ($pitch -eq -4) {
             $defines = @("-D","DLSSNR_INTERPASS_CROSS5=1")
         } elseif ($pitch) {

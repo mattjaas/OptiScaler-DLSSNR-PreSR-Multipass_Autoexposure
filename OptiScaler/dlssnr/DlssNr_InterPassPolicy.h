@@ -6,7 +6,7 @@ namespace DlssNr::InterPass
 enum class Path : uint32_t
 {
     Off, ClassicReference, FusedReference, ClassicOptimized, FusedOptimized, Rgb20, Rgb16, FastGuided,
-    FastLow36, FastWeights, FastCross5
+    FastCombinedCross5 = 10 // Retain the persisted/report identity of the old Cross5 path.
 };
 inline const char* Name(Path path)
 {
@@ -19,16 +19,14 @@ inline const char* Name(Path path)
     case Path::FusedOptimized: return "Fused optimized P50/general";
     case Path::Rgb20: return "Fused RGB20";
     case Path::Rgb16: return "Fused RGB16";
-    case Path::FastGuided: return "Fast guided (approximate)";
-    case Path::FastLow36: return "Fast low36 (approximate)";
-    case Path::FastWeights: return "Fast weights (approximate)";
-    case Path::FastCross5: return "Fast cross5 (approximate)";
+    case Path::FastGuided: return "Fast + Low36 (approximate)";
+    case Path::FastCombinedCross5: return "Fast + Low36 + Cross5 (approximate)";
     }
     return "Unknown";
 }
 inline bool Fast(Path path)
 {
-    return path >= Path::FastGuided && path <= Path::FastCross5;
+    return path == Path::FastGuided || path == Path::FastCombinedCross5;
 }
 inline bool Fused(Path path)
 {
@@ -56,13 +54,7 @@ inline Path Select(uint32_t mode, uint32_t nativeW, uint32_t nativeH, uint32_t w
             uint64_t(workW) * 10 <= uint64_t(nativeW) * 9 &&
             uint64_t(workH) * 10 <= uint64_t(nativeH) * 9)
         {
-            switch (mode)
-            {
-            case 5: return Path::FastLow36;
-            case 6: return Path::FastWeights;
-            case 7: return Path::FastCross5;
-            default: return Path::FastGuided;
-            }
+            return mode == 7 ? Path::FastCombinedCross5 : Path::FastGuided;
         }
         if (uint64_t(workW) * 2 == nativeW && uint64_t(workH) * 2 == nativeH)
             return Path::FusedOptimized;

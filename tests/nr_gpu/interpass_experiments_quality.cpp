@@ -6,13 +6,12 @@ int main(int argc, char** argv)
 {
     try
     {
-        if(argc!=3) throw std::runtime_error("Usage: interpass_experiments_quality shader-dir v21-baseline-dir");
+        if(argc!=3) throw std::runtime_error("Usage: interpass_experiments_quality shader-dir v25-baseline-dir");
         Runner r(true);
         auto standard=r.pipeline(argv[1],"DlssNr");
         auto baseline=r.pipeline(argv[2],"DlssNr");
         auto oldFast=r.pipeline(argv[2],"dlssnr_interpass_fast");
         auto fast=r.pipeline(argv[1],"dlssnr_interpass_fast");
-        auto weights=r.pipeline(argv[1],"dlssnr_interpass_weights");
         auto cross=r.pipeline(argv[1],"dlssnr_interpass_cross5");
         auto low=r.pipeline(argv[1],"dlssnr_interpass_low36");
         unsigned checks=0;
@@ -29,15 +28,29 @@ int main(int argc, char** argv)
             if(stress==3){c.GuideHeight=1;float lo=0.02f,hi=0.08f,floor=0.15f;
                 std::memcpy(&c.ExposureSourceWidth,&lo,4);std::memcpy(&c.ExposureSourceHeight,&hi,4);
                 std::memcpy(&c.ExposurePadding,&floor,4);}
-            const auto reference=r.run(oldFast.Get(),dims.first,dims.second,ww,wh,c,stress,half);
-            if(reference!=r.run(fast.Get(),dims.first,dims.second,ww,wh,c,stress,half))
-                throw std::runtime_error("Fast v21 baseline changed");
-            for(int mode:{33,35,36})
+            const UINT chainLowW=(ww+7)/8,chainLowH=(wh+7)/8;
+            std::vector<uint32_t> chainLow;
+            if(c.GuideWidth)
             {
-                c.Mode=mode;auto* pso=mode==33?fast.Get():mode==35?weights.Get():cross.Get();
-                const auto a=r.run(pso,dims.first,dims.second,ww,wh,c,stress,half);
-                const auto b=r.run(standard.Get(),dims.first,dims.second,ww,wh,c,stress,half);
-                if(mode==33 && b!=r.run(baseline.Get(),dims.first,dims.second,ww,wh,c,stress,half))
+                DlssNrConstants lc{};lc.Mode=34;lc.Width=chainLowW;lc.Height=chainLowH;
+                chainLow=r.run(low.Get(),dims.first,dims.second,chainLowW,chainLowH,lc,stress,half,8,ww,wh);
+                if(chainLow!=r.run(baseline.Get(),dims.first,dims.second,chainLowW,chainLowH,lc,stress,half,8,ww,wh))
+                    throw std::runtime_error("Approved v25 Low36 filter changed");
+            }
+            const auto render=[&](ID3D12PipelineState* pso)
+            {
+                return r.run(pso,dims.first,dims.second,ww,wh,c,stress,half,8,0,0,nullptr,0,
+                             chainLow.empty()?nullptr:&chainLow,chainLowW,chainLowH);
+            };
+            const auto reference=render(oldFast.Get());
+            if(reference!=render(fast.Get()))
+                throw std::runtime_error("Fast v21 baseline changed");
+            for(int mode:{33,36})
+            {
+                c.Mode=mode;auto* pso=mode==33?fast.Get():cross.Get();
+                const auto a=render(pso);
+                const auto b=render(standard.Get());
+                if(mode==33 && b!=render(baseline.Get()))
                     throw std::runtime_error("Fast v21 standard PSO result changed");
                 for(size_t i=0;i<a.size();++i)
                 {
@@ -93,7 +106,7 @@ int main(int argc, char** argv)
             }
             ++checks;
         }
-        std::cout<<"Experiments GPU contract PASS: "<<checks<<" checks; v21 Fast/Mode18 unchanged, isolated PSOs, signed DC, finite RGB/residual, alpha. Not perceptual validation.\n";
+        std::cout<<"Combined Fast GPU contract PASS: "<<checks<<" checks; approved v25 Low36 + Fast chain and normal Mode18 unchanged, combined Cross5 isolated/fallback PSOs, signed DC, finite RGB/residual, alpha. Not perceptual validation.\n";
         return 0;
     }
     catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}

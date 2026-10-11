@@ -6,20 +6,6 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
-def test_weights():
-    # Hermite endpoints and derivatives constrain the fractional exponential.
-    def approx(x):
-        whole = int(x)
-        f = x - whole
-        return 2.0 ** (-whole) * (1 + f * (-0.69314718056 + f * (0.2328679514 - f * 0.03972077084)))
-    values = [approx(i / 10000) for i in range(10001)]
-    error = max(abs(v / 2.0 ** (-i/10000) - 1) for i, v in enumerate(values))
-    assert error < 0.00062
-    assert all(a >= b > 0 for a, b in zip(values, values[1:]))
-    for exponent in (0, 1, 16, 64, 125):
-        assert approx(exponent) == 2.0 ** (-exponent)
-    print(f'Weight interpolation max relative error: {error*100:.6f}% (not an image error bound)')
-
 def stopband_energy(weights, offsets, footprint):
     # Average sinusoidal response power over source-grid phases with actual bilinear taps.
     total = 0.0
@@ -55,13 +41,15 @@ def test_scope():
     run = (ROOT/'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text()
     assert run.count('DlssNrMode_InterPassLow36') == 1
     interpass = run[run.index('const auto BuildInterPassInput'):run.index('const auto BuildInterPassInput')+6000]
-    assert 'Path::FastLow36' in interpass and 'DlssNrMode_InterPassLow36' in interpass
+    assert 'low.Mode = DlssNr::InterPass::Fast(interPassPath)' in interpass
+    assert 'DlssNrMode_InterPassLow36' in interpass
+    assert 'Path::FastCombinedCross5' in interpass
+    assert 'FastWeights' not in run and 'FastLow36' not in run
     assert 'low.Transfer = 0u' in interpass
     hlsl = (ROOT/'OptiScaler/shaders/dlssnr/precompile/dlssnr.hlsl').read_text()
     assert 'if (gMode == 18)' in hlsl and 'weights[8]' in hlsl
 
 if __name__ == '__main__':
-    test_weights()
     test_low_filter()
     test_scope()
     print('Fast experiment arithmetic/scope PASS; visual quality and performance need game validation')

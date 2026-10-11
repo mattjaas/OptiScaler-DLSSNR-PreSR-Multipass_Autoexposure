@@ -74,7 +74,6 @@ enum DlssNrMode : uint32_t
     // Opt-in approximation: one native guide and one 3x3 residual estimate per working pixel.
     DlssNrMode_InterPassFastGuided = 33,
     DlssNrMode_InterPassLow36 = 34,
-    DlssNrMode_InterPassFastWeights = 35,
     DlssNrMode_InterPassFastCross5 = 36
 };
 
