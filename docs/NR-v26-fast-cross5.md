@@ -73,6 +73,25 @@ zwykły Mode18, signed DC, krawędzie, FP16/FP32, dane HDR/nonfinite, alfę
 i zgodność izolowanych PSO z fallbackiem. To kontrola poprawności,
 nie ocena wizualna połączonego wariantu w grze.
 
+Na RTX 4090 przeszło 216 kontroli połączonego toru, 72 kontrole Fast oraz
+6528 porównań dokładnych ścieżek (53 543 552 komponentów RGBA).
+
+## Zweryfikowana paczka
+
+[Build 38130331565](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38130331565)
+zakończył się sukcesem: testy Python/C++, kompilacja shaderów i fixture GPU,
+pełny build DLL, pakowanie i publikacja. Kod paczki:
+`7cf72bb6e6a42687a8d708af5a5927ae4222947f`.
+
+[Pobierz ZIP v26](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v26-fast-cross5-20261011/OptiScaler-NR-nr-interpass-v26-fast-cross5-20261011.zip).
+SHA256: `f8a3648f583e722f49a3dc44b1467d97b6ebb27476dbf2b72d3e0f481cce5096`.
+
+Pobrany ZIP przeszedł CRC i weryfikację wszystkich 62 wpisów SHA256SUMS.
+DLL zawiera sześć właściwych shaderów, identyfikator commita, nowe opcje
+menu i kolumny raportu. Dawne opcje oraz bytecode Weights są nieobecne.
+Dokument v26 jest dostępny w repozytorium; istniejący skrypt pakowania
+nie dołącza go do ZIP. Paczka nie została automatycznie podmieniona w grze.
+
 ## Syntetyczny pomiar GPU — 11 października 2026
 
 RTX 4090, sterownik NVIDIA 616.56. Rezydujące sinusoidy RGB 3840×2160,
