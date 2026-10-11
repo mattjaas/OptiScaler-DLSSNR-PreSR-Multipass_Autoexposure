@@ -280,3 +280,36 @@ nie usuwać i nie nadpisywać potrzebnych starych shaderów.
 Ostatnia informacja przekazana użytkownikowi: rozszerzony fragment ze shaping
 dał około 3,1132 / 3,1137 ms, a porównanie źródeł nie wykazało dodatkowej pracy
 GPU; różnica profilu benchmarku i niepełne historyczne metadata ograniczają wniosek.
+
+## Aktualizacja 2026-10-11 po v23 — kontynuować od v24
+
+Powyższe „Następne kroki” są historyczne. v22 i v23 zostały zbudowane,
+wydane i zmierzone w grze. Nie wykazały powtarzalnej przewagi starego
+RGB16 ani Guide16. Użytkownik polecił zbadać regresję **baseline Off**.
+Aktualny pełny stan: [NR-v24-P65-baseline-audit.md](NR-v24-P65-baseline-audit.md).
+
+Off v23: 35,828224 ms, v13: 35,566080 ms, v14: 35,649536 ms.
+Źródła CPU/NGX/encode/temporal/ClampProxy/resolve i zależności nie wykazały
+regresji Off. Rzeczywiste binaria standardu v13/v14 są identyczne,
+SHA256 5599ee0b01fc50b9bea4c2d02c8bfc1ce24287e9867dbc9fa0158db883bab9fc.
+Historyczny standard zapisany w Git jest starszy niż wydana DLL — nie używać
+go jako kontroli! Zachowany właściwy blob w benchmark_v14/standard.
+
+Lokalny baseline GPU parity: 480 porównań PASS, 2 871 808 składowych RGBA.
+Pojedynczy syntetyczny ClampProxy: obecny 0,078976 / stary 0,078720 ms;
+bez dowodu dużej regresji, nie zastępuje całego NR.
+
+v24 dodaje **Compare current / v13-v14 baseline at 65% (CSV)**:
+Off ABBA, obecne dwie referencje, Optimized ABBA; 6 konfiguracji / 10 okien.
+Zmienia wyłącznie standard PSO; oba Optimized mają obecny RGB16.
+Raport NR-v24-p65-baseline-* zawiera narzut względem Off tej samej rewizji.
+Kod `8b2cd744`, CI 38098151771 success, release
+nr-interpass-v24-p65-baseline-20261011; ZIP i 62 pliki manifestu sprawdzone.
+Hash i link w audycie v24. Zmiana produkcyjnych shaderów/polityki: brak.
+
+Następny krok: przeanalizować **nowy raport v24 użytkownika**, nie powtarzać
+gotowych kontroli ani dawnych inter-pass wariantów. Naprawę produkcyjną
+wdrażać dopiero po wykazaniu konkretnej przyczyny. Obecnie regresja nie jest
+potwierdzona ani uznana za naprawioną.
+Usunięcie package_release.ps1 nadal pochodzi z kwarantanny Bitdefender;
+zachować i nie stage'ować. CI używa oryginału z repozytorium.

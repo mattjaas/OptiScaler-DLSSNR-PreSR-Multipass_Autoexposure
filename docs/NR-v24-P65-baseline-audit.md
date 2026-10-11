@@ -146,6 +146,26 @@ median nie wystarcza do przypisania regresji. Pozostaw grę w tej samej statyczn
 Nowy test strukturalny baseline oraz istniejące testy Guide16, revision
 i regularnego benchmarku przeszły lokalnie. Fixture baseline skompilowano
 i uruchomiono na GPU; workflow kompiluje je ponownie obok pozostałych kontroli.
-Pełny build i paczka v24: oczekują na publikację tej zmiany.
+Pełny build [38098151771](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38098151771)
+zakończył się sukcesem dla commita `8b2cd744050f0070015d286488a1d1e35ec59d1d`.
+Testy arytmetyki/benchmarków, polityka C++, kompilacja shaderów i wszystkich
+fixture oraz pełne MSBuild/pakowanie/publikacja release — PASS.
+
+[Release v24](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/tag/nr-interpass-v24-p65-baseline-20261011),
+[ZIP](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v24-p65-baseline-20261011/OptiScaler-NR-nr-interpass-v24-p65-baseline-20261011.zip).
+
+- Pobrany ZIP: 131389371 B, SHA256
+  `895284a33e6629c3ff9eca0fde88bba3fba2daeb43d14cf6d4fd5e32ab370ff7`;
+  zgodny z digestem assetu GitHub.
+- OptiScaler.dll Windows x64, SHA256
+  `a498019778b3ab14b040e1f4e1a19522a510ae1c2755620eec4ff03c601ff528`.
+- CRC ZIP i wszystkie 62 pliki manifestu SHA256 — PASS.
+- Nowy przycisk/prefix, identyfikator rewizji i kolumny matching Off — obecne.
+- Dokładnie siedem wymaganych blobów, każdy po jednym wystąpieniu w DLL;
+  cztery produkcyjne nadal identyczne z v23, trzy archiwalne zachowane.
+  34 odrzucone warianty eksperymentalne nie występują w DLL.
+- Weryfikacja lokalna: `artifacts/nr-v24/verify_zip.py`; paczka w `release/`
+  wewnątrz tego katalogu artifacts.
+
 Kontrolowany pomiar całego NR w grze v24: oczekuje na raport użytkownika.
 Do tego czasu regresja baseline nie jest potwierdzona ani uznana za naprawioną.
