@@ -124,5 +124,17 @@ zatwierdzonej bazy v25 z `artifacts/nr-v26/baseline`, nie wcześniejszej
 bazy v21 znajdującej się w `artifacts/nr-v25/baseline`.
 To kontrola kontraktu, nie nowa ocena percepcyjna ani pomiar wydajności.
 
-Wynik GitHub Actions i weryfikacja paczki zostaną zapisane po zakończeniu
-buildu. Nie podmieniamy automatycznie DLL w folderze gry.
+[Build 38135544209](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/actions/runs/38135544209)
+zakończył się sukcesem: testy Python/C++, kompilacja sześciu shaderów,
+fixture GPU, pełna DLL, ZIP i publikacja release. Źródłowy commit:
+`18ca84113fd9dbdfb4b3d12412108e2a6cd6e543`.
+
+[Release v28](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/tag/nr-interpass-v28-integrated-fast-20261011)
+i [ZIP](https://github.com/mattjaas/OptiScaler-DLSSNR-PreSR-Multipass_Autoexposure/releases/download/nr-interpass-v28-integrated-fast-20261011/OptiScaler-NR-nr-interpass-v28-integrated-fast-20261011.zip).
+SHA256: `33ad822f5cb21279994d52f125ee2aa25bc173d31dcc7f541ae56f808e7c5a13`.
+Sprawdzono CRC, wszystkie 62 wpisy SHA256SUMS, commit zaszyty w DLL,
+menu benchmarków, brak osobnej opcji Cross5, migrację INI i opis wyjątku
+P50. Wszystkie sześć blobów CSO z v27 występuje bajtowo w nowej DLL;
+odrzuconego PSO Weights nie ma. Dokument jest dostępny w repozytorium;
+istniejący skrypt pakowania nie dołącza go do ZIP. Paczka nie została
+automatycznie podmieniona w grze.
