@@ -1,4 +1,4 @@
-name: Build NR v35 cadence P74-P84 and benchmarks up to P65
+name: Build NR v36 cadence P74-P84 / P85-P90 and benchmarks up to P65
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v35-${{ github.ref }}
+  group: nr-interpass-v36-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -86,13 +86,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v35-scale-cadence-20261011"
+        run: ./package_release.ps1 -Version "nr-interpass-v36-scale-cadence-20261012"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v35-scale-cadence-20261011
-          path: release/OptiScaler-NR-nr-interpass-v35-scale-cadence-20261011.zip
+          name: OptiScaler-NR-interpass-v36-scale-cadence-20261012
+          path: release/OptiScaler-NR-nr-interpass-v36-scale-cadence-20261012.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -101,13 +101,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v35-scale-cadence-20261011"
-          $archive = "release/OptiScaler-NR-nr-interpass-v35-scale-cadence-20261011.zip"
+          $tag = "nr-interpass-v36-scale-cadence-20261012"
+          $archive = "release/OptiScaler-NR-nr-interpass-v36-scale-cadence-20261012.zip"
           $notes = @"
           Scale-aware inter-pass cadence from $env:GITHUB_SHA.
           User observed worse inter-pass image quality near native resolution.
-          All modes: below P74 after each pass; P74 through P84 after model passes 2,4,...; above P84 disabled.
-          Six passes: five, two, or zero corrections. No correction after the final model pass.
+          All modes: below P74 after each pass; P74 through P84 after model passes 2,4,...; P85 through P90 after model passes 3,6,...; between P84 and P85 and above P90 disabled.
+          Six passes: five, two, or one corrections in active ranges; zero when disabled. No correction after the final model pass.
           Thresholds use requested WorkingScale before rounding actual texture dimensions.
           Off, reference, Optimized and Fast modes share the same schedule; saved selection is retained.
           Skipped transitions use ordinary ClampProxy and are not reconstruction failures.
@@ -116,12 +116,12 @@ jobs:
           High/mid multiplies the actual gain of each model's style and configured Structure in its unconsumed block.
           After resolution correction: adjusted_high=1+(high-1)*clamp(configured Structure,0,1).
           Structure zero is neutral; values above one use the Structure=1 calibration, without extrapolation.
-          No repetition of the last style's gain. Six passes cover model pairs 1-2,3-4,5-6; five end with model5.
+          No repetition of the last style's gain. At P74-P84 six passes cover model pairs 1-2,3-4,5-6; five end with model5. At P85-P90 six cover 1-3 then 4-6, five cover 1-3 then 4-5.
           The shared rule also fixes mixed-style gains in ordinary final resolve without inter-pass.
           Existing high/mid multiplication option retained; low remains a single gain of the block's last model.
           Configuration metadata records preset, style and configured Structure for all six benchmark models.
           Low keeps one gain per correction/resolve; disabling compounding keeps high/mid at one gain per correction/resolve.
-          Above P84 the ordinary Off final resolve covers all effective passes. No extra GPU shaping dispatch.
+          Without active inter-pass the ordinary Off final resolve covers all effective passes. No extra GPU shaping dispatch.
           Low36 and Cross5 remain integrated Fast at eligible active scales, including P50.
           No HLSL or bytecode changes; skipped transitions avoid low/correction dispatches and related barriers/resources.
           All benchmarks are limited to P65; the high-scale cadence profile was removed at user request.
@@ -145,8 +145,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v35 - Cadence 74-84 percent, benchmarks up to 65 percent" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v36 - Cadence 74-84 / 85-90 percent, benchmarks up to 65 percent" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v35 - Cadence 74-84 percent, benchmarks up to 65 percent" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v36 - Cadence 74-84 / 85-90 percent, benchmarks up to 65 percent" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

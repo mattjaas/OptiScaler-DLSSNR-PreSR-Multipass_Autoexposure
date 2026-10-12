@@ -1,6 +1,8 @@
 # NR v35 — harmonogram 74–84%, benchmarki do 65%
 
-Aktualny harmonogram dla wszystkich włączonych trybów inter-pass:
+> Wersja historyczna. [NR v36](NR-v36-cadence-85-90.md) dodaje inter-pass co trzy przebiegi przy 85–90%.
+
+Harmonogram v35 dla wszystkich włączonych trybów inter-pass:
 
 | Żądany WorkingScale | Korekcje przy sześciu modelach |
 | --- | --- |

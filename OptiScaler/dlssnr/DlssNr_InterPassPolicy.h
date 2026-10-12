@@ -3,12 +3,13 @@
 
 namespace DlssNr::InterPass
 {
-// Requested scale, before texture rounding: P74 and P84 are included; above P84 is disabled.
-// Zero means no correction. A stride of two corrects after model passes 2, 4, ...
+// Requested scale before texture rounding: P74-P84 stride 2, P85-P90 stride 3 (inclusive).
+// Between P84 and P85 and above P90 correction is disabled. Zero means no correction.
 inline uint32_t Cadence(uint32_t mode, float scale, uint32_t passes, bool spatial)
 {
-    if (mode == 0 || spatial || !(scale > 0.0f && scale <= 0.84f)) return 0;
-    const uint32_t stride = scale >= 0.74f ? 2u : 1u;
+    if (mode == 0 || spatial || !(scale > 0.0f && scale <= 0.90f) ||
+        (scale > 0.84f && scale < 0.85f)) return 0;
+    const uint32_t stride = scale >= 0.85f ? 3u : scale >= 0.74f ? 2u : 1u;
     return passes > stride ? stride : 0u;
 }
 inline bool Due(uint32_t pass, uint32_t passes, uint32_t stride)

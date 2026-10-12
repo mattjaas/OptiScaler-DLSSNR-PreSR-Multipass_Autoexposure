@@ -16,7 +16,8 @@ int main()
         for (unsigned passes=0;passes<=32;++passes)
         for (bool spatial : {false,true})
         {
-            const unsigned expected = mode==0 || spatial || percent>84 ? 0u : percent>=74 ? 2u : 1u;
+            const unsigned expected = mode==0 || spatial || percent>90 ? 0u :
+                                      percent>=85 ? 3u : percent>=74 ? 2u : 1u;
             const unsigned stride = Cadence(mode, float(percent)/100.0f, passes, spatial);
             require(stride == (passes>expected ? expected : 0u));
             unsigned corrections=0;
@@ -35,12 +36,22 @@ int main()
         require(Cadence(4,std::nextafter(0.84f,0.0f),6,false)==2);
         require(Cadence(4,0.84f,6,false)==2);
         require(Cadence(4,std::nextafter(0.84f,1.0f),6,false)==0);
+        require(Cadence(4,0.845f,6,false)==0);
+        require(Cadence(4,std::nextafter(0.85f,0.0f),6,false)==0);
+        require(Cadence(4,0.85f,6,false)==3);
+        require(Cadence(4,std::nextafter(0.85f,1.0f),6,false)==3);
+        require(Cadence(4,std::nextafter(0.90f,0.0f),6,false)==3);
+        require(Cadence(4,0.90f,6,false)==3);
+        require(Cadence(4,std::nextafter(0.90f,1.0f),6,false)==0);
         require(Cadence(4,std::numeric_limits<float>::quiet_NaN(),6,false)==0);
         require(Cadence(4,std::numeric_limits<float>::infinity(),6,false)==0);
         require(Cadence(4,-1.0f,6,false)==0 && Cadence(4,0.0f,6,false)==0);
         require(!Due(UINT32_MAX,UINT32_MAX,2));
         require(!Due(0,6,0));
         require(!Due(0,6,2) && Due(1,6,2) && !Due(2,6,2) && Due(3,6,2) && !Due(4,6,2));
+        require(!Due(UINT32_MAX,UINT32_MAX,3));
+        require(!Due(0,6,3) && !Due(1,6,3) && Due(2,6,3) && !Due(3,6,3) && !Due(4,6,3) && !Due(5,6,3));
+        require(Due(2,7,3) && Due(5,7,3) && !Due(6,7,3));
         using DlssNr::Profiles::StructureAdjustedHigh;
         using DlssNr::Profiles::ProductGuidedHigh;
         require(std::abs(StructureAdjustedHigh(0.8f,0.5f)-0.9f)<1e-6f);
@@ -58,6 +69,8 @@ int main()
         require(std::abs(ProductGuidedHigh(0,2,true,adjusted)-0.72f)<1e-6f);
         require(std::abs(ProductGuidedHigh(2,4,true,adjusted)-1.05f)<1e-6f);
         require(std::abs(ProductGuidedHigh(4,6,true,adjusted)-0.765f)<1e-6f);
+        require(std::abs(ProductGuidedHigh(0,3,true,adjusted)-0.756f)<1e-6f);
+        require(std::abs(ProductGuidedHigh(3,6,true,adjusted)-0.765f)<1e-6f);
         require(ProductGuidedHigh(4,5,true,adjusted)==0.9f); // five passes: final single model
         require(std::abs(ProductGuidedHigh(0,2,false,adjusted)-0.9f)<1e-6f);
         require(ProductGuidedHigh(0,0,true,adjusted)==1.0f);
@@ -65,8 +78,8 @@ int main()
         require(ProductGuidedHigh(0,2,true,[](unsigned) { return 0.0f; })==0.0f);
         require(ProductGuidedHigh(0,2,true,[](unsigned) { return std::numeric_limits<float>::quiet_NaN(); })==1.0f);
         for (unsigned passes=1;passes<=32;++passes)
-        for (unsigned stride : {0u,1u,2u})
-        for (unsigned failure : {0u,1u,2u,3u})
+        for (unsigned stride : {0u,1u,2u,3u})
+        for (unsigned failure : {0u,1u,2u,3u,6u})
         {
             unsigned covered=0, accounted=0;
             double product=1.0;
@@ -91,6 +104,10 @@ int main()
             require(std::abs(product-ProductGuidedHigh(0,passes,true,variableGain))<1e-6);
             if (passes==5 && stride==2 && failure==0) require(covered==4 && finalSpan==1);
             if (passes==6 && stride==2 && failure==0) require(covered==4 && finalSpan==2);
+            if (passes==3 && stride==3 && failure==0) require(covered==0 && finalSpan==3);
+            if (passes==5 && stride==3 && failure==0) require(covered==3 && finalSpan==2);
+            if (passes==6 && stride==3 && failure==0) require(covered==3 && finalSpan==3);
+            if (passes==7 && stride==3 && failure==0) require(covered==6 && finalSpan==1);
             if (stride==0) require(covered==0 && finalSpan==passes);
         }
         require(DlssNr::kInterPassLowBenchmarkScales == std::array<int,4>{33,40,45,49});

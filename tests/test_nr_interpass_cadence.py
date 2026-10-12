@@ -6,7 +6,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_cadence():
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
     policy = (ROOT / 'OptiScaler/dlssnr/DlssNr_InterPassPolicy.h').read_text(encoding='utf-8')
-    assert 'scale <= 0.84f' in policy and 'scale >= 0.74f ? 2u : 1u' in policy
+    assert 'scale <= 0.90f' in policy and 'scale >= 0.85f ? 3u : scale >= 0.74f ? 2u : 1u' in policy
+    assert 'scale > 0.84f && scale < 0.85f' in policy
     assert 'return passes > stride ? stride : 0u;' in policy
     assert 'pass + 1 < passes' in policy  # never correct after the final model pass
     select = run[run.index('const uint32_t configuredInterPassMode'):run.index('// Cache only dimension')]
@@ -50,7 +51,9 @@ def test_cadence():
     assert 'gains.low = ProductGuidedHigh' not in profiles
     assert 'high/mid compounding=' in status and 'configured_structure=' in status
     assert 'ImGui::BeginDisabled(interPassShapingCadence == 1u);' in menu
-    print('Cadence integration PASS: Off/every-two schedule, reset, ordinary fallback, debug input and reports')
+    assert 'interPassShapingCadence >= 2u ?' in menu
+    assert 'cadence == 3u ? "Inter-pass after passes 3, 6, ..."' in menu
+    print('Cadence integration PASS: Off/every-one/two/three schedule, reset, ordinary fallback, debug input and reports')
 
 if __name__ == '__main__':
     test_cadence()

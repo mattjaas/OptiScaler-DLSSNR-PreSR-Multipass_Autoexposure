@@ -454,12 +454,12 @@ void FinishBenchmark(bool cancelled)
                         "Regular profile: P50/P59/P65 plus current rounded percentage up to P65 when different.\n")
                     << "All benchmark profiles exclude percentages above P65, including the current scale.\n"
                     << "Off, Classic reference and Fused reference retained.\n"
-                    << "All modes: below P74 every transition; P74 through P84 after passes 2,4,...; above P84 disabled.\n"
+                    << "All modes: below P74 every transition; P74 through P84 after passes 2,4,...; P85 through P90 after passes 3,6,...; between P84 and P85 and above P90 disabled.\n"
                     << "Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.\n"
                     << "Structure adjustment: 1+(scale_corrected_high-1)*clamp(configured Structure,0,1); Low unchanged.\n"
                     << "All pass styles/Structure settings are recorded; there is no repetition of the last model's gain.\n"
                     << "interpass_stride is the active cadence (0=Off); interpass_corrections counts successful corrections/frame.\n"
-                    << "High/mid multiplies the actual per-pass style/Structure-adjusted gains since the last successful correction; six passes cover 2+2+2, five cover 2+2+1.\n"
+                    << "High/mid multiplies the actual per-pass style/Structure-adjusted gains since the last successful correction; at P74-P84 six passes cover 2+2+2, five cover 2+2+1; at P85-P90 they cover 3+3 or 3+2.\n"
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
                         benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ?
                         "Each scale: Off, both references, Optimized/Fast/Fast/Optimized with separate warmup.\n"

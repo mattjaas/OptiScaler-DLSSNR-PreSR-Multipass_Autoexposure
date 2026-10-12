@@ -529,13 +529,13 @@ void RenderInput(Config* config)
             {
                 bool compoundPasses = config->DlssNrGuidedResidualCompoundPasses.value_or_default();
                 ImGui::BeginDisabled(interPassShapingCadence == 1u);
-                if (ImGui::Checkbox(interPassShapingCadence == 2u ? "Multiply per-pass high/mid within each inter-pass block" :
+                if (ImGui::Checkbox(interPassShapingCadence >= 2u ? "Multiply per-pass high/mid within each inter-pass block" :
                                     "Multiply per-pass high/mid in final resolve", &compoundPasses))
                     config->DlssNrGuidedResidualCompoundPasses = compoundPasses;
                 ImGui::EndDisabled();
                 HelpMarker("Multiply each pass's actual high/mid gain using its configured style and Structure. "
                            "Each successful inter-pass correction consumes only its block; final resolve consumes the rest. "
-                           "Six passes at 74-84% cover 2+2+2, five cover 2+2+1. Without inter-pass the final block covers all passes. "
+                           "Six passes at 74-84% cover 2+2+2, five cover 2+2+1; at 85-90% they cover 3+3 or 3+2. Without inter-pass the final block covers all passes. "
                            "Structure below 1 moves the scale-corrected high/mid gain proportionally toward neutral 1; "
                            "Structure 0 is neutral, above 1 uses the Structure=1 calibration. Low is never multiplied. "
                            "Disabling multiplication keeps the last pass's adjusted high/mid gain per correction/resolve.");
@@ -1136,18 +1136,21 @@ void RenderModel(Config* config)
                                                    config->DlssNrWorkingScale.value_or_default(),
                                                    config->DlssNrPasses.value_or_default(), false);
         ImGui::TextDisabled(cadence == 0u ? "Inter-pass inactive at this scale / pass count" :
+                            cadence == 3u ? "Inter-pass after passes 3, 6, ..." :
                             cadence == 2u ? "Inter-pass after passes 2, 4, ..." : "Inter-pass after each pass");
         HelpMarker("Optimized automatically selects the retained path for actual texture dimensions, "
                    "filter and guide radius. Classic and Fused reference have no inter-pass optimizations.");
         HelpMarker("Fast estimates the guided edit once per working pixel and reuses the immutable Area proxy. "
                    "It uses five axial neighbours with exact weights and shaping, approximating native-resolution integration. "
                    "Small residual changes at edges, fine detail and shadows may compound over passes. "
-                   "Area / radius 1 up to and including 84%; other settings use exact Optimized at the same cadence. "
+                   "Area / radius 1 at active scales up to and including 90%; other settings use exact Optimized at the same cadence. "
                    "Compare GPU time and inspect fine detail and motion with the Fast benchmarks.");
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
                    "feeds the corrected working-resolution image to the next NR pass. Below 74%: every transition. "
                    "74% through 84%: after passes 2, 4, ... (six passes: two corrections). "
-                   "Above 84%: disabled for every inter-pass mode. Skipped transitions use ordinary ClampProxy. "
+                   "85% through 90%: after passes 3, 6, ... (six passes: one correction). "
+                   "Between 84% and 85% and above 90%: disabled for every inter-pass mode. "
+                   "Skipped transitions use ordinary ClampProxy. "
                    "The saved mode is retained when changing scale.");
         HelpMarker("Fast includes the approved positive overlapping 6x6 Low36 filter BETWEEN passes. "
                    "It is skipped when shaping does not need a low field. Cross5 is part of Fast at every eligible scale, "
@@ -1156,7 +1159,7 @@ void RenderModel(Config* config)
                    "original 8x8 kernel. Fast benchmarks compare Fast against Optimized at scales up to 65%.");
         HelpMarker("Inter-pass frequency shaping accounts for each model since the "
                    "previous successful correction. High/mid multiplies the individual style/Structure gains in each block "
-                   "and final resolve: six passes at 74-84% cover 2+2+2, five passes cover 2+2+1. "
+                   "and final resolve: six passes at 74-84% cover 2+2+2, five passes cover 2+2+1; at 85-90% they cover 3+3 or 3+2. "
                    "Low frequency retains one gain per correction/resolve. No extra shaping dispatch is needed.");
     }
 
