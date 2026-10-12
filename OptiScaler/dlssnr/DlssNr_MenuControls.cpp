@@ -1126,18 +1126,21 @@ void RenderModel(Config* config)
     if (interPassAvailable)
     {
         static const char* interPassNames[] = {
-            "Off", "Classic reference", "Fused reference", "Inter-pass optimized", "Inter-pass fast"
+            "Off", "Classic reference", "Fused reference", "Inter-pass optimized", "Inter-pass fast", "Fast cached low (experimental)"
         };
-        const unsigned savedMode = std::min(config->DlssNrInterPassReconstruction.value_or_default(), 7u);
-        int interPass = savedMode >= 4u ? 4 : (int)savedMode;
+        const unsigned savedMode = std::min(config->DlssNrInterPassReconstruction.value_or_default(), 8u);
+        int interPass = savedMode == 8u ? 5 : savedMode >= 4u ? 4 : (int)savedMode;
         if (ImGui::Combo("Inter-pass reconstruction", &interPass, interPassNames, IM_ARRAYSIZE(interPassNames)))
-            config->DlssNrInterPassReconstruction = (uint32_t) interPass;
+            config->DlssNrInterPassReconstruction = interPass == 5 ? 8u : (uint32_t) interPass;
         const unsigned cadence = InterPass::Cadence(config->DlssNrInterPassReconstruction.value_or_default(),
                                                    config->DlssNrWorkingScale.value_or_default(),
                                                    config->DlssNrPasses.value_or_default(), false);
         ImGui::TextDisabled(cadence == 0u ? "Inter-pass inactive at this scale / pass count" :
                             cadence == 3u ? "Inter-pass after passes 3, 6, ..." :
                             cadence == 2u ? "Inter-pass after passes 2, 4, ..." : "Inter-pass after each pass");
+        HelpMarker("Cached low shares overlapping Low36 samples while retaining all taps and weights. "
+                   "It changes only Fast inter-pass low filtering when high and low gains differ. "
+                   "Coordinate rounding can cause small differences. Compare Fast / cached low for GPU time and motion quality.");
         HelpMarker("Optimized automatically selects the retained path for actual texture dimensions, "
                    "filter and guide radius. Classic and Fused reference have no inter-pass optimizations.");
         HelpMarker("Fast estimates the guided edit once per working pixel and reuses the immutable Area proxy. "

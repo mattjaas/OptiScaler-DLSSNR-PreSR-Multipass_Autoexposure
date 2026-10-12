@@ -23,7 +23,8 @@ inline uint32_t PendingPasses(uint32_t completed, uint32_t covered)
 enum class Path : uint32_t
 {
     Off, ClassicReference, FusedReference, ClassicOptimized, FusedOptimized, Rgb20, Rgb16, FastGuided,
-    FastCombinedCross5 = 10 // Retain the persisted/report identity of the old Cross5 path.
+    FastCombinedCross5 = 10, // Retain the persisted/report identity of the old Cross5 path.
+    FastCachedLow36 = 11 // Opt-in shared samples; the original Fast remains the control.
 };
 inline const char* Name(Path path)
 {
@@ -38,12 +39,13 @@ inline const char* Name(Path path)
     case Path::Rgb16: return "Fused RGB16";
     case Path::FastGuided: return "Fast + Low36 (approximate)";
     case Path::FastCombinedCross5: return "Fast + Low36 + Cross5 (approximate)";
+    case Path::FastCachedLow36: return "Fast + cached Low36 + Cross5 (experimental)";
     }
     return "Unknown";
 }
 inline bool Fast(Path path)
 {
-    return path == Path::FastGuided || path == Path::FastCombinedCross5;
+    return path == Path::FastGuided || path == Path::FastCombinedCross5 || path == Path::FastCachedLow36;
 }
 inline bool Fused(Path path)
 {
@@ -66,11 +68,12 @@ inline Path Select(uint32_t mode, uint32_t nativeW, uint32_t nativeH, uint32_t w
     {
         // Opt-in quality tradeoff: commute native guided reconstruction with Area reduction.
         // Other filters/radii/scales retain the exact Optimized policy below.
-        if (mode >= 4 && mode <= 7 && nativeW >= workW && nativeH >= workH &&
+        if (mode >= 4 && mode <= 8 && nativeW >= workW && nativeH >= workH &&
             (nativeW > workW || nativeH > workH))
         {
             // Approved Cross5 is part of Fast throughout its eligible range, including P50.
             // FastGuided remains only as a shader regression/diagnostic control without Cross5.
+            if (mode == 8) return Path::FastCachedLow36;
             return Path::FastCombinedCross5;
         }
         if (uint64_t(workW) * 2 == nativeW && uint64_t(workH) * 2 == nativeH)

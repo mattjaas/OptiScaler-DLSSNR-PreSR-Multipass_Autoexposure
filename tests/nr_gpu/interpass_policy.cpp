@@ -12,7 +12,7 @@ int main()
         for (const auto& scale : DlssNr::kInterPassBenchmarkScales) require(scale.percent <= 65);
         for (const int scale : DlssNr::kInterPassLowVerificationScales) require(scale <= 65);
         for (unsigned percent=25;percent<=200;++percent)
-        for (unsigned mode=0;mode<=7;++mode)
+        for (unsigned mode=0;mode<=8;++mode)
         for (unsigned passes=0;passes<=32;++passes)
         for (bool spatial : {false,true})
         {
@@ -30,6 +30,12 @@ int main()
             require(corrections == (stride ? (passes-1)/stride : 0u));
             require(!Due(passes,passes,stride));
         }
+        require(Select(8,3840,2160,1920,1080,0,1,1)==Path::FastCachedLow36);
+        require(Select(8,3840,2160,2496,1404,0,1,1)==Path::FastCachedLow36);
+        require(Select(8,3840,2160,2496,1404,1,1,1)==Select(3,3840,2160,2496,1404,1,1,1));
+        require(Select(8,3840,2160,2496,1404,0,2,1)==Select(3,3840,2160,2496,1404,0,2,1));
+        require(Select(8,3840,2160,2496,1404,0,1,0)==Select(3,3840,2160,2496,1404,0,1,0));
+        require(Fast(Path::FastCachedLow36) && Fused(Path::FastCachedLow36) && Optimized(Path::FastCachedLow36));
         require(Cadence(4,std::nextafter(0.74f,0.0f),6,false)==1);
         require(Cadence(4,0.74f,6,false)==2);
         require(Cadence(4,std::nextafter(0.74f,1.0f),6,false)==2);

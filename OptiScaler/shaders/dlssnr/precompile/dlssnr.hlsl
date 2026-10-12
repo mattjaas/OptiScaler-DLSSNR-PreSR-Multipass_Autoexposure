@@ -2243,6 +2243,35 @@ groupshared float4 gExposureReduce[64];
 groupshared float4 gFinalColorReduceOriginal[64];
 groupshared float4 gFinalColorReduceNr[64];
 
+// Dedicated opt-in Low36 PSO only: 34x34 quarter-footprint samples cover
+// all overlapping 6x6 filters of an 8x8 low-output group (13,872 bytes LDS).
+// Keep all taps/weights/sanitization; sharing only changes coordinate FP rounding.
+#if defined(DLSSNR_LOW36_CACHE)
+#if !defined(DLSSNR_INTERPASS_LOW36)
+#error Low36 cache requires the isolated Low36 PSO
+#endif
+groupshared float3 gLow36Tile[34 * 34];
+void CacheLow36(uint2 groupId, uint2 localId)
+{
+    uint srcW, srcH;
+    gSource.GetDimensions(srcW, srcH);
+    const float2 srcSize = float2(srcW, srcH);
+    const float2 footprint = srcSize / float2(gWidth, gHeight);
+    const float2 srcCenter = (float2(groupId * 8u) + 0.5) * footprint;
+    const float2 tapStep = 0.25 * footprint;
+    const uint thread = localId.y * 8u + localId.x;
+    [loop] for (uint i = thread; i < 34u * 34u; i += 64u)
+    {
+        const float2 uvq = clamp(srcCenter + (float2(i % 34u, i / 34u) - 2.5) * tapStep,
+                                0.5, srcSize - 0.5) / srcSize;
+        const float3 residual = gModel.SampleLevel(gLinear, uvq, 0).rgb -
+                                gSource.SampleLevel(gLinear, uvq, 0).rgb;
+        gLow36Tile[i] = SanitizeFinite3(residual, 0.0);
+    }
+    GroupMemoryBarrierWithGroupSync();
+}
+#endif
+
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
 {
@@ -2458,6 +2487,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
     }
 #endif
 
+#if defined(DLSSNR_LOW36_CACHE)
+    // All lanes must participate, including lanes outside the final partial tile.
+    CacheLow36(groupId.xy, groupThreadId.xy);
+#endif
+
     if (id.x >= gWidth || id.y >= gHeight)
         return;
 
@@ -2503,12 +2537,17 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                                    0.5, srcSize.y - 0.5) / srcSize.y;
             [unroll] for (uint x = 0u; x < 6u; ++x)
             {
+#if defined(DLSSNR_LOW36_CACHE)
+                const uint2 tap = groupThreadId.xy * 4u + uint2(x, y);
+                sum += gLow36Tile[tap.y * 34u + tap.x] * (weights[x] * weights[y]);
+#else
                 const float sx = clamp(srcCenter.x + ((float)x - 2.5) * tapStep.x,
                                        0.5, srcSize.x - 0.5) / srcSize.x;
                 const float2 uv = float2(sx, sy);
                 const float3 residual = gModel.SampleLevel(gLinear, uv, 0).rgb -
                                         gSource.SampleLevel(gLinear, uv, 0).rgb;
                 sum += SanitizeFinite3(residual, 0.0) * (weights[x] * weights[y]);
+#endif
             }
         }
         gTarget[id.xy] = float4(sum * (1.0 / 7396.0), 1.0);

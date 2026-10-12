@@ -174,7 +174,8 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     c.DlssNrGuidedResidualGuideStrength = 1.0f;
     c.DlssNrInterPassReconstruction = uint32_t(v.mode);
     if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
-        benchmarkProfile == InterPassBenchmarkProfile::FastBelow50)
+        benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ||
+        benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow)
         c.DlssNrTransfer = 9u; // Temporal DLAA residual + P100-guided, as requested.
     benchmarkOverride.store(v.forcedPath, std::memory_order_relaxed);
     benchmarkPath.clear();
@@ -217,6 +218,27 @@ void AddLowBenchmarkScale(int scale)
 void BuildBenchmarkVariants()
 {
     benchmarkVariants.clear();
+    if (benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow)
+    {
+        for (const auto& scale : kInterPassBenchmarkScales)
+        {
+            const auto add = [&](int mode, const char* name, int comparison)
+            {
+                benchmarkVariants.push_back({scale.percent, mode, -1, name, {}});
+                benchmarkVariants.back().historicalGain = std::numeric_limits<double>::quiet_NaN();
+                benchmarkVariants.back().comparison = comparison;
+            };
+            add(0, "No inter-pass", 0);
+            add(1, "Classic reference", 0);
+            add(2, "Fused reference", 0);
+            add(3, "Inter-pass optimized", 0);
+            add(4, "Inter-pass fast", 1);
+            add(8, "Fast cached low", 1);
+            add(8, "Fast cached low", 1);
+            add(4, "Inter-pass fast", 1);
+        }
+        return; // P50/P59/P65: 18 configurations / 24 windows, separate warmup and Fast/cache ABBA.
+    }
     if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
         benchmarkProfile == InterPassBenchmarkProfile::FastBelow50)
     {
@@ -309,7 +331,8 @@ void FinishBenchmark(bool cancelled)
         std::tm local {};
         localtime_s(&local, &now);
         std::ostringstream name;
-        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v35-fast-low-" :
+        const char* prefix = benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow ? "NR-v37-cached-low-" :
+                             benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ? "NR-v35-fast-low-" :
                              benchmarkProfile == InterPassBenchmarkProfile::FastQuality ? "NR-v35-fast-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Boundary ? "NR-v20-boundary-" :
                              benchmarkProfile == InterPassBenchmarkProfile::Below50 ? "NR-v20-low-" : "NR-v20-auto-";
@@ -323,7 +346,8 @@ void FinishBenchmark(bool cancelled)
         std::ofstream description(info);
         std::ofstream paired;
         if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
-            benchmarkProfile == InterPassBenchmarkProfile::FastBelow50)
+            benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ||
+            benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow)
             paired.open(pairs);
         if (!out || !description || !individual)
             throw std::runtime_error("Cannot create benchmark report.");
@@ -370,7 +394,8 @@ void FinishBenchmark(bool cancelled)
             if (std::string(v.name) == "Inter-pass fast") fast[v.percent] = medianOf(v);
             if (std::string(v.name) == "Expected path control" ||
                 ((benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
-                  benchmarkProfile == InterPassBenchmarkProfile::FastBelow50) &&
+                  benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ||
+                  benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow) &&
                  std::string(v.name) == "Inter-pass optimized"))
             {
                 expected[v.percent] = medianOf(v);
@@ -407,7 +432,8 @@ void FinishBenchmark(bool cancelled)
                 << v.cadence << ',' << v.corrections << '\n';
         }
         if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
-            benchmarkProfile == InterPassBenchmarkProfile::FastBelow50)
+            benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ||
+            benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow)
         {
             if (!paired) throw std::runtime_error("Cannot create paired benchmark report.");
             paired << "scale_percent,comparison,control,variant,a1_window,b1_window,b2_window,a2_window,"
@@ -440,7 +466,11 @@ void FinishBenchmark(bool cancelled)
             if (!paired) throw std::runtime_error("Paired benchmark file write failed.");
         }
         description << "OptiScaler six-pass inter-pass GPU comparison\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ?
+                    << (benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow ?
+                        "Cached Low36 profile: exactly P50/P59/P65, Transfer=9, six passes.\n"
+                        "Off, both references, Optimized, then original Fast / cached / cached / original Fast.\n"
+                        "18 unique configurations / 24 independent windows. All taps and weights retained; FP coordinate rounding differs.\n" :
+                        benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ?
                         "Low-scale Fast verification: P33/P40/P41/P42/P49 plus current below 50 if different.\n"
                         "25 unique configurations / 35 independent windows; 30 / 42 with extra current scale.\n"
                         "Approved Cross5 is integrated; exact-path controls remain in the separate Below50 profile.\n" :
@@ -460,7 +490,10 @@ void FinishBenchmark(bool cancelled)
                     << "All pass styles/Structure settings are recorded; there is no repetition of the last model's gain.\n"
                     << "interpass_stride is the active cadence (0=Off); interpass_corrections counts successful corrections/frame.\n"
                     << "High/mid multiplies the actual per-pass style/Structure-adjusted gains since the last successful correction; at P74-P84 six passes cover 2+2+2, five cover 2+2+1; at P85-P90 they cover 3+3 or 3+2.\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
+                    << (benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow ?
+                        "Each scale: Off, both references, Optimized, then Fast/cached/cached/Fast with separate warmup.\n"
+                        "Only low filtering uses shared samples; without low shaping both variants use original Cross5.\n" :
+                        benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
                         benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ?
                         "Each scale: Off, both references, Optimized/Fast/Fast/Optimized with separate warmup.\n"
                         "Fast includes Cross5 at every reduced scale and Low36 when shaping needs a low field.\n"
@@ -480,7 +513,9 @@ void FinishBenchmark(bool cancelled)
                     << "User settings at start: " << benchmarkSetup << "\n"
                     << "Historical gain is last RTX4090/4K/guide-one v16/v18/v19 result vs Fused reference, not absolute time.\n"
                     << "Historical values do not apply to other scenes/GPUs/settings. Current control is decisive.\n"
-                    << (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
+                    << (benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow ?
+                        "Cached Low36 compares with the original Fast in ABBA, not the Optimized pool. Inspect motion and edges.\n" :
+                        benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
                         benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ?
                         "Fast compares with the local automatic exact Optimized control in ABBA; there is no forced-path pair.\n" :
                         "Automatic should match the independent forced control in ABBA; compare the alternate and references too.\n")

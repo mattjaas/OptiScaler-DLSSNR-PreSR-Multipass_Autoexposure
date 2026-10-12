@@ -9,6 +9,7 @@
 #include "precompile/dlssnr_interpass_rgb20_Shader.h"
 #include "precompile/dlssnr_interpass_fast_Shader.h"
 #include "precompile/dlssnr_interpass_low36_Shader.h"
+#include "precompile/dlssnr_interpass_low36_cached_Shader.h"
 #include "precompile/dlssnr_interpass_cross5_Shader.h"
 
 #include "precompile/dlssnr_residual_Shader.h"
@@ -144,16 +145,19 @@ DlssNr_Dx12::DlssNr_Dx12(std::string InName, ID3D12Device* InDevice)
     nrOwners.push_back(this);
 }
 
-ID3D12PipelineState* DlssNr_Dx12::InterPassExperimentPipeline(uint32_t mode)
+ID3D12PipelineState* DlssNr_Dx12::InterPassExperimentPipeline(uint32_t mode, uint32_t flags)
 {
     // Called under the owner/state locks; no experimental PSO creation on ordinary paths.
     if (mode != DlssNrMode_InterPassLow36 && mode != DlssNrMode_InterPassFastCross5)
         return _pipelineState;
-    const unsigned index = mode == DlssNrMode_InterPassLow36 ? 0u : 1u;
-    const void* const blobs[] = { dlssnr_interpass_low36_cso, dlssnr_interpass_cross5_cso };
-    const size_t sizes[] = { sizeof(dlssnr_interpass_low36_cso), sizeof(dlssnr_interpass_cross5_cso) };
+    const unsigned index = mode == DlssNrMode_InterPassLow36 ? ((flags & 32768u) ? 2u : 0u) : 1u;
+    const void* const blobs[] = { dlssnr_interpass_low36_cso, dlssnr_interpass_cross5_cso,
+                                  dlssnr_interpass_low36_cached_cso };
+    const size_t sizes[] = { sizeof(dlssnr_interpass_low36_cso), sizeof(dlssnr_interpass_cross5_cso),
+                             sizeof(dlssnr_interpass_low36_cached_cso) };
     const char* const fallback[] = { "Fast low36 (standard low PSO fallback)",
-                                     "Fast + Low36 + Cross5 (standard PSO fallback)" };
+                                     "Fast + Low36 + Cross5 (standard PSO fallback)",
+                                     "Fast cached Low36 unavailable (standard low PSO fallback)" };
     if (!_interPassExperimentAttempted[index])
     {
         _interPassExperimentAttempted[index] = true;
@@ -173,7 +177,7 @@ bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssN
 {
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
-    ID3D12PipelineState* pipeline = InterPassExperimentPipeline(InConstants.Mode);
+    ID3D12PipelineState* pipeline = InterPassExperimentPipeline(InConstants.Mode, InConstants.DirectResolveFlags);
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion, InPrevEdit,
                            nullptr, OutTarget, OutKeep, immutableSlot);
 }
@@ -190,7 +194,7 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
     ID3D12PipelineState* pipeline = _pipelineState;
     const auto flags = InConstants.DirectResolveFlags;
     if (InConstants.Mode == DlssNrMode_InterPassFastCross5)
-        pipeline = InterPassExperimentPipeline(InConstants.Mode);
+        pipeline = InterPassExperimentPipeline(InConstants.Mode, InConstants.DirectResolveFlags);
     if (InConstants.Mode == DlssNrMode_InterPassFastGuided)
     {
         if (!_interPassFastAttempted)

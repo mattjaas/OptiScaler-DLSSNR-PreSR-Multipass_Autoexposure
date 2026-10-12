@@ -44,7 +44,7 @@ def test_benchmark():
     dx = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp').read_text(encoding='utf-8')
     assert re.findall(r'#include "precompile/(dlssnr_.*)_Shader.h"', dx) == [
         'dlssnr_interpass_rgb16', 'dlssnr_interpass_rgb20', 'dlssnr_interpass_fast',
-        'dlssnr_interpass_low36', 'dlssnr_interpass_cross5', 'dlssnr_residual',
+        'dlssnr_interpass_low36', 'dlssnr_interpass_low36_cached', 'dlssnr_interpass_cross5', 'dlssnr_residual',
         'dlssnr_finished_color', 'dlssnr_spatial', 'dlssnr_spatial_guides']
     low = status[status.index('void AddLowBenchmarkScale'):status.index('void UpdateBenchmarkProgress')]
     assert 'kInterPassMeasuredLowScales' in low and 'measured->expected' in low

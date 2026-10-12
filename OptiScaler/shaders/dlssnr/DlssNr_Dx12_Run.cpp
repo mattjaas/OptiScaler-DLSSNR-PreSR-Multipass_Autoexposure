@@ -962,7 +962,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     DlssNr::BenchmarkReportDevice(device);
 
     const uint32_t configuredInterPassMode =
-        std::min(cfg.DlssNrInterPassReconstruction.value_or_default(), 7u);
+        std::min(cfg.DlssNrInterPassReconstruction.value_or_default(), 8u);
     const uint32_t interPassFilter = std::min(
         workScale < 1.0f && cfg.DlssNrTransfer.value_or_default() == 6u
             ? cfg.DlssNrUpscaledResidualDownscaleFilter.value_or_default()
@@ -1342,6 +1342,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                            ? DlssNrMode_InterPassLow36 : DlssNrMode_GuidedResidualLow;
             low.Width = lowW;
             low.Height = lowH;
+            if (interPassPath == DlssNr::InterPass::Path::FastCachedLow36)
+                low.DirectResolveFlags = 32768u; // Isolated shared-sample Low36 PSO.
             low.Transfer = 0u; // ALWAYS current cumulative N - immutable original base.
             if (!shader.DispatchPass(cmdList, low, originalPassBase, currentAnswer, nullptr, nullptr, nullptr,
                                      nr.interPassResidualLow, nullptr))
@@ -1372,7 +1374,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             guided.Transfer = proxyFilter;
             if (DlssNr::InterPass::Fast(interPassPath))
                 guided.Mode = DlssNrMode_InterPassFastGuided;
-            if (interPassPath == DlssNr::InterPass::Path::FastCombinedCross5)
+            if (interPassPath == DlssNr::InterPass::Path::FastCombinedCross5 ||
+                interPassPath == DlssNr::InterPass::Path::FastCachedLow36)
                 guided.Mode = DlssNrMode_InterPassFastCross5;
             // These geometry/cache flags serve the exact Mode28 Area/radius-one path,
             // whose P50 2x2 specialization has priority over general integration.

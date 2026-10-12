@@ -316,6 +316,17 @@ void RenderMenu(Config* config, float menuResScale)
                                   "Enable Hold to inspect/capture each warmed result and advance manually. "
                                   "Check fine detail, edges, highlights and shadows, then also compare in motion. "
                                   "Keep the scene static for timings; original settings restored on finish/cancel.");
+            ImGui::BeginDisabled(!canBenchmark);
+            if (ImGui::Button("Compare Fast / cached low at 50% / 59% / 65% (CSV)"))
+                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                              DlssNr::InterPassBenchmarkProfile::FastCachedLow, inspectFastWindows,
+                                              fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
+            ImGui::EndDisabled();
+            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("Off, both references, Optimized, then Fast / cached low / cached low / Fast ABBA. "
+                                  "18 configurations / 24 windows, separate warmup. Whole-NR GPU timestamps. "
+                                  "Preserves your shaping and pass gains; without a low field the paths do the same work. "
+                                  "Use Hold for visual inspection; finish/cancel restores your settings.");
             ImGui::Checkbox("Hold each low-scale Fast benchmark window for visual inspection", &inspectExperimentWindows);
             ImGui::BeginDisabled(!canBenchmark);
             if (ImGui::Button("Compare reference / Optimized / Fast below 50% (CSV)"))
