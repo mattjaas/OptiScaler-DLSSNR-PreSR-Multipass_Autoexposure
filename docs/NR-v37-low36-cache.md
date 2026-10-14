@@ -1,5 +1,10 @@
 # NR v37 — współdzielenie próbek Low36
 
+[Pomiar v37 z gry, 14 października](NR-v37-20261014-ingame-analysis.md):
+cached skraca cały NR o 0,101632 / 0,286720 / 0,197120 ms przy P50/P59/P65.
+Nie dostarczono oceny jakości obrazu. [v38](NR-v38-interpass-neutral-low.md)
+dodaje osobną opcję neutralnego low między modelami.
+
 Nowy wariant **Model → Inter-pass reconstruction → Fast cached low (experimental)**
 (`InterPassReconstruction=8`) przyspiesza filtr low używany przez Fast między
 modelami. Zwykły Fast (4), dokładny Optimized, referencje i domyślny Off pozostają

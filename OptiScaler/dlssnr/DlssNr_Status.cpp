@@ -100,6 +100,7 @@ struct BenchmarkConfig
     bool unlock, spatial;
     float strength;
     uint32_t mode;
+    bool neutralInterPassLow;
 };
 struct BenchmarkVariant
 {
@@ -142,7 +143,8 @@ BenchmarkConfig TakeBenchmarkConfig(const Config& c)
         c.DlssNrTransfer.value_or_default(),
         c.DlssNrUnlockPasses.value_or_default(), c.DlssNrSpatialCompression.value_or_default(),
         c.DlssNrGuidedResidualGuideStrength.value_or_default(),
-        c.DlssNrInterPassReconstruction.value_or_default()
+        c.DlssNrInterPassReconstruction.value_or_default(),
+        c.DlssNrInterPassNeutralLow.value_or_default()
     };
 }
 void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
@@ -159,6 +161,7 @@ void RestoreBenchmarkConfig(Config& c, const BenchmarkConfig& v)
     c.DlssNrSpatialCompression = v.spatial;
     c.DlssNrGuidedResidualGuideStrength = v.strength;
     c.DlssNrInterPassReconstruction = v.mode;
+    c.DlssNrInterPassNeutralLow = v.neutralInterPassLow;
 }
 void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
 {
@@ -173,6 +176,7 @@ void ApplyBenchmarkVariant(Config& c, const BenchmarkVariant& v)
     c.DlssNrGuidedResidualRadius = 1u;
     c.DlssNrGuidedResidualGuideStrength = 1.0f;
     c.DlssNrInterPassReconstruction = uint32_t(v.mode);
+    c.DlssNrInterPassNeutralLow = savedBenchmarkConfig.neutralInterPassLow;
     if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
         benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ||
         benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow)
@@ -487,6 +491,9 @@ void FinishBenchmark(bool cancelled)
                     << "All modes: below P74 every transition; P74 through P84 after passes 2,4,...; P85 through P90 after passes 3,6,...; between P84 and P85 and above P90 disabled.\n"
                     << "Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.\n"
                     << "Structure adjustment: 1+(scale_corrected_high-1)*clamp(configured Structure,0,1); Low unchanged.\n"
+                    << (savedBenchmarkConfig.neutralInterPassLow
+                        ? "Inter-pass low gain forced to 1; final resolve retains its configured single low gain.\n"
+                        : "Inter-pass and final resolve use their configured low gain once per correction/resolve.\n")
                     << "All pass styles/Structure settings are recorded; there is no repetition of the last model's gain.\n"
                     << "interpass_stride is the active cadence (0=Off); interpass_corrections counts successful corrections/frame.\n"
                     << "High/mid multiplies the actual per-pass style/Structure-adjusted gains since the last successful correction; at P74-P84 six passes cover 2+2+2, five cover 2+2+1; at P85-P90 they cover 3+3 or 3+2.\n"
@@ -571,6 +578,13 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, I
                      ", spatial sigma=" + std::to_string(c.DlssNrGuidedResidualSpatialSigma.value_or_default()) +
                      ", shaping=" + std::to_string(c.DlssNrGuidedResidualShaping.value_or_default()) +
                      ", high/mid compounding=" + std::to_string(c.DlssNrGuidedResidualCompoundPasses.value_or_default()) +
+                     ", interpass low neutral=" + std::to_string(savedBenchmarkConfig.neutralInterPassLow) +
+                     ", standard high=" + std::to_string(c.DlssNrGuidedResidualStandardHighGain.value_or_default()) +
+                     ", standard low=" + std::to_string(c.DlssNrGuidedResidualStandardLowGain.value_or_default()) +
+                     ", natural high=" + std::to_string(c.DlssNrGuidedResidualHighGain.value_or_default()) +
+                     ", natural low=" + std::to_string(c.DlssNrGuidedResidualLowGain.value_or_default()) +
+                     ", cinematic high=" + std::to_string(c.DlssNrGuidedResidualCinematicHighGain.value_or_default()) +
+                     ", cinematic low=" + std::to_string(c.DlssNrGuidedResidualCinematicLowGain.value_or_default()) +
                      ", shadow gate=" + std::to_string(c.DlssNrGuidedResidualShadowGate.value_or_default());
     for (unsigned pass = 0; pass < 6u; ++pass)
     {

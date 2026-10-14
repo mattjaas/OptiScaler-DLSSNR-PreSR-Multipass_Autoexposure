@@ -178,7 +178,10 @@ inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass(const Config
                                                                     unsigned int completedPasses, float workScale)
 {
     // Signed working-space residual uses the plain P100-guided calibration, as before.
-    return EffectiveGuidedResidualGainsForBlock(cfg, shapingMode, 7u, firstPass, completedPasses, workScale);
+    auto gains = EffectiveGuidedResidualGainsForBlock(cfg, shapingMode, 7u, firstPass, completedPasses, workScale);
+    if (cfg.DlssNrInterPassNeutralLow.value_or_default())
+        gains.low = 1.0f;
+    return gains;
 }
 
 } // namespace DlssNr::Profiles

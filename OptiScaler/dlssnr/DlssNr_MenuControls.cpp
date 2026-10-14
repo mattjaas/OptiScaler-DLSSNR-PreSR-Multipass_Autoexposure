@@ -1138,6 +1138,14 @@ void RenderModel(Config* config)
         ImGui::TextDisabled(cadence == 0u ? "Inter-pass inactive at this scale / pass count" :
                             cadence == 3u ? "Inter-pass after passes 3, 6, ..." :
                             cadence == 2u ? "Inter-pass after passes 2, 4, ..." : "Inter-pass after each pass");
+        bool neutralLow = config->DlssNrInterPassNeutralLow.value_or_default();
+        if (ImGui::Checkbox("Keep inter-pass low gain at 1", &neutralLow))
+            config->DlssNrInterPassNeutralLow = neutralLow;
+        HelpMarker("Sets the low-frequency shaping gain to exactly 1 only between model passes. "
+                   "High/mid shaping retains its per-pass style and Structure gains. "
+                   "Final resolve uses the configured low gain once, without pass multiplication. "
+                   "The low filter is still needed to separate bands when high/mid differs from 1. "
+                   "Applies with frequency shaping enabled; shadow confidence remains configured.");
         HelpMarker("Cached low shares overlapping Low36 samples while retaining all taps and weights. "
                    "It changes only Fast inter-pass low filtering when high and low gains differ. "
                    "Coordinate rounding can cause small differences. Compare Fast / cached low for GPU time and motion quality.");

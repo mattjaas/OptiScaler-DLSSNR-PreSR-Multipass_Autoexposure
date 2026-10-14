@@ -1,0 +1,4 @@
+scale_percent,comparison,control,variant,a1_window,b1_window,b2_window,a2_window,a1_median_ms,b1_median_ms,b2_median_ms,a2_median_ms,symmetric_gain_ms,first_gain_ms,last_gain_ms,control_window_spread_ms,variant_window_spread_ms,symmetric_delta_ms,first_delta_ms,last_delta_ms
+50,1,"Inter-pass fast","Fast cached low",4,5,6,7,25.879040,25.779712,25.769984,25.873920,0.101632,0.099328,0.103936,0.005120,0.009728,-0.101632,-0.099328,-0.103936
+59,1,"Inter-pass fast","Fast cached low",12,13,14,15,32.458752,32.212992,32.143872,32.471552,0.286720,0.245760,0.327680,0.012800,0.069120,-0.286720,-0.245760,-0.327680
+65,1,"Inter-pass fast","Fast cached low",20,21,22,23,36.187648,35.989504,35.996672,36.192768,0.197120,0.198144,0.196096,0.005120,0.007168,-0.197120,-0.198144,-0.196096

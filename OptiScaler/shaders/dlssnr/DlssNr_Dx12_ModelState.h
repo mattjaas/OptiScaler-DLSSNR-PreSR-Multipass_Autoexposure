@@ -33,6 +33,7 @@ struct ModelStateDx12
     ID3D12Resource* interPassDebug = nullptr;
     uint32_t interPassMode = 0;
     uint32_t interPassCadence = 0;
+    bool interPassNeutralLow = false;
     bool interPassModeInitialized = false;
     bool interPassWarned = false;
     bool interPassFusedReferenceWarned = false;

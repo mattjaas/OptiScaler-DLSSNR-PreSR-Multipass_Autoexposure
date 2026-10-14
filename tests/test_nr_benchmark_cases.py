@@ -40,7 +40,8 @@ def test_benchmark():
     menu = (ROOT / 'OptiScaler/dlssnr/DlssNr_MenuControls.cpp').read_text(encoding='utf-8')
     assert '"Off", "Classic reference", "Fused reference", "Inter-pass optimized"' in menu
     cfg = (ROOT / 'OptiScaler/Config.h').read_text(encoding='utf-8')
-    assert re.findall(r'CustomOptional<[^>]+> (DlssNrInterPass\w+)', cfg) == ['DlssNrInterPassReconstruction']
+    assert re.findall(r'CustomOptional<[^>]+> (DlssNrInterPass\w+)', cfg) == [
+        'DlssNrInterPassNeutralLow', 'DlssNrInterPassReconstruction']
     dx = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp').read_text(encoding='utf-8')
     assert re.findall(r'#include "precompile/(dlssnr_.*)_Shader.h"', dx) == [
         'dlssnr_interpass_rgb16', 'dlssnr_interpass_rgb20', 'dlssnr_interpass_fast',

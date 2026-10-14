@@ -440,6 +440,8 @@ class Config
     // When enabled, multiply the scale-corrected, Structure-adjusted high/mid gain of each model in the current block.
     // Low-frequency gain is never pass-compounded.
     CustomOptional<bool> DlssNrGuidedResidualCompoundPasses { true };
+    // Neutral low shaping between models only. Final resolve keeps its configured single low gain.
+    CustomOptional<bool> DlssNrInterPassNeutralLow { false };
     // Optional capture-derived deep-shadow confidence; experimental until validated on more scenes.
     CustomOptional<bool> DlssNrGuidedResidualShadowGate { false };
     CustomOptional<float> DlssNrGuidedResidualShadowFloor { 0.15f };

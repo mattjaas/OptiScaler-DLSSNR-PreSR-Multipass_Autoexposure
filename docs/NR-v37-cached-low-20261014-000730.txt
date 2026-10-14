@@ -1,0 +1,34 @@
+OptiScaler six-pass inter-pass GPU comparison
+Cached Low36 profile: exactly P50/P59/P65, Transfer=9, six passes.
+Off, both references, Optimized, then original Fast / cached / cached / original Fast.
+18 unique configurations / 24 independent windows. All taps and weights retained; FP coordinate rounding differs.
+All benchmark profiles exclude percentages above P65, including the current scale.
+Off, Classic reference and Fused reference retained.
+All modes: below P74 every transition; P74 through P84 after passes 2,4,...; P85 through P90 after passes 3,6,...; between P84 and P85 and above P90 disabled.
+Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.
+Structure adjustment: 1+(scale_corrected_high-1)*clamp(configured Structure,0,1); Low unchanged.
+All pass styles/Structure settings are recorded; there is no repetition of the last model's gain.
+interpass_stride is the active cadence (0=Off); interpass_corrections counts successful corrections/frame.
+High/mid multiplies the actual per-pass style/Structure-adjusted gains since the last successful correction; at P74-P84 six passes cover 2+2+2, five cover 2+2+1; at P85-P90 they cover 3+3 or 3+2.
+Each scale: Off, both references, Optimized, then Fast/cached/cached/Fast with separate warmup.
+Only low filtering uses shared samples; without low shaping both variants use original Cross5.
+Manual window inspection=0; held-frame samples excluded.
+Measured low controls: P33/P41 Classic; P40/P42/P45/P49 RGB20. Unmeasured scales are predictions.
+Generic Fused optimized below 50 omitted: slower at every supplied P33/P40/P41/P42/P45/P49.
+Independent warmup for each window; symmetric order reduces linear drift.
+Warmup=90, samples/window=160
+Repeated windows pooled in summary; raw CSV retains window and sample indices.
+Whole NR GPU interval includes NGX, transitions and overlap, not isolated shader time.
+Area, radius 1, guide strength 1, 6 passes; user shadow/frequency shaping unchanged.
+GPU adapter: NVIDIA GeForce RTX 4090 VendorID=0x10de DeviceID=0x2684 DedicatedVRAM_MB=24138 LUID=0:64860 DXGI_driver_version=32.0.16.1656
+User settings at start: scene=unspecified, guide strength=1.000000, source scale=0.650000, transfer=9, range sigma=0.015000, spatial sigma=3.000000, shaping=2, high/mid compounding=1, shadow gate=0, pass1_preset=0_style=1_configured_structure=1.000000, pass2_preset=0_style=1_configured_structure=1.000000, pass3_preset=0_style=1_configured_structure=1.000000, pass4_preset=0_style=1_configured_structure=1.000000, pass5_preset=0_style=1_configured_structure=1.000000, pass6_preset=0_style=1_configured_structure=1.000000
+Historical gain is last RTX4090/4K/guide-one v16/v18/v19 result vs Fused reference, not absolute time.
+Historical values do not apply to other scenes/GPUs/settings. Current control is decisive.
+Cached Low36 compares with the original Fast in ABBA, not the Optimized pool. Inspect motion and edges.
+Controls describe measured 4K geometry. Other dimensions, especially rounded P40, may select differently.
+RGB20 below 50 is a guarded PSO: oversized groups use direct reconstruction with isolated weights.
+selected_path reports actual PSO, not whether each group used LDS.
+Actual geometry rounding may affect compact eligibility at nominal 60%; inspect selected_path.
+PSO failure reports fallback; no extra per-frame GPU timing outside benchmark.
+Clocks/temperature uncontrolled. Keep scene fixed, inspect median, P95 and dispersion.
+Original settings restored, including inter-pass selection.

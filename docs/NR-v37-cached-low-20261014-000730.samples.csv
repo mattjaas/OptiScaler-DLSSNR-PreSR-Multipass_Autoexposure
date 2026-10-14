@@ -1,0 +1,3841 @@
+scale_percent,variant,window,sample_index,total_nr_gpu_ms,comparison,interpass_stride,interpass_corrections
+50,"No inter-pass",0,0,26.098688,0,0,0
+50,"No inter-pass",0,1,25.541632,0,0,0
+50,"No inter-pass",0,2,26.051584,0,0,0
+50,"No inter-pass",0,3,25.828352,0,0,0
+50,"No inter-pass",0,4,25.664512,0,0,0
+50,"No inter-pass",0,5,25.755648,0,0,0
+50,"No inter-pass",0,6,25.543680,0,0,0
+50,"No inter-pass",0,7,25.469952,0,0,0
+50,"No inter-pass",0,8,25.815040,0,0,0
+50,"No inter-pass",0,9,25.354240,0,0,0
+50,"No inter-pass",0,10,25.867264,0,0,0
+50,"No inter-pass",0,11,25.602048,0,0,0
+50,"No inter-pass",0,12,25.346048,0,0,0
+50,"No inter-pass",0,13,25.667584,0,0,0
+50,"No inter-pass",0,14,25.390080,0,0,0
+50,"No inter-pass",0,15,25.560064,0,0,0
+50,"No inter-pass",0,16,25.684992,0,0,0
+50,"No inter-pass",0,17,25.239552,0,0,0
+50,"No inter-pass",0,18,25.723904,0,0,0
+50,"No inter-pass",0,19,25.454592,0,0,0
+50,"No inter-pass",0,20,25.261056,0,0,0
+50,"No inter-pass",0,21,25.700352,0,0,0
+50,"No inter-pass",0,22,25.245696,0,0,0
+50,"No inter-pass",0,23,25.643008,0,0,0
+50,"No inter-pass",0,24,25.905152,0,0,0
+50,"No inter-pass",0,25,25.415680,0,0,0
+50,"No inter-pass",0,26,25.419776,0,0,0
+50,"No inter-pass",0,27,25.562112,0,0,0
+50,"No inter-pass",0,28,25.570304,0,0,0
+50,"No inter-pass",0,29,25.968640,0,0,0
+50,"No inter-pass",0,30,25.605120,0,0,0
+50,"No inter-pass",0,31,25.957376,0,0,0
+50,"No inter-pass",0,32,25.953280,0,0,0
+50,"No inter-pass",0,33,25.412608,0,0,0
+50,"No inter-pass",0,34,25.745408,0,0,0
+50,"No inter-pass",0,35,25.650176,0,0,0
+50,"No inter-pass",0,36,25.505792,0,0,0
+50,"No inter-pass",0,37,25.748480,0,0,0
+50,"No inter-pass",0,38,25.403392,0,0,0
+50,"No inter-pass",0,39,25.369600,0,0,0
+50,"No inter-pass",0,40,25.799680,0,0,0
+50,"No inter-pass",0,41,25.344000,0,0,0
+50,"No inter-pass",0,42,25.830400,0,0,0
+50,"No inter-pass",0,43,25.609216,0,0,0
+50,"No inter-pass",0,44,25.372672,0,0,0
+50,"No inter-pass",0,45,25.561088,0,0,0
+50,"No inter-pass",0,46,25.393152,0,0,0
+50,"No inter-pass",0,47,25.618432,0,0,0
+50,"No inter-pass",0,48,25.648128,0,0,0
+50,"No inter-pass",0,49,25.223168,0,0,0
+50,"No inter-pass",0,50,25.765888,0,0,0
+50,"No inter-pass",0,51,25.586688,0,0,0
+50,"No inter-pass",0,52,25.470976,0,0,0
+50,"No inter-pass",0,53,25.680896,0,0,0
+50,"No inter-pass",0,54,25.228288,0,0,0
+50,"No inter-pass",0,55,25.459712,0,0,0
+50,"No inter-pass",0,56,25.704448,0,0,0
+50,"No inter-pass",0,57,25.277440,0,0,0
+50,"No inter-pass",0,58,25.753600,0,0,0
+50,"No inter-pass",0,59,25.686016,0,0,0
+50,"No inter-pass",0,60,25.718784,0,0,0
+50,"No inter-pass",0,61,25.893888,0,0,0
+50,"No inter-pass",0,62,25.441280,0,0,0
+50,"No inter-pass",0,63,25.586688,0,0,0
+50,"No inter-pass",0,64,26.131456,0,0,0
+50,"No inter-pass",0,65,25.373696,0,0,0
+50,"No inter-pass",0,66,25.907200,0,0,0
+50,"No inter-pass",0,67,25.609216,0,0,0
+50,"No inter-pass",0,68,25.377792,0,0,0
+50,"No inter-pass",0,69,25.752576,0,0,0
+50,"No inter-pass",0,70,25.467904,0,0,0
+50,"No inter-pass",0,71,25.380864,0,0,0
+50,"No inter-pass",0,72,25.662464,0,0,0
+50,"No inter-pass",0,73,25.238528,0,0,0
+50,"No inter-pass",0,74,25.856000,0,0,0
+50,"No inter-pass",0,75,25.617408,0,0,0
+50,"No inter-pass",0,76,25.383936,0,0,0
+50,"No inter-pass",0,77,25.663488,0,0,0
+50,"No inter-pass",0,78,25.261056,0,0,0
+50,"No inter-pass",0,79,25.394176,0,0,0
+50,"No inter-pass",0,80,25.853952,0,0,0
+50,"No inter-pass",0,81,25.217024,0,0,0
+50,"No inter-pass",0,82,25.586688,0,0,0
+50,"No inter-pass",0,83,25.421824,0,0,0
+50,"No inter-pass",0,84,25.341952,0,0,0
+50,"No inter-pass",0,85,25.744384,0,0,0
+50,"No inter-pass",0,86,25.365504,0,0,0
+50,"No inter-pass",0,87,25.532416,0,0,0
+50,"No inter-pass",0,88,25.784320,0,0,0
+50,"No inter-pass",0,89,25.451520,0,0,0
+50,"No inter-pass",0,90,25.721856,0,0,0
+50,"No inter-pass",0,91,25.597952,0,0,0
+50,"No inter-pass",0,92,25.592832,0,0,0
+50,"No inter-pass",0,93,25.806848,0,0,0
+50,"No inter-pass",0,94,25.539584,0,0,0
+50,"No inter-pass",0,95,25.655296,0,0,0
+50,"No inter-pass",0,96,26.003456,0,0,0
+50,"No inter-pass",0,97,25.482240,0,0,0
+50,"No inter-pass",0,98,25.868288,0,0,0
+50,"No inter-pass",0,99,25.585664,0,0,0
+50,"No inter-pass",0,100,25.373696,0,0,0
+50,"No inter-pass",0,101,25.587712,0,0,0
+50,"No inter-pass",0,102,25.392128,0,0,0
+50,"No inter-pass",0,103,25.406464,0,0,0
+50,"No inter-pass",0,104,25.677824,0,0,0
+50,"No inter-pass",0,105,25.322496,0,0,0
+50,"No inter-pass",0,106,25.857024,0,0,0
+50,"No inter-pass",0,107,25.601024,0,0,0
+50,"No inter-pass",0,108,25.348096,0,0,0
+50,"No inter-pass",0,109,25.783296,0,0,0
+50,"No inter-pass",0,110,25.292800,0,0,0
+50,"No inter-pass",0,111,25.254912,0,0,0
+50,"No inter-pass",0,112,25.802752,0,0,0
+50,"No inter-pass",0,113,25.370624,0,0,0
+50,"No inter-pass",0,114,25.838592,0,0,0
+50,"No inter-pass",0,115,25.614336,0,0,0
+50,"No inter-pass",0,116,25.453568,0,0,0
+50,"No inter-pass",0,117,25.745408,0,0,0
+50,"No inter-pass",0,118,25.577472,0,0,0
+50,"No inter-pass",0,119,25.520128,0,0,0
+50,"No inter-pass",0,120,25.778176,0,0,0
+50,"No inter-pass",0,121,25.358336,0,0,0
+50,"No inter-pass",0,122,25.966592,0,0,0
+50,"No inter-pass",0,123,25.619456,0,0,0
+50,"No inter-pass",0,124,25.550848,0,0,0
+50,"No inter-pass",0,125,25.631744,0,0,0
+50,"No inter-pass",0,126,25.556992,0,0,0
+50,"No inter-pass",0,127,25.435136,0,0,0
+50,"No inter-pass",0,128,25.785344,0,0,0
+50,"No inter-pass",0,129,25.342976,0,0,0
+50,"No inter-pass",0,130,25.889792,0,0,0
+50,"No inter-pass",0,131,25.663488,0,0,0
+50,"No inter-pass",0,132,25.421824,0,0,0
+50,"No inter-pass",0,133,25.590784,0,0,0
+50,"No inter-pass",0,134,25.544704,0,0,0
+50,"No inter-pass",0,135,25.453568,0,0,0
+50,"No inter-pass",0,136,25.707520,0,0,0
+50,"No inter-pass",0,137,25.333760,0,0,0
+50,"No inter-pass",0,138,25.798656,0,0,0
+50,"No inter-pass",0,139,25.668608,0,0,0
+50,"No inter-pass",0,140,25.331712,0,0,0
+50,"No inter-pass",0,141,25.607168,0,0,0
+50,"No inter-pass",0,142,25.446400,0,0,0
+50,"No inter-pass",0,143,25.456640,0,0,0
+50,"No inter-pass",0,144,25.673728,0,0,0
+50,"No inter-pass",0,145,25.378816,0,0,0
+50,"No inter-pass",0,146,25.852928,0,0,0
+50,"No inter-pass",0,147,25.610240,0,0,0
+50,"No inter-pass",0,148,25.369600,0,0,0
+50,"No inter-pass",0,149,25.666560,0,0,0
+50,"No inter-pass",0,150,25.442304,0,0,0
+50,"No inter-pass",0,151,25.489408,0,0,0
+50,"No inter-pass",0,152,25.858048,0,0,0
+50,"No inter-pass",0,153,25.368576,0,0,0
+50,"No inter-pass",0,154,25.911296,0,0,0
+50,"No inter-pass",0,155,25.598976,0,0,0
+50,"No inter-pass",0,156,25.502720,0,0,0
+50,"No inter-pass",0,157,25.795584,0,0,0
+50,"No inter-pass",0,158,25.520128,0,0,0
+50,"No inter-pass",0,159,25.588736,0,0,0
+50,"Classic reference",1,0,27.896832,0,1,5
+50,"Classic reference",1,1,27.897856,0,1,5
+50,"Classic reference",1,2,27.749376,0,1,5
+50,"Classic reference",1,3,27.653120,0,1,5
+50,"Classic reference",1,4,27.778048,0,1,5
+50,"Classic reference",1,5,27.765760,0,1,5
+50,"Classic reference",1,6,27.771904,0,1,5
+50,"Classic reference",1,7,27.764736,0,1,5
+50,"Classic reference",1,8,27.800576,0,1,5
+50,"Classic reference",1,9,27.835392,0,1,5
+50,"Classic reference",1,10,27.550720,0,1,5
+50,"Classic reference",1,11,27.968512,0,1,5
+50,"Classic reference",1,12,28.062720,0,1,5
+50,"Classic reference",1,13,27.988992,0,1,5
+50,"Classic reference",1,14,27.633664,0,1,5
+50,"Classic reference",1,15,28.023808,0,1,5
+50,"Classic reference",1,16,28.294144,0,1,5
+50,"Classic reference",1,17,27.870208,0,1,5
+50,"Classic reference",1,18,27.669504,0,1,5
+50,"Classic reference",1,19,28.247040,0,1,5
+50,"Classic reference",1,20,28.463104,0,1,5
+50,"Classic reference",1,21,28.137472,0,1,5
+50,"Classic reference",1,22,27.942912,0,1,5
+50,"Classic reference",1,23,28.340224,0,1,5
+50,"Classic reference",1,24,28.293120,0,1,5
+50,"Classic reference",1,25,28.218368,0,1,5
+50,"Classic reference",1,26,27.809792,0,1,5
+50,"Classic reference",1,27,28.087296,0,1,5
+50,"Classic reference",1,28,27.957248,0,1,5
+50,"Classic reference",1,29,27.853824,0,1,5
+50,"Classic reference",1,30,27.521024,0,1,5
+50,"Classic reference",1,31,27.799552,0,1,5
+50,"Classic reference",1,32,27.951104,0,1,5
+50,"Classic reference",1,33,27.784192,0,1,5
+50,"Classic reference",1,34,27.627520,0,1,5
+50,"Classic reference",1,35,28.137472,0,1,5
+50,"Classic reference",1,36,27.813888,0,1,5
+50,"Classic reference",1,37,27.671552,0,1,5
+50,"Classic reference",1,38,27.703296,0,1,5
+50,"Classic reference",1,39,27.742208,0,1,5
+50,"Classic reference",1,40,27.879424,0,1,5
+50,"Classic reference",1,41,27.637760,0,1,5
+50,"Classic reference",1,42,27.847680,0,1,5
+50,"Classic reference",1,43,27.809792,0,1,5
+50,"Classic reference",1,44,28.000256,0,1,5
+50,"Classic reference",1,45,27.723776,0,1,5
+50,"Classic reference",1,46,28.125184,0,1,5
+50,"Classic reference",1,47,28.162048,0,1,5
+50,"Classic reference",1,48,28.172288,0,1,5
+50,"Classic reference",1,49,27.886592,0,1,5
+50,"Classic reference",1,50,28.151808,0,1,5
+50,"Classic reference",1,51,28.216320,0,1,5
+50,"Classic reference",1,52,28.211200,0,1,5
+50,"Classic reference",1,53,27.926528,0,1,5
+50,"Classic reference",1,54,28.077056,0,1,5
+50,"Classic reference",1,55,28.088320,0,1,5
+50,"Classic reference",1,56,28.214272,0,1,5
+50,"Classic reference",1,57,27.850752,0,1,5
+50,"Classic reference",1,58,27.847680,0,1,5
+50,"Classic reference",1,59,27.858944,0,1,5
+50,"Classic reference",1,60,27.857920,0,1,5
+50,"Classic reference",1,61,27.580416,0,1,5
+50,"Classic reference",1,62,27.875328,0,1,5
+50,"Classic reference",1,63,27.785216,0,1,5
+50,"Classic reference",1,64,27.891712,0,1,5
+50,"Classic reference",1,65,27.617280,0,1,5
+50,"Classic reference",1,66,27.996160,0,1,5
+50,"Classic reference",1,67,28.198912,0,1,5
+50,"Classic reference",1,68,27.883520,0,1,5
+50,"Classic reference",1,69,27.491328,0,1,5
+50,"Classic reference",1,70,27.938816,0,1,5
+50,"Classic reference",1,71,28.111872,0,1,5
+50,"Classic reference",1,72,27.740160,0,1,5
+50,"Classic reference",1,73,27.533312,0,1,5
+50,"Classic reference",1,74,28.211200,0,1,5
+50,"Classic reference",1,75,28.284928,0,1,5
+50,"Classic reference",1,76,27.980800,0,1,5
+50,"Classic reference",1,77,27.880448,0,1,5
+50,"Classic reference",1,78,28.107776,0,1,5
+50,"Classic reference",1,79,28.282880,0,1,5
+50,"Classic reference",1,80,28.013568,0,1,5
+50,"Classic reference",1,81,27.859968,0,1,5
+50,"Classic reference",1,82,28.192768,0,1,5
+50,"Classic reference",1,83,28.392448,0,1,5
+50,"Classic reference",1,84,27.911168,0,1,5
+50,"Classic reference",1,85,27.598848,0,1,5
+50,"Classic reference",1,86,28.182528,0,1,5
+50,"Classic reference",1,87,28.240896,0,1,5
+50,"Classic reference",1,88,27.888640,0,1,5
+50,"Classic reference",1,89,27.535360,0,1,5
+50,"Classic reference",1,90,27.919360,0,1,5
+50,"Classic reference",1,91,27.956224,0,1,5
+50,"Classic reference",1,92,27.761664,0,1,5
+50,"Classic reference",1,93,27.845632,0,1,5
+50,"Classic reference",1,94,27.893760,0,1,5
+50,"Classic reference",1,95,27.986944,0,1,5
+50,"Classic reference",1,96,27.677696,0,1,5
+50,"Classic reference",1,97,27.594752,0,1,5
+50,"Classic reference",1,98,27.917312,0,1,5
+50,"Classic reference",1,99,27.820032,0,1,5
+50,"Classic reference",1,100,27.700224,0,1,5
+50,"Classic reference",1,101,27.898880,0,1,5
+50,"Classic reference",1,102,28.138496,0,1,5
+50,"Classic reference",1,103,27.983872,0,1,5
+50,"Classic reference",1,104,27.911168,0,1,5
+50,"Classic reference",1,105,28.102656,0,1,5
+50,"Classic reference",1,106,28.045312,0,1,5
+50,"Classic reference",1,107,28.208128,0,1,5
+50,"Classic reference",1,108,27.881472,0,1,5
+50,"Classic reference",1,109,28.068864,0,1,5
+50,"Classic reference",1,110,28.065792,0,1,5
+50,"Classic reference",1,111,28.059648,0,1,5
+50,"Classic reference",1,112,27.889664,0,1,5
+50,"Classic reference",1,113,28.094464,0,1,5
+50,"Classic reference",1,114,28.045312,0,1,5
+50,"Classic reference",1,115,28.135424,0,1,5
+50,"Classic reference",1,116,27.667456,0,1,5
+50,"Classic reference",1,117,27.943936,0,1,5
+50,"Classic reference",1,118,27.846656,0,1,5
+50,"Classic reference",1,119,27.953152,0,1,5
+50,"Classic reference",1,120,27.674624,0,1,5
+50,"Classic reference",1,121,28.118016,0,1,5
+50,"Classic reference",1,122,28.087296,0,1,5
+50,"Classic reference",1,123,27.821056,0,1,5
+50,"Classic reference",1,124,27.594752,0,1,5
+50,"Classic reference",1,125,27.992064,0,1,5
+50,"Classic reference",1,126,28.141568,0,1,5
+50,"Classic reference",1,127,27.720704,0,1,5
+50,"Classic reference",1,128,27.578368,0,1,5
+50,"Classic reference",1,129,28.010496,0,1,5
+50,"Classic reference",1,130,28.291072,0,1,5
+50,"Classic reference",1,131,27.891712,0,1,5
+50,"Classic reference",1,132,27.679744,0,1,5
+50,"Classic reference",1,133,28.141568,0,1,5
+50,"Classic reference",1,134,28.240896,0,1,5
+50,"Classic reference",1,135,27.932672,0,1,5
+50,"Classic reference",1,136,27.657216,0,1,5
+50,"Classic reference",1,137,28.106752,0,1,5
+50,"Classic reference",1,138,28.402688,0,1,5
+50,"Classic reference",1,139,27.935744,0,1,5
+50,"Classic reference",1,140,27.717632,0,1,5
+50,"Classic reference",1,141,28.184576,0,1,5
+50,"Classic reference",1,142,28.141568,0,1,5
+50,"Classic reference",1,143,27.803648,0,1,5
+50,"Classic reference",1,144,27.651072,0,1,5
+50,"Classic reference",1,145,28.008448,0,1,5
+50,"Classic reference",1,146,28.040192,0,1,5
+50,"Classic reference",1,147,27.764736,0,1,5
+50,"Classic reference",1,148,27.785216,0,1,5
+50,"Classic reference",1,149,27.882496,0,1,5
+50,"Classic reference",1,150,27.922432,0,1,5
+50,"Classic reference",1,151,27.975680,0,1,5
+50,"Classic reference",1,152,27.695104,0,1,5
+50,"Classic reference",1,153,28.041216,0,1,5
+50,"Classic reference",1,154,27.883520,0,1,5
+50,"Classic reference",1,155,27.693056,0,1,5
+50,"Classic reference",1,156,28.049408,0,1,5
+50,"Classic reference",1,157,27.963392,0,1,5
+50,"Classic reference",1,158,28.091392,0,1,5
+50,"Classic reference",1,159,27.852800,0,1,5
+50,"Fused reference",2,0,28.067840,0,1,5
+50,"Fused reference",2,1,27.925504,0,1,5
+50,"Fused reference",2,2,28.060672,0,1,5
+50,"Fused reference",2,3,27.736064,0,1,5
+50,"Fused reference",2,4,28.068864,0,1,5
+50,"Fused reference",2,5,28.003328,0,1,5
+50,"Fused reference",2,6,27.877376,0,1,5
+50,"Fused reference",2,7,27.641856,0,1,5
+50,"Fused reference",2,8,28.107776,0,1,5
+50,"Fused reference",2,9,28.047360,0,1,5
+50,"Fused reference",2,10,27.898880,0,1,5
+50,"Fused reference",2,11,27.632640,0,1,5
+50,"Fused reference",2,12,28.009472,0,1,5
+50,"Fused reference",2,13,28.230656,0,1,5
+50,"Fused reference",2,14,27.927552,0,1,5
+50,"Fused reference",2,15,27.630592,0,1,5
+50,"Fused reference",2,16,27.990016,0,1,5
+50,"Fused reference",2,17,28.298240,0,1,5
+50,"Fused reference",2,18,27.885568,0,1,5
+50,"Fused reference",2,19,27.621376,0,1,5
+50,"Fused reference",2,20,28.005376,0,1,5
+50,"Fused reference",2,21,28.043264,0,1,5
+50,"Fused reference",2,22,27.883520,0,1,5
+50,"Fused reference",2,23,27.944960,0,1,5
+50,"Fused reference",2,24,27.993088,0,1,5
+50,"Fused reference",2,25,28.188672,0,1,5
+50,"Fused reference",2,26,27.927552,0,1,5
+50,"Fused reference",2,27,27.817984,0,1,5
+50,"Fused reference",2,28,28.128256,0,1,5
+50,"Fused reference",2,29,28.050432,0,1,5
+50,"Fused reference",2,30,27.877376,0,1,5
+50,"Fused reference",2,31,27.963392,0,1,5
+50,"Fused reference",2,32,28.028928,0,1,5
+50,"Fused reference",2,33,27.965440,0,1,5
+50,"Fused reference",2,34,27.856896,0,1,5
+50,"Fused reference",2,35,27.937792,0,1,5
+50,"Fused reference",2,36,28.103680,0,1,5
+50,"Fused reference",2,37,27.918336,0,1,5
+50,"Fused reference",2,38,27.742208,0,1,5
+50,"Fused reference",2,39,27.941888,0,1,5
+50,"Fused reference",2,40,28.119040,0,1,5
+50,"Fused reference",2,41,28.019712,0,1,5
+50,"Fused reference",2,42,27.777024,0,1,5
+50,"Fused reference",2,43,28.061696,0,1,5
+50,"Fused reference",2,44,28.015616,0,1,5
+50,"Fused reference",2,45,28.188672,0,1,5
+50,"Fused reference",2,46,28.009472,0,1,5
+50,"Fused reference",2,47,27.858944,0,1,5
+50,"Fused reference",2,48,27.894784,0,1,5
+50,"Fused reference",2,49,28.060672,0,1,5
+50,"Fused reference",2,50,27.795456,0,1,5
+50,"Fused reference",2,51,28.114944,0,1,5
+50,"Fused reference",2,52,28.115968,0,1,5
+50,"Fused reference",2,53,28.093440,0,1,5
+50,"Fused reference",2,54,27.867136,0,1,5
+50,"Fused reference",2,55,28.076032,0,1,5
+50,"Fused reference",2,56,28.092416,0,1,5
+50,"Fused reference",2,57,28.195840,0,1,5
+50,"Fused reference",2,58,27.794432,0,1,5
+50,"Fused reference",2,59,28.080128,0,1,5
+50,"Fused reference",2,60,28.001280,0,1,5
+50,"Fused reference",2,61,27.868160,0,1,5
+50,"Fused reference",2,62,27.718656,0,1,5
+50,"Fused reference",2,63,28.237824,0,1,5
+50,"Fused reference",2,64,28.052480,0,1,5
+50,"Fused reference",2,65,27.938816,0,1,5
+50,"Fused reference",2,66,27.665408,0,1,5
+50,"Fused reference",2,67,28.083200,0,1,5
+50,"Fused reference",2,68,28.051456,0,1,5
+50,"Fused reference",2,69,28.040192,0,1,5
+50,"Fused reference",2,70,27.670528,0,1,5
+50,"Fused reference",2,71,28.053504,0,1,5
+50,"Fused reference",2,72,27.930624,0,1,5
+50,"Fused reference",2,73,27.862016,0,1,5
+50,"Fused reference",2,74,27.624448,0,1,5
+50,"Fused reference",2,75,28.402688,0,1,5
+50,"Fused reference",2,76,28.140544,0,1,5
+50,"Fused reference",2,77,27.790336,0,1,5
+50,"Fused reference",2,78,27.742208,0,1,5
+50,"Fused reference",2,79,28.224512,0,1,5
+50,"Fused reference",2,80,28.145664,0,1,5
+50,"Fused reference",2,81,27.784192,0,1,5
+50,"Fused reference",2,82,27.800576,0,1,5
+50,"Fused reference",2,83,28.250112,0,1,5
+50,"Fused reference",2,84,28.206080,0,1,5
+50,"Fused reference",2,85,27.955200,0,1,5
+50,"Fused reference",2,86,27.912192,0,1,5
+50,"Fused reference",2,87,28.039168,0,1,5
+50,"Fused reference",2,88,28.095488,0,1,5
+50,"Fused reference",2,89,27.851776,0,1,5
+50,"Fused reference",2,90,27.813888,0,1,5
+50,"Fused reference",2,91,27.968512,0,1,5
+50,"Fused reference",2,92,28.093440,0,1,5
+50,"Fused reference",2,93,27.883520,0,1,5
+50,"Fused reference",2,94,27.981824,0,1,5
+50,"Fused reference",2,95,28.071936,0,1,5
+50,"Fused reference",2,96,28.120064,0,1,5
+50,"Fused reference",2,97,27.873280,0,1,5
+50,"Fused reference",2,98,27.773952,0,1,5
+50,"Fused reference",2,99,28.189696,0,1,5
+50,"Fused reference",2,100,27.986944,0,1,5
+50,"Fused reference",2,101,27.714560,0,1,5
+50,"Fused reference",2,102,27.765760,0,1,5
+50,"Fused reference",2,103,28.046336,0,1,5
+50,"Fused reference",2,104,28.127232,0,1,5
+50,"Fused reference",2,105,27.626496,0,1,5
+50,"Fused reference",2,106,28.080128,0,1,5
+50,"Fused reference",2,107,27.838464,0,1,5
+50,"Fused reference",2,108,28.037120,0,1,5
+50,"Fused reference",2,109,27.667456,0,1,5
+50,"Fused reference",2,110,27.921408,0,1,5
+50,"Fused reference",2,111,27.854848,0,1,5
+50,"Fused reference",2,112,28.076032,0,1,5
+50,"Fused reference",2,113,27.843584,0,1,5
+50,"Fused reference",2,114,28.203008,0,1,5
+50,"Fused reference",2,115,28.049408,0,1,5
+50,"Fused reference",2,116,28.195840,0,1,5
+50,"Fused reference",2,117,27.756544,0,1,5
+50,"Fused reference",2,118,27.925504,0,1,5
+50,"Fused reference",2,119,27.834368,0,1,5
+50,"Fused reference",2,120,28.114944,0,1,5
+50,"Fused reference",2,121,27.865088,0,1,5
+50,"Fused reference",2,122,28.123136,0,1,5
+50,"Fused reference",2,123,28.050432,0,1,5
+50,"Fused reference",2,124,28.070912,0,1,5
+50,"Fused reference",2,125,27.658240,0,1,5
+50,"Fused reference",2,126,28.030976,0,1,5
+50,"Fused reference",2,127,28.044288,0,1,5
+50,"Fused reference",2,128,28.056576,0,1,5
+50,"Fused reference",2,129,27.607040,0,1,5
+50,"Fused reference",2,130,28.048384,0,1,5
+50,"Fused reference",2,131,27.868160,0,1,5
+50,"Fused reference",2,132,28.041216,0,1,5
+50,"Fused reference",2,133,27.884544,0,1,5
+50,"Fused reference",2,134,28.000256,0,1,5
+50,"Fused reference",2,135,28.294144,0,1,5
+50,"Fused reference",2,136,28.137472,0,1,5
+50,"Fused reference",2,137,27.616256,0,1,5
+50,"Fused reference",2,138,27.898880,0,1,5
+50,"Fused reference",2,139,27.997184,0,1,5
+50,"Fused reference",2,140,27.972608,0,1,5
+50,"Fused reference",2,141,27.688960,0,1,5
+50,"Fused reference",2,142,28.239872,0,1,5
+50,"Fused reference",2,143,28.257280,0,1,5
+50,"Fused reference",2,144,28.101632,0,1,5
+50,"Fused reference",2,145,27.665408,0,1,5
+50,"Fused reference",2,146,28.200960,0,1,5
+50,"Fused reference",2,147,28.281856,0,1,5
+50,"Fused reference",2,148,28.102656,0,1,5
+50,"Fused reference",2,149,27.781120,0,1,5
+50,"Fused reference",2,150,28.064768,0,1,5
+50,"Fused reference",2,151,28.384256,0,1,5
+50,"Fused reference",2,152,27.921408,0,1,5
+50,"Fused reference",2,153,27.666432,0,1,5
+50,"Fused reference",2,154,28.163072,0,1,5
+50,"Fused reference",2,155,28.225536,0,1,5
+50,"Fused reference",2,156,27.961344,0,1,5
+50,"Fused reference",2,157,27.625472,0,1,5
+50,"Fused reference",2,158,28.082176,0,1,5
+50,"Fused reference",2,159,28.106752,0,1,5
+50,"Inter-pass optimized",3,0,26.296320,0,1,5
+50,"Inter-pass optimized",3,1,26.174464,0,1,5
+50,"Inter-pass optimized",3,2,26.072064,0,1,5
+50,"Inter-pass optimized",3,3,26.473472,0,1,5
+50,"Inter-pass optimized",3,4,26.434560,0,1,5
+50,"Inter-pass optimized",3,5,26.082304,0,1,5
+50,"Inter-pass optimized",3,6,26.385408,0,1,5
+50,"Inter-pass optimized",3,7,26.032128,0,1,5
+50,"Inter-pass optimized",3,8,25.992192,0,1,5
+50,"Inter-pass optimized",3,9,26.417152,0,1,5
+50,"Inter-pass optimized",3,10,26.025984,0,1,5
+50,"Inter-pass optimized",3,11,26.224640,0,1,5
+50,"Inter-pass optimized",3,12,26.458112,0,1,5
+50,"Inter-pass optimized",3,13,26.047488,0,1,5
+50,"Inter-pass optimized",3,14,26.327040,0,1,5
+50,"Inter-pass optimized",3,15,26.502144,0,1,5
+50,"Inter-pass optimized",3,16,26.006528,0,1,5
+50,"Inter-pass optimized",3,17,26.514432,0,1,5
+50,"Inter-pass optimized",3,18,26.272768,0,1,5
+50,"Inter-pass optimized",3,19,25.918464,0,1,5
+50,"Inter-pass optimized",3,20,26.373120,0,1,5
+50,"Inter-pass optimized",3,21,26.323968,0,1,5
+50,"Inter-pass optimized",3,22,25.897984,0,1,5
+50,"Inter-pass optimized",3,23,26.357760,0,1,5
+50,"Inter-pass optimized",3,24,26.212352,0,1,5
+50,"Inter-pass optimized",3,25,26.059776,0,1,5
+50,"Inter-pass optimized",3,26,26.306560,0,1,5
+50,"Inter-pass optimized",3,27,26.260480,0,1,5
+50,"Inter-pass optimized",3,28,26.157056,0,1,5
+50,"Inter-pass optimized",3,29,26.340352,0,1,5
+50,"Inter-pass optimized",3,30,26.381312,0,1,5
+50,"Inter-pass optimized",3,31,26.101760,0,1,5
+50,"Inter-pass optimized",3,32,26.279936,0,1,5
+50,"Inter-pass optimized",3,33,26.175488,0,1,5
+50,"Inter-pass optimized",3,34,26.568704,0,1,5
+50,"Inter-pass optimized",3,35,26.213376,0,1,5
+50,"Inter-pass optimized",3,36,26.238976,0,1,5
+50,"Inter-pass optimized",3,37,26.218496,0,1,5
+50,"Inter-pass optimized",3,38,26.304512,0,1,5
+50,"Inter-pass optimized",3,39,26.232832,0,1,5
+50,"Inter-pass optimized",3,40,26.147840,0,1,5
+50,"Inter-pass optimized",3,41,26.308608,0,1,5
+50,"Inter-pass optimized",3,42,26.085376,0,1,5
+50,"Inter-pass optimized",3,43,26.060800,0,1,5
+50,"Inter-pass optimized",3,44,26.576896,0,1,5
+50,"Inter-pass optimized",3,45,26.226688,0,1,5
+50,"Inter-pass optimized",3,46,26.168320,0,1,5
+50,"Inter-pass optimized",3,47,26.380288,0,1,5
+50,"Inter-pass optimized",3,48,26.093568,0,1,5
+50,"Inter-pass optimized",3,49,26.087424,0,1,5
+50,"Inter-pass optimized",3,50,26.511360,0,1,5
+50,"Inter-pass optimized",3,51,26.128384,0,1,5
+50,"Inter-pass optimized",3,52,26.240000,0,1,5
+50,"Inter-pass optimized",3,53,26.582016,0,1,5
+50,"Inter-pass optimized",3,54,26.177536,0,1,5
+50,"Inter-pass optimized",3,55,26.220544,0,1,5
+50,"Inter-pass optimized",3,56,26.529792,0,1,5
+50,"Inter-pass optimized",3,57,26.046464,0,1,5
+50,"Inter-pass optimized",3,58,26.354688,0,1,5
+50,"Inter-pass optimized",3,59,26.405888,0,1,5
+50,"Inter-pass optimized",3,60,26.009600,0,1,5
+50,"Inter-pass optimized",3,61,26.466304,0,1,5
+50,"Inter-pass optimized",3,62,26.359808,0,1,5
+50,"Inter-pass optimized",3,63,25.879552,0,1,5
+50,"Inter-pass optimized",3,64,26.365952,0,1,5
+50,"Inter-pass optimized",3,65,26.183680,0,1,5
+50,"Inter-pass optimized",3,66,26.042368,0,1,5
+50,"Inter-pass optimized",3,67,26.323968,0,1,5
+50,"Inter-pass optimized",3,68,26.347520,0,1,5
+50,"Inter-pass optimized",3,69,26.106880,0,1,5
+50,"Inter-pass optimized",3,70,26.104832,0,1,5
+50,"Inter-pass optimized",3,71,26.260480,0,1,5
+50,"Inter-pass optimized",3,72,26.174464,0,1,5
+50,"Inter-pass optimized",3,73,26.363904,0,1,5
+50,"Inter-pass optimized",3,74,26.349568,0,1,5
+50,"Inter-pass optimized",3,75,26.162176,0,1,5
+50,"Inter-pass optimized",3,76,26.307584,0,1,5
+50,"Inter-pass optimized",3,77,26.361856,0,1,5
+50,"Inter-pass optimized",3,78,26.234880,0,1,5
+50,"Inter-pass optimized",3,79,26.345472,0,1,5
+50,"Inter-pass optimized",3,80,26.184704,0,1,5
+50,"Inter-pass optimized",3,81,26.290176,0,1,5
+50,"Inter-pass optimized",3,82,26.521600,0,1,5
+50,"Inter-pass optimized",3,83,26.107904,0,1,5
+50,"Inter-pass optimized",3,84,26.090496,0,1,5
+50,"Inter-pass optimized",3,85,26.384384,0,1,5
+50,"Inter-pass optimized",3,86,26.100736,0,1,5
+50,"Inter-pass optimized",3,87,26.092544,0,1,5
+50,"Inter-pass optimized",3,88,26.521600,0,1,5
+50,"Inter-pass optimized",3,89,26.164224,0,1,5
+50,"Inter-pass optimized",3,90,26.223616,0,1,5
+50,"Inter-pass optimized",3,91,26.519552,0,1,5
+50,"Inter-pass optimized",3,92,26.108928,0,1,5
+50,"Inter-pass optimized",3,93,26.302464,0,1,5
+50,"Inter-pass optimized",3,94,26.523648,0,1,5
+50,"Inter-pass optimized",3,95,26.156032,0,1,5
+50,"Inter-pass optimized",3,96,26.446848,0,1,5
+50,"Inter-pass optimized",3,97,26.443776,0,1,5
+50,"Inter-pass optimized",3,98,26.014720,0,1,5
+50,"Inter-pass optimized",3,99,26.374144,0,1,5
+50,"Inter-pass optimized",3,100,26.286080,0,1,5
+50,"Inter-pass optimized",3,101,25.836544,0,1,5
+50,"Inter-pass optimized",3,102,26.422272,0,1,5
+50,"Inter-pass optimized",3,103,26.254336,0,1,5
+50,"Inter-pass optimized",3,104,25.950208,0,1,5
+50,"Inter-pass optimized",3,105,26.341376,0,1,5
+50,"Inter-pass optimized",3,106,26.276864,0,1,5
+50,"Inter-pass optimized",3,107,26.109952,0,1,5
+50,"Inter-pass optimized",3,108,26.334208,0,1,5
+50,"Inter-pass optimized",3,109,26.368000,0,1,5
+50,"Inter-pass optimized",3,110,26.157056,0,1,5
+50,"Inter-pass optimized",3,111,26.269696,0,1,5
+50,"Inter-pass optimized",3,112,26.383360,0,1,5
+50,"Inter-pass optimized",3,113,26.115072,0,1,5
+50,"Inter-pass optimized",3,114,26.250240,0,1,5
+50,"Inter-pass optimized",3,115,26.188800,0,1,5
+50,"Inter-pass optimized",3,116,26.263552,0,1,5
+50,"Inter-pass optimized",3,117,26.288128,0,1,5
+50,"Inter-pass optimized",3,118,26.270720,0,1,5
+50,"Inter-pass optimized",3,119,26.052608,0,1,5
+50,"Inter-pass optimized",3,120,26.303488,0,1,5
+50,"Inter-pass optimized",3,121,26.182656,0,1,5
+50,"Inter-pass optimized",3,122,26.198016,0,1,5
+50,"Inter-pass optimized",3,123,26.519552,0,1,5
+50,"Inter-pass optimized",3,124,26.244096,0,1,5
+50,"Inter-pass optimized",3,125,26.347520,0,1,5
+50,"Inter-pass optimized",3,126,26.547200,0,1,5
+50,"Inter-pass optimized",3,127,26.062848,0,1,5
+50,"Inter-pass optimized",3,128,26.134528,0,1,5
+50,"Inter-pass optimized",3,129,26.403840,0,1,5
+50,"Inter-pass optimized",3,130,26.067968,0,1,5
+50,"Inter-pass optimized",3,131,26.032128,0,1,5
+50,"Inter-pass optimized",3,132,26.556416,0,1,5
+50,"Inter-pass optimized",3,133,26.093568,0,1,5
+50,"Inter-pass optimized",3,134,26.200064,0,1,5
+50,"Inter-pass optimized",3,135,26.439680,0,1,5
+50,"Inter-pass optimized",3,136,26.013696,0,1,5
+50,"Inter-pass optimized",3,137,26.128384,0,1,5
+50,"Inter-pass optimized",3,138,26.446848,0,1,5
+50,"Inter-pass optimized",3,139,26.058752,0,1,5
+50,"Inter-pass optimized",3,140,26.291200,0,1,5
+50,"Inter-pass optimized",3,141,26.569728,0,1,5
+50,"Inter-pass optimized",3,142,26.125312,0,1,5
+50,"Inter-pass optimized",3,143,26.221568,0,1,5
+50,"Inter-pass optimized",3,144,26.586112,0,1,5
+50,"Inter-pass optimized",3,145,26.094592,0,1,5
+50,"Inter-pass optimized",3,146,26.341376,0,1,5
+50,"Inter-pass optimized",3,147,26.482688,0,1,5
+50,"Inter-pass optimized",3,148,25.964544,0,1,5
+50,"Inter-pass optimized",3,149,26.363904,0,1,5
+50,"Inter-pass optimized",3,150,26.604544,0,1,5
+50,"Inter-pass optimized",3,151,26.097664,0,1,5
+50,"Inter-pass optimized",3,152,26.481664,0,1,5
+50,"Inter-pass optimized",3,153,26.408960,0,1,5
+50,"Inter-pass optimized",3,154,26.222592,0,1,5
+50,"Inter-pass optimized",3,155,26.402816,0,1,5
+50,"Inter-pass optimized",3,156,26.455040,0,1,5
+50,"Inter-pass optimized",3,157,25.955328,0,1,5
+50,"Inter-pass optimized",3,158,26.387456,0,1,5
+50,"Inter-pass optimized",3,159,26.359808,0,1,5
+50,"Inter-pass fast",4,0,25.676800,1,1,5
+50,"Inter-pass fast",4,1,25.913344,1,1,5
+50,"Inter-pass fast",4,2,25.568256,1,1,5
+50,"Inter-pass fast",4,3,26.288128,1,1,5
+50,"Inter-pass fast",4,4,25.867264,1,1,5
+50,"Inter-pass fast",4,5,25.673728,1,1,5
+50,"Inter-pass fast",4,6,25.961472,1,1,5
+50,"Inter-pass fast",4,7,25.914368,1,1,5
+50,"Inter-pass fast",4,8,25.881600,1,1,5
+50,"Inter-pass fast",4,9,26.060800,1,1,5
+50,"Inter-pass fast",4,10,25.708544,1,1,5
+50,"Inter-pass fast",4,11,25.709568,1,1,5
+50,"Inter-pass fast",4,12,26.077184,1,1,5
+50,"Inter-pass fast",4,13,25.665536,1,1,5
+50,"Inter-pass fast",4,14,26.075136,1,1,5
+50,"Inter-pass fast",4,15,26.030080,1,1,5
+50,"Inter-pass fast",4,16,25.613312,1,1,5
+50,"Inter-pass fast",4,17,25.986048,1,1,5
+50,"Inter-pass fast",4,18,25.887744,1,1,5
+50,"Inter-pass fast",4,19,25.633792,1,1,5
+50,"Inter-pass fast",4,20,25.982976,1,1,5
+50,"Inter-pass fast",4,21,25.708544,1,1,5
+50,"Inter-pass fast",4,22,25.908224,1,1,5
+50,"Inter-pass fast",4,23,26.157056,1,1,5
+50,"Inter-pass fast",4,24,25.726976,1,1,5
+50,"Inter-pass fast",4,25,25.878528,1,1,5
+50,"Inter-pass fast",4,26,25.818112,1,1,5
+50,"Inter-pass fast",4,27,25.705472,1,1,5
+50,"Inter-pass fast",4,28,26.188800,1,1,5
+50,"Inter-pass fast",4,29,26.157056,1,1,5
+50,"Inter-pass fast",4,30,25.717760,1,1,5
+50,"Inter-pass fast",4,31,26.020864,1,1,5
+50,"Inter-pass fast",4,32,25.944064,1,1,5
+50,"Inter-pass fast",4,33,25.858048,1,1,5
+50,"Inter-pass fast",4,34,26.024960,1,1,5
+50,"Inter-pass fast",4,35,25.673728,1,1,5
+50,"Inter-pass fast",4,36,25.879552,1,1,5
+50,"Inter-pass fast",4,37,26.251264,1,1,5
+50,"Inter-pass fast",4,38,25.678848,1,1,5
+50,"Inter-pass fast",4,39,26.104832,1,1,5
+50,"Inter-pass fast",4,40,25.933824,1,1,5
+50,"Inter-pass fast",4,41,25.606144,1,1,5
+50,"Inter-pass fast",4,42,25.971712,1,1,5
+50,"Inter-pass fast",4,43,25.858048,1,1,5
+50,"Inter-pass fast",4,44,25.779200,1,1,5
+50,"Inter-pass fast",4,45,25.973760,1,1,5
+50,"Inter-pass fast",4,46,25.826304,1,1,5
+50,"Inter-pass fast",4,47,25.737216,1,1,5
+50,"Inter-pass fast",4,48,26.049536,1,1,5
+50,"Inter-pass fast",4,49,25.647104,1,1,5
+50,"Inter-pass fast",4,50,26.043392,1,1,5
+50,"Inter-pass fast",4,51,26.061824,1,1,5
+50,"Inter-pass fast",4,52,25.729024,1,1,5
+50,"Inter-pass fast",4,53,26.024960,1,1,5
+50,"Inter-pass fast",4,54,25.866240,1,1,5
+50,"Inter-pass fast",4,55,25.619456,1,1,5
+50,"Inter-pass fast",4,56,25.981952,1,1,5
+50,"Inter-pass fast",4,57,25.999360,1,1,5
+50,"Inter-pass fast",4,58,25.838592,1,1,5
+50,"Inter-pass fast",4,59,26.041344,1,1,5
+50,"Inter-pass fast",4,60,25.674752,1,1,5
+50,"Inter-pass fast",4,61,26.021888,1,1,5
+50,"Inter-pass fast",4,62,26.207232,1,1,5
+50,"Inter-pass fast",4,63,25.699328,1,1,5
+50,"Inter-pass fast",4,64,26.195968,1,1,5
+50,"Inter-pass fast",4,65,25.845760,1,1,5
+50,"Inter-pass fast",4,66,25.651200,1,1,5
+50,"Inter-pass fast",4,67,25.875456,1,1,5
+50,"Inter-pass fast",4,68,25.844736,1,1,5
+50,"Inter-pass fast",4,69,25.793536,1,1,5
+50,"Inter-pass fast",4,70,26.091520,1,1,5
+50,"Inter-pass fast",4,71,25.801728,1,1,5
+50,"Inter-pass fast",4,72,25.969664,1,1,5
+50,"Inter-pass fast",4,73,26.233856,1,1,5
+50,"Inter-pass fast",4,74,25.781248,1,1,5
+50,"Inter-pass fast",4,75,26.206208,1,1,5
+50,"Inter-pass fast",4,76,26.080256,1,1,5
+50,"Inter-pass fast",4,77,25.670656,1,1,5
+50,"Inter-pass fast",4,78,26.215424,1,1,5
+50,"Inter-pass fast",4,79,26.027008,1,1,5
+50,"Inter-pass fast",4,80,25.806848,1,1,5
+50,"Inter-pass fast",4,81,25.950208,1,1,5
+50,"Inter-pass fast",4,82,25.797632,1,1,5
+50,"Inter-pass fast",4,83,25.596928,1,1,5
+50,"Inter-pass fast",4,84,26.156032,1,1,5
+50,"Inter-pass fast",4,85,25.777152,1,1,5
+50,"Inter-pass fast",4,86,25.713664,1,1,5
+50,"Inter-pass fast",4,87,26.129408,1,1,5
+50,"Inter-pass fast",4,88,25.808896,1,1,5
+50,"Inter-pass fast",4,89,26.231808,1,1,5
+50,"Inter-pass fast",4,90,26.240000,1,1,5
+50,"Inter-pass fast",4,91,25.796608,1,1,5
+50,"Inter-pass fast",4,92,26.281984,1,1,5
+50,"Inter-pass fast",4,93,25.969664,1,1,5
+50,"Inter-pass fast",4,94,25.687040,1,1,5
+50,"Inter-pass fast",4,95,25.946112,1,1,5
+50,"Inter-pass fast",4,96,25.814016,1,1,5
+50,"Inter-pass fast",4,97,25.625600,1,1,5
+50,"Inter-pass fast",4,98,25.987072,1,1,5
+50,"Inter-pass fast",4,99,25.694208,1,1,5
+50,"Inter-pass fast",4,100,25.943040,1,1,5
+50,"Inter-pass fast",4,101,26.316800,1,1,5
+50,"Inter-pass fast",4,102,25.874432,1,1,5
+50,"Inter-pass fast",4,103,26.204160,1,1,5
+50,"Inter-pass fast",4,104,26.094592,1,1,5
+50,"Inter-pass fast",4,105,25.625600,1,1,5
+50,"Inter-pass fast",4,106,26.270720,1,1,5
+50,"Inter-pass fast",4,107,26.020864,1,1,5
+50,"Inter-pass fast",4,108,25.724928,1,1,5
+50,"Inter-pass fast",4,109,25.872384,1,1,5
+50,"Inter-pass fast",4,110,25.807872,1,1,5
+50,"Inter-pass fast",4,111,25.715712,1,1,5
+50,"Inter-pass fast",4,112,26.136576,1,1,5
+50,"Inter-pass fast",4,113,25.783296,1,1,5
+50,"Inter-pass fast",4,114,25.748480,1,1,5
+50,"Inter-pass fast",4,115,26.012672,1,1,5
+50,"Inter-pass fast",4,116,25.681920,1,1,5
+50,"Inter-pass fast",4,117,26.311680,1,1,5
+50,"Inter-pass fast",4,118,26.039296,1,1,5
+50,"Inter-pass fast",4,119,25.743360,1,1,5
+50,"Inter-pass fast",4,120,26.283008,1,1,5
+50,"Inter-pass fast",4,121,26.266624,1,1,5
+50,"Inter-pass fast",4,122,25.635840,1,1,5
+50,"Inter-pass fast",4,123,26.012672,1,1,5
+50,"Inter-pass fast",4,124,25.880576,1,1,5
+50,"Inter-pass fast",4,125,25.664512,1,1,5
+50,"Inter-pass fast",4,126,26.018816,1,1,5
+50,"Inter-pass fast",4,127,25.694208,1,1,5
+50,"Inter-pass fast",4,128,25.787392,1,1,5
+50,"Inter-pass fast",4,129,26.241024,1,1,5
+50,"Inter-pass fast",4,130,25.833472,1,1,5
+50,"Inter-pass fast",4,131,26.208256,1,1,5
+50,"Inter-pass fast",4,132,26.263552,1,1,5
+50,"Inter-pass fast",4,133,25.804800,1,1,5
+50,"Inter-pass fast",4,134,26.283008,1,1,5
+50,"Inter-pass fast",4,135,25.921536,1,1,5
+50,"Inter-pass fast",4,136,25.692160,1,1,5
+50,"Inter-pass fast",4,137,25.756672,1,1,5
+50,"Inter-pass fast",4,138,25.861120,1,1,5
+50,"Inter-pass fast",4,139,25.746432,1,1,5
+50,"Inter-pass fast",4,140,26.027008,1,1,5
+50,"Inter-pass fast",4,141,25.513984,1,1,5
+50,"Inter-pass fast",4,142,25.668608,1,1,5
+50,"Inter-pass fast",4,143,25.802752,1,1,5
+50,"Inter-pass fast",4,144,25.525248,1,1,5
+50,"Inter-pass fast",4,145,26.201088,1,1,5
+50,"Inter-pass fast",4,146,25.879552,1,1,5
+50,"Inter-pass fast",4,147,25.616384,1,1,5
+50,"Inter-pass fast",4,148,25.991168,1,1,5
+50,"Inter-pass fast",4,149,25.902080,1,1,5
+50,"Inter-pass fast",4,150,25.748480,1,1,5
+50,"Inter-pass fast",4,151,25.967616,1,1,5
+50,"Inter-pass fast",4,152,25.828352,1,1,5
+50,"Inter-pass fast",4,153,25.690112,1,1,5
+50,"Inter-pass fast",4,154,26.033152,1,1,5
+50,"Inter-pass fast",4,155,25.456640,1,1,5
+50,"Inter-pass fast",4,156,25.932800,1,1,5
+50,"Inter-pass fast",4,157,25.655296,1,1,5
+50,"Inter-pass fast",4,158,25.469952,1,1,5
+50,"Inter-pass fast",4,159,25.912320,1,1,5
+50,"Fast cached low",5,0,25.821184,1,1,5
+50,"Fast cached low",5,1,26.291200,1,1,5
+50,"Fast cached low",5,2,25.786368,1,1,5
+50,"Fast cached low",5,3,26.112000,1,1,5
+50,"Fast cached low",5,4,26.113024,1,1,5
+50,"Fast cached low",5,5,25.657344,1,1,5
+50,"Fast cached low",5,6,26.104832,1,1,5
+50,"Fast cached low",5,7,25.988096,1,1,5
+50,"Fast cached low",5,8,25.657344,1,1,5
+50,"Fast cached low",5,9,25.646080,1,1,5
+50,"Fast cached low",5,10,25.689088,1,1,5
+50,"Fast cached low",5,11,25.607168,1,1,5
+50,"Fast cached low",5,12,25.896960,1,1,5
+50,"Fast cached low",5,13,25.395200,1,1,5
+50,"Fast cached low",5,14,25.795584,1,1,5
+50,"Fast cached low",5,15,25.878528,1,1,5
+50,"Fast cached low",5,16,25.418752,1,1,5
+50,"Fast cached low",5,17,25.777152,1,1,5
+50,"Fast cached low",5,18,25.633792,1,1,5
+50,"Fast cached low",5,19,25.508864,1,1,5
+50,"Fast cached low",5,20,25.851904,1,1,5
+50,"Fast cached low",5,21,25.465856,1,1,5
+50,"Fast cached low",5,22,25.546752,1,1,5
+50,"Fast cached low",5,23,25.752576,1,1,5
+50,"Fast cached low",5,24,25.423872,1,1,5
+50,"Fast cached low",5,25,26.038272,1,1,5
+50,"Fast cached low",5,26,25.854976,1,1,5
+50,"Fast cached low",5,27,25.679872,1,1,5
+50,"Fast cached low",5,28,25.833472,1,1,5
+50,"Fast cached low",5,29,25.917440,1,1,5
+50,"Fast cached low",5,30,25.721856,1,1,5
+50,"Fast cached low",5,31,26.218496,1,1,5
+50,"Fast cached low",5,32,25.918464,1,1,5
+50,"Fast cached low",5,33,25.845760,1,1,5
+50,"Fast cached low",5,34,26.189824,1,1,5
+50,"Fast cached low",5,35,25.782272,1,1,5
+50,"Fast cached low",5,36,25.782272,1,1,5
+50,"Fast cached low",5,37,25.996288,1,1,5
+50,"Fast cached low",5,38,25.603072,1,1,5
+50,"Fast cached low",5,39,25.980928,1,1,5
+50,"Fast cached low",5,40,25.952256,1,1,5
+50,"Fast cached low",5,41,25.501696,1,1,5
+50,"Fast cached low",5,42,25.916416,1,1,5
+50,"Fast cached low",5,43,25.757696,1,1,5
+50,"Fast cached low",5,44,25.558016,1,1,5
+50,"Fast cached low",5,45,25.798656,1,1,5
+50,"Fast cached low",5,46,25.490432,1,1,5
+50,"Fast cached low",5,47,25.576448,1,1,5
+50,"Fast cached low",5,48,25.853952,1,1,5
+50,"Fast cached low",5,49,25.425920,1,1,5
+50,"Fast cached low",5,50,25.864192,1,1,5
+50,"Fast cached low",5,51,25.585664,1,1,5
+50,"Fast cached low",5,52,25.422848,1,1,5
+50,"Fast cached low",5,53,25.829376,1,1,5
+50,"Fast cached low",5,54,25.699328,1,1,5
+50,"Fast cached low",5,55,25.606144,1,1,5
+50,"Fast cached low",5,56,25.911296,1,1,5
+50,"Fast cached low",5,57,25.626624,1,1,5
+50,"Fast cached low",5,58,25.892864,1,1,5
+50,"Fast cached low",5,59,26.148864,1,1,5
+50,"Fast cached low",5,60,25.749504,1,1,5
+50,"Fast cached low",5,61,26.148864,1,1,5
+50,"Fast cached low",5,62,26.128384,1,1,5
+50,"Fast cached low",5,63,25.675776,1,1,5
+50,"Fast cached low",5,64,26.119168,1,1,5
+50,"Fast cached low",5,65,25.824256,1,1,5
+50,"Fast cached low",5,66,25.686016,1,1,5
+50,"Fast cached low",5,67,25.903104,1,1,5
+50,"Fast cached low",5,68,25.826304,1,1,5
+50,"Fast cached low",5,69,25.876480,1,1,5
+50,"Fast cached low",5,70,26.086400,1,1,5
+50,"Fast cached low",5,71,25.659392,1,1,5
+50,"Fast cached low",5,72,25.644032,1,1,5
+50,"Fast cached low",5,73,25.948160,1,1,5
+50,"Fast cached low",5,74,25.529344,1,1,5
+50,"Fast cached low",5,75,25.784320,1,1,5
+50,"Fast cached low",5,76,25.899008,1,1,5
+50,"Fast cached low",5,77,25.494528,1,1,5
+50,"Fast cached low",5,78,25.757696,1,1,5
+50,"Fast cached low",5,79,25.579520,1,1,5
+50,"Fast cached low",5,80,25.424896,1,1,5
+50,"Fast cached low",5,81,25.885696,1,1,5
+50,"Fast cached low",5,82,25.507840,1,1,5
+50,"Fast cached low",5,83,25.546752,1,1,5
+50,"Fast cached low",5,84,25.985024,1,1,5
+50,"Fast cached low",5,85,25.538560,1,1,5
+50,"Fast cached low",5,86,26.443776,1,1,5
+50,"Fast cached low",5,87,25.802752,1,1,5
+50,"Fast cached low",5,88,25.538560,1,1,5
+50,"Fast cached low",5,89,25.931776,1,1,5
+50,"Fast cached low",5,90,25.879552,1,1,5
+50,"Fast cached low",5,91,25.734144,1,1,5
+50,"Fast cached low",5,92,26.071040,1,1,5
+50,"Fast cached low",5,93,25.783296,1,1,5
+50,"Fast cached low",5,94,25.838592,1,1,5
+50,"Fast cached low",5,95,26.094592,1,1,5
+50,"Fast cached low",5,96,25.591808,1,1,5
+50,"Fast cached low",5,97,25.741312,1,1,5
+50,"Fast cached low",5,98,26.014720,1,1,5
+50,"Fast cached low",5,99,25.578496,1,1,5
+50,"Fast cached low",5,100,26.078208,1,1,5
+50,"Fast cached low",5,101,25.773056,1,1,5
+50,"Fast cached low",5,102,25.636864,1,1,5
+50,"Fast cached low",5,103,25.853952,1,1,5
+50,"Fast cached low",5,104,25.754624,1,1,5
+50,"Fast cached low",5,105,25.654272,1,1,5
+50,"Fast cached low",5,106,25.814016,1,1,5
+50,"Fast cached low",5,107,25.431040,1,1,5
+50,"Fast cached low",5,108,25.676800,1,1,5
+50,"Fast cached low",5,109,25.804800,1,1,5
+50,"Fast cached low",5,110,25.424896,1,1,5
+50,"Fast cached low",5,111,25.956352,1,1,5
+50,"Fast cached low",5,112,25.732096,1,1,5
+50,"Fast cached low",5,113,25.506816,1,1,5
+50,"Fast cached low",5,114,25.705472,1,1,5
+50,"Fast cached low",5,115,25.669632,1,1,5
+50,"Fast cached low",5,116,25.622528,1,1,5
+50,"Fast cached low",5,117,26.056704,1,1,5
+50,"Fast cached low",5,118,25.489408,1,1,5
+50,"Fast cached low",5,119,25.697280,1,1,5
+50,"Fast cached low",5,120,26.127360,1,1,5
+50,"Fast cached low",5,121,25.680896,1,1,5
+50,"Fast cached low",5,122,26.110976,1,1,5
+50,"Fast cached low",5,123,25.924608,1,1,5
+50,"Fast cached low",5,124,25.486336,1,1,5
+50,"Fast cached low",5,125,26.074112,1,1,5
+50,"Fast cached low",5,126,25.753600,1,1,5
+50,"Fast cached low",5,127,25.580544,1,1,5
+50,"Fast cached low",5,128,25.843712,1,1,5
+50,"Fast cached low",5,129,25.803776,1,1,5
+50,"Fast cached low",5,130,25.837568,1,1,5
+50,"Fast cached low",5,131,26.082304,1,1,5
+50,"Fast cached low",5,132,25.655296,1,1,5
+50,"Fast cached low",5,133,25.729024,1,1,5
+50,"Fast cached low",5,134,25.829376,1,1,5
+50,"Fast cached low",5,135,25.511936,1,1,5
+50,"Fast cached low",5,136,26.038272,1,1,5
+50,"Fast cached low",5,137,25.761792,1,1,5
+50,"Fast cached low",5,138,25.547776,1,1,5
+50,"Fast cached low",5,139,25.871360,1,1,5
+50,"Fast cached low",5,140,25.602048,1,1,5
+50,"Fast cached low",5,141,25.632768,1,1,5
+50,"Fast cached low",5,142,25.911296,1,1,5
+50,"Fast cached low",5,143,25.456640,1,1,5
+50,"Fast cached low",5,144,26.000384,1,1,5
+50,"Fast cached low",5,145,25.784320,1,1,5
+50,"Fast cached low",5,146,25.508864,1,1,5
+50,"Fast cached low",5,147,25.981952,1,1,5
+50,"Fast cached low",5,148,25.633792,1,1,5
+50,"Fast cached low",5,149,25.691136,1,1,5
+50,"Fast cached low",5,150,26.046464,1,1,5
+50,"Fast cached low",5,151,25.712640,1,1,5
+50,"Fast cached low",5,152,26.096640,1,1,5
+50,"Fast cached low",5,153,26.106880,1,1,5
+50,"Fast cached low",5,154,25.551872,1,1,5
+50,"Fast cached low",5,155,26.071040,1,1,5
+50,"Fast cached low",5,156,25.775104,1,1,5
+50,"Fast cached low",5,157,25.542656,1,1,5
+50,"Fast cached low",5,158,25.894912,1,1,5
+50,"Fast cached low",5,159,25.713664,1,1,5
+50,"Fast cached low",6,0,25.772032,1,1,5
+50,"Fast cached low",6,1,25.954304,1,1,5
+50,"Fast cached low",6,2,25.549824,1,1,5
+50,"Fast cached low",6,3,26.157056,1,1,5
+50,"Fast cached low",6,4,25.895936,1,1,5
+50,"Fast cached low",6,5,25.606144,1,1,5
+50,"Fast cached low",6,6,25.692160,1,1,5
+50,"Fast cached low",6,7,25.668608,1,1,5
+50,"Fast cached low",6,8,25.631744,1,1,5
+50,"Fast cached low",6,9,26.115072,1,1,5
+50,"Fast cached low",6,10,25.698304,1,1,5
+50,"Fast cached low",6,11,25.831424,1,1,5
+50,"Fast cached low",6,12,26.285056,1,1,5
+50,"Fast cached low",6,13,25.635840,1,1,5
+50,"Fast cached low",6,14,26.161152,1,1,5
+50,"Fast cached low",6,15,25.700352,1,1,5
+50,"Fast cached low",6,16,25.454592,1,1,5
+50,"Fast cached low",6,17,25.595904,1,1,5
+50,"Fast cached low",6,18,25.748480,1,1,5
+50,"Fast cached low",6,19,25.611264,1,1,5
+50,"Fast cached low",6,20,25.942016,1,1,5
+50,"Fast cached low",6,21,25.547776,1,1,5
+50,"Fast cached low",6,22,26.143744,1,1,5
+50,"Fast cached low",6,23,26.103808,1,1,5
+50,"Fast cached low",6,24,25.672704,1,1,5
+50,"Fast cached low",6,25,25.798656,1,1,5
+50,"Fast cached low",6,26,25.779200,1,1,5
+50,"Fast cached low",6,27,25.625600,1,1,5
+50,"Fast cached low",6,28,25.851904,1,1,5
+50,"Fast cached low",6,29,25.522176,1,1,5
+50,"Fast cached low",6,30,25.683968,1,1,5
+50,"Fast cached low",6,31,25.985024,1,1,5
+50,"Fast cached low",6,32,25.566208,1,1,5
+50,"Fast cached low",6,33,26.144768,1,1,5
+50,"Fast cached low",6,34,25.799680,1,1,5
+50,"Fast cached low",6,35,25.621504,1,1,5
+50,"Fast cached low",6,36,25.821184,1,1,5
+50,"Fast cached low",6,37,25.733120,1,1,5
+50,"Fast cached low",6,38,25.638912,1,1,5
+50,"Fast cached low",6,39,25.993216,1,1,5
+50,"Fast cached low",6,40,25.691136,1,1,5
+50,"Fast cached low",6,41,25.839616,1,1,5
+50,"Fast cached low",6,42,26.312704,1,1,5
+50,"Fast cached low",6,43,25.654272,1,1,5
+50,"Fast cached low",6,44,26.273792,1,1,5
+50,"Fast cached low",6,45,25.821184,1,1,5
+50,"Fast cached low",6,46,25.427968,1,1,5
+50,"Fast cached low",6,47,25.630720,1,1,5
+50,"Fast cached low",6,48,25.568256,1,1,5
+50,"Fast cached low",6,49,25.518080,1,1,5
+50,"Fast cached low",6,50,25.946112,1,1,5
+50,"Fast cached low",6,51,25.555968,1,1,5
+50,"Fast cached low",6,52,25.880576,1,1,5
+50,"Fast cached low",6,53,26.076160,1,1,5
+50,"Fast cached low",6,54,25.576448,1,1,5
+50,"Fast cached low",6,55,26.044416,1,1,5
+50,"Fast cached low",6,56,25.768960,1,1,5
+50,"Fast cached low",6,57,25.498624,1,1,5
+50,"Fast cached low",6,58,25.669632,1,1,5
+50,"Fast cached low",6,59,25.725952,1,1,5
+50,"Fast cached low",6,60,25.711616,1,1,5
+50,"Fast cached low",6,61,26.037248,1,1,5
+50,"Fast cached low",6,62,25.670656,1,1,5
+50,"Fast cached low",6,63,26.131456,1,1,5
+50,"Fast cached low",6,64,25.951232,1,1,5
+50,"Fast cached low",6,65,25.533440,1,1,5
+50,"Fast cached low",6,66,25.937920,1,1,5
+50,"Fast cached low",6,67,25.805824,1,1,5
+50,"Fast cached low",6,68,25.686016,1,1,5
+50,"Fast cached low",6,69,25.999360,1,1,5
+50,"Fast cached low",6,70,25.695232,1,1,5
+50,"Fast cached low",6,71,25.816064,1,1,5
+50,"Fast cached low",6,72,26.319872,1,1,5
+50,"Fast cached low",6,73,25.735168,1,1,5
+50,"Fast cached low",6,74,26.133504,1,1,5
+50,"Fast cached low",6,75,25.957376,1,1,5
+50,"Fast cached low",6,76,25.600000,1,1,5
+50,"Fast cached low",6,77,25.784320,1,1,5
+50,"Fast cached low",6,78,25.696256,1,1,5
+50,"Fast cached low",6,79,25.618432,1,1,5
+50,"Fast cached low",6,80,25.936896,1,1,5
+50,"Fast cached low",6,81,25.539584,1,1,5
+50,"Fast cached low",6,82,25.828352,1,1,5
+50,"Fast cached low",6,83,26.169344,1,1,5
+50,"Fast cached low",6,84,25.619456,1,1,5
+50,"Fast cached low",6,85,26.062848,1,1,5
+50,"Fast cached low",6,86,25.807872,1,1,5
+50,"Fast cached low",6,87,25.508864,1,1,5
+50,"Fast cached low",6,88,25.714688,1,1,5
+50,"Fast cached low",6,89,25.627648,1,1,5
+50,"Fast cached low",6,90,25.640960,1,1,5
+50,"Fast cached low",6,91,25.993216,1,1,5
+50,"Fast cached low",6,92,25.583616,1,1,5
+50,"Fast cached low",6,93,25.976832,1,1,5
+50,"Fast cached low",6,94,25.857024,1,1,5
+50,"Fast cached low",6,95,25.461760,1,1,5
+50,"Fast cached low",6,96,25.895936,1,1,5
+50,"Fast cached low",6,97,25.716736,1,1,5
+50,"Fast cached low",6,98,25.598976,1,1,5
+50,"Fast cached low",6,99,25.980928,1,1,5
+50,"Fast cached low",6,100,25.705472,1,1,5
+50,"Fast cached low",6,101,25.783296,1,1,5
+50,"Fast cached low",6,102,26.165248,1,1,5
+50,"Fast cached low",6,103,25.739264,1,1,5
+50,"Fast cached low",6,104,26.211328,1,1,5
+50,"Fast cached low",6,105,25.944064,1,1,5
+50,"Fast cached low",6,106,25.590784,1,1,5
+50,"Fast cached low",6,107,25.652224,1,1,5
+50,"Fast cached low",6,108,25.634816,1,1,5
+50,"Fast cached low",6,109,25.609216,1,1,5
+50,"Fast cached low",6,110,25.917440,1,1,5
+50,"Fast cached low",6,111,25.555968,1,1,5
+50,"Fast cached low",6,112,25.761792,1,1,5
+50,"Fast cached low",6,113,25.993216,1,1,5
+50,"Fast cached low",6,114,25.650176,1,1,5
+50,"Fast cached low",6,115,26.077184,1,1,5
+50,"Fast cached low",6,116,25.802752,1,1,5
+50,"Fast cached low",6,117,25.624576,1,1,5
+50,"Fast cached low",6,118,25.909248,1,1,5
+50,"Fast cached low",6,119,25.606144,1,1,5
+50,"Fast cached low",6,120,25.626624,1,1,5
+50,"Fast cached low",6,121,25.991168,1,1,5
+50,"Fast cached low",6,122,25.657344,1,1,5
+50,"Fast cached low",6,123,26.077184,1,1,5
+50,"Fast cached low",6,124,25.962496,1,1,5
+50,"Fast cached low",6,125,25.611264,1,1,5
+50,"Fast cached low",6,126,25.849856,1,1,5
+50,"Fast cached low",6,127,25.811968,1,1,5
+50,"Fast cached low",6,128,25.783296,1,1,5
+50,"Fast cached low",6,129,25.988096,1,1,5
+50,"Fast cached low",6,130,25.537536,1,1,5
+50,"Fast cached low",6,131,25.878528,1,1,5
+50,"Fast cached low",6,132,26.105856,1,1,5
+50,"Fast cached low",6,133,25.675776,1,1,5
+50,"Fast cached low",6,134,26.056704,1,1,5
+50,"Fast cached low",6,135,25.775104,1,1,5
+50,"Fast cached low",6,136,25.679872,1,1,5
+50,"Fast cached low",6,137,25.824256,1,1,5
+50,"Fast cached low",6,138,25.650176,1,1,5
+50,"Fast cached low",6,139,25.676800,1,1,5
+50,"Fast cached low",6,140,25.953280,1,1,5
+50,"Fast cached low",6,141,25.572352,1,1,5
+50,"Fast cached low",6,142,26.048512,1,1,5
+50,"Fast cached low",6,143,25.846784,1,1,5
+50,"Fast cached low",6,144,25.684992,1,1,5
+50,"Fast cached low",6,145,25.841664,1,1,5
+50,"Fast cached low",6,146,25.715712,1,1,5
+50,"Fast cached low",6,147,25.700352,1,1,5
+50,"Fast cached low",6,148,25.943040,1,1,5
+50,"Fast cached low",6,149,25.560064,1,1,5
+50,"Fast cached low",6,150,26.010624,1,1,5
+50,"Fast cached low",6,151,26.086400,1,1,5
+50,"Fast cached low",6,152,25.634816,1,1,5
+50,"Fast cached low",6,153,25.906176,1,1,5
+50,"Fast cached low",6,154,25.771008,1,1,5
+50,"Fast cached low",6,155,25.586688,1,1,5
+50,"Fast cached low",6,156,25.929728,1,1,5
+50,"Fast cached low",6,157,25.699328,1,1,5
+50,"Fast cached low",6,158,25.632768,1,1,5
+50,"Fast cached low",6,159,26.050560,1,1,5
+50,"Inter-pass fast",7,0,26.064896,1,1,5
+50,"Inter-pass fast",7,1,25.618432,1,1,5
+50,"Inter-pass fast",7,2,25.937920,1,1,5
+50,"Inter-pass fast",7,3,26.138624,1,1,5
+50,"Inter-pass fast",7,4,25.732096,1,1,5
+50,"Inter-pass fast",7,5,26.075136,1,1,5
+50,"Inter-pass fast",7,6,25.892864,1,1,5
+50,"Inter-pass fast",7,7,25.731072,1,1,5
+50,"Inter-pass fast",7,8,26.041344,1,1,5
+50,"Inter-pass fast",7,9,25.829376,1,1,5
+50,"Inter-pass fast",7,10,25.816064,1,1,5
+50,"Inter-pass fast",7,11,26.055680,1,1,5
+50,"Inter-pass fast",7,12,25.676800,1,1,5
+50,"Inter-pass fast",7,13,26.009600,1,1,5
+50,"Inter-pass fast",7,14,26.054656,1,1,5
+50,"Inter-pass fast",7,15,25.614336,1,1,5
+50,"Inter-pass fast",7,16,26.077184,1,1,5
+50,"Inter-pass fast",7,17,25.888768,1,1,5
+50,"Inter-pass fast",7,18,25.822208,1,1,5
+50,"Inter-pass fast",7,19,25.965568,1,1,5
+50,"Inter-pass fast",7,20,25.877504,1,1,5
+50,"Inter-pass fast",7,21,25.718784,1,1,5
+50,"Inter-pass fast",7,22,26.128384,1,1,5
+50,"Inter-pass fast",7,23,25.735168,1,1,5
+50,"Inter-pass fast",7,24,26.096640,1,1,5
+50,"Inter-pass fast",7,25,26.020864,1,1,5
+50,"Inter-pass fast",7,26,25.681920,1,1,5
+50,"Inter-pass fast",7,27,25.902080,1,1,5
+50,"Inter-pass fast",7,28,25.843712,1,1,5
+50,"Inter-pass fast",7,29,25.828352,1,1,5
+50,"Inter-pass fast",7,30,25.989120,1,1,5
+50,"Inter-pass fast",7,31,25.676800,1,1,5
+50,"Inter-pass fast",7,32,25.767936,1,1,5
+50,"Inter-pass fast",7,33,26.055680,1,1,5
+50,"Inter-pass fast",7,34,25.674752,1,1,5
+50,"Inter-pass fast",7,35,26.164224,1,1,5
+50,"Inter-pass fast",7,36,26.012672,1,1,5
+50,"Inter-pass fast",7,37,25.620480,1,1,5
+50,"Inter-pass fast",7,38,25.951232,1,1,5
+50,"Inter-pass fast",7,39,25.815040,1,1,5
+50,"Inter-pass fast",7,40,25.746432,1,1,5
+50,"Inter-pass fast",7,41,26.047488,1,1,5
+50,"Inter-pass fast",7,42,25.766912,1,1,5
+50,"Inter-pass fast",7,43,25.672704,1,1,5
+50,"Inter-pass fast",7,44,26.086400,1,1,5
+50,"Inter-pass fast",7,45,25.742336,1,1,5
+50,"Inter-pass fast",7,46,26.217472,1,1,5
+50,"Inter-pass fast",7,47,25.928704,1,1,5
+50,"Inter-pass fast",7,48,25.754624,1,1,5
+50,"Inter-pass fast",7,49,25.844736,1,1,5
+50,"Inter-pass fast",7,50,25.833472,1,1,5
+50,"Inter-pass fast",7,51,25.723904,1,1,5
+50,"Inter-pass fast",7,52,26.085376,1,1,5
+50,"Inter-pass fast",7,53,25.708544,1,1,5
+50,"Inter-pass fast",7,54,25.853952,1,1,5
+50,"Inter-pass fast",7,55,26.053632,1,1,5
+50,"Inter-pass fast",7,56,25.664512,1,1,5
+50,"Inter-pass fast",7,57,26.262528,1,1,5
+50,"Inter-pass fast",7,58,25.883648,1,1,5
+50,"Inter-pass fast",7,59,25.703424,1,1,5
+50,"Inter-pass fast",7,60,25.873408,1,1,5
+50,"Inter-pass fast",7,61,25.811968,1,1,5
+50,"Inter-pass fast",7,62,25.730048,1,1,5
+50,"Inter-pass fast",7,63,26.072064,1,1,5
+50,"Inter-pass fast",7,64,25.776128,1,1,5
+50,"Inter-pass fast",7,65,25.924608,1,1,5
+50,"Inter-pass fast",7,66,26.189824,1,1,5
+50,"Inter-pass fast",7,67,25.657344,1,1,5
+50,"Inter-pass fast",7,68,26.109952,1,1,5
+50,"Inter-pass fast",7,69,25.881600,1,1,5
+50,"Inter-pass fast",7,70,25.734144,1,1,5
+50,"Inter-pass fast",7,71,25.777152,1,1,5
+50,"Inter-pass fast",7,72,25.833472,1,1,5
+50,"Inter-pass fast",7,73,25.754624,1,1,5
+50,"Inter-pass fast",7,74,26.057728,1,1,5
+50,"Inter-pass fast",7,75,25.650176,1,1,5
+50,"Inter-pass fast",7,76,25.854976,1,1,5
+50,"Inter-pass fast",7,77,26.255360,1,1,5
+50,"Inter-pass fast",7,78,25.740288,1,1,5
+50,"Inter-pass fast",7,79,25.968640,1,1,5
+50,"Inter-pass fast",7,80,25.874432,1,1,5
+50,"Inter-pass fast",7,81,25.708544,1,1,5
+50,"Inter-pass fast",7,82,26.194944,1,1,5
+50,"Inter-pass fast",7,83,25.849856,1,1,5
+50,"Inter-pass fast",7,84,25.889792,1,1,5
+50,"Inter-pass fast",7,85,26.172416,1,1,5
+50,"Inter-pass fast",7,86,25.797632,1,1,5
+50,"Inter-pass fast",7,87,25.772032,1,1,5
+50,"Inter-pass fast",7,88,26.057728,1,1,5
+50,"Inter-pass fast",7,89,25.608192,1,1,5
+50,"Inter-pass fast",7,90,26.259456,1,1,5
+50,"Inter-pass fast",7,91,25.874432,1,1,5
+50,"Inter-pass fast",7,92,25.730048,1,1,5
+50,"Inter-pass fast",7,93,25.903104,1,1,5
+50,"Inter-pass fast",7,94,25.877504,1,1,5
+50,"Inter-pass fast",7,95,25.871360,1,1,5
+50,"Inter-pass fast",7,96,26.204160,1,1,5
+50,"Inter-pass fast",7,97,25.746432,1,1,5
+50,"Inter-pass fast",7,98,25.906176,1,1,5
+50,"Inter-pass fast",7,99,26.031104,1,1,5
+50,"Inter-pass fast",7,100,25.597952,1,1,5
+50,"Inter-pass fast",7,101,26.147840,1,1,5
+50,"Inter-pass fast",7,102,25.913344,1,1,5
+50,"Inter-pass fast",7,103,25.593856,1,1,5
+50,"Inter-pass fast",7,104,25.880576,1,1,5
+50,"Inter-pass fast",7,105,25.801728,1,1,5
+50,"Inter-pass fast",7,106,25.733120,1,1,5
+50,"Inter-pass fast",7,107,26.084352,1,1,5
+50,"Inter-pass fast",7,108,25.772032,1,1,5
+50,"Inter-pass fast",7,109,25.876480,1,1,5
+50,"Inter-pass fast",7,110,26.271744,1,1,5
+50,"Inter-pass fast",7,111,25.783296,1,1,5
+50,"Inter-pass fast",7,112,26.114048,1,1,5
+50,"Inter-pass fast",7,113,26.041344,1,1,5
+50,"Inter-pass fast",7,114,25.742336,1,1,5
+50,"Inter-pass fast",7,115,25.842688,1,1,5
+50,"Inter-pass fast",7,116,25.811968,1,1,5
+50,"Inter-pass fast",7,117,25.800704,1,1,5
+50,"Inter-pass fast",7,118,26.040320,1,1,5
+50,"Inter-pass fast",7,119,25.760768,1,1,5
+50,"Inter-pass fast",7,120,25.903104,1,1,5
+50,"Inter-pass fast",7,121,26.280960,1,1,5
+50,"Inter-pass fast",7,122,25.764864,1,1,5
+50,"Inter-pass fast",7,123,26.217472,1,1,5
+50,"Inter-pass fast",7,124,25.954304,1,1,5
+50,"Inter-pass fast",7,125,25.696256,1,1,5
+50,"Inter-pass fast",7,126,25.760768,1,1,5
+50,"Inter-pass fast",7,127,25.809920,1,1,5
+50,"Inter-pass fast",7,128,25.738240,1,1,5
+50,"Inter-pass fast",7,129,26.125312,1,1,5
+50,"Inter-pass fast",7,130,25.869312,1,1,5
+50,"Inter-pass fast",7,131,25.825280,1,1,5
+50,"Inter-pass fast",7,132,26.246144,1,1,5
+50,"Inter-pass fast",7,133,25.751552,1,1,5
+50,"Inter-pass fast",7,134,25.846784,1,1,5
+50,"Inter-pass fast",7,135,25.883648,1,1,5
+50,"Inter-pass fast",7,136,25.503744,1,1,5
+50,"Inter-pass fast",7,137,26.172416,1,1,5
+50,"Inter-pass fast",7,138,25.905152,1,1,5
+50,"Inter-pass fast",7,139,25.760768,1,1,5
+50,"Inter-pass fast",7,140,25.970688,1,1,5
+50,"Inter-pass fast",7,141,25.811968,1,1,5
+50,"Inter-pass fast",7,142,25.743360,1,1,5
+50,"Inter-pass fast",7,143,26.027008,1,1,5
+50,"Inter-pass fast",7,144,25.612288,1,1,5
+50,"Inter-pass fast",7,145,25.956352,1,1,5
+50,"Inter-pass fast",7,146,26.081280,1,1,5
+50,"Inter-pass fast",7,147,25.635840,1,1,5
+50,"Inter-pass fast",7,148,26.148864,1,1,5
+50,"Inter-pass fast",7,149,25.899008,1,1,5
+50,"Inter-pass fast",7,150,25.801728,1,1,5
+50,"Inter-pass fast",7,151,26.028032,1,1,5
+50,"Inter-pass fast",7,152,25.893888,1,1,5
+50,"Inter-pass fast",7,153,25.873408,1,1,5
+50,"Inter-pass fast",7,154,26.099712,1,1,5
+50,"Inter-pass fast",7,155,25.711616,1,1,5
+50,"Inter-pass fast",7,156,25.881600,1,1,5
+50,"Inter-pass fast",7,157,26.056704,1,1,5
+50,"Inter-pass fast",7,158,25.670656,1,1,5
+50,"Inter-pass fast",7,159,26.309632,1,1,5
+59,"No inter-pass",8,0,31.527936,0,0,0
+59,"No inter-pass",8,1,31.748096,0,0,0
+59,"No inter-pass",8,2,31.294464,0,0,0
+59,"No inter-pass",8,3,31.428608,0,0,0
+59,"No inter-pass",8,4,31.679488,0,0,0
+59,"No inter-pass",8,5,31.596544,0,0,0
+59,"No inter-pass",8,6,31.713280,0,0,0
+59,"No inter-pass",8,7,31.942656,0,0,0
+59,"No inter-pass",8,8,31.665152,0,0,0
+59,"No inter-pass",8,9,31.680512,0,0,0
+59,"No inter-pass",8,10,31.807488,0,0,0
+59,"No inter-pass",8,11,32.295936,0,0,0
+59,"No inter-pass",8,12,32.598016,0,0,0
+59,"No inter-pass",8,13,32.419840,0,0,0
+59,"No inter-pass",8,14,32.053248,0,0,0
+59,"No inter-pass",8,15,32.249856,0,0,0
+59,"No inter-pass",8,16,32.084992,0,0,0
+59,"No inter-pass",8,17,31.825920,0,0,0
+59,"No inter-pass",8,18,32.082944,0,0,0
+59,"No inter-pass",8,19,31.954944,0,0,0
+59,"No inter-pass",8,20,31.937536,0,0,0
+59,"No inter-pass",8,21,31.935488,0,0,0
+59,"No inter-pass",8,22,32.139264,0,0,0
+59,"No inter-pass",8,23,31.837184,0,0,0
+59,"No inter-pass",8,24,31.984640,0,0,0
+59,"No inter-pass",8,25,31.808512,0,0,0
+59,"No inter-pass",8,26,31.417344,0,0,0
+59,"No inter-pass",8,27,31.755264,0,0,0
+59,"No inter-pass",8,28,31.950848,0,0,0
+59,"No inter-pass",8,29,31.271936,0,0,0
+59,"No inter-pass",8,30,31.260672,0,0,0
+59,"No inter-pass",8,31,31.300608,0,0,0
+59,"No inter-pass",8,32,31.708160,0,0,0
+59,"No inter-pass",8,33,31.650816,0,0,0
+59,"No inter-pass",8,34,31.628288,0,0,0
+59,"No inter-pass",8,35,32.037888,0,0,0
+59,"No inter-pass",8,36,32.461824,0,0,0
+59,"No inter-pass",8,37,32.292864,0,0,0
+59,"No inter-pass",8,38,32.346112,0,0,0
+59,"No inter-pass",8,39,32.413696,0,0,0
+59,"No inter-pass",8,40,32.241664,0,0,0
+59,"No inter-pass",8,41,32.079872,0,0,0
+59,"No inter-pass",8,42,32.364544,0,0,0
+59,"No inter-pass",8,43,32.021504,0,0,0
+59,"No inter-pass",8,44,32.090112,0,0,0
+59,"No inter-pass",8,45,32.215040,0,0,0
+59,"No inter-pass",8,46,32.232448,0,0,0
+59,"No inter-pass",8,47,31.927296,0,0,0
+59,"No inter-pass",8,48,31.713280,0,0,0
+59,"No inter-pass",8,49,31.472640,0,0,0
+59,"No inter-pass",8,50,31.713280,0,0,0
+59,"No inter-pass",8,51,31.711232,0,0,0
+59,"No inter-pass",8,52,32.050176,0,0,0
+59,"No inter-pass",8,53,31.811584,0,0,0
+59,"No inter-pass",8,54,31.493120,0,0,0
+59,"No inter-pass",8,55,31.491072,0,0,0
+59,"No inter-pass",8,56,31.509504,0,0,0
+59,"No inter-pass",8,57,31.302656,0,0,0
+59,"No inter-pass",8,58,31.570944,0,0,0
+59,"No inter-pass",8,59,32.117760,0,0,0
+59,"No inter-pass",8,60,31.881216,0,0,0
+59,"No inter-pass",8,61,32.004096,0,0,0
+59,"No inter-pass",8,62,32.401408,0,0,0
+59,"No inter-pass",8,63,32.201728,0,0,0
+59,"No inter-pass",8,64,32.044032,0,0,0
+59,"No inter-pass",8,65,32.155648,0,0,0
+59,"No inter-pass",8,66,31.932416,0,0,0
+59,"No inter-pass",8,67,31.828992,0,0,0
+59,"No inter-pass",8,68,31.991808,0,0,0
+59,"No inter-pass",8,69,32.208896,0,0,0
+59,"No inter-pass",8,70,32.269312,0,0,0
+59,"No inter-pass",8,71,31.916032,0,0,0
+59,"No inter-pass",8,72,31.933440,0,0,0
+59,"No inter-pass",8,73,31.929344,0,0,0
+59,"No inter-pass",8,74,31.692800,0,0,0
+59,"No inter-pass",8,75,32.064512,0,0,0
+59,"No inter-pass",8,76,31.826944,0,0,0
+59,"No inter-pass",8,77,31.800320,0,0,0
+59,"No inter-pass",8,78,31.971328,0,0,0
+59,"No inter-pass",8,79,32.081920,0,0,0
+59,"No inter-pass",8,80,31.791104,0,0,0
+59,"No inter-pass",8,81,31.502336,0,0,0
+59,"No inter-pass",8,82,31.738880,0,0,0
+59,"No inter-pass",8,83,31.757312,0,0,0
+59,"No inter-pass",8,84,31.668224,0,0,0
+59,"No inter-pass",8,85,31.688704,0,0,0
+59,"No inter-pass",8,86,31.896576,0,0,0
+59,"No inter-pass",8,87,32.168960,0,0,0
+59,"No inter-pass",8,88,32.266240,0,0,0
+59,"No inter-pass",8,89,32.143360,0,0,0
+59,"No inter-pass",8,90,32.101376,0,0,0
+59,"No inter-pass",8,91,31.933440,0,0,0
+59,"No inter-pass",8,92,31.713280,0,0,0
+59,"No inter-pass",8,93,32.089088,0,0,0
+59,"No inter-pass",8,94,32.217088,0,0,0
+59,"No inter-pass",8,95,31.955968,0,0,0
+59,"No inter-pass",8,96,32.089088,0,0,0
+59,"No inter-pass",8,97,31.873024,0,0,0
+59,"No inter-pass",8,98,32.133120,0,0,0
+59,"No inter-pass",8,99,32.044032,0,0,0
+59,"No inter-pass",8,100,32.074752,0,0,0
+59,"No inter-pass",8,101,31.785984,0,0,0
+59,"No inter-pass",8,102,31.656960,0,0,0
+59,"No inter-pass",8,103,31.938560,0,0,0
+59,"No inter-pass",8,104,32.057344,0,0,0
+59,"No inter-pass",8,105,31.419392,0,0,0
+59,"No inter-pass",8,106,31.323136,0,0,0
+59,"No inter-pass",8,107,31.217664,0,0,0
+59,"No inter-pass",8,108,31.486976,0,0,0
+59,"No inter-pass",8,109,31.708160,0,0,0
+59,"No inter-pass",8,110,32.037888,0,0,0
+59,"No inter-pass",8,111,31.893504,0,0,0
+59,"No inter-pass",8,112,32.003072,0,0,0
+59,"No inter-pass",8,113,32.190464,0,0,0
+59,"No inter-pass",8,114,31.962112,0,0,0
+59,"No inter-pass",8,115,31.921152,0,0,0
+59,"No inter-pass",8,116,32.112640,0,0,0
+59,"No inter-pass",8,117,32.235520,0,0,0
+59,"No inter-pass",8,118,32.193536,0,0,0
+59,"No inter-pass",8,119,32.205824,0,0,0
+59,"No inter-pass",8,120,32.073728,0,0,0
+59,"No inter-pass",8,121,32.138240,0,0,0
+59,"No inter-pass",8,122,32.113664,0,0,0
+59,"No inter-pass",8,123,32.196608,0,0,0
+59,"No inter-pass",8,124,31.869952,0,0,0
+59,"No inter-pass",8,125,31.620096,0,0,0
+59,"No inter-pass",8,126,31.511552,0,0,0
+59,"No inter-pass",8,127,31.781888,0,0,0
+59,"No inter-pass",8,128,31.962112,0,0,0
+59,"No inter-pass",8,129,31.939584,0,0,0
+59,"No inter-pass",8,130,31.965184,0,0,0
+59,"No inter-pass",8,131,31.837184,0,0,0
+59,"No inter-pass",8,132,31.704064,0,0,0
+59,"No inter-pass",8,133,31.792128,0,0,0
+59,"No inter-pass",8,134,31.912960,0,0,0
+59,"No inter-pass",8,135,32.092160,0,0,0
+59,"No inter-pass",8,136,32.113664,0,0,0
+59,"No inter-pass",8,137,32.103424,0,0,0
+59,"No inter-pass",8,138,31.969280,0,0,0
+59,"No inter-pass",8,139,31.918080,0,0,0
+59,"No inter-pass",8,140,32.201728,0,0,0
+59,"No inter-pass",8,141,32.208896,0,0,0
+59,"No inter-pass",8,142,31.961088,0,0,0
+59,"No inter-pass",8,143,31.754240,0,0,0
+59,"No inter-pass",8,144,31.747072,0,0,0
+59,"No inter-pass",8,145,31.884288,0,0,0
+59,"No inter-pass",8,146,31.304704,0,0,0
+59,"No inter-pass",8,147,32.060416,0,0,0
+59,"No inter-pass",8,148,31.643648,0,0,0
+59,"No inter-pass",8,149,31.481856,0,0,0
+59,"No inter-pass",8,150,31.687680,0,0,0
+59,"No inter-pass",8,151,31.948800,0,0,0
+59,"No inter-pass",8,152,32.148480,0,0,0
+59,"No inter-pass",8,153,31.945728,0,0,0
+59,"No inter-pass",8,154,31.745024,0,0,0
+59,"No inter-pass",8,155,31.790080,0,0,0
+59,"No inter-pass",8,156,31.751168,0,0,0
+59,"No inter-pass",8,157,31.785984,0,0,0
+59,"No inter-pass",8,158,32.187392,0,0,0
+59,"No inter-pass",8,159,32.067584,0,0,0
+59,"Classic reference",9,0,34.814976,0,1,5
+59,"Classic reference",9,1,34.576384,0,1,5
+59,"Classic reference",9,2,34.769920,0,1,5
+59,"Classic reference",9,3,34.511872,0,1,5
+59,"Classic reference",9,4,34.634752,0,1,5
+59,"Classic reference",9,5,34.325504,0,1,5
+59,"Classic reference",9,6,34.673664,0,1,5
+59,"Classic reference",9,7,34.551808,0,1,5
+59,"Classic reference",9,8,34.644992,0,1,5
+59,"Classic reference",9,9,34.766848,0,1,5
+59,"Classic reference",9,10,35.297280,0,1,5
+59,"Classic reference",9,11,34.739200,0,1,5
+59,"Classic reference",9,12,35.205120,0,1,5
+59,"Classic reference",9,13,35.132416,0,1,5
+59,"Classic reference",9,14,35.168256,0,1,5
+59,"Classic reference",9,15,35.183616,0,1,5
+59,"Classic reference",9,16,35.060736,0,1,5
+59,"Classic reference",9,17,35.090432,0,1,5
+59,"Classic reference",9,18,35.004416,0,1,5
+59,"Classic reference",9,19,35.195904,0,1,5
+59,"Classic reference",9,20,34.934784,0,1,5
+59,"Classic reference",9,21,34.601984,0,1,5
+59,"Classic reference",9,22,35.019776,0,1,5
+59,"Classic reference",9,23,34.659328,0,1,5
+59,"Classic reference",9,24,34.698240,0,1,5
+59,"Classic reference",9,25,34.512896,0,1,5
+59,"Classic reference",9,26,34.711552,0,1,5
+59,"Classic reference",9,27,34.364416,0,1,5
+59,"Classic reference",9,28,34.603008,0,1,5
+59,"Classic reference",9,29,34.500608,0,1,5
+59,"Classic reference",9,30,34.677760,0,1,5
+59,"Classic reference",9,31,34.768896,0,1,5
+59,"Classic reference",9,32,34.622464,0,1,5
+59,"Classic reference",9,33,34.784256,0,1,5
+59,"Classic reference",9,34,34.993152,0,1,5
+59,"Classic reference",9,35,34.748416,0,1,5
+59,"Classic reference",9,36,35.041280,0,1,5
+59,"Classic reference",9,37,35.160064,0,1,5
+59,"Classic reference",9,38,34.928640,0,1,5
+59,"Classic reference",9,39,35.085312,0,1,5
+59,"Classic reference",9,40,34.841600,0,1,5
+59,"Classic reference",9,41,35.008512,0,1,5
+59,"Classic reference",9,42,34.985984,0,1,5
+59,"Classic reference",9,43,34.682880,0,1,5
+59,"Classic reference",9,44,34.842624,0,1,5
+59,"Classic reference",9,45,34.652160,0,1,5
+59,"Classic reference",9,46,34.605056,0,1,5
+59,"Classic reference",9,47,34.539520,0,1,5
+59,"Classic reference",9,48,34.398208,0,1,5
+59,"Classic reference",9,49,34.711552,0,1,5
+59,"Classic reference",9,50,34.811904,0,1,5
+59,"Classic reference",9,51,34.545664,0,1,5
+59,"Classic reference",9,52,34.956288,0,1,5
+59,"Classic reference",9,53,34.704384,0,1,5
+59,"Classic reference",9,54,34.651136,0,1,5
+59,"Classic reference",9,55,34.844672,0,1,5
+59,"Classic reference",9,56,35.000320,0,1,5
+59,"Classic reference",9,57,34.627584,0,1,5
+59,"Classic reference",9,58,34.989056,0,1,5
+59,"Classic reference",9,59,35.144704,0,1,5
+59,"Classic reference",9,60,34.965504,0,1,5
+59,"Classic reference",9,61,35.230720,0,1,5
+59,"Classic reference",9,62,35.080192,0,1,5
+59,"Classic reference",9,63,35.300352,0,1,5
+59,"Classic reference",9,64,35.115008,0,1,5
+59,"Classic reference",9,65,34.962432,0,1,5
+59,"Classic reference",9,66,34.961408,0,1,5
+59,"Classic reference",9,67,34.596864,0,1,5
+59,"Classic reference",9,68,34.731008,0,1,5
+59,"Classic reference",9,69,34.808832,0,1,5
+59,"Classic reference",9,70,34.493440,0,1,5
+59,"Classic reference",9,71,34.667520,0,1,5
+59,"Classic reference",9,72,34.867200,0,1,5
+59,"Classic reference",9,73,34.594816,0,1,5
+59,"Classic reference",9,74,34.945024,0,1,5
+59,"Classic reference",9,75,34.501632,0,1,5
+59,"Classic reference",9,76,34.577408,0,1,5
+59,"Classic reference",9,77,34.892800,0,1,5
+59,"Classic reference",9,78,34.708480,0,1,5
+59,"Classic reference",9,79,35.024896,0,1,5
+59,"Classic reference",9,80,35.003392,0,1,5
+59,"Classic reference",9,81,34.692096,0,1,5
+59,"Classic reference",9,82,34.867200,0,1,5
+59,"Classic reference",9,83,35.019776,0,1,5
+59,"Classic reference",9,84,34.908160,0,1,5
+59,"Classic reference",9,85,35.423232,0,1,5
+59,"Classic reference",9,86,34.735104,0,1,5
+59,"Classic reference",9,87,35.205120,0,1,5
+59,"Classic reference",9,88,34.975744,0,1,5
+59,"Classic reference",9,89,34.945024,0,1,5
+59,"Classic reference",9,90,34.891776,0,1,5
+59,"Classic reference",9,91,34.628608,0,1,5
+59,"Classic reference",9,92,34.716672,0,1,5
+59,"Classic reference",9,93,34.551808,0,1,5
+59,"Classic reference",9,94,34.703360,0,1,5
+59,"Classic reference",9,95,35.105792,0,1,5
+59,"Classic reference",9,96,34.926592,0,1,5
+59,"Classic reference",9,97,34.569216,0,1,5
+59,"Classic reference",9,98,35.289088,0,1,5
+59,"Classic reference",9,99,34.608128,0,1,5
+59,"Classic reference",9,100,34.622464,0,1,5
+59,"Classic reference",9,101,34.749440,0,1,5
+59,"Classic reference",9,102,35.008512,0,1,5
+59,"Classic reference",9,103,34.936832,0,1,5
+59,"Classic reference",9,104,34.759680,0,1,5
+59,"Classic reference",9,105,35.038208,0,1,5
+59,"Classic reference",9,106,35.014656,0,1,5
+59,"Classic reference",9,107,34.783232,0,1,5
+59,"Classic reference",9,108,35.253248,0,1,5
+59,"Classic reference",9,109,35.056640,0,1,5
+59,"Classic reference",9,110,34.831360,0,1,5
+59,"Classic reference",9,111,34.798592,0,1,5
+59,"Classic reference",9,112,34.589696,0,1,5
+59,"Classic reference",9,113,34.806784,0,1,5
+59,"Classic reference",9,114,34.882560,0,1,5
+59,"Classic reference",9,115,34.538496,0,1,5
+59,"Classic reference",9,116,34.981888,0,1,5
+59,"Classic reference",9,117,34.601984,0,1,5
+59,"Classic reference",9,118,34.495488,0,1,5
+59,"Classic reference",9,119,34.895872,0,1,5
+59,"Classic reference",9,120,34.706432,0,1,5
+59,"Classic reference",9,121,34.781184,0,1,5
+59,"Classic reference",9,122,34.867200,0,1,5
+59,"Classic reference",9,123,34.871296,0,1,5
+59,"Classic reference",9,124,34.778112,0,1,5
+59,"Classic reference",9,125,34.629632,0,1,5
+59,"Classic reference",9,126,34.710528,0,1,5
+59,"Classic reference",9,127,35.155968,0,1,5
+59,"Classic reference",9,128,34.714624,0,1,5
+59,"Classic reference",9,129,34.877440,0,1,5
+59,"Classic reference",9,130,35.111936,0,1,5
+59,"Classic reference",9,131,34.745344,0,1,5
+59,"Classic reference",9,132,34.908160,0,1,5
+59,"Classic reference",9,133,34.964480,0,1,5
+59,"Classic reference",9,134,34.881536,0,1,5
+59,"Classic reference",9,135,34.676736,0,1,5
+59,"Classic reference",9,136,34.742272,0,1,5
+59,"Classic reference",9,137,34.707456,0,1,5
+59,"Classic reference",9,138,35.113984,0,1,5
+59,"Classic reference",9,139,34.750464,0,1,5
+59,"Classic reference",9,140,34.835456,0,1,5
+59,"Classic reference",9,141,34.831360,0,1,5
+59,"Classic reference",9,142,34.478080,0,1,5
+59,"Classic reference",9,143,34.408448,0,1,5
+59,"Classic reference",9,144,34.732032,0,1,5
+59,"Classic reference",9,145,34.701312,0,1,5
+59,"Classic reference",9,146,34.931712,0,1,5
+59,"Classic reference",9,147,34.506752,0,1,5
+59,"Classic reference",9,148,34.970624,0,1,5
+59,"Classic reference",9,149,35.366912,0,1,5
+59,"Classic reference",9,150,34.735104,0,1,5
+59,"Classic reference",9,151,35.223552,0,1,5
+59,"Classic reference",9,152,35.082240,0,1,5
+59,"Classic reference",9,153,34.874368,0,1,5
+59,"Classic reference",9,154,34.754560,0,1,5
+59,"Classic reference",9,155,34.756608,0,1,5
+59,"Classic reference",9,156,35.149824,0,1,5
+59,"Classic reference",9,157,34.798592,0,1,5
+59,"Classic reference",9,158,34.709504,0,1,5
+59,"Classic reference",9,159,34.946048,0,1,5
+59,"Fused reference",10,0,36.779008,0,1,5
+59,"Fused reference",10,1,36.755456,0,1,5
+59,"Fused reference",10,2,36.974592,0,1,5
+59,"Fused reference",10,3,36.931584,0,1,5
+59,"Fused reference",10,4,36.619264,0,1,5
+59,"Fused reference",10,5,36.636672,0,1,5
+59,"Fused reference",10,6,36.715520,0,1,5
+59,"Fused reference",10,7,36.869120,0,1,5
+59,"Fused reference",10,8,36.881408,0,1,5
+59,"Fused reference",10,9,37.110784,0,1,5
+59,"Fused reference",10,10,37.323776,0,1,5
+59,"Fused reference",10,11,37.358592,0,1,5
+59,"Fused reference",10,12,36.996096,0,1,5
+59,"Fused reference",10,13,36.765696,0,1,5
+59,"Fused reference",10,14,36.751360,0,1,5
+59,"Fused reference",10,15,36.536320,0,1,5
+59,"Fused reference",10,16,36.844544,0,1,5
+59,"Fused reference",10,17,36.970496,0,1,5
+59,"Fused reference",10,18,36.876288,0,1,5
+59,"Fused reference",10,19,36.823040,0,1,5
+59,"Fused reference",10,20,36.993024,0,1,5
+59,"Fused reference",10,21,37.033984,0,1,5
+59,"Fused reference",10,22,36.759552,0,1,5
+59,"Fused reference",10,23,36.984832,0,1,5
+59,"Fused reference",10,24,36.939776,0,1,5
+59,"Fused reference",10,25,36.655104,0,1,5
+59,"Fused reference",10,26,36.806656,0,1,5
+59,"Fused reference",10,27,36.724736,0,1,5
+59,"Fused reference",10,28,36.791296,0,1,5
+59,"Fused reference",10,29,36.741120,0,1,5
+59,"Fused reference",10,30,36.899840,0,1,5
+59,"Fused reference",10,31,36.869120,0,1,5
+59,"Fused reference",10,32,37.248000,0,1,5
+59,"Fused reference",10,33,37.474304,0,1,5
+59,"Fused reference",10,34,37.193728,0,1,5
+59,"Fused reference",10,35,36.750336,0,1,5
+59,"Fused reference",10,36,36.876288,0,1,5
+59,"Fused reference",10,37,36.923392,0,1,5
+59,"Fused reference",10,38,37.132288,0,1,5
+59,"Fused reference",10,39,36.964352,0,1,5
+59,"Fused reference",10,40,36.874240,0,1,5
+59,"Fused reference",10,41,36.972544,0,1,5
+59,"Fused reference",10,42,36.937728,0,1,5
+59,"Fused reference",10,43,37.097472,0,1,5
+59,"Fused reference",10,44,36.780032,0,1,5
+59,"Fused reference",10,45,36.888576,0,1,5
+59,"Fused reference",10,46,36.597760,0,1,5
+59,"Fused reference",10,47,36.719616,0,1,5
+59,"Fused reference",10,48,36.938752,0,1,5
+59,"Fused reference",10,49,36.744192,0,1,5
+59,"Fused reference",10,50,36.904960,0,1,5
+59,"Fused reference",10,51,36.832256,0,1,5
+59,"Fused reference",10,52,37.012480,0,1,5
+59,"Fused reference",10,53,36.919296,0,1,5
+59,"Fused reference",10,54,37.493760,0,1,5
+59,"Fused reference",10,55,36.999168,0,1,5
+59,"Fused reference",10,56,36.682752,0,1,5
+59,"Fused reference",10,57,36.876288,0,1,5
+59,"Fused reference",10,58,37.081088,0,1,5
+59,"Fused reference",10,59,37.071872,0,1,5
+59,"Fused reference",10,60,37.318656,0,1,5
+59,"Fused reference",10,61,37.071872,0,1,5
+59,"Fused reference",10,62,37.097472,0,1,5
+59,"Fused reference",10,63,36.904960,0,1,5
+59,"Fused reference",10,64,36.867072,0,1,5
+59,"Fused reference",10,65,36.743168,0,1,5
+59,"Fused reference",10,66,36.653056,0,1,5
+59,"Fused reference",10,67,36.956160,0,1,5
+59,"Fused reference",10,68,36.577280,0,1,5
+59,"Fused reference",10,69,36.904960,0,1,5
+59,"Fused reference",10,70,36.841472,0,1,5
+59,"Fused reference",10,71,36.708352,0,1,5
+59,"Fused reference",10,72,36.759552,0,1,5
+59,"Fused reference",10,73,36.913152,0,1,5
+59,"Fused reference",10,74,37.286912,0,1,5
+59,"Fused reference",10,75,36.873216,0,1,5
+59,"Fused reference",10,76,36.998144,0,1,5
+59,"Fused reference",10,77,36.868096,0,1,5
+59,"Fused reference",10,78,37.171200,0,1,5
+59,"Fused reference",10,79,36.864000,0,1,5
+59,"Fused reference",10,80,37.017600,0,1,5
+59,"Fused reference",10,81,37.147648,0,1,5
+59,"Fused reference",10,82,37.127168,0,1,5
+59,"Fused reference",10,83,36.956160,0,1,5
+59,"Fused reference",10,84,37.320704,0,1,5
+59,"Fused reference",10,85,37.113856,0,1,5
+59,"Fused reference",10,86,36.801536,0,1,5
+59,"Fused reference",10,87,36.683776,0,1,5
+59,"Fused reference",10,88,37.026816,0,1,5
+59,"Fused reference",10,89,36.882432,0,1,5
+59,"Fused reference",10,90,36.772864,0,1,5
+59,"Fused reference",10,91,36.884480,0,1,5
+59,"Fused reference",10,92,36.619264,0,1,5
+59,"Fused reference",10,93,36.859904,0,1,5
+59,"Fused reference",10,94,36.938752,0,1,5
+59,"Fused reference",10,95,36.793344,0,1,5
+59,"Fused reference",10,96,37.131264,0,1,5
+59,"Fused reference",10,97,36.751360,0,1,5
+59,"Fused reference",10,98,36.911104,0,1,5
+59,"Fused reference",10,99,36.878336,0,1,5
+59,"Fused reference",10,100,36.809728,0,1,5
+59,"Fused reference",10,101,37.361664,0,1,5
+59,"Fused reference",10,102,37.016576,0,1,5
+59,"Fused reference",10,103,37.190656,0,1,5
+59,"Fused reference",10,104,37.182464,0,1,5
+59,"Fused reference",10,105,36.725760,0,1,5
+59,"Fused reference",10,106,37.072896,0,1,5
+59,"Fused reference",10,107,36.833280,0,1,5
+59,"Fused reference",10,108,36.838400,0,1,5
+59,"Fused reference",10,109,36.716544,0,1,5
+59,"Fused reference",10,110,36.759552,0,1,5
+59,"Fused reference",10,111,36.866048,0,1,5
+59,"Fused reference",10,112,36.826112,0,1,5
+59,"Fused reference",10,113,36.624384,0,1,5
+59,"Fused reference",10,114,36.685824,0,1,5
+59,"Fused reference",10,115,37.028864,0,1,5
+59,"Fused reference",10,116,36.935680,0,1,5
+59,"Fused reference",10,117,36.957184,0,1,5
+59,"Fused reference",10,118,36.604928,0,1,5
+59,"Fused reference",10,119,36.935680,0,1,5
+59,"Fused reference",10,120,36.959232,0,1,5
+59,"Fused reference",10,121,36.814848,0,1,5
+59,"Fused reference",10,122,37.250048,0,1,5
+59,"Fused reference",10,123,36.920320,0,1,5
+59,"Fused reference",10,124,37.072896,0,1,5
+59,"Fused reference",10,125,37.113856,0,1,5
+59,"Fused reference",10,126,36.806656,0,1,5
+59,"Fused reference",10,127,37.551104,0,1,5
+59,"Fused reference",10,128,36.951040,0,1,5
+59,"Fused reference",10,129,37.060608,0,1,5
+59,"Fused reference",10,130,36.946944,0,1,5
+59,"Fused reference",10,131,36.870144,0,1,5
+59,"Fused reference",10,132,36.727808,0,1,5
+59,"Fused reference",10,133,36.446208,0,1,5
+59,"Fused reference",10,134,36.400128,0,1,5
+59,"Fused reference",10,135,36.936704,0,1,5
+59,"Fused reference",10,136,36.760576,0,1,5
+59,"Fused reference",10,137,36.831232,0,1,5
+59,"Fused reference",10,138,36.726784,0,1,5
+59,"Fused reference",10,139,36.964352,0,1,5
+59,"Fused reference",10,140,36.730880,0,1,5
+59,"Fused reference",10,141,36.921344,0,1,5
+59,"Fused reference",10,142,37.334016,0,1,5
+59,"Fused reference",10,143,37.012480,0,1,5
+59,"Fused reference",10,144,37.262336,0,1,5
+59,"Fused reference",10,145,36.720640,0,1,5
+59,"Fused reference",10,146,36.882432,0,1,5
+59,"Fused reference",10,147,36.808704,0,1,5
+59,"Fused reference",10,148,36.814848,0,1,5
+59,"Fused reference",10,149,37.130240,0,1,5
+59,"Fused reference",10,150,37.187584,0,1,5
+59,"Fused reference",10,151,37.214208,0,1,5
+59,"Fused reference",10,152,36.858880,0,1,5
+59,"Fused reference",10,153,36.827136,0,1,5
+59,"Fused reference",10,154,37.039104,0,1,5
+59,"Fused reference",10,155,36.499456,0,1,5
+59,"Fused reference",10,156,36.776960,0,1,5
+59,"Fused reference",10,157,36.798464,0,1,5
+59,"Fused reference",10,158,36.700160,0,1,5
+59,"Fused reference",10,159,36.712448,0,1,5
+59,"Inter-pass optimized",11,0,33.264640,0,1,5
+59,"Inter-pass optimized",11,1,33.386496,0,1,5
+59,"Inter-pass optimized",11,2,33.553408,0,1,5
+59,"Inter-pass optimized",11,3,33.256448,0,1,5
+59,"Inter-pass optimized",11,4,33.282048,0,1,5
+59,"Inter-pass optimized",11,5,33.289216,0,1,5
+59,"Inter-pass optimized",11,6,33.496064,0,1,5
+59,"Inter-pass optimized",11,7,33.542144,0,1,5
+59,"Inter-pass optimized",11,8,33.531904,0,1,5
+59,"Inter-pass optimized",11,9,33.334272,0,1,5
+59,"Inter-pass optimized",11,10,33.488896,0,1,5
+59,"Inter-pass optimized",11,11,33.393664,0,1,5
+59,"Inter-pass optimized",11,12,33.387520,0,1,5
+59,"Inter-pass optimized",11,13,33.660928,0,1,5
+59,"Inter-pass optimized",11,14,33.490944,0,1,5
+59,"Inter-pass optimized",11,15,33.494016,0,1,5
+59,"Inter-pass optimized",11,16,33.226752,0,1,5
+59,"Inter-pass optimized",11,17,33.219584,0,1,5
+59,"Inter-pass optimized",11,18,33.232896,0,1,5
+59,"Inter-pass optimized",11,19,33.046528,0,1,5
+59,"Inter-pass optimized",11,20,33.179648,0,1,5
+59,"Inter-pass optimized",11,21,33.186816,0,1,5
+59,"Inter-pass optimized",11,22,33.382400,0,1,5
+59,"Inter-pass optimized",11,23,33.132544,0,1,5
+59,"Inter-pass optimized",11,24,33.592320,0,1,5
+59,"Inter-pass optimized",11,25,32.972800,0,1,5
+59,"Inter-pass optimized",11,26,33.286144,0,1,5
+59,"Inter-pass optimized",11,27,33.344512,0,1,5
+59,"Inter-pass optimized",11,28,33.256448,0,1,5
+59,"Inter-pass optimized",11,29,33.574912,0,1,5
+59,"Inter-pass optimized",11,30,33.612800,0,1,5
+59,"Inter-pass optimized",11,31,33.600512,0,1,5
+59,"Inter-pass optimized",11,32,33.324032,0,1,5
+59,"Inter-pass optimized",11,33,33.120256,0,1,5
+59,"Inter-pass optimized",11,34,33.102848,0,1,5
+59,"Inter-pass optimized",11,35,33.419264,0,1,5
+59,"Inter-pass optimized",11,36,33.341440,0,1,5
+59,"Inter-pass optimized",11,37,33.347584,0,1,5
+59,"Inter-pass optimized",11,38,33.351680,0,1,5
+59,"Inter-pass optimized",11,39,33.335296,0,1,5
+59,"Inter-pass optimized",11,40,33.331200,0,1,5
+59,"Inter-pass optimized",11,41,33.252352,0,1,5
+59,"Inter-pass optimized",11,42,33.336320,0,1,5
+59,"Inter-pass optimized",11,43,33.148928,0,1,5
+59,"Inter-pass optimized",11,44,33.400832,0,1,5
+59,"Inter-pass optimized",11,45,33.536000,0,1,5
+59,"Inter-pass optimized",11,46,33.291264,0,1,5
+59,"Inter-pass optimized",11,47,33.215488,0,1,5
+59,"Inter-pass optimized",11,48,33.068032,0,1,5
+59,"Inter-pass optimized",11,49,32.920576,0,1,5
+59,"Inter-pass optimized",11,50,33.213440,0,1,5
+59,"Inter-pass optimized",11,51,33.197056,0,1,5
+59,"Inter-pass optimized",11,52,33.400832,0,1,5
+59,"Inter-pass optimized",11,53,33.374208,0,1,5
+59,"Inter-pass optimized",11,54,33.379328,0,1,5
+59,"Inter-pass optimized",11,55,33.320960,0,1,5
+59,"Inter-pass optimized",11,56,33.348608,0,1,5
+59,"Inter-pass optimized",11,57,33.337344,0,1,5
+59,"Inter-pass optimized",11,58,33.374208,0,1,5
+59,"Inter-pass optimized",11,59,33.316864,0,1,5
+59,"Inter-pass optimized",11,60,33.290240,0,1,5
+59,"Inter-pass optimized",11,61,33.250304,0,1,5
+59,"Inter-pass optimized",11,62,33.273856,0,1,5
+59,"Inter-pass optimized",11,63,33.265664,0,1,5
+59,"Inter-pass optimized",11,64,33.575936,0,1,5
+59,"Inter-pass optimized",11,65,33.356800,0,1,5
+59,"Inter-pass optimized",11,66,33.552384,0,1,5
+59,"Inter-pass optimized",11,67,33.314816,0,1,5
+59,"Inter-pass optimized",11,68,33.399808,0,1,5
+59,"Inter-pass optimized",11,69,33.370112,0,1,5
+59,"Inter-pass optimized",11,70,33.684480,0,1,5
+59,"Inter-pass optimized",11,71,33.228800,0,1,5
+59,"Inter-pass optimized",11,72,33.230848,0,1,5
+59,"Inter-pass optimized",11,73,33.375232,0,1,5
+59,"Inter-pass optimized",11,74,33.500160,0,1,5
+59,"Inter-pass optimized",11,75,33.134592,0,1,5
+59,"Inter-pass optimized",11,76,33.329152,0,1,5
+59,"Inter-pass optimized",11,77,33.300480,0,1,5
+59,"Inter-pass optimized",11,78,33.235968,0,1,5
+59,"Inter-pass optimized",11,79,33.424384,0,1,5
+59,"Inter-pass optimized",11,80,33.192960,0,1,5
+59,"Inter-pass optimized",11,81,33.413120,0,1,5
+59,"Inter-pass optimized",11,82,33.324032,0,1,5
+59,"Inter-pass optimized",11,83,33.162240,0,1,5
+59,"Inter-pass optimized",11,84,33.290240,0,1,5
+59,"Inter-pass optimized",11,85,33.247232,0,1,5
+59,"Inter-pass optimized",11,86,33.284096,0,1,5
+59,"Inter-pass optimized",11,87,33.444864,0,1,5
+59,"Inter-pass optimized",11,88,33.637376,0,1,5
+59,"Inter-pass optimized",11,89,33.448960,0,1,5
+59,"Inter-pass optimized",11,90,33.159168,0,1,5
+59,"Inter-pass optimized",11,91,33.235968,0,1,5
+59,"Inter-pass optimized",11,92,33.317888,0,1,5
+59,"Inter-pass optimized",11,93,33.281024,0,1,5
+59,"Inter-pass optimized",11,94,33.366016,0,1,5
+59,"Inter-pass optimized",11,95,33.133568,0,1,5
+59,"Inter-pass optimized",11,96,33.304576,0,1,5
+59,"Inter-pass optimized",11,97,33.240064,0,1,5
+59,"Inter-pass optimized",11,98,33.037312,0,1,5
+59,"Inter-pass optimized",11,99,33.007616,0,1,5
+59,"Inter-pass optimized",11,100,33.101824,0,1,5
+59,"Inter-pass optimized",11,101,33.282048,0,1,5
+59,"Inter-pass optimized",11,102,33.391616,0,1,5
+59,"Inter-pass optimized",11,103,33.359872,0,1,5
+59,"Inter-pass optimized",11,104,33.327104,0,1,5
+59,"Inter-pass optimized",11,105,33.488896,0,1,5
+59,"Inter-pass optimized",11,106,33.635328,0,1,5
+59,"Inter-pass optimized",11,107,33.585152,0,1,5
+59,"Inter-pass optimized",11,108,33.321984,0,1,5
+59,"Inter-pass optimized",11,109,33.104896,0,1,5
+59,"Inter-pass optimized",11,110,33.315840,0,1,5
+59,"Inter-pass optimized",11,111,33.263616,0,1,5
+59,"Inter-pass optimized",11,112,33.192960,0,1,5
+59,"Inter-pass optimized",11,113,33.209344,0,1,5
+59,"Inter-pass optimized",11,114,33.257472,0,1,5
+59,"Inter-pass optimized",11,115,33.189888,0,1,5
+59,"Inter-pass optimized",11,116,33.233920,0,1,5
+59,"Inter-pass optimized",11,117,33.170432,0,1,5
+59,"Inter-pass optimized",11,118,33.284096,0,1,5
+59,"Inter-pass optimized",11,119,33.254400,0,1,5
+59,"Inter-pass optimized",11,120,33.324032,0,1,5
+59,"Inter-pass optimized",11,121,33.253376,0,1,5
+59,"Inter-pass optimized",11,122,33.114112,0,1,5
+59,"Inter-pass optimized",11,123,33.247232,0,1,5
+59,"Inter-pass optimized",11,124,33.269760,0,1,5
+59,"Inter-pass optimized",11,125,33.168384,0,1,5
+59,"Inter-pass optimized",11,126,33.139712,0,1,5
+59,"Inter-pass optimized",11,127,33.148928,0,1,5
+59,"Inter-pass optimized",11,128,33.290240,0,1,5
+59,"Inter-pass optimized",11,129,33.308672,0,1,5
+59,"Inter-pass optimized",11,130,33.644544,0,1,5
+59,"Inter-pass optimized",11,131,33.544192,0,1,5
+59,"Inter-pass optimized",11,132,33.521664,0,1,5
+59,"Inter-pass optimized",11,133,33.529856,0,1,5
+59,"Inter-pass optimized",11,134,33.416192,0,1,5
+59,"Inter-pass optimized",11,135,33.552384,0,1,5
+59,"Inter-pass optimized",11,136,33.376256,0,1,5
+59,"Inter-pass optimized",11,137,33.487872,0,1,5
+59,"Inter-pass optimized",11,138,33.312768,0,1,5
+59,"Inter-pass optimized",11,139,33.376256,0,1,5
+59,"Inter-pass optimized",11,140,33.255424,0,1,5
+59,"Inter-pass optimized",11,141,33.148928,0,1,5
+59,"Inter-pass optimized",11,142,33.258496,0,1,5
+59,"Inter-pass optimized",11,143,33.303552,0,1,5
+59,"Inter-pass optimized",11,144,33.158144,0,1,5
+59,"Inter-pass optimized",11,145,33.164288,0,1,5
+59,"Inter-pass optimized",11,146,33.178624,0,1,5
+59,"Inter-pass optimized",11,147,33.128448,0,1,5
+59,"Inter-pass optimized",11,148,33.145856,0,1,5
+59,"Inter-pass optimized",11,149,33.162240,0,1,5
+59,"Inter-pass optimized",11,150,33.343488,0,1,5
+59,"Inter-pass optimized",11,151,33.169408,0,1,5
+59,"Inter-pass optimized",11,152,33.430528,0,1,5
+59,"Inter-pass optimized",11,153,33.276928,0,1,5
+59,"Inter-pass optimized",11,154,33.799168,0,1,5
+59,"Inter-pass optimized",11,155,33.610752,0,1,5
+59,"Inter-pass optimized",11,156,33.574912,0,1,5
+59,"Inter-pass optimized",11,157,33.275904,0,1,5
+59,"Inter-pass optimized",11,158,33.305600,0,1,5
+59,"Inter-pass optimized",11,159,33.274880,0,1,5
+59,"Inter-pass fast",12,0,32.166912,1,1,5
+59,"Inter-pass fast",12,1,32.371712,1,1,5
+59,"Inter-pass fast",12,2,32.177152,1,1,5
+59,"Inter-pass fast",12,3,32.288768,1,1,5
+59,"Inter-pass fast",12,4,32.430080,1,1,5
+59,"Inter-pass fast",12,5,32.463872,1,1,5
+59,"Inter-pass fast",12,6,32.711680,1,1,5
+59,"Inter-pass fast",12,7,32.745472,1,1,5
+59,"Inter-pass fast",12,8,32.600064,1,1,5
+59,"Inter-pass fast",12,9,32.447488,1,1,5
+59,"Inter-pass fast",12,10,32.421888,1,1,5
+59,"Inter-pass fast",12,11,32.346112,1,1,5
+59,"Inter-pass fast",12,12,32.454656,1,1,5
+59,"Inter-pass fast",12,13,32.165888,1,1,5
+59,"Inter-pass fast",12,14,32.021504,1,1,5
+59,"Inter-pass fast",12,15,32.103424,1,1,5
+59,"Inter-pass fast",12,16,32.626688,1,1,5
+59,"Inter-pass fast",12,17,32.579584,1,1,5
+59,"Inter-pass fast",12,18,32.483328,1,1,5
+59,"Inter-pass fast",12,19,32.565248,1,1,5
+59,"Inter-pass fast",12,20,32.326656,1,1,5
+59,"Inter-pass fast",12,21,32.440320,1,1,5
+59,"Inter-pass fast",12,22,32.477184,1,1,5
+59,"Inter-pass fast",12,23,32.441344,1,1,5
+59,"Inter-pass fast",12,24,32.463872,1,1,5
+59,"Inter-pass fast",12,25,32.283648,1,1,5
+59,"Inter-pass fast",12,26,32.664576,1,1,5
+59,"Inter-pass fast",12,27,32.225280,1,1,5
+59,"Inter-pass fast",12,28,32.502784,1,1,5
+59,"Inter-pass fast",12,29,32.587776,1,1,5
+59,"Inter-pass fast",12,30,32.654336,1,1,5
+59,"Inter-pass fast",12,31,32.647168,1,1,5
+59,"Inter-pass fast",12,32,32.774144,1,1,5
+59,"Inter-pass fast",12,33,32.573440,1,1,5
+59,"Inter-pass fast",12,34,32.526336,1,1,5
+59,"Inter-pass fast",12,35,32.594944,1,1,5
+59,"Inter-pass fast",12,36,32.459776,1,1,5
+59,"Inter-pass fast",12,37,32.418816,1,1,5
+59,"Inter-pass fast",12,38,32.444416,1,1,5
+59,"Inter-pass fast",12,39,32.288768,1,1,5
+59,"Inter-pass fast",12,40,32.109568,1,1,5
+59,"Inter-pass fast",12,41,32.108544,1,1,5
+59,"Inter-pass fast",12,42,32.204800,1,1,5
+59,"Inter-pass fast",12,43,32.319488,1,1,5
+59,"Inter-pass fast",12,44,32.508928,1,1,5
+59,"Inter-pass fast",12,45,32.607232,1,1,5
+59,"Inter-pass fast",12,46,32.605184,1,1,5
+59,"Inter-pass fast",12,47,32.526336,1,1,5
+59,"Inter-pass fast",12,48,32.474112,1,1,5
+59,"Inter-pass fast",12,49,32.241664,1,1,5
+59,"Inter-pass fast",12,50,32.251904,1,1,5
+59,"Inter-pass fast",12,51,32.437248,1,1,5
+59,"Inter-pass fast",12,52,32.453632,1,1,5
+59,"Inter-pass fast",12,53,32.135168,1,1,5
+59,"Inter-pass fast",12,54,32.758784,1,1,5
+59,"Inter-pass fast",12,55,32.843776,1,1,5
+59,"Inter-pass fast",12,56,32.671744,1,1,5
+59,"Inter-pass fast",12,57,32.737280,1,1,5
+59,"Inter-pass fast",12,58,32.540672,1,1,5
+59,"Inter-pass fast",12,59,32.553984,1,1,5
+59,"Inter-pass fast",12,60,32.457728,1,1,5
+59,"Inter-pass fast",12,61,32.445440,1,1,5
+59,"Inter-pass fast",12,62,32.335872,1,1,5
+59,"Inter-pass fast",12,63,32.295936,1,1,5
+59,"Inter-pass fast",12,64,32.335872,1,1,5
+59,"Inter-pass fast",12,65,32.181248,1,1,5
+59,"Inter-pass fast",12,66,32.480256,1,1,5
+59,"Inter-pass fast",12,67,32.422912,1,1,5
+59,"Inter-pass fast",12,68,32.523264,1,1,5
+59,"Inter-pass fast",12,69,32.534528,1,1,5
+59,"Inter-pass fast",12,70,32.653312,1,1,5
+59,"Inter-pass fast",12,71,32.468992,1,1,5
+59,"Inter-pass fast",12,72,32.449536,1,1,5
+59,"Inter-pass fast",12,73,32.360448,1,1,5
+59,"Inter-pass fast",12,74,32.446464,1,1,5
+59,"Inter-pass fast",12,75,32.260096,1,1,5
+59,"Inter-pass fast",12,76,32.475136,1,1,5
+59,"Inter-pass fast",12,77,32.428032,1,1,5
+59,"Inter-pass fast",12,78,32.315392,1,1,5
+59,"Inter-pass fast",12,79,32.696320,1,1,5
+59,"Inter-pass fast",12,80,32.587776,1,1,5
+59,"Inter-pass fast",12,81,32.506880,1,1,5
+59,"Inter-pass fast",12,82,32.510976,1,1,5
+59,"Inter-pass fast",12,83,32.420864,1,1,5
+59,"Inter-pass fast",12,84,32.536576,1,1,5
+59,"Inter-pass fast",12,85,32.542720,1,1,5
+59,"Inter-pass fast",12,86,32.478208,1,1,5
+59,"Inter-pass fast",12,87,32.396288,1,1,5
+59,"Inter-pass fast",12,88,32.358400,1,1,5
+59,"Inter-pass fast",12,89,32.285696,1,1,5
+59,"Inter-pass fast",12,90,32.441344,1,1,5
+59,"Inter-pass fast",12,91,32.522240,1,1,5
+59,"Inter-pass fast",12,92,32.518144,1,1,5
+59,"Inter-pass fast",12,93,32.261120,1,1,5
+59,"Inter-pass fast",12,94,32.464896,1,1,5
+59,"Inter-pass fast",12,95,32.555008,1,1,5
+59,"Inter-pass fast",12,96,32.556032,1,1,5
+59,"Inter-pass fast",12,97,32.295936,1,1,5
+59,"Inter-pass fast",12,98,32.435200,1,1,5
+59,"Inter-pass fast",12,99,32.321536,1,1,5
+59,"Inter-pass fast",12,100,32.250880,1,1,5
+59,"Inter-pass fast",12,101,32.084992,1,1,5
+59,"Inter-pass fast",12,102,32.433152,1,1,5
+59,"Inter-pass fast",12,103,32.689152,1,1,5
+59,"Inter-pass fast",12,104,32.407552,1,1,5
+59,"Inter-pass fast",12,105,32.588800,1,1,5
+59,"Inter-pass fast",12,106,32.628736,1,1,5
+59,"Inter-pass fast",12,107,32.621568,1,1,5
+59,"Inter-pass fast",12,108,32.501760,1,1,5
+59,"Inter-pass fast",12,109,32.602112,1,1,5
+59,"Inter-pass fast",12,110,32.646144,1,1,5
+59,"Inter-pass fast",12,111,32.509952,1,1,5
+59,"Inter-pass fast",12,112,32.467968,1,1,5
+59,"Inter-pass fast",12,113,32.410624,1,1,5
+59,"Inter-pass fast",12,114,32.591872,1,1,5
+59,"Inter-pass fast",12,115,32.702464,1,1,5
+59,"Inter-pass fast",12,116,32.430080,1,1,5
+59,"Inter-pass fast",12,117,32.678912,1,1,5
+59,"Inter-pass fast",12,118,32.429056,1,1,5
+59,"Inter-pass fast",12,119,32.277504,1,1,5
+59,"Inter-pass fast",12,120,32.327680,1,1,5
+59,"Inter-pass fast",12,121,32.169984,1,1,5
+59,"Inter-pass fast",12,122,32.219136,1,1,5
+59,"Inter-pass fast",12,123,32.138240,1,1,5
+59,"Inter-pass fast",12,124,32.180224,1,1,5
+59,"Inter-pass fast",12,125,32.538624,1,1,5
+59,"Inter-pass fast",12,126,32.566272,1,1,5
+59,"Inter-pass fast",12,127,32.539648,1,1,5
+59,"Inter-pass fast",12,128,32.700416,1,1,5
+59,"Inter-pass fast",12,129,32.534528,1,1,5
+59,"Inter-pass fast",12,130,32.447488,1,1,5
+59,"Inter-pass fast",12,131,32.246784,1,1,5
+59,"Inter-pass fast",12,132,32.319488,1,1,5
+59,"Inter-pass fast",12,133,32.648192,1,1,5
+59,"Inter-pass fast",12,134,32.768000,1,1,5
+59,"Inter-pass fast",12,135,32.557056,1,1,5
+59,"Inter-pass fast",12,136,32.275456,1,1,5
+59,"Inter-pass fast",12,137,32.540672,1,1,5
+59,"Inter-pass fast",12,138,32.598016,1,1,5
+59,"Inter-pass fast",12,139,32.320512,1,1,5
+59,"Inter-pass fast",12,140,32.479232,1,1,5
+59,"Inter-pass fast",12,141,32.435200,1,1,5
+59,"Inter-pass fast",12,142,32.428032,1,1,5
+59,"Inter-pass fast",12,143,32.547840,1,1,5
+59,"Inter-pass fast",12,144,32.342016,1,1,5
+59,"Inter-pass fast",12,145,32.161792,1,1,5
+59,"Inter-pass fast",12,146,32.472064,1,1,5
+59,"Inter-pass fast",12,147,32.326656,1,1,5
+59,"Inter-pass fast",12,148,32.599040,1,1,5
+59,"Inter-pass fast",12,149,32.525312,1,1,5
+59,"Inter-pass fast",12,150,32.533504,1,1,5
+59,"Inter-pass fast",12,151,32.553984,1,1,5
+59,"Inter-pass fast",12,152,32.697344,1,1,5
+59,"Inter-pass fast",12,153,32.434176,1,1,5
+59,"Inter-pass fast",12,154,32.909312,1,1,5
+59,"Inter-pass fast",12,155,32.438272,1,1,5
+59,"Inter-pass fast",12,156,32.241664,1,1,5
+59,"Inter-pass fast",12,157,32.150528,1,1,5
+59,"Inter-pass fast",12,158,32.433152,1,1,5
+59,"Inter-pass fast",12,159,32.424960,1,1,5
+59,"Fast cached low",13,0,32.248832,1,1,5
+59,"Fast cached low",13,1,32.332800,1,1,5
+59,"Fast cached low",13,2,32.322560,1,1,5
+59,"Fast cached low",13,3,32.210944,1,1,5
+59,"Fast cached low",13,4,31.790080,1,1,5
+59,"Fast cached low",13,5,31.578112,1,1,5
+59,"Fast cached low",13,6,31.710208,1,1,5
+59,"Fast cached low",13,7,32.049152,1,1,5
+59,"Fast cached low",13,8,32.245760,1,1,5
+59,"Fast cached low",13,9,32.313344,1,1,5
+59,"Fast cached low",13,10,32.126976,1,1,5
+59,"Fast cached low",13,11,32.017408,1,1,5
+59,"Fast cached low",13,12,31.990784,1,1,5
+59,"Fast cached low",13,13,32.210944,1,1,5
+59,"Fast cached low",13,14,32.248832,1,1,5
+59,"Fast cached low",13,15,32.069632,1,1,5
+59,"Fast cached low",13,16,32.280576,1,1,5
+59,"Fast cached low",13,17,32.224256,1,1,5
+59,"Fast cached low",13,18,32.240640,1,1,5
+59,"Fast cached low",13,19,32.278528,1,1,5
+59,"Fast cached low",13,20,32.278528,1,1,5
+59,"Fast cached low",13,21,32.288768,1,1,5
+59,"Fast cached low",13,22,32.313344,1,1,5
+59,"Fast cached low",13,23,32.188416,1,1,5
+59,"Fast cached low",13,24,32.292864,1,1,5
+59,"Fast cached low",13,25,32.361472,1,1,5
+59,"Fast cached low",13,26,32.328704,1,1,5
+59,"Fast cached low",13,27,32.031744,1,1,5
+59,"Fast cached low",13,28,31.781888,1,1,5
+59,"Fast cached low",13,29,31.585280,1,1,5
+59,"Fast cached low",13,30,31.732736,1,1,5
+59,"Fast cached low",13,31,31.929344,1,1,5
+59,"Fast cached low",13,32,32.381952,1,1,5
+59,"Fast cached low",13,33,32.601088,1,1,5
+59,"Fast cached low",13,34,32.119808,1,1,5
+59,"Fast cached low",13,35,31.934464,1,1,5
+59,"Fast cached low",13,36,32.133120,1,1,5
+59,"Fast cached low",13,37,32.260096,1,1,5
+59,"Fast cached low",13,38,32.205824,1,1,5
+59,"Fast cached low",13,39,32.101376,1,1,5
+59,"Fast cached low",13,40,32.344064,1,1,5
+59,"Fast cached low",13,41,32.287744,1,1,5
+59,"Fast cached low",13,42,32.115712,1,1,5
+59,"Fast cached low",13,43,32.223232,1,1,5
+59,"Fast cached low",13,44,32.272384,1,1,5
+59,"Fast cached low",13,45,32.407552,1,1,5
+59,"Fast cached low",13,46,32.364544,1,1,5
+59,"Fast cached low",13,47,32.206848,1,1,5
+59,"Fast cached low",13,48,32.241664,1,1,5
+59,"Fast cached low",13,49,32.432128,1,1,5
+59,"Fast cached low",13,50,32.388096,1,1,5
+59,"Fast cached low",13,51,32.216064,1,1,5
+59,"Fast cached low",13,52,31.778816,1,1,5
+59,"Fast cached low",13,53,31.613952,1,1,5
+59,"Fast cached low",13,54,31.716352,1,1,5
+59,"Fast cached low",13,55,31.877120,1,1,5
+59,"Fast cached low",13,56,32.249856,1,1,5
+59,"Fast cached low",13,57,32.291840,1,1,5
+59,"Fast cached low",13,58,32.090112,1,1,5
+59,"Fast cached low",13,59,32.097280,1,1,5
+59,"Fast cached low",13,60,31.965184,1,1,5
+59,"Fast cached low",13,61,32.199680,1,1,5
+59,"Fast cached low",13,62,32.356352,1,1,5
+59,"Fast cached low",13,63,32.294912,1,1,5
+59,"Fast cached low",13,64,32.101376,1,1,5
+59,"Fast cached low",13,65,32.247808,1,1,5
+59,"Fast cached low",13,66,32.235520,1,1,5
+59,"Fast cached low",13,67,32.214016,1,1,5
+59,"Fast cached low",13,68,32.401408,1,1,5
+59,"Fast cached low",13,69,32.358400,1,1,5
+59,"Fast cached low",13,70,32.388096,1,1,5
+59,"Fast cached low",13,71,32.269312,1,1,5
+59,"Fast cached low",13,72,32.211968,1,1,5
+59,"Fast cached low",13,73,32.248832,1,1,5
+59,"Fast cached low",13,74,32.307200,1,1,5
+59,"Fast cached low",13,75,32.224256,1,1,5
+59,"Fast cached low",13,76,32.186368,1,1,5
+59,"Fast cached low",13,77,31.608832,1,1,5
+59,"Fast cached low",13,78,31.628288,1,1,5
+59,"Fast cached low",13,79,31.932416,1,1,5
+59,"Fast cached low",13,80,32.075776,1,1,5
+59,"Fast cached low",13,81,32.268288,1,1,5
+59,"Fast cached low",13,82,32.400384,1,1,5
+59,"Fast cached low",13,83,32.064512,1,1,5
+59,"Fast cached low",13,84,32.135168,1,1,5
+59,"Fast cached low",13,85,32.099328,1,1,5
+59,"Fast cached low",13,86,32.223232,1,1,5
+59,"Fast cached low",13,87,32.459776,1,1,5
+59,"Fast cached low",13,88,32.196608,1,1,5
+59,"Fast cached low",13,89,32.086016,1,1,5
+59,"Fast cached low",13,90,32.100352,1,1,5
+59,"Fast cached low",13,91,32.204800,1,1,5
+59,"Fast cached low",13,92,32.279552,1,1,5
+59,"Fast cached low",13,93,32.248832,1,1,5
+59,"Fast cached low",13,94,32.270336,1,1,5
+59,"Fast cached low",13,95,32.254976,1,1,5
+59,"Fast cached low",13,96,32.198656,1,1,5
+59,"Fast cached low",13,97,32.229376,1,1,5
+59,"Fast cached low",13,98,32.260096,1,1,5
+59,"Fast cached low",13,99,32.316416,1,1,5
+59,"Fast cached low",13,100,32.207872,1,1,5
+59,"Fast cached low",13,101,31.808512,1,1,5
+59,"Fast cached low",13,102,31.546368,1,1,5
+59,"Fast cached low",13,103,31.631360,1,1,5
+59,"Fast cached low",13,104,31.983616,1,1,5
+59,"Fast cached low",13,105,32.320512,1,1,5
+59,"Fast cached low",13,106,32.345088,1,1,5
+59,"Fast cached low",13,107,32.243712,1,1,5
+59,"Fast cached low",13,108,32.135168,1,1,5
+59,"Fast cached low",13,109,31.976448,1,1,5
+59,"Fast cached low",13,110,32.054272,1,1,5
+59,"Fast cached low",13,111,32.581632,1,1,5
+59,"Fast cached low",13,112,32.343040,1,1,5
+59,"Fast cached low",13,113,32.439296,1,1,5
+59,"Fast cached low",13,114,32.313344,1,1,5
+59,"Fast cached low",13,115,32.328704,1,1,5
+59,"Fast cached low",13,116,32.161792,1,1,5
+59,"Fast cached low",13,117,32.133120,1,1,5
+59,"Fast cached low",13,118,32.310272,1,1,5
+59,"Fast cached low",13,119,31.993856,1,1,5
+59,"Fast cached low",13,120,32.318464,1,1,5
+59,"Fast cached low",13,121,32.193536,1,1,5
+59,"Fast cached low",13,122,32.219136,1,1,5
+59,"Fast cached low",13,123,32.233472,1,1,5
+59,"Fast cached low",13,124,32.247808,1,1,5
+59,"Fast cached low",13,125,32.073728,1,1,5
+59,"Fast cached low",13,126,31.980544,1,1,5
+59,"Fast cached low",13,127,31.565824,1,1,5
+59,"Fast cached low",13,128,31.807488,1,1,5
+59,"Fast cached low",13,129,31.947776,1,1,5
+59,"Fast cached low",13,130,32.045056,1,1,5
+59,"Fast cached low",13,131,32.112640,1,1,5
+59,"Fast cached low",13,132,32.116736,1,1,5
+59,"Fast cached low",13,133,32.222208,1,1,5
+59,"Fast cached low",13,134,31.934464,1,1,5
+59,"Fast cached low",13,135,32.067584,1,1,5
+59,"Fast cached low",13,136,32.226304,1,1,5
+59,"Fast cached low",13,137,32.714752,1,1,5
+59,"Fast cached low",13,138,32.496640,1,1,5
+59,"Fast cached low",13,139,32.102400,1,1,5
+59,"Fast cached low",13,140,32.292864,1,1,5
+59,"Fast cached low",13,141,32.216064,1,1,5
+59,"Fast cached low",13,142,32.280576,1,1,5
+59,"Fast cached low",13,143,32.261120,1,1,5
+59,"Fast cached low",13,144,32.277504,1,1,5
+59,"Fast cached low",13,145,32.240640,1,1,5
+59,"Fast cached low",13,146,32.217088,1,1,5
+59,"Fast cached low",13,147,32.174080,1,1,5
+59,"Fast cached low",13,148,32.244736,1,1,5
+59,"Fast cached low",13,149,32.080896,1,1,5
+59,"Fast cached low",13,150,31.924224,1,1,5
+59,"Fast cached low",13,151,31.750144,1,1,5
+59,"Fast cached low",13,152,31.589376,1,1,5
+59,"Fast cached low",13,153,31.638528,1,1,5
+59,"Fast cached low",13,154,31.869952,1,1,5
+59,"Fast cached low",13,155,31.979520,1,1,5
+59,"Fast cached low",13,156,32.282624,1,1,5
+59,"Fast cached low",13,157,32.196608,1,1,5
+59,"Fast cached low",13,158,32.135168,1,1,5
+59,"Fast cached low",13,159,31.929344,1,1,5
+59,"Fast cached low",14,0,31.986688,1,1,5
+59,"Fast cached low",14,1,31.746048,1,1,5
+59,"Fast cached low",14,2,31.878144,1,1,5
+59,"Fast cached low",14,3,32.112640,1,1,5
+59,"Fast cached low",14,4,31.742976,1,1,5
+59,"Fast cached low",14,5,31.613952,1,1,5
+59,"Fast cached low",14,6,31.859712,1,1,5
+59,"Fast cached low",14,7,31.958016,1,1,5
+59,"Fast cached low",14,8,32.158720,1,1,5
+59,"Fast cached low",14,9,32.359424,1,1,5
+59,"Fast cached low",14,10,32.239616,1,1,5
+59,"Fast cached low",14,11,32.060416,1,1,5
+59,"Fast cached low",14,12,32.278528,1,1,5
+59,"Fast cached low",14,13,32.240640,1,1,5
+59,"Fast cached low",14,14,32.276480,1,1,5
+59,"Fast cached low",14,15,32.339968,1,1,5
+59,"Fast cached low",14,16,32.254976,1,1,5
+59,"Fast cached low",14,17,32.233472,1,1,5
+59,"Fast cached low",14,18,32.250880,1,1,5
+59,"Fast cached low",14,19,32.067584,1,1,5
+59,"Fast cached low",14,20,32.084992,1,1,5
+59,"Fast cached low",14,21,32.230400,1,1,5
+59,"Fast cached low",14,22,32.253952,1,1,5
+59,"Fast cached low",14,23,32.160768,1,1,5
+59,"Fast cached low",14,24,32.060416,1,1,5
+59,"Fast cached low",14,25,31.998976,1,1,5
+59,"Fast cached low",14,26,32.032768,1,1,5
+59,"Fast cached low",14,27,31.846400,1,1,5
+59,"Fast cached low",14,28,31.877120,1,1,5
+59,"Fast cached low",14,29,32.128000,1,1,5
+59,"Fast cached low",14,30,31.747072,1,1,5
+59,"Fast cached low",14,31,31.762432,1,1,5
+59,"Fast cached low",14,32,31.792128,1,1,5
+59,"Fast cached low",14,33,31.944704,1,1,5
+59,"Fast cached low",14,34,32.256000,1,1,5
+59,"Fast cached low",14,35,32.408576,1,1,5
+59,"Fast cached low",14,36,32.342016,1,1,5
+59,"Fast cached low",14,37,32.134144,1,1,5
+59,"Fast cached low",14,38,32.318464,1,1,5
+59,"Fast cached low",14,39,32.293888,1,1,5
+59,"Fast cached low",14,40,32.103424,1,1,5
+59,"Fast cached low",14,41,32.464896,1,1,5
+59,"Fast cached low",14,42,32.224256,1,1,5
+59,"Fast cached low",14,43,32.220160,1,1,5
+59,"Fast cached low",14,44,32.149504,1,1,5
+59,"Fast cached low",14,45,32.117760,1,1,5
+59,"Fast cached low",14,46,32.272384,1,1,5
+59,"Fast cached low",14,47,32.239616,1,1,5
+59,"Fast cached low",14,48,32.131072,1,1,5
+59,"Fast cached low",14,49,32.150528,1,1,5
+59,"Fast cached low",14,50,32.140288,1,1,5
+59,"Fast cached low",14,51,32.050176,1,1,5
+59,"Fast cached low",14,52,31.997952,1,1,5
+59,"Fast cached low",14,53,31.812608,1,1,5
+59,"Fast cached low",14,54,31.998976,1,1,5
+59,"Fast cached low",14,55,31.741952,1,1,5
+59,"Fast cached low",14,56,31.609856,1,1,5
+59,"Fast cached low",14,57,31.868928,1,1,5
+59,"Fast cached low",14,58,32.067584,1,1,5
+59,"Fast cached low",14,59,32.339968,1,1,5
+59,"Fast cached low",14,60,32.471040,1,1,5
+59,"Fast cached low",14,61,32.241664,1,1,5
+59,"Fast cached low",14,62,32.410624,1,1,5
+59,"Fast cached low",14,63,32.208896,1,1,5
+59,"Fast cached low",14,64,32.222208,1,1,5
+59,"Fast cached low",14,65,32.160768,1,1,5
+59,"Fast cached low",14,66,32.211968,1,1,5
+59,"Fast cached low",14,67,32.499712,1,1,5
+59,"Fast cached low",14,68,32.275456,1,1,5
+59,"Fast cached low",14,69,32.351232,1,1,5
+59,"Fast cached low",14,70,32.249856,1,1,5
+59,"Fast cached low",14,71,32.128000,1,1,5
+59,"Fast cached low",14,72,32.100352,1,1,5
+59,"Fast cached low",14,73,32.214016,1,1,5
+59,"Fast cached low",14,74,32.244736,1,1,5
+59,"Fast cached low",14,75,32.201728,1,1,5
+59,"Fast cached low",14,76,31.947776,1,1,5
+59,"Fast cached low",14,77,31.896576,1,1,5
+59,"Fast cached low",14,78,31.832064,1,1,5
+59,"Fast cached low",14,79,31.803392,1,1,5
+59,"Fast cached low",14,80,32.136192,1,1,5
+59,"Fast cached low",14,81,31.835136,1,1,5
+59,"Fast cached low",14,82,31.807488,1,1,5
+59,"Fast cached low",14,83,31.858688,1,1,5
+59,"Fast cached low",14,84,32.128000,1,1,5
+59,"Fast cached low",14,85,32.266240,1,1,5
+59,"Fast cached low",14,86,32.414720,1,1,5
+59,"Fast cached low",14,87,32.535552,1,1,5
+59,"Fast cached low",14,88,32.411648,1,1,5
+59,"Fast cached low",14,89,32.318464,1,1,5
+59,"Fast cached low",14,90,32.194560,1,1,5
+59,"Fast cached low",14,91,32.163840,1,1,5
+59,"Fast cached low",14,92,32.110592,1,1,5
+59,"Fast cached low",14,93,32.198656,1,1,5
+59,"Fast cached low",14,94,32.176128,1,1,5
+59,"Fast cached low",14,95,32.433152,1,1,5
+59,"Fast cached low",14,96,32.272384,1,1,5
+59,"Fast cached low",14,97,32.286720,1,1,5
+59,"Fast cached low",14,98,32.174080,1,1,5
+59,"Fast cached low",14,99,32.122880,1,1,5
+59,"Fast cached low",14,100,32.161792,1,1,5
+59,"Fast cached low",14,101,32.114688,1,1,5
+59,"Fast cached low",14,102,32.121856,1,1,5
+59,"Fast cached low",14,103,32.020480,1,1,5
+59,"Fast cached low",14,104,31.942656,1,1,5
+59,"Fast cached low",14,105,31.754240,1,1,5
+59,"Fast cached low",14,106,31.788032,1,1,5
+59,"Fast cached low",14,107,32.172032,1,1,5
+59,"Fast cached low",14,108,32.324608,1,1,5
+59,"Fast cached low",14,109,31.932416,1,1,5
+59,"Fast cached low",14,110,31.935488,1,1,5
+59,"Fast cached low",14,111,31.827968,1,1,5
+59,"Fast cached low",14,112,32.003072,1,1,5
+59,"Fast cached low",14,113,32.208896,1,1,5
+59,"Fast cached low",14,114,32.452608,1,1,5
+59,"Fast cached low",14,115,32.432128,1,1,5
+59,"Fast cached low",14,116,32.178176,1,1,5
+59,"Fast cached low",14,117,32.271360,1,1,5
+59,"Fast cached low",14,118,32.463872,1,1,5
+59,"Fast cached low",14,119,32.140288,1,1,5
+59,"Fast cached low",14,120,32.068608,1,1,5
+59,"Fast cached low",14,121,32.083968,1,1,5
+59,"Fast cached low",14,122,32.256000,1,1,5
+59,"Fast cached low",14,123,32.200704,1,1,5
+59,"Fast cached low",14,124,32.138240,1,1,5
+59,"Fast cached low",14,125,32.162816,1,1,5
+59,"Fast cached low",14,126,31.966208,1,1,5
+59,"Fast cached low",14,127,32.262144,1,1,5
+59,"Fast cached low",14,128,32.110592,1,1,5
+59,"Fast cached low",14,129,32.012288,1,1,5
+59,"Fast cached low",14,130,32.045056,1,1,5
+59,"Fast cached low",14,131,32.136192,1,1,5
+59,"Fast cached low",14,132,31.982592,1,1,5
+59,"Fast cached low",14,133,31.898624,1,1,5
+59,"Fast cached low",14,134,32.111616,1,1,5
+59,"Fast cached low",14,135,32.287744,1,1,5
+59,"Fast cached low",14,136,32.008192,1,1,5
+59,"Fast cached low",14,137,31.790080,1,1,5
+59,"Fast cached low",14,138,31.882240,1,1,5
+59,"Fast cached low",14,139,31.991808,1,1,5
+59,"Fast cached low",14,140,32.241664,1,1,5
+59,"Fast cached low",14,141,32.462848,1,1,5
+59,"Fast cached low",14,142,32.500736,1,1,5
+59,"Fast cached low",14,143,32.438272,1,1,5
+59,"Fast cached low",14,144,32.301056,1,1,5
+59,"Fast cached low",14,145,32.372736,1,1,5
+59,"Fast cached low",14,146,32.180224,1,1,5
+59,"Fast cached low",14,147,32.021504,1,1,5
+59,"Fast cached low",14,148,31.965184,1,1,5
+59,"Fast cached low",14,149,32.059392,1,1,5
+59,"Fast cached low",14,150,32.264192,1,1,5
+59,"Fast cached low",14,151,32.166912,1,1,5
+59,"Fast cached low",14,152,32.119808,1,1,5
+59,"Fast cached low",14,153,32.235520,1,1,5
+59,"Fast cached low",14,154,31.993856,1,1,5
+59,"Fast cached low",14,155,32.232448,1,1,5
+59,"Fast cached low",14,156,32.147456,1,1,5
+59,"Fast cached low",14,157,32.069632,1,1,5
+59,"Fast cached low",14,158,32.216064,1,1,5
+59,"Fast cached low",14,159,32.037888,1,1,5
+59,"Inter-pass fast",15,0,32.299008,1,1,5
+59,"Inter-pass fast",15,1,32.413696,1,1,5
+59,"Inter-pass fast",15,2,32.670720,1,1,5
+59,"Inter-pass fast",15,3,32.555008,1,1,5
+59,"Inter-pass fast",15,4,32.379904,1,1,5
+59,"Inter-pass fast",15,5,32.116736,1,1,5
+59,"Inter-pass fast",15,6,32.163840,1,1,5
+59,"Inter-pass fast",15,7,32.151552,1,1,5
+59,"Inter-pass fast",15,8,32.250880,1,1,5
+59,"Inter-pass fast",15,9,32.212992,1,1,5
+59,"Inter-pass fast",15,10,32.432128,1,1,5
+59,"Inter-pass fast",15,11,32.595968,1,1,5
+59,"Inter-pass fast",15,12,32.487424,1,1,5
+59,"Inter-pass fast",15,13,32.377856,1,1,5
+59,"Inter-pass fast",15,14,32.419840,1,1,5
+59,"Inter-pass fast",15,15,32.585728,1,1,5
+59,"Inter-pass fast",15,16,32.555008,1,1,5
+59,"Inter-pass fast",15,17,32.448512,1,1,5
+59,"Inter-pass fast",15,18,32.261120,1,1,5
+59,"Inter-pass fast",15,19,32.416768,1,1,5
+59,"Inter-pass fast",15,20,32.556032,1,1,5
+59,"Inter-pass fast",15,21,32.936960,1,1,5
+59,"Inter-pass fast",15,22,32.475136,1,1,5
+59,"Inter-pass fast",15,23,32.433152,1,1,5
+59,"Inter-pass fast",15,24,32.473088,1,1,5
+59,"Inter-pass fast",15,25,32.436224,1,1,5
+59,"Inter-pass fast",15,26,32.482304,1,1,5
+59,"Inter-pass fast",15,27,32.431104,1,1,5
+59,"Inter-pass fast",15,28,32.313344,1,1,5
+59,"Inter-pass fast",15,29,32.275456,1,1,5
+59,"Inter-pass fast",15,30,32.301056,1,1,5
+59,"Inter-pass fast",15,31,32.101376,1,1,5
+59,"Inter-pass fast",15,32,32.144384,1,1,5
+59,"Inter-pass fast",15,33,32.359424,1,1,5
+59,"Inter-pass fast",15,34,32.505856,1,1,5
+59,"Inter-pass fast",15,35,32.538624,1,1,5
+59,"Inter-pass fast",15,36,32.635904,1,1,5
+59,"Inter-pass fast",15,37,32.547840,1,1,5
+59,"Inter-pass fast",15,38,32.550912,1,1,5
+59,"Inter-pass fast",15,39,32.565248,1,1,5
+59,"Inter-pass fast",15,40,32.577536,1,1,5
+59,"Inter-pass fast",15,41,32.471040,1,1,5
+59,"Inter-pass fast",15,42,32.431104,1,1,5
+59,"Inter-pass fast",15,43,32.602112,1,1,5
+59,"Inter-pass fast",15,44,32.438272,1,1,5
+59,"Inter-pass fast",15,45,32.534528,1,1,5
+59,"Inter-pass fast",15,46,32.542720,1,1,5
+59,"Inter-pass fast",15,47,32.548864,1,1,5
+59,"Inter-pass fast",15,48,32.609280,1,1,5
+59,"Inter-pass fast",15,49,32.432128,1,1,5
+59,"Inter-pass fast",15,50,32.614400,1,1,5
+59,"Inter-pass fast",15,51,32.583680,1,1,5
+59,"Inter-pass fast",15,52,32.375808,1,1,5
+59,"Inter-pass fast",15,53,32.069632,1,1,5
+59,"Inter-pass fast",15,54,32.117760,1,1,5
+59,"Inter-pass fast",15,55,31.955968,1,1,5
+59,"Inter-pass fast",15,56,32.192512,1,1,5
+59,"Inter-pass fast",15,57,32.251904,1,1,5
+59,"Inter-pass fast",15,58,32.519168,1,1,5
+59,"Inter-pass fast",15,59,32.522240,1,1,5
+59,"Inter-pass fast",15,60,32.740352,1,1,5
+59,"Inter-pass fast",15,61,32.434176,1,1,5
+59,"Inter-pass fast",15,62,32.447488,1,1,5
+59,"Inter-pass fast",15,63,32.572416,1,1,5
+59,"Inter-pass fast",15,64,32.581632,1,1,5
+59,"Inter-pass fast",15,65,32.533504,1,1,5
+59,"Inter-pass fast",15,66,32.453632,1,1,5
+59,"Inter-pass fast",15,67,32.542720,1,1,5
+59,"Inter-pass fast",15,68,32.456704,1,1,5
+59,"Inter-pass fast",15,69,32.363520,1,1,5
+59,"Inter-pass fast",15,70,32.467968,1,1,5
+59,"Inter-pass fast",15,71,32.415744,1,1,5
+59,"Inter-pass fast",15,72,32.613376,1,1,5
+59,"Inter-pass fast",15,73,32.379904,1,1,5
+59,"Inter-pass fast",15,74,32.591872,1,1,5
+59,"Inter-pass fast",15,75,32.492544,1,1,5
+59,"Inter-pass fast",15,76,32.367616,1,1,5
+59,"Inter-pass fast",15,77,32.277504,1,1,5
+59,"Inter-pass fast",15,78,31.990784,1,1,5
+59,"Inter-pass fast",15,79,32.028672,1,1,5
+59,"Inter-pass fast",15,80,32.335872,1,1,5
+59,"Inter-pass fast",15,81,32.519168,1,1,5
+59,"Inter-pass fast",15,82,32.616448,1,1,5
+59,"Inter-pass fast",15,83,32.637952,1,1,5
+59,"Inter-pass fast",15,84,32.290816,1,1,5
+59,"Inter-pass fast",15,85,32.484352,1,1,5
+59,"Inter-pass fast",15,86,32.535552,1,1,5
+59,"Inter-pass fast",15,87,32.784384,1,1,5
+59,"Inter-pass fast",15,88,32.544768,1,1,5
+59,"Inter-pass fast",15,89,32.516096,1,1,5
+59,"Inter-pass fast",15,90,32.625664,1,1,5
+59,"Inter-pass fast",15,91,32.487424,1,1,5
+59,"Inter-pass fast",15,92,32.574464,1,1,5
+59,"Inter-pass fast",15,93,32.558080,1,1,5
+59,"Inter-pass fast",15,94,32.644096,1,1,5
+59,"Inter-pass fast",15,95,32.311296,1,1,5
+59,"Inter-pass fast",15,96,32.455680,1,1,5
+59,"Inter-pass fast",15,97,32.677888,1,1,5
+59,"Inter-pass fast",15,98,32.450560,1,1,5
+59,"Inter-pass fast",15,99,32.176128,1,1,5
+59,"Inter-pass fast",15,100,32.109568,1,1,5
+59,"Inter-pass fast",15,101,32.109568,1,1,5
+59,"Inter-pass fast",15,102,32.193536,1,1,5
+59,"Inter-pass fast",15,103,32.148480,1,1,5
+59,"Inter-pass fast",15,104,32.274432,1,1,5
+59,"Inter-pass fast",15,105,32.620544,1,1,5
+59,"Inter-pass fast",15,106,32.620544,1,1,5
+59,"Inter-pass fast",15,107,32.536576,1,1,5
+59,"Inter-pass fast",15,108,32.544768,1,1,5
+59,"Inter-pass fast",15,109,32.492544,1,1,5
+59,"Inter-pass fast",15,110,32.727040,1,1,5
+59,"Inter-pass fast",15,111,32.547840,1,1,5
+59,"Inter-pass fast",15,112,32.478208,1,1,5
+59,"Inter-pass fast",15,113,32.518144,1,1,5
+59,"Inter-pass fast",15,114,32.441344,1,1,5
+59,"Inter-pass fast",15,115,32.295936,1,1,5
+59,"Inter-pass fast",15,116,32.440320,1,1,5
+59,"Inter-pass fast",15,117,32.559104,1,1,5
+59,"Inter-pass fast",15,118,32.535552,1,1,5
+59,"Inter-pass fast",15,119,32.550912,1,1,5
+59,"Inter-pass fast",15,120,32.614400,1,1,5
+59,"Inter-pass fast",15,121,32.644096,1,1,5
+59,"Inter-pass fast",15,122,32.347136,1,1,5
+59,"Inter-pass fast",15,123,32.568320,1,1,5
+59,"Inter-pass fast",15,124,32.168960,1,1,5
+59,"Inter-pass fast",15,125,32.023552,1,1,5
+59,"Inter-pass fast",15,126,32.132096,1,1,5
+59,"Inter-pass fast",15,127,32.254976,1,1,5
+59,"Inter-pass fast",15,128,32.373760,1,1,5
+59,"Inter-pass fast",15,129,32.591872,1,1,5
+59,"Inter-pass fast",15,130,32.708608,1,1,5
+59,"Inter-pass fast",15,131,32.493568,1,1,5
+59,"Inter-pass fast",15,132,32.551936,1,1,5
+59,"Inter-pass fast",15,133,32.485376,1,1,5
+59,"Inter-pass fast",15,134,32.468992,1,1,5
+59,"Inter-pass fast",15,135,32.438272,1,1,5
+59,"Inter-pass fast",15,136,32.520192,1,1,5
+59,"Inter-pass fast",15,137,32.453632,1,1,5
+59,"Inter-pass fast",15,138,32.657408,1,1,5
+59,"Inter-pass fast",15,139,32.363520,1,1,5
+59,"Inter-pass fast",15,140,32.143360,1,1,5
+59,"Inter-pass fast",15,141,32.117760,1,1,5
+59,"Inter-pass fast",15,142,32.286720,1,1,5
+59,"Inter-pass fast",15,143,32.396288,1,1,5
+59,"Inter-pass fast",15,144,32.472064,1,1,5
+59,"Inter-pass fast",15,145,32.550912,1,1,5
+59,"Inter-pass fast",15,146,32.661504,1,1,5
+59,"Inter-pass fast",15,147,32.520192,1,1,5
+59,"Inter-pass fast",15,148,32.407552,1,1,5
+59,"Inter-pass fast",15,149,32.606208,1,1,5
+59,"Inter-pass fast",15,150,32.212992,1,1,5
+59,"Inter-pass fast",15,151,32.182272,1,1,5
+59,"Inter-pass fast",15,152,32.468992,1,1,5
+59,"Inter-pass fast",15,153,32.283648,1,1,5
+59,"Inter-pass fast",15,154,32.397312,1,1,5
+59,"Inter-pass fast",15,155,32.436224,1,1,5
+59,"Inter-pass fast",15,156,32.519168,1,1,5
+59,"Inter-pass fast",15,157,32.572416,1,1,5
+59,"Inter-pass fast",15,158,32.574464,1,1,5
+59,"Inter-pass fast",15,159,32.472064,1,1,5
+65,"No inter-pass",16,0,35.780608,0,0,0
+65,"No inter-pass",16,1,35.725312,0,0,0
+65,"No inter-pass",16,2,35.850240,0,0,0
+65,"No inter-pass",16,3,35.902464,0,0,0
+65,"No inter-pass",16,4,36.058112,0,0,0
+65,"No inter-pass",16,5,36.460544,0,0,0
+65,"No inter-pass",16,6,36.037632,0,0,0
+65,"No inter-pass",16,7,36.187136,0,0,0
+65,"No inter-pass",16,8,35.773440,0,0,0
+65,"No inter-pass",16,9,35.655680,0,0,0
+65,"No inter-pass",16,10,35.776512,0,0,0
+65,"No inter-pass",16,11,35.677184,0,0,0
+65,"No inter-pass",16,12,35.640320,0,0,0
+65,"No inter-pass",16,13,35.673088,0,0,0
+65,"No inter-pass",16,14,35.519488,0,0,0
+65,"No inter-pass",16,15,35.551232,0,0,0
+65,"No inter-pass",16,16,35.458048,0,0,0
+65,"No inter-pass",16,17,35.439616,0,0,0
+65,"No inter-pass",16,18,35.188736,0,0,0
+65,"No inter-pass",16,19,35.716096,0,0,0
+65,"No inter-pass",16,20,35.228672,0,0,0
+65,"No inter-pass",16,21,35.713024,0,0,0
+65,"No inter-pass",16,22,35.616768,0,0,0
+65,"No inter-pass",16,23,35.433472,0,0,0
+65,"No inter-pass",16,24,35.532800,0,0,0
+65,"No inter-pass",16,25,35.734528,0,0,0
+65,"No inter-pass",16,26,36.460544,0,0,0
+65,"No inter-pass",16,27,35.975168,0,0,0
+65,"No inter-pass",16,28,36.342784,0,0,0
+65,"No inter-pass",16,29,36.039680,0,0,0
+65,"No inter-pass",16,30,35.986432,0,0,0
+65,"No inter-pass",16,31,35.776512,0,0,0
+65,"No inter-pass",16,32,35.936256,0,0,0
+65,"No inter-pass",16,33,35.476480,0,0,0
+65,"No inter-pass",16,34,35.905536,0,0,0
+65,"No inter-pass",16,35,35.510272,0,0,0
+65,"No inter-pass",16,36,35.569664,0,0,0
+65,"No inter-pass",16,37,35.497984,0,0,0
+65,"No inter-pass",16,38,35.694592,0,0,0
+65,"No inter-pass",16,39,35.637248,0,0,0
+65,"No inter-pass",16,40,35.584000,0,0,0
+65,"No inter-pass",16,41,35.603456,0,0,0
+65,"No inter-pass",16,42,35.464192,0,0,0
+65,"No inter-pass",16,43,35.527680,0,0,0
+65,"No inter-pass",16,44,35.633152,0,0,0
+65,"No inter-pass",16,45,35.453952,0,0,0
+65,"No inter-pass",16,46,35.472384,0,0,0
+65,"No inter-pass",16,47,35.959808,0,0,0
+65,"No inter-pass",16,48,35.650560,0,0,0
+65,"No inter-pass",16,49,36.279296,0,0,0
+65,"No inter-pass",16,50,35.887104,0,0,0
+65,"No inter-pass",16,51,35.861504,0,0,0
+65,"No inter-pass",16,52,35.902464,0,0,0
+65,"No inter-pass",16,53,35.976192,0,0,0
+65,"No inter-pass",16,54,35.748864,0,0,0
+65,"No inter-pass",16,55,36.107264,0,0,0
+65,"No inter-pass",16,56,35.763200,0,0,0
+65,"No inter-pass",16,57,35.495936,0,0,0
+65,"No inter-pass",16,58,35.481600,0,0,0
+65,"No inter-pass",16,59,35.428352,0,0,0
+65,"No inter-pass",16,60,35.724288,0,0,0
+65,"No inter-pass",16,61,35.497984,0,0,0
+65,"No inter-pass",16,62,35.704832,0,0,0
+65,"No inter-pass",16,63,35.591168,0,0,0
+65,"No inter-pass",16,64,35.575808,0,0,0
+65,"No inter-pass",16,65,35.488768,0,0,0
+65,"No inter-pass",16,66,35.596288,0,0,0
+65,"No inter-pass",16,67,35.597312,0,0,0
+65,"No inter-pass",16,68,35.725312,0,0,0
+65,"No inter-pass",16,69,35.521536,0,0,0
+65,"No inter-pass",16,70,35.938304,0,0,0
+65,"No inter-pass",16,71,35.858432,0,0,0
+65,"No inter-pass",16,72,35.807232,0,0,0
+65,"No inter-pass",16,73,35.883008,0,0,0
+65,"No inter-pass",16,74,35.791872,0,0,0
+65,"No inter-pass",16,75,35.666944,0,0,0
+65,"No inter-pass",16,76,35.990528,0,0,0
+65,"No inter-pass",16,77,35.799040,0,0,0
+65,"No inter-pass",16,78,35.629056,0,0,0
+65,"No inter-pass",16,79,35.710976,0,0,0
+65,"No inter-pass",16,80,35.721216,0,0,0
+65,"No inter-pass",16,81,35.927040,0,0,0
+65,"No inter-pass",16,82,35.433472,0,0,0
+65,"No inter-pass",16,83,35.912704,0,0,0
+65,"No inter-pass",16,84,35.729408,0,0,0
+65,"No inter-pass",16,85,35.616768,0,0,0
+65,"No inter-pass",16,86,35.548160,0,0,0
+65,"No inter-pass",16,87,35.712000,0,0,0
+65,"No inter-pass",16,88,35.698688,0,0,0
+65,"No inter-pass",16,89,35.610624,0,0,0
+65,"No inter-pass",16,90,35.566592,0,0,0
+65,"No inter-pass",16,91,35.646464,0,0,0
+65,"No inter-pass",16,92,35.700736,0,0,0
+65,"No inter-pass",16,93,35.550208,0,0,0
+65,"No inter-pass",16,94,35.708928,0,0,0
+65,"No inter-pass",16,95,36.035584,0,0,0
+65,"No inter-pass",16,96,35.801088,0,0,0
+65,"No inter-pass",16,97,35.848192,0,0,0
+65,"No inter-pass",16,98,35.903488,0,0,0
+65,"No inter-pass",16,99,35.762176,0,0,0
+65,"No inter-pass",16,100,35.763200,0,0,0
+65,"No inter-pass",16,101,35.813376,0,0,0
+65,"No inter-pass",16,102,35.805184,0,0,0
+65,"No inter-pass",16,103,35.707904,0,0,0
+65,"No inter-pass",16,104,35.984384,0,0,0
+65,"No inter-pass",16,105,35.785728,0,0,0
+65,"No inter-pass",16,106,35.549184,0,0,0
+65,"No inter-pass",16,107,35.561472,0,0,0
+65,"No inter-pass",16,108,35.715072,0,0,0
+65,"No inter-pass",16,109,35.795968,0,0,0
+65,"No inter-pass",16,110,35.629056,0,0,0
+65,"No inter-pass",16,111,35.670016,0,0,0
+65,"No inter-pass",16,112,35.795968,0,0,0
+65,"No inter-pass",16,113,35.671040,0,0,0
+65,"No inter-pass",16,114,35.853312,0,0,0
+65,"No inter-pass",16,115,35.747840,0,0,0
+65,"No inter-pass",16,116,35.722240,0,0,0
+65,"No inter-pass",16,117,35.616768,0,0,0
+65,"No inter-pass",16,118,36.034560,0,0,0
+65,"No inter-pass",16,119,35.703808,0,0,0
+65,"No inter-pass",16,120,35.654656,0,0,0
+65,"No inter-pass",16,121,35.580928,0,0,0
+65,"No inter-pass",16,122,35.786752,0,0,0
+65,"No inter-pass",16,123,35.918848,0,0,0
+65,"No inter-pass",16,124,35.732480,0,0,0
+65,"No inter-pass",16,125,35.893248,0,0,0
+65,"No inter-pass",16,126,35.703808,0,0,0
+65,"No inter-pass",16,127,35.593216,0,0,0
+65,"No inter-pass",16,128,35.743744,0,0,0
+65,"No inter-pass",16,129,35.700736,0,0,0
+65,"No inter-pass",16,130,35.879936,0,0,0
+65,"No inter-pass",16,131,34.276352,0,0,0
+65,"No inter-pass",16,132,35.059712,0,0,0
+65,"No inter-pass",16,133,35.943424,0,0,0
+65,"No inter-pass",16,134,35.621888,0,0,0
+65,"No inter-pass",16,135,35.995648,0,0,0
+65,"No inter-pass",16,136,35.801088,0,0,0
+65,"No inter-pass",16,137,36.052992,0,0,0
+65,"No inter-pass",16,138,35.681280,0,0,0
+65,"No inter-pass",16,139,35.636224,0,0,0
+65,"No inter-pass",16,140,35.939328,0,0,0
+65,"No inter-pass",16,141,35.489792,0,0,0
+65,"No inter-pass",16,142,35.956736,0,0,0
+65,"No inter-pass",16,143,35.359744,0,0,0
+65,"No inter-pass",16,144,35.732480,0,0,0
+65,"No inter-pass",16,145,35.650560,0,0,0
+65,"No inter-pass",16,146,35.594240,0,0,0
+65,"No inter-pass",16,147,35.901440,0,0,0
+65,"No inter-pass",16,148,32.171008,0,0,0
+65,"No inter-pass",16,149,35.022848,0,0,0
+65,"No inter-pass",16,150,35.017728,0,0,0
+65,"No inter-pass",16,151,35.283968,0,0,0
+65,"No inter-pass",16,152,34.930688,0,0,0
+65,"No inter-pass",16,153,35.081216,0,0,0
+65,"No inter-pass",16,154,35.202048,0,0,0
+65,"No inter-pass",16,155,35.045376,0,0,0
+65,"No inter-pass",16,156,34.973696,0,0,0
+65,"No inter-pass",16,157,35.280896,0,0,0
+65,"No inter-pass",16,158,35.596288,0,0,0
+65,"No inter-pass",16,159,35.209216,0,0,0
+65,"Classic reference",17,0,38.905856,0,1,5
+65,"Classic reference",17,1,38.724608,0,1,5
+65,"Classic reference",17,2,39.105536,0,1,5
+65,"Classic reference",17,3,38.759424,0,1,5
+65,"Classic reference",17,4,38.797312,0,1,5
+65,"Classic reference",17,5,38.964224,0,1,5
+65,"Classic reference",17,6,39.025664,0,1,5
+65,"Classic reference",17,7,38.938624,0,1,5
+65,"Classic reference",17,8,38.977536,0,1,5
+65,"Classic reference",17,9,38.966272,0,1,5
+65,"Classic reference",17,10,38.736896,0,1,5
+65,"Classic reference",17,11,38.683648,0,1,5
+65,"Classic reference",17,12,38.744064,0,1,5
+65,"Classic reference",17,13,38.697984,0,1,5
+65,"Classic reference",17,14,38.674432,0,1,5
+65,"Classic reference",17,15,38.784000,0,1,5
+65,"Classic reference",17,16,38.819840,0,1,5
+65,"Classic reference",17,17,38.561792,0,1,5
+65,"Classic reference",17,18,38.553600,0,1,5
+65,"Classic reference",17,19,38.758400,0,1,5
+65,"Classic reference",17,20,38.618112,0,1,5
+65,"Classic reference",17,21,38.595584,0,1,5
+65,"Classic reference",17,22,38.734848,0,1,5
+65,"Classic reference",17,23,38.748160,0,1,5
+65,"Classic reference",17,24,39.008256,0,1,5
+65,"Classic reference",17,25,38.913024,0,1,5
+65,"Classic reference",17,26,39.015424,0,1,5
+65,"Classic reference",17,27,38.937600,0,1,5
+65,"Classic reference",17,28,38.837248,0,1,5
+65,"Classic reference",17,29,39.112704,0,1,5
+65,"Classic reference",17,30,38.845440,0,1,5
+65,"Classic reference",17,31,38.704128,0,1,5
+65,"Classic reference",17,32,38.731776,0,1,5
+65,"Classic reference",17,33,38.675456,0,1,5
+65,"Classic reference",17,34,38.728704,0,1,5
+65,"Classic reference",17,35,38.963200,0,1,5
+65,"Classic reference",17,36,38.959104,0,1,5
+65,"Classic reference",17,37,38.818816,0,1,5
+65,"Classic reference",17,38,38.533120,0,1,5
+65,"Classic reference",17,39,38.867968,0,1,5
+65,"Classic reference",17,40,38.732800,0,1,5
+65,"Classic reference",17,41,38.520832,0,1,5
+65,"Classic reference",17,42,38.803456,0,1,5
+65,"Classic reference",17,43,38.811648,0,1,5
+65,"Classic reference",17,44,38.927360,0,1,5
+65,"Classic reference",17,45,38.970368,0,1,5
+65,"Classic reference",17,46,39.027712,0,1,5
+65,"Classic reference",17,47,38.785024,0,1,5
+65,"Classic reference",17,48,38.688768,0,1,5
+65,"Classic reference",17,49,38.985728,0,1,5
+65,"Classic reference",17,50,38.877184,0,1,5
+65,"Classic reference",17,51,38.532096,0,1,5
+65,"Classic reference",17,52,38.740992,0,1,5
+65,"Classic reference",17,53,38.711296,0,1,5
+65,"Classic reference",17,54,38.933504,0,1,5
+65,"Classic reference",17,55,38.919168,0,1,5
+65,"Classic reference",17,56,38.996992,0,1,5
+65,"Classic reference",17,57,38.813696,0,1,5
+65,"Classic reference",17,58,38.600704,0,1,5
+65,"Classic reference",17,59,38.796288,0,1,5
+65,"Classic reference",17,60,38.700032,0,1,5
+65,"Classic reference",17,61,38.643712,0,1,5
+65,"Classic reference",17,62,38.947840,0,1,5
+65,"Classic reference",17,63,38.773760,0,1,5
+65,"Classic reference",17,64,38.818816,0,1,5
+65,"Classic reference",17,65,38.842368,0,1,5
+65,"Classic reference",17,66,38.908928,0,1,5
+65,"Classic reference",17,67,38.849536,0,1,5
+65,"Classic reference",17,68,39.025664,0,1,5
+65,"Classic reference",17,69,38.713344,0,1,5
+65,"Classic reference",17,70,38.757376,0,1,5
+65,"Classic reference",17,71,38.705152,0,1,5
+65,"Classic reference",17,72,38.941696,0,1,5
+65,"Classic reference",17,73,38.948864,0,1,5
+65,"Classic reference",17,74,39.021568,0,1,5
+65,"Classic reference",17,75,38.849536,0,1,5
+65,"Classic reference",17,76,39.008256,0,1,5
+65,"Classic reference",17,77,38.830080,0,1,5
+65,"Classic reference",17,78,38.624256,0,1,5
+65,"Classic reference",17,79,38.708224,0,1,5
+65,"Classic reference",17,80,38.598656,0,1,5
+65,"Classic reference",17,81,38.653952,0,1,5
+65,"Classic reference",17,82,38.960128,0,1,5
+65,"Classic reference",17,83,38.725632,0,1,5
+65,"Classic reference",17,84,38.885376,0,1,5
+65,"Classic reference",17,85,38.830080,0,1,5
+65,"Classic reference",17,86,38.933504,0,1,5
+65,"Classic reference",17,87,38.813696,0,1,5
+65,"Classic reference",17,88,38.735872,0,1,5
+65,"Classic reference",17,89,38.688768,0,1,5
+65,"Classic reference",17,90,38.867968,0,1,5
+65,"Classic reference",17,91,38.580224,0,1,5
+65,"Classic reference",17,92,38.922240,0,1,5
+65,"Classic reference",17,93,38.957056,0,1,5
+65,"Classic reference",17,94,38.913024,0,1,5
+65,"Classic reference",17,95,38.843392,0,1,5
+65,"Classic reference",17,96,38.963200,0,1,5
+65,"Classic reference",17,97,38.811648,0,1,5
+65,"Classic reference",17,98,38.626304,0,1,5
+65,"Classic reference",17,99,38.803456,0,1,5
+65,"Classic reference",17,100,38.703104,0,1,5
+65,"Classic reference",17,101,38.513664,0,1,5
+65,"Classic reference",17,102,38.893568,0,1,5
+65,"Classic reference",17,103,38.649856,0,1,5
+65,"Classic reference",17,104,38.810624,0,1,5
+65,"Classic reference",17,105,38.967296,0,1,5
+65,"Classic reference",17,106,38.944768,0,1,5
+65,"Classic reference",17,107,38.818816,0,1,5
+65,"Classic reference",17,108,38.871040,0,1,5
+65,"Classic reference",17,109,38.929408,0,1,5
+65,"Classic reference",17,110,38.742016,0,1,5
+65,"Classic reference",17,111,38.605824,0,1,5
+65,"Classic reference",17,112,39.248896,0,1,5
+65,"Classic reference",17,113,38.748160,0,1,5
+65,"Classic reference",17,114,38.958080,0,1,5
+65,"Classic reference",17,115,39.016448,0,1,5
+65,"Classic reference",17,116,39.057408,0,1,5
+65,"Classic reference",17,117,38.898688,0,1,5
+65,"Classic reference",17,118,38.756352,0,1,5
+65,"Classic reference",17,119,38.845440,0,1,5
+65,"Classic reference",17,120,38.766592,0,1,5
+65,"Classic reference",17,121,38.534144,0,1,5
+65,"Classic reference",17,122,38.736896,0,1,5
+65,"Classic reference",17,123,38.768640,0,1,5
+65,"Classic reference",17,124,38.874112,0,1,5
+65,"Classic reference",17,125,38.862848,0,1,5
+65,"Classic reference",17,126,38.926336,0,1,5
+65,"Classic reference",17,127,38.769664,0,1,5
+65,"Classic reference",17,128,38.679552,0,1,5
+65,"Classic reference",17,129,38.699008,0,1,5
+65,"Classic reference",17,130,38.683648,0,1,5
+65,"Classic reference",17,131,38.590464,0,1,5
+65,"Classic reference",17,132,38.964224,0,1,5
+65,"Classic reference",17,133,38.937600,0,1,5
+65,"Classic reference",17,134,38.978560,0,1,5
+65,"Classic reference",17,135,38.819840,0,1,5
+65,"Classic reference",17,136,39.025664,0,1,5
+65,"Classic reference",17,137,38.857728,0,1,5
+65,"Classic reference",17,138,38.609920,0,1,5
+65,"Classic reference",17,139,38.919168,0,1,5
+65,"Classic reference",17,140,38.659072,0,1,5
+65,"Classic reference",17,141,38.571008,0,1,5
+65,"Classic reference",17,142,38.955008,0,1,5
+65,"Classic reference",17,143,38.837248,0,1,5
+65,"Classic reference",17,144,38.806528,0,1,5
+65,"Classic reference",17,145,38.800384,0,1,5
+65,"Classic reference",17,146,38.970368,0,1,5
+65,"Classic reference",17,147,38.785024,0,1,5
+65,"Classic reference",17,148,38.695936,0,1,5
+65,"Classic reference",17,149,38.736896,0,1,5
+65,"Classic reference",17,150,38.660096,0,1,5
+65,"Classic reference",17,151,38.672384,0,1,5
+65,"Classic reference",17,152,38.940672,0,1,5
+65,"Classic reference",17,153,38.933504,0,1,5
+65,"Classic reference",17,154,38.956032,0,1,5
+65,"Classic reference",17,155,38.807552,0,1,5
+65,"Classic reference",17,156,38.972416,0,1,5
+65,"Classic reference",17,157,38.548480,0,1,5
+65,"Classic reference",17,158,38.561792,0,1,5
+65,"Classic reference",17,159,38.942720,0,1,5
+65,"Fused reference",18,0,41.167872,0,1,5
+65,"Fused reference",18,1,41.384960,0,1,5
+65,"Fused reference",18,2,41.674752,0,1,5
+65,"Fused reference",18,3,41.373696,0,1,5
+65,"Fused reference",18,4,41.652224,0,1,5
+65,"Fused reference",18,5,41.346048,0,1,5
+65,"Fused reference",18,6,41.605120,0,1,5
+65,"Fused reference",18,7,41.618432,0,1,5
+65,"Fused reference",18,8,41.422848,0,1,5
+65,"Fused reference",18,9,41.632768,0,1,5
+65,"Fused reference",18,10,41.483264,0,1,5
+65,"Fused reference",18,11,41.509888,0,1,5
+65,"Fused reference",18,12,41.671680,0,1,5
+65,"Fused reference",18,13,41.789440,0,1,5
+65,"Fused reference",18,14,41.636864,0,1,5
+65,"Fused reference",18,15,41.628672,0,1,5
+65,"Fused reference",18,16,41.473024,0,1,5
+65,"Fused reference",18,17,41.414656,0,1,5
+65,"Fused reference",18,18,41.462784,0,1,5
+65,"Fused reference",18,19,41.496576,0,1,5
+65,"Fused reference",18,20,41.416704,0,1,5
+65,"Fused reference",18,21,41.039872,0,1,5
+65,"Fused reference",18,22,41.662464,0,1,5
+65,"Fused reference",18,23,41.668608,0,1,5
+65,"Fused reference",18,24,41.605120,0,1,5
+65,"Fused reference",18,25,41.521152,0,1,5
+65,"Fused reference",18,26,41.495552,0,1,5
+65,"Fused reference",18,27,41.547776,0,1,5
+65,"Fused reference",18,28,41.538560,0,1,5
+65,"Fused reference",18,29,41.694208,0,1,5
+65,"Fused reference",18,30,41.387008,0,1,5
+65,"Fused reference",18,31,41.418752,0,1,5
+65,"Fused reference",18,32,41.799680,0,1,5
+65,"Fused reference",18,33,41.399296,0,1,5
+65,"Fused reference",18,34,41.541632,0,1,5
+65,"Fused reference",18,35,41.500672,0,1,5
+65,"Fused reference",18,36,41.694208,0,1,5
+65,"Fused reference",18,37,41.528320,0,1,5
+65,"Fused reference",18,38,41.610240,0,1,5
+65,"Fused reference",18,39,41.548800,0,1,5
+65,"Fused reference",18,40,41.264128,0,1,5
+65,"Fused reference",18,41,41.463808,0,1,5
+65,"Fused reference",18,42,41.507840,0,1,5
+65,"Fused reference",18,43,41.668608,0,1,5
+65,"Fused reference",18,44,41.723904,0,1,5
+65,"Fused reference",18,45,41.567232,0,1,5
+65,"Fused reference",18,46,41.652224,0,1,5
+65,"Fused reference",18,47,41.459712,0,1,5
+65,"Fused reference",18,48,41.623552,0,1,5
+65,"Fused reference",18,49,41.509888,0,1,5
+65,"Fused reference",18,50,41.598976,0,1,5
+65,"Fused reference",18,51,41.725952,0,1,5
+65,"Fused reference",18,52,41.701376,0,1,5
+65,"Fused reference",18,53,41.502720,0,1,5
+65,"Fused reference",18,54,41.598976,0,1,5
+65,"Fused reference",18,55,41.707520,0,1,5
+65,"Fused reference",18,56,41.456640,0,1,5
+65,"Fused reference",18,57,41.394176,0,1,5
+65,"Fused reference",18,58,41.487360,0,1,5
+65,"Fused reference",18,59,41.567232,0,1,5
+65,"Fused reference",18,60,41.562112,0,1,5
+65,"Fused reference",18,61,41.425920,0,1,5
+65,"Fused reference",18,62,41.695232,0,1,5
+65,"Fused reference",18,63,41.335808,0,1,5
+65,"Fused reference",18,64,41.715712,0,1,5
+65,"Fused reference",18,65,41.587712,0,1,5
+65,"Fused reference",18,66,41.609216,0,1,5
+65,"Fused reference",18,67,41.543680,0,1,5
+65,"Fused reference",18,68,41.824256,0,1,5
+65,"Fused reference",18,69,41.507840,0,1,5
+65,"Fused reference",18,70,41.364480,0,1,5
+65,"Fused reference",18,71,41.589760,0,1,5
+65,"Fused reference",18,72,41.574400,0,1,5
+65,"Fused reference",18,73,41.588736,0,1,5
+65,"Fused reference",18,74,41.491456,0,1,5
+65,"Fused reference",18,75,41.787392,0,1,5
+65,"Fused reference",18,76,41.520128,0,1,5
+65,"Fused reference",18,77,41.374720,0,1,5
+65,"Fused reference",18,78,41.753600,0,1,5
+65,"Fused reference",18,79,41.424896,0,1,5
+65,"Fused reference",18,80,41.548800,0,1,5
+65,"Fused reference",18,81,41.347072,0,1,5
+65,"Fused reference",18,82,41.720832,0,1,5
+65,"Fused reference",18,83,41.501696,0,1,5
+65,"Fused reference",18,84,41.427968,0,1,5
+65,"Fused reference",18,85,41.468928,0,1,5
+65,"Fused reference",18,86,41.268224,0,1,5
+65,"Fused reference",18,87,41.214976,0,1,5
+65,"Fused reference",18,88,41.504768,0,1,5
+65,"Fused reference",18,89,41.713664,0,1,5
+65,"Fused reference",18,90,41.540608,0,1,5
+65,"Fused reference",18,91,41.729024,0,1,5
+65,"Fused reference",18,92,41.781248,0,1,5
+65,"Fused reference",18,93,41.344000,0,1,5
+65,"Fused reference",18,94,40.877056,0,1,5
+65,"Fused reference",18,95,42.102784,0,1,5
+65,"Fused reference",18,96,42.100736,0,1,5
+65,"Fused reference",18,97,41.713664,0,1,5
+65,"Fused reference",18,98,41.715712,0,1,5
+65,"Fused reference",18,99,41.598976,0,1,5
+65,"Fused reference",18,100,41.625600,0,1,5
+65,"Fused reference",18,101,41.723904,0,1,5
+65,"Fused reference",18,102,41.511936,0,1,5
+65,"Fused reference",18,103,41.538560,0,1,5
+65,"Fused reference",18,104,41.503744,0,1,5
+65,"Fused reference",18,105,41.711616,0,1,5
+65,"Fused reference",18,106,41.547776,0,1,5
+65,"Fused reference",18,107,41.620480,0,1,5
+65,"Fused reference",18,108,41.568256,0,1,5
+65,"Fused reference",18,109,41.478144,0,1,5
+65,"Fused reference",18,110,41.559040,0,1,5
+65,"Fused reference",18,111,41.584640,0,1,5
+65,"Fused reference",18,112,41.348096,0,1,5
+65,"Fused reference",18,113,41.418752,0,1,5
+65,"Fused reference",18,114,41.639936,0,1,5
+65,"Fused reference",18,115,41.669632,0,1,5
+65,"Fused reference",18,116,41.638912,0,1,5
+65,"Fused reference",18,117,41.648128,0,1,5
+65,"Fused reference",18,118,41.421824,0,1,5
+65,"Fused reference",18,119,41.683968,0,1,5
+65,"Fused reference",18,120,41.600000,0,1,5
+65,"Fused reference",18,121,42.293248,0,1,5
+65,"Fused reference",18,122,41.330688,0,1,5
+65,"Fused reference",18,123,41.600000,0,1,5
+65,"Fused reference",18,124,41.664512,0,1,5
+65,"Fused reference",18,125,41.519104,0,1,5
+65,"Fused reference",18,126,41.575424,0,1,5
+65,"Fused reference",18,127,41.541632,0,1,5
+65,"Fused reference",18,128,41.415680,0,1,5
+65,"Fused reference",18,129,41.487360,0,1,5
+65,"Fused reference",18,130,41.768960,0,1,5
+65,"Fused reference",18,131,41.436160,0,1,5
+65,"Fused reference",18,132,41.359360,0,1,5
+65,"Fused reference",18,133,41.222144,0,1,5
+65,"Fused reference",18,134,41.405440,0,1,5
+65,"Fused reference",18,135,41.668608,0,1,5
+65,"Fused reference",18,136,41.075712,0,1,5
+65,"Fused reference",18,137,41.020416,0,1,5
+65,"Fused reference",18,138,41.789440,0,1,5
+65,"Fused reference",18,139,42.031104,0,1,5
+65,"Fused reference",18,140,41.877504,0,1,5
+65,"Fused reference",18,141,41.542656,0,1,5
+65,"Fused reference",18,142,41.780224,0,1,5
+65,"Fused reference",18,143,41.483264,0,1,5
+65,"Fused reference",18,144,41.583616,0,1,5
+65,"Fused reference",18,145,41.288704,0,1,5
+65,"Fused reference",18,146,41.877504,0,1,5
+65,"Fused reference",18,147,41.566208,0,1,5
+65,"Fused reference",18,148,41.708544,0,1,5
+65,"Fused reference",18,149,41.767936,0,1,5
+65,"Fused reference",18,150,41.667584,0,1,5
+65,"Fused reference",18,151,41.583616,0,1,5
+65,"Fused reference",18,152,41.326592,0,1,5
+65,"Fused reference",18,153,41.280512,0,1,5
+65,"Fused reference",18,154,41.946112,0,1,5
+65,"Fused reference",18,155,41.214976,0,1,5
+65,"Fused reference",18,156,41.100288,0,1,5
+65,"Fused reference",18,157,41.430016,0,1,5
+65,"Fused reference",18,158,41.744384,0,1,5
+65,"Fused reference",18,159,41.610240,0,1,5
+65,"Inter-pass optimized",19,0,37.047296,0,1,5
+65,"Inter-pass optimized",19,1,37.114880,0,1,5
+65,"Inter-pass optimized",19,2,37.326848,0,1,5
+65,"Inter-pass optimized",19,3,37.134336,0,1,5
+65,"Inter-pass optimized",19,4,37.458944,0,1,5
+65,"Inter-pass optimized",19,5,37.453824,0,1,5
+65,"Inter-pass optimized",19,6,37.190656,0,1,5
+65,"Inter-pass optimized",19,7,37.154816,0,1,5
+65,"Inter-pass optimized",19,8,37.284864,0,1,5
+65,"Inter-pass optimized",19,9,37.054464,0,1,5
+65,"Inter-pass optimized",19,10,37.097472,0,1,5
+65,"Inter-pass optimized",19,11,37.634048,0,1,5
+65,"Inter-pass optimized",19,12,37.146624,0,1,5
+65,"Inter-pass optimized",19,13,37.072896,0,1,5
+65,"Inter-pass optimized",19,14,37.261312,0,1,5
+65,"Inter-pass optimized",19,15,37.002240,0,1,5
+65,"Inter-pass optimized",19,16,37.118976,0,1,5
+65,"Inter-pass optimized",19,17,37.465088,0,1,5
+65,"Inter-pass optimized",19,18,36.816896,0,1,5
+65,"Inter-pass optimized",19,19,37.236736,0,1,5
+65,"Inter-pass optimized",19,20,37.209088,0,1,5
+65,"Inter-pass optimized",19,21,36.992000,0,1,5
+65,"Inter-pass optimized",19,22,37.233664,0,1,5
+65,"Inter-pass optimized",19,23,37.050368,0,1,5
+65,"Inter-pass optimized",19,24,37.136384,0,1,5
+65,"Inter-pass optimized",19,25,37.548032,0,1,5
+65,"Inter-pass optimized",19,26,37.328896,0,1,5
+65,"Inter-pass optimized",19,27,37.070848,0,1,5
+65,"Inter-pass optimized",19,28,37.361664,0,1,5
+65,"Inter-pass optimized",19,29,36.958208,0,1,5
+65,"Inter-pass optimized",19,30,37.053440,0,1,5
+65,"Inter-pass optimized",19,31,37.178368,0,1,5
+65,"Inter-pass optimized",19,32,36.938752,0,1,5
+65,"Inter-pass optimized",19,33,37.120000,0,1,5
+65,"Inter-pass optimized",19,34,37.288960,0,1,5
+65,"Inter-pass optimized",19,35,37.009408,0,1,5
+65,"Inter-pass optimized",19,36,37.105664,0,1,5
+65,"Inter-pass optimized",19,37,37.120000,0,1,5
+65,"Inter-pass optimized",19,38,36.847616,0,1,5
+65,"Inter-pass optimized",19,39,37.088256,0,1,5
+65,"Inter-pass optimized",19,40,37.185536,0,1,5
+65,"Inter-pass optimized",19,41,36.964352,0,1,5
+65,"Inter-pass optimized",19,42,37.221376,0,1,5
+65,"Inter-pass optimized",19,43,36.921344,0,1,5
+65,"Inter-pass optimized",19,44,37.018624,0,1,5
+65,"Inter-pass optimized",19,45,37.059584,0,1,5
+65,"Inter-pass optimized",19,46,37.084160,0,1,5
+65,"Inter-pass optimized",19,47,37.547008,0,1,5
+65,"Inter-pass optimized",19,48,37.490688,0,1,5
+65,"Inter-pass optimized",19,49,37.074944,0,1,5
+65,"Inter-pass optimized",19,50,37.256192,0,1,5
+65,"Inter-pass optimized",19,51,37.273600,0,1,5
+65,"Inter-pass optimized",19,52,36.983808,0,1,5
+65,"Inter-pass optimized",19,53,37.309440,0,1,5
+65,"Inter-pass optimized",19,54,37.396480,0,1,5
+65,"Inter-pass optimized",19,55,37.065728,0,1,5
+65,"Inter-pass optimized",19,56,37.483520,0,1,5
+65,"Inter-pass optimized",19,57,37.374976,0,1,5
+65,"Inter-pass optimized",19,58,36.962304,0,1,5
+65,"Inter-pass optimized",19,59,37.148672,0,1,5
+65,"Inter-pass optimized",19,60,37.140480,0,1,5
+65,"Inter-pass optimized",19,61,36.888576,0,1,5
+65,"Inter-pass optimized",19,62,37.359616,0,1,5
+65,"Inter-pass optimized",19,63,37.003264,0,1,5
+65,"Inter-pass optimized",19,64,37.109760,0,1,5
+65,"Inter-pass optimized",19,65,37.253120,0,1,5
+65,"Inter-pass optimized",19,66,37.067776,0,1,5
+65,"Inter-pass optimized",19,67,37.187584,0,1,5
+65,"Inter-pass optimized",19,68,37.213184,0,1,5
+65,"Inter-pass optimized",19,69,37.028864,0,1,5
+65,"Inter-pass optimized",19,70,37.114880,0,1,5
+65,"Inter-pass optimized",19,71,37.539840,0,1,5
+65,"Inter-pass optimized",19,72,37.122048,0,1,5
+65,"Inter-pass optimized",19,73,37.124096,0,1,5
+65,"Inter-pass optimized",19,74,37.381120,0,1,5
+65,"Inter-pass optimized",19,75,37.277696,0,1,5
+65,"Inter-pass optimized",19,76,37.353472,0,1,5
+65,"Inter-pass optimized",19,77,37.313536,0,1,5
+65,"Inter-pass optimized",19,78,37.045248,0,1,5
+65,"Inter-pass optimized",19,79,37.627904,0,1,5
+65,"Inter-pass optimized",19,80,37.215232,0,1,5
+65,"Inter-pass optimized",19,81,37.040128,0,1,5
+65,"Inter-pass optimized",19,82,37.025792,0,1,5
+65,"Inter-pass optimized",19,83,37.040128,0,1,5
+65,"Inter-pass optimized",19,84,37.110784,0,1,5
+65,"Inter-pass optimized",19,85,37.651456,0,1,5
+65,"Inter-pass optimized",19,86,36.996096,0,1,5
+65,"Inter-pass optimized",19,87,37.012480,0,1,5
+65,"Inter-pass optimized",19,88,37.263360,0,1,5
+65,"Inter-pass optimized",19,89,36.955136,0,1,5
+65,"Inter-pass optimized",19,90,36.980736,0,1,5
+65,"Inter-pass optimized",19,91,37.227520,0,1,5
+65,"Inter-pass optimized",19,92,37.076992,0,1,5
+65,"Inter-pass optimized",19,93,37.305344,0,1,5
+65,"Inter-pass optimized",19,94,37.313536,0,1,5
+65,"Inter-pass optimized",19,95,36.986880,0,1,5
+65,"Inter-pass optimized",19,96,37.185536,0,1,5
+65,"Inter-pass optimized",19,97,37.192704,0,1,5
+65,"Inter-pass optimized",19,98,37.198848,0,1,5
+65,"Inter-pass optimized",19,99,37.401600,0,1,5
+65,"Inter-pass optimized",19,100,37.200896,0,1,5
+65,"Inter-pass optimized",19,101,37.060608,0,1,5
+65,"Inter-pass optimized",19,102,37.434368,0,1,5
+65,"Inter-pass optimized",19,103,37.160960,0,1,5
+65,"Inter-pass optimized",19,104,37.136384,0,1,5
+65,"Inter-pass optimized",19,105,37.103616,0,1,5
+65,"Inter-pass optimized",19,106,37.042176,0,1,5
+65,"Inter-pass optimized",19,107,37.088256,0,1,5
+65,"Inter-pass optimized",19,108,37.474304,0,1,5
+65,"Inter-pass optimized",19,109,37.126144,0,1,5
+65,"Inter-pass optimized",19,110,37.013504,0,1,5
+65,"Inter-pass optimized",19,111,37.251072,0,1,5
+65,"Inter-pass optimized",19,112,37.069824,0,1,5
+65,"Inter-pass optimized",19,113,37.128192,0,1,5
+65,"Inter-pass optimized",19,114,37.267456,0,1,5
+65,"Inter-pass optimized",19,115,37.067776,0,1,5
+65,"Inter-pass optimized",19,116,37.369856,0,1,5
+65,"Inter-pass optimized",19,117,37.223424,0,1,5
+65,"Inter-pass optimized",19,118,36.978688,0,1,5
+65,"Inter-pass optimized",19,119,37.167104,0,1,5
+65,"Inter-pass optimized",19,120,37.173248,0,1,5
+65,"Inter-pass optimized",19,121,37.097472,0,1,5
+65,"Inter-pass optimized",19,122,37.234688,0,1,5
+65,"Inter-pass optimized",19,123,37.115904,0,1,5
+65,"Inter-pass optimized",19,124,37.048320,0,1,5
+65,"Inter-pass optimized",19,125,37.345280,0,1,5
+65,"Inter-pass optimized",19,126,37.163008,0,1,5
+65,"Inter-pass optimized",19,127,37.062656,0,1,5
+65,"Inter-pass optimized",19,128,37.234688,0,1,5
+65,"Inter-pass optimized",19,129,37.075968,0,1,5
+65,"Inter-pass optimized",19,130,37.452800,0,1,5
+65,"Inter-pass optimized",19,131,37.240832,0,1,5
+65,"Inter-pass optimized",19,132,36.998144,0,1,5
+65,"Inter-pass optimized",19,133,37.092352,0,1,5
+65,"Inter-pass optimized",19,134,37.316608,0,1,5
+65,"Inter-pass optimized",19,135,36.975616,0,1,5
+65,"Inter-pass optimized",19,136,37.164032,0,1,5
+65,"Inter-pass optimized",19,137,37.214208,0,1,5
+65,"Inter-pass optimized",19,138,37.096448,0,1,5
+65,"Inter-pass optimized",19,139,37.390336,0,1,5
+65,"Inter-pass optimized",19,140,37.512192,0,1,5
+65,"Inter-pass optimized",19,141,36.873216,0,1,5
+65,"Inter-pass optimized",19,142,37.019648,0,1,5
+65,"Inter-pass optimized",19,143,36.973568,0,1,5
+65,"Inter-pass optimized",19,144,37.100544,0,1,5
+65,"Inter-pass optimized",19,145,37.343232,0,1,5
+65,"Inter-pass optimized",19,146,37.049344,0,1,5
+65,"Inter-pass optimized",19,147,36.996096,0,1,5
+65,"Inter-pass optimized",19,148,37.272576,0,1,5
+65,"Inter-pass optimized",19,149,37.067776,0,1,5
+65,"Inter-pass optimized",19,150,37.168128,0,1,5
+65,"Inter-pass optimized",19,151,37.121024,0,1,5
+65,"Inter-pass optimized",19,152,36.970496,0,1,5
+65,"Inter-pass optimized",19,153,37.511168,0,1,5
+65,"Inter-pass optimized",19,154,37.038080,0,1,5
+65,"Inter-pass optimized",19,155,36.840448,0,1,5
+65,"Inter-pass optimized",19,156,37.209088,0,1,5
+65,"Inter-pass optimized",19,157,37.197824,0,1,5
+65,"Inter-pass optimized",19,158,37.068800,0,1,5
+65,"Inter-pass optimized",19,159,37.208064,0,1,5
+65,"Inter-pass fast",20,0,36.042752,1,1,5
+65,"Inter-pass fast",20,1,36.313088,1,1,5
+65,"Inter-pass fast",20,2,36.212736,1,1,5
+65,"Inter-pass fast",20,3,36.253696,1,1,5
+65,"Inter-pass fast",20,4,36.204544,1,1,5
+65,"Inter-pass fast",20,5,36.263936,1,1,5
+65,"Inter-pass fast",20,6,36.071424,1,1,5
+65,"Inter-pass fast",20,7,36.242432,1,1,5
+65,"Inter-pass fast",20,8,36.298752,1,1,5
+65,"Inter-pass fast",20,9,36.333568,1,1,5
+65,"Inter-pass fast",20,10,36.268032,1,1,5
+65,"Inter-pass fast",20,11,36.213760,1,1,5
+65,"Inter-pass fast",20,12,36.207616,1,1,5
+65,"Inter-pass fast",20,13,36.218880,1,1,5
+65,"Inter-pass fast",20,14,36.445184,1,1,5
+65,"Inter-pass fast",20,15,36.111360,1,1,5
+65,"Inter-pass fast",20,16,36.320256,1,1,5
+65,"Inter-pass fast",20,17,36.054016,1,1,5
+65,"Inter-pass fast",20,18,36.005888,1,1,5
+65,"Inter-pass fast",20,19,36.458496,1,1,5
+65,"Inter-pass fast",20,20,36.096000,1,1,5
+65,"Inter-pass fast",20,21,36.062208,1,1,5
+65,"Inter-pass fast",20,22,36.316160,1,1,5
+65,"Inter-pass fast",20,23,36.208640,1,1,5
+65,"Inter-pass fast",20,24,36.100096,1,1,5
+65,"Inter-pass fast",20,25,36.208640,1,1,5
+65,"Inter-pass fast",20,26,36.314112,1,1,5
+65,"Inter-pass fast",20,27,36.089856,1,1,5
+65,"Inter-pass fast",20,28,36.256768,1,1,5
+65,"Inter-pass fast",20,29,36.101120,1,1,5
+65,"Inter-pass fast",20,30,36.190208,1,1,5
+65,"Inter-pass fast",20,31,36.258816,1,1,5
+65,"Inter-pass fast",20,32,36.307968,1,1,5
+65,"Inter-pass fast",20,33,36.143104,1,1,5
+65,"Inter-pass fast",20,34,36.490240,1,1,5
+65,"Inter-pass fast",20,35,36.089856,1,1,5
+65,"Inter-pass fast",20,36,36.086784,1,1,5
+65,"Inter-pass fast",20,37,36.345856,1,1,5
+65,"Inter-pass fast",20,38,36.324352,1,1,5
+65,"Inter-pass fast",20,39,35.836928,1,1,5
+65,"Inter-pass fast",20,40,36.347904,1,1,5
+65,"Inter-pass fast",20,41,36.038656,1,1,5
+65,"Inter-pass fast",20,42,36.045824,1,1,5
+65,"Inter-pass fast",20,43,36.215808,1,1,5
+65,"Inter-pass fast",20,44,36.156416,1,1,5
+65,"Inter-pass fast",20,45,35.941376,1,1,5
+65,"Inter-pass fast",20,46,36.315136,1,1,5
+65,"Inter-pass fast",20,47,36.164608,1,1,5
+65,"Inter-pass fast",20,48,36.164608,1,1,5
+65,"Inter-pass fast",20,49,36.093952,1,1,5
+65,"Inter-pass fast",20,50,36.461568,1,1,5
+65,"Inter-pass fast",20,51,35.975168,1,1,5
+65,"Inter-pass fast",20,52,35.862528,1,1,5
+65,"Inter-pass fast",20,53,35.968000,1,1,5
+65,"Inter-pass fast",20,54,36.021248,1,1,5
+65,"Inter-pass fast",20,55,36.114432,1,1,5
+65,"Inter-pass fast",20,56,36.233216,1,1,5
+65,"Inter-pass fast",20,57,36.188160,1,1,5
+65,"Inter-pass fast",20,58,36.158464,1,1,5
+65,"Inter-pass fast",20,59,35.993600,1,1,5
+65,"Inter-pass fast",20,60,36.386816,1,1,5
+65,"Inter-pass fast",20,61,36.089856,1,1,5
+65,"Inter-pass fast",20,62,36.298752,1,1,5
+65,"Inter-pass fast",20,63,36.102144,1,1,5
+65,"Inter-pass fast",20,64,36.132864,1,1,5
+65,"Inter-pass fast",20,65,36.028416,1,1,5
+65,"Inter-pass fast",20,66,36.491264,1,1,5
+65,"Inter-pass fast",20,67,36.084736,1,1,5
+65,"Inter-pass fast",20,68,36.106240,1,1,5
+65,"Inter-pass fast",20,69,36.261888,1,1,5
+65,"Inter-pass fast",20,70,36.222976,1,1,5
+65,"Inter-pass fast",20,71,35.977216,1,1,5
+65,"Inter-pass fast",20,72,36.438016,1,1,5
+65,"Inter-pass fast",20,73,36.182016,1,1,5
+65,"Inter-pass fast",20,74,36.305920,1,1,5
+65,"Inter-pass fast",20,75,36.183040,1,1,5
+65,"Inter-pass fast",20,76,36.274176,1,1,5
+65,"Inter-pass fast",20,77,36.089856,1,1,5
+65,"Inter-pass fast",20,78,36.322304,1,1,5
+65,"Inter-pass fast",20,79,35.986432,1,1,5
+65,"Inter-pass fast",20,80,36.083712,1,1,5
+65,"Inter-pass fast",20,81,36.287488,1,1,5
+65,"Inter-pass fast",20,82,36.134912,1,1,5
+65,"Inter-pass fast",20,83,36.012032,1,1,5
+65,"Inter-pass fast",20,84,36.304896,1,1,5
+65,"Inter-pass fast",20,85,36.088832,1,1,5
+65,"Inter-pass fast",20,86,36.139008,1,1,5
+65,"Inter-pass fast",20,87,36.203520,1,1,5
+65,"Inter-pass fast",20,88,36.262912,1,1,5
+65,"Inter-pass fast",20,89,36.257792,1,1,5
+65,"Inter-pass fast",20,90,36.275200,1,1,5
+65,"Inter-pass fast",20,91,36.239360,1,1,5
+65,"Inter-pass fast",20,92,35.951616,1,1,5
+65,"Inter-pass fast",20,93,36.335616,1,1,5
+65,"Inter-pass fast",20,94,36.096000,1,1,5
+65,"Inter-pass fast",20,95,36.311040,1,1,5
+65,"Inter-pass fast",20,96,36.159488,1,1,5
+65,"Inter-pass fast",20,97,36.530176,1,1,5
+65,"Inter-pass fast",20,98,35.960832,1,1,5
+65,"Inter-pass fast",20,99,36.350976,1,1,5
+65,"Inter-pass fast",20,100,36.304896,1,1,5
+65,"Inter-pass fast",20,101,36.169728,1,1,5
+65,"Inter-pass fast",20,102,36.090880,1,1,5
+65,"Inter-pass fast",20,103,36.357120,1,1,5
+65,"Inter-pass fast",20,104,35.871744,1,1,5
+65,"Inter-pass fast",20,105,36.250624,1,1,5
+65,"Inter-pass fast",20,106,35.951616,1,1,5
+65,"Inter-pass fast",20,107,36.038656,1,1,5
+65,"Inter-pass fast",20,108,36.121600,1,1,5
+65,"Inter-pass fast",20,109,36.762624,1,1,5
+65,"Inter-pass fast",20,110,36.111360,1,1,5
+65,"Inter-pass fast",20,111,36.136960,1,1,5
+65,"Inter-pass fast",20,112,36.115456,1,1,5
+65,"Inter-pass fast",20,113,36.103168,1,1,5
+65,"Inter-pass fast",20,114,36.120576,1,1,5
+65,"Inter-pass fast",20,115,36.346880,1,1,5
+65,"Inter-pass fast",20,116,36.030464,1,1,5
+65,"Inter-pass fast",20,117,36.157440,1,1,5
+65,"Inter-pass fast",20,118,36.056064,1,1,5
+65,"Inter-pass fast",20,119,36.135936,1,1,5
+65,"Inter-pass fast",20,120,36.147200,1,1,5
+65,"Inter-pass fast",20,121,36.317184,1,1,5
+65,"Inter-pass fast",20,122,36.068352,1,1,5
+65,"Inter-pass fast",20,123,36.555776,1,1,5
+65,"Inter-pass fast",20,124,36.292608,1,1,5
+65,"Inter-pass fast",20,125,36.106240,1,1,5
+65,"Inter-pass fast",20,126,36.175872,1,1,5
+65,"Inter-pass fast",20,127,36.256768,1,1,5
+65,"Inter-pass fast",20,128,36.006912,1,1,5
+65,"Inter-pass fast",20,129,36.168704,1,1,5
+65,"Inter-pass fast",20,130,36.257792,1,1,5
+65,"Inter-pass fast",20,131,36.259840,1,1,5
+65,"Inter-pass fast",20,132,36.187136,1,1,5
+65,"Inter-pass fast",20,133,36.390912,1,1,5
+65,"Inter-pass fast",20,134,35.946496,1,1,5
+65,"Inter-pass fast",20,135,36.190208,1,1,5
+65,"Inter-pass fast",20,136,36.330496,1,1,5
+65,"Inter-pass fast",20,137,36.287488,1,1,5
+65,"Inter-pass fast",20,138,36.213760,1,1,5
+65,"Inter-pass fast",20,139,36.283392,1,1,5
+65,"Inter-pass fast",20,140,36.203520,1,1,5
+65,"Inter-pass fast",20,141,36.120576,1,1,5
+65,"Inter-pass fast",20,142,35.957760,1,1,5
+65,"Inter-pass fast",20,143,36.337664,1,1,5
+65,"Inter-pass fast",20,144,35.919872,1,1,5
+65,"Inter-pass fast",20,145,36.469760,1,1,5
+65,"Inter-pass fast",20,146,36.361216,1,1,5
+65,"Inter-pass fast",20,147,36.148224,1,1,5
+65,"Inter-pass fast",20,148,36.032512,1,1,5
+65,"Inter-pass fast",20,149,36.265984,1,1,5
+65,"Inter-pass fast",20,150,36.123648,1,1,5
+65,"Inter-pass fast",20,151,36.240384,1,1,5
+65,"Inter-pass fast",20,152,36.216832,1,1,5
+65,"Inter-pass fast",20,153,36.242432,1,1,5
+65,"Inter-pass fast",20,154,36.036608,1,1,5
+65,"Inter-pass fast",20,155,36.329472,1,1,5
+65,"Inter-pass fast",20,156,36.186112,1,1,5
+65,"Inter-pass fast",20,157,36.260864,1,1,5
+65,"Inter-pass fast",20,158,36.173824,1,1,5
+65,"Inter-pass fast",20,159,36.228096,1,1,5
+65,"Fast cached low",21,0,35.974144,1,1,5
+65,"Fast cached low",21,1,35.963904,1,1,5
+65,"Fast cached low",21,2,35.847168,1,1,5
+65,"Fast cached low",21,3,36.077568,1,1,5
+65,"Fast cached low",21,4,36.064256,1,1,5
+65,"Fast cached low",21,5,36.353024,1,1,5
+65,"Fast cached low",21,6,36.224000,1,1,5
+65,"Fast cached low",21,7,36.440064,1,1,5
+65,"Fast cached low",21,8,36.360192,1,1,5
+65,"Fast cached low",21,9,36.365312,1,1,5
+65,"Fast cached low",21,10,36.062208,1,1,5
+65,"Fast cached low",21,11,36.022272,1,1,5
+65,"Fast cached low",21,12,35.855360,1,1,5
+65,"Fast cached low",21,13,35.856384,1,1,5
+65,"Fast cached low",21,14,35.612672,1,1,5
+65,"Fast cached low",21,15,35.843072,1,1,5
+65,"Fast cached low",21,16,35.751936,1,1,5
+65,"Fast cached low",21,17,35.436544,1,1,5
+65,"Fast cached low",21,18,36.084736,1,1,5
+65,"Fast cached low",21,19,35.705856,1,1,5
+65,"Fast cached low",21,20,35.991552,1,1,5
+65,"Fast cached low",21,21,35.998720,1,1,5
+65,"Fast cached low",21,22,35.950592,1,1,5
+65,"Fast cached low",21,23,36.013056,1,1,5
+65,"Fast cached low",21,24,35.996672,1,1,5
+65,"Fast cached low",21,25,35.884032,1,1,5
+65,"Fast cached low",21,26,36.403200,1,1,5
+65,"Fast cached low",21,27,35.944448,1,1,5
+65,"Fast cached low",21,28,36.529152,1,1,5
+65,"Fast cached low",21,29,36.107264,1,1,5
+65,"Fast cached low",21,30,36.234240,1,1,5
+65,"Fast cached low",21,31,36.126720,1,1,5
+65,"Fast cached low",21,32,36.300800,1,1,5
+65,"Fast cached low",21,33,35.752960,1,1,5
+65,"Fast cached low",21,34,36.273152,1,1,5
+65,"Fast cached low",21,35,36.050944,1,1,5
+65,"Fast cached low",21,36,35.876864,1,1,5
+65,"Fast cached low",21,37,35.843072,1,1,5
+65,"Fast cached low",21,38,35.878912,1,1,5
+65,"Fast cached low",21,39,35.522560,1,1,5
+65,"Fast cached low",21,40,35.920896,1,1,5
+65,"Fast cached low",21,41,35.749888,1,1,5
+65,"Fast cached low",21,42,35.747840,1,1,5
+65,"Fast cached low",21,43,35.685376,1,1,5
+65,"Fast cached low",21,44,35.996672,1,1,5
+65,"Fast cached low",21,45,35.956736,1,1,5
+65,"Fast cached low",21,46,35.861504,1,1,5
+65,"Fast cached low",21,47,35.978240,1,1,5
+65,"Fast cached low",21,48,35.906560,1,1,5
+65,"Fast cached low",21,49,36.300800,1,1,5
+65,"Fast cached low",21,50,36.088832,1,1,5
+65,"Fast cached low",21,51,36.107264,1,1,5
+65,"Fast cached low",21,52,36.369408,1,1,5
+65,"Fast cached low",21,53,36.331520,1,1,5
+65,"Fast cached low",21,54,36.287488,1,1,5
+65,"Fast cached low",21,55,36.205568,1,1,5
+65,"Fast cached low",21,56,36.195328,1,1,5
+65,"Fast cached low",21,57,35.879936,1,1,5
+65,"Fast cached low",21,58,36.205568,1,1,5
+65,"Fast cached low",21,59,35.928064,1,1,5
+65,"Fast cached low",21,60,35.774464,1,1,5
+65,"Fast cached low",21,61,35.814400,1,1,5
+65,"Fast cached low",21,62,36.079616,1,1,5
+65,"Fast cached low",21,63,35.647488,1,1,5
+65,"Fast cached low",21,64,35.986432,1,1,5
+65,"Fast cached low",21,65,35.744768,1,1,5
+65,"Fast cached low",21,66,35.976192,1,1,5
+65,"Fast cached low",21,67,35.916800,1,1,5
+65,"Fast cached low",21,68,35.822592,1,1,5
+65,"Fast cached low",21,69,35.963904,1,1,5
+65,"Fast cached low",21,70,35.976192,1,1,5
+65,"Fast cached low",21,71,35.908608,1,1,5
+65,"Fast cached low",21,72,36.150272,1,1,5
+65,"Fast cached low",21,73,35.948544,1,1,5
+65,"Fast cached low",21,74,36.000768,1,1,5
+65,"Fast cached low",21,75,36.430848,1,1,5
+65,"Fast cached low",21,76,36.134912,1,1,5
+65,"Fast cached low",21,77,36.192256,1,1,5
+65,"Fast cached low",21,78,36.356096,1,1,5
+65,"Fast cached low",21,79,36.143104,1,1,5
+65,"Fast cached low",21,80,36.064256,1,1,5
+65,"Fast cached low",21,81,36.198400,1,1,5
+65,"Fast cached low",21,82,35.913728,1,1,5
+65,"Fast cached low",21,83,36.060160,1,1,5
+65,"Fast cached low",21,84,35.891200,1,1,5
+65,"Fast cached low",21,85,35.861504,1,1,5
+65,"Fast cached low",21,86,35.788800,1,1,5
+65,"Fast cached low",21,87,35.831808,1,1,5
+65,"Fast cached low",21,88,35.909632,1,1,5
+65,"Fast cached low",21,89,36.068352,1,1,5
+65,"Fast cached low",21,90,35.605504,1,1,5
+65,"Fast cached low",21,91,36.025344,1,1,5
+65,"Fast cached low",21,92,36.002816,1,1,5
+65,"Fast cached low",21,93,35.956736,1,1,5
+65,"Fast cached low",21,94,35.985408,1,1,5
+65,"Fast cached low",21,95,35.948544,1,1,5
+65,"Fast cached low",21,96,35.972096,1,1,5
+65,"Fast cached low",21,97,36.160512,1,1,5
+65,"Fast cached low",21,98,36.068352,1,1,5
+65,"Fast cached low",21,99,36.190208,1,1,5
+65,"Fast cached low",21,100,36.101120,1,1,5
+65,"Fast cached low",21,101,36.220928,1,1,5
+65,"Fast cached low",21,102,36.126720,1,1,5
+65,"Fast cached low",21,103,36.141056,1,1,5
+65,"Fast cached low",21,104,35.885056,1,1,5
+65,"Fast cached low",21,105,35.936256,1,1,5
+65,"Fast cached low",21,106,36.268032,1,1,5
+65,"Fast cached low",21,107,35.773440,1,1,5
+65,"Fast cached low",21,108,36.227072,1,1,5
+65,"Fast cached low",21,109,36.018176,1,1,5
+65,"Fast cached low",21,110,36.088832,1,1,5
+65,"Fast cached low",21,111,35.956736,1,1,5
+65,"Fast cached low",21,112,35.953664,1,1,5
+65,"Fast cached low",21,113,35.932160,1,1,5
+65,"Fast cached low",21,114,36.192256,1,1,5
+65,"Fast cached low",21,115,35.962880,1,1,5
+65,"Fast cached low",21,116,36.273152,1,1,5
+65,"Fast cached low",21,117,35.857408,1,1,5
+65,"Fast cached low",21,118,35.812352,1,1,5
+65,"Fast cached low",21,119,36.314112,1,1,5
+65,"Fast cached low",21,120,35.939328,1,1,5
+65,"Fast cached low",21,121,36.029440,1,1,5
+65,"Fast cached low",21,122,35.980288,1,1,5
+65,"Fast cached low",21,123,36.006912,1,1,5
+65,"Fast cached low",21,124,36.031488,1,1,5
+65,"Fast cached low",21,125,36.012032,1,1,5
+65,"Fast cached low",21,126,35.946496,1,1,5
+65,"Fast cached low",21,127,36.162560,1,1,5
+65,"Fast cached low",21,128,35.875840,1,1,5
+65,"Fast cached low",21,129,36.114432,1,1,5
+65,"Fast cached low",21,130,36.070400,1,1,5
+65,"Fast cached low",21,131,35.987456,1,1,5
+65,"Fast cached low",21,132,36.086784,1,1,5
+65,"Fast cached low",21,133,35.890176,1,1,5
+65,"Fast cached low",21,134,35.883008,1,1,5
+65,"Fast cached low",21,135,36.202496,1,1,5
+65,"Fast cached low",21,136,35.951616,1,1,5
+65,"Fast cached low",21,137,35.868672,1,1,5
+65,"Fast cached low",21,138,36.192256,1,1,5
+65,"Fast cached low",21,139,35.722240,1,1,5
+65,"Fast cached low",21,140,36.207616,1,1,5
+65,"Fast cached low",21,141,35.899392,1,1,5
+65,"Fast cached low",21,142,36.180992,1,1,5
+65,"Fast cached low",21,143,36.316160,1,1,5
+65,"Fast cached low",21,144,36.055040,1,1,5
+65,"Fast cached low",21,145,35.867648,1,1,5
+65,"Fast cached low",21,146,36.385792,1,1,5
+65,"Fast cached low",21,147,35.858432,1,1,5
+65,"Fast cached low",21,148,36.362240,1,1,5
+65,"Fast cached low",21,149,35.955712,1,1,5
+65,"Fast cached low",21,150,35.816448,1,1,5
+65,"Fast cached low",21,151,35.855360,1,1,5
+65,"Fast cached low",21,152,36.072448,1,1,5
+65,"Fast cached low",21,153,36.104192,1,1,5
+65,"Fast cached low",21,154,36.001792,1,1,5
+65,"Fast cached low",21,155,35.942400,1,1,5
+65,"Fast cached low",21,156,35.701760,1,1,5
+65,"Fast cached low",21,157,35.909632,1,1,5
+65,"Fast cached low",21,158,35.722240,1,1,5
+65,"Fast cached low",21,159,36.245504,1,1,5
+65,"Fast cached low",22,0,35.761152,1,1,5
+65,"Fast cached low",22,1,36.085760,1,1,5
+65,"Fast cached low",22,2,35.936256,1,1,5
+65,"Fast cached low",22,3,35.962880,1,1,5
+65,"Fast cached low",22,4,35.980288,1,1,5
+65,"Fast cached low",22,5,35.923968,1,1,5
+65,"Fast cached low",22,6,35.884032,1,1,5
+65,"Fast cached low",22,7,36.178944,1,1,5
+65,"Fast cached low",22,8,36.073472,1,1,5
+65,"Fast cached low",22,9,36.020224,1,1,5
+65,"Fast cached low",22,10,36.134912,1,1,5
+65,"Fast cached low",22,11,35.751936,1,1,5
+65,"Fast cached low",22,12,36.367360,1,1,5
+65,"Fast cached low",22,13,35.719168,1,1,5
+65,"Fast cached low",22,14,35.993600,1,1,5
+65,"Fast cached low",22,15,36.035584,1,1,5
+65,"Fast cached low",22,16,36.020224,1,1,5
+65,"Fast cached low",22,17,35.942400,1,1,5
+65,"Fast cached low",22,18,35.973120,1,1,5
+65,"Fast cached low",22,19,35.881984,1,1,5
+65,"Fast cached low",22,20,36.190208,1,1,5
+65,"Fast cached low",22,21,35.923968,1,1,5
+65,"Fast cached low",22,22,35.837952,1,1,5
+65,"Fast cached low",22,23,35.778560,1,1,5
+65,"Fast cached low",22,24,35.732480,1,1,5
+65,"Fast cached low",22,25,36.194304,1,1,5
+65,"Fast cached low",22,26,35.942400,1,1,5
+65,"Fast cached low",22,27,35.896320,1,1,5
+65,"Fast cached low",22,28,36.026368,1,1,5
+65,"Fast cached low",22,29,36.057088,1,1,5
+65,"Fast cached low",22,30,36.021248,1,1,5
+65,"Fast cached low",22,31,36.164608,1,1,5
+65,"Fast cached low",22,32,36.008960,1,1,5
+65,"Fast cached low",22,33,36.515840,1,1,5
+65,"Fast cached low",22,34,35.901440,1,1,5
+65,"Fast cached low",22,35,35.743744,1,1,5
+65,"Fast cached low",22,36,36.048896,1,1,5
+65,"Fast cached low",22,37,35.897344,1,1,5
+65,"Fast cached low",22,38,36.102144,1,1,5
+65,"Fast cached low",22,39,35.955712,1,1,5
+65,"Fast cached low",22,40,36.118528,1,1,5
+65,"Fast cached low",22,41,35.891200,1,1,5
+65,"Fast cached low",22,42,36.021248,1,1,5
+65,"Fast cached low",22,43,35.867648,1,1,5
+65,"Fast cached low",22,44,36.235264,1,1,5
+65,"Fast cached low",22,45,35.646464,1,1,5
+65,"Fast cached low",22,46,36.200448,1,1,5
+65,"Fast cached low",22,47,36.024320,1,1,5
+65,"Fast cached low",22,48,36.101120,1,1,5
+65,"Fast cached low",22,49,36.055040,1,1,5
+65,"Fast cached low",22,50,36.000768,1,1,5
+65,"Fast cached low",22,51,35.897344,1,1,5
+65,"Fast cached low",22,52,36.218880,1,1,5
+65,"Fast cached low",22,53,36.089856,1,1,5
+65,"Fast cached low",22,54,36.084736,1,1,5
+65,"Fast cached low",22,55,36.172800,1,1,5
+65,"Fast cached low",22,56,36.225024,1,1,5
+65,"Fast cached low",22,57,35.937280,1,1,5
+65,"Fast cached low",22,58,35.979264,1,1,5
+65,"Fast cached low",22,59,35.991552,1,1,5
+65,"Fast cached low",22,60,36.055040,1,1,5
+65,"Fast cached low",22,61,36.025344,1,1,5
+65,"Fast cached low",22,62,35.868672,1,1,5
+65,"Fast cached low",22,63,36.228096,1,1,5
+65,"Fast cached low",22,64,35.859456,1,1,5
+65,"Fast cached low",22,65,35.838976,1,1,5
+65,"Fast cached low",22,66,35.788800,1,1,5
+65,"Fast cached low",22,67,35.895296,1,1,5
+65,"Fast cached low",22,68,35.943424,1,1,5
+65,"Fast cached low",22,69,36.203520,1,1,5
+65,"Fast cached low",22,70,35.880960,1,1,5
+65,"Fast cached low",22,71,36.316160,1,1,5
+65,"Fast cached low",22,72,35.888128,1,1,5
+65,"Fast cached low",22,73,35.753984,1,1,5
+65,"Fast cached low",22,74,36.153344,1,1,5
+65,"Fast cached low",22,75,35.721216,1,1,5
+65,"Fast cached low",22,76,36.284416,1,1,5
+65,"Fast cached low",22,77,35.806208,1,1,5
+65,"Fast cached low",22,78,36.098048,1,1,5
+65,"Fast cached low",22,79,35.795968,1,1,5
+65,"Fast cached low",22,80,35.900416,1,1,5
+65,"Fast cached low",22,81,36.059136,1,1,5
+65,"Fast cached low",22,82,35.979264,1,1,5
+65,"Fast cached low",22,83,35.916800,1,1,5
+65,"Fast cached low",22,84,36.058112,1,1,5
+65,"Fast cached low",22,85,35.945472,1,1,5
+65,"Fast cached low",22,86,35.762176,1,1,5
+65,"Fast cached low",22,87,35.883008,1,1,5
+65,"Fast cached low",22,88,35.676160,1,1,5
+65,"Fast cached low",22,89,36.067328,1,1,5
+65,"Fast cached low",22,90,35.737600,1,1,5
+65,"Fast cached low",22,91,36.111360,1,1,5
+65,"Fast cached low",22,92,36.016128,1,1,5
+65,"Fast cached low",22,93,35.969024,1,1,5
+65,"Fast cached low",22,94,36.024320,1,1,5
+65,"Fast cached low",22,95,35.952640,1,1,5
+65,"Fast cached low",22,96,35.988480,1,1,5
+65,"Fast cached low",22,97,36.140032,1,1,5
+65,"Fast cached low",22,98,36.108288,1,1,5
+65,"Fast cached low",22,99,36.078592,1,1,5
+65,"Fast cached low",22,100,36.084736,1,1,5
+65,"Fast cached low",22,101,35.888128,1,1,5
+65,"Fast cached low",22,102,36.307968,1,1,5
+65,"Fast cached low",22,103,36.217856,1,1,5
+65,"Fast cached low",22,104,36.212736,1,1,5
+65,"Fast cached low",22,105,36.045824,1,1,5
+65,"Fast cached low",22,106,36.062208,1,1,5
+65,"Fast cached low",22,107,35.767296,1,1,5
+65,"Fast cached low",22,108,36.074496,1,1,5
+65,"Fast cached low",22,109,35.234816,1,1,5
+65,"Fast cached low",22,110,36.287488,1,1,5
+65,"Fast cached low",22,111,35.838976,1,1,5
+65,"Fast cached low",22,112,35.828736,1,1,5
+65,"Fast cached low",22,113,36.045824,1,1,5
+65,"Fast cached low",22,114,35.716096,1,1,5
+65,"Fast cached low",22,115,36.203520,1,1,5
+65,"Fast cached low",22,116,35.978240,1,1,5
+65,"Fast cached low",22,117,35.947520,1,1,5
+65,"Fast cached low",22,118,35.972096,1,1,5
+65,"Fast cached low",22,119,36.060160,1,1,5
+65,"Fast cached low",22,120,36.078592,1,1,5
+65,"Fast cached low",22,121,36.173824,1,1,5
+65,"Fast cached low",22,122,35.975168,1,1,5
+65,"Fast cached low",22,123,36.255744,1,1,5
+65,"Fast cached low",22,124,36.026368,1,1,5
+65,"Fast cached low",22,125,35.972096,1,1,5
+65,"Fast cached low",22,126,36.112384,1,1,5
+65,"Fast cached low",22,127,35.951616,1,1,5
+65,"Fast cached low",22,128,36.015104,1,1,5
+65,"Fast cached low",22,129,36.152320,1,1,5
+65,"Fast cached low",22,130,35.926016,1,1,5
+65,"Fast cached low",22,131,35.800064,1,1,5
+65,"Fast cached low",22,132,35.999744,1,1,5
+65,"Fast cached low",22,133,35.808256,1,1,5
+65,"Fast cached low",22,134,36.301824,1,1,5
+65,"Fast cached low",22,135,35.690496,1,1,5
+65,"Fast cached low",22,136,36.111360,1,1,5
+65,"Fast cached low",22,137,35.946496,1,1,5
+65,"Fast cached low",22,138,35.978240,1,1,5
+65,"Fast cached low",22,139,36.064256,1,1,5
+65,"Fast cached low",22,140,35.907584,1,1,5
+65,"Fast cached low",22,141,35.944448,1,1,5
+65,"Fast cached low",22,142,36.001792,1,1,5
+65,"Fast cached low",22,143,35.914752,1,1,5
+65,"Fast cached low",22,144,36.036608,1,1,5
+65,"Fast cached low",22,145,36.156416,1,1,5
+65,"Fast cached low",22,146,35.979264,1,1,5
+65,"Fast cached low",22,147,36.136960,1,1,5
+65,"Fast cached low",22,148,36.041728,1,1,5
+65,"Fast cached low",22,149,36.012032,1,1,5
+65,"Fast cached low",22,150,35.835904,1,1,5
+65,"Fast cached low",22,151,36.192256,1,1,5
+65,"Fast cached low",22,152,35.896320,1,1,5
+65,"Fast cached low",22,153,36.204544,1,1,5
+65,"Fast cached low",22,154,35.758080,1,1,5
+65,"Fast cached low",22,155,36.054016,1,1,5
+65,"Fast cached low",22,156,35.956736,1,1,5
+65,"Fast cached low",22,157,35.885056,1,1,5
+65,"Fast cached low",22,158,36.029440,1,1,5
+65,"Fast cached low",22,159,35.868672,1,1,5
+65,"Inter-pass fast",23,0,36.404224,1,1,5
+65,"Inter-pass fast",23,1,36.030464,1,1,5
+65,"Inter-pass fast",23,2,36.233216,1,1,5
+65,"Inter-pass fast",23,3,36.218880,1,1,5
+65,"Inter-pass fast",23,4,36.104192,1,1,5
+65,"Inter-pass fast",23,5,36.132864,1,1,5
+65,"Inter-pass fast",23,6,36.100096,1,1,5
+65,"Inter-pass fast",23,7,35.860480,1,1,5
+65,"Inter-pass fast",23,8,36.189184,1,1,5
+65,"Inter-pass fast",23,9,36.202496,1,1,5
+65,"Inter-pass fast",23,10,36.210688,1,1,5
+65,"Inter-pass fast",23,11,36.381696,1,1,5
+65,"Inter-pass fast",23,12,36.234240,1,1,5
+65,"Inter-pass fast",23,13,35.861504,1,1,5
+65,"Inter-pass fast",23,14,36.310016,1,1,5
+65,"Inter-pass fast",23,15,36.124672,1,1,5
+65,"Inter-pass fast",23,16,36.348928,1,1,5
+65,"Inter-pass fast",23,17,36.391936,1,1,5
+65,"Inter-pass fast",23,18,36.232192,1,1,5
+65,"Inter-pass fast",23,19,36.033536,1,1,5
+65,"Inter-pass fast",23,20,36.215808,1,1,5
+65,"Inter-pass fast",23,21,36.073472,1,1,5
+65,"Inter-pass fast",23,22,36.521984,1,1,5
+65,"Inter-pass fast",23,23,36.184064,1,1,5
+65,"Inter-pass fast",23,24,36.513792,1,1,5
+65,"Inter-pass fast",23,25,36.154368,1,1,5
+65,"Inter-pass fast",23,26,36.203520,1,1,5
+65,"Inter-pass fast",23,27,36.025344,1,1,5
+65,"Inter-pass fast",23,28,35.940352,1,1,5
+65,"Inter-pass fast",23,29,36.071424,1,1,5
+65,"Inter-pass fast",23,30,36.421632,1,1,5
+65,"Inter-pass fast",23,31,35.905536,1,1,5
+65,"Inter-pass fast",23,32,36.388864,1,1,5
+65,"Inter-pass fast",23,33,36.201472,1,1,5
+65,"Inter-pass fast",23,34,36.283392,1,1,5
+65,"Inter-pass fast",23,35,36.295680,1,1,5
+65,"Inter-pass fast",23,36,36.445184,1,1,5
+65,"Inter-pass fast",23,37,36.082688,1,1,5
+65,"Inter-pass fast",23,38,36.294656,1,1,5
+65,"Inter-pass fast",23,39,36.281344,1,1,5
+65,"Inter-pass fast",23,40,35.769344,1,1,5
+65,"Inter-pass fast",23,41,36.113408,1,1,5
+65,"Inter-pass fast",23,42,36.086784,1,1,5
+65,"Inter-pass fast",23,43,35.891200,1,1,5
+65,"Inter-pass fast",23,44,36.361216,1,1,5
+65,"Inter-pass fast",23,45,36.294656,1,1,5
+65,"Inter-pass fast",23,46,36.431872,1,1,5
+65,"Inter-pass fast",23,47,36.145152,1,1,5
+65,"Inter-pass fast",23,48,36.218880,1,1,5
+65,"Inter-pass fast",23,49,36.091904,1,1,5
+65,"Inter-pass fast",23,50,36.298752,1,1,5
+65,"Inter-pass fast",23,51,36.057088,1,1,5
+65,"Inter-pass fast",23,52,35.988480,1,1,5
+65,"Inter-pass fast",23,53,36.250624,1,1,5
+65,"Inter-pass fast",23,54,36.123648,1,1,5
+65,"Inter-pass fast",23,55,36.187136,1,1,5
+65,"Inter-pass fast",23,56,36.378624,1,1,5
+65,"Inter-pass fast",23,57,36.320256,1,1,5
+65,"Inter-pass fast",23,58,36.205568,1,1,5
+65,"Inter-pass fast",23,59,36.520960,1,1,5
+65,"Inter-pass fast",23,60,36.429824,1,1,5
+65,"Inter-pass fast",23,61,36.146176,1,1,5
+65,"Inter-pass fast",23,62,36.152320,1,1,5
+65,"Inter-pass fast",23,63,36.246528,1,1,5
+65,"Inter-pass fast",23,64,35.991552,1,1,5
+65,"Inter-pass fast",23,65,36.211712,1,1,5
+65,"Inter-pass fast",23,66,36.059136,1,1,5
+65,"Inter-pass fast",23,67,35.980288,1,1,5
+65,"Inter-pass fast",23,68,36.463616,1,1,5
+65,"Inter-pass fast",23,69,36.089856,1,1,5
+65,"Inter-pass fast",23,70,36.041728,1,1,5
+65,"Inter-pass fast",23,71,36.341760,1,1,5
+65,"Inter-pass fast",23,72,36.271104,1,1,5
+65,"Inter-pass fast",23,73,36.070400,1,1,5
+65,"Inter-pass fast",23,74,36.200448,1,1,5
+65,"Inter-pass fast",23,75,36.127744,1,1,5
+65,"Inter-pass fast",23,76,36.012032,1,1,5
+65,"Inter-pass fast",23,77,36.293632,1,1,5
+65,"Inter-pass fast",23,78,36.286464,1,1,5
+65,"Inter-pass fast",23,79,36.320256,1,1,5
+65,"Inter-pass fast",23,80,36.433920,1,1,5
+65,"Inter-pass fast",23,81,36.299776,1,1,5
+65,"Inter-pass fast",23,82,36.060160,1,1,5
+65,"Inter-pass fast",23,83,36.288512,1,1,5
+65,"Inter-pass fast",23,84,36.107264,1,1,5
+65,"Inter-pass fast",23,85,35.996672,1,1,5
+65,"Inter-pass fast",23,86,36.617216,1,1,5
+65,"Inter-pass fast",23,87,35.808256,1,1,5
+65,"Inter-pass fast",23,88,35.848192,1,1,5
+65,"Inter-pass fast",23,89,36.228096,1,1,5
+65,"Inter-pass fast",23,90,36.157440,1,1,5
+65,"Inter-pass fast",23,91,36.125696,1,1,5
+65,"Inter-pass fast",23,92,36.202496,1,1,5
+65,"Inter-pass fast",23,93,36.246528,1,1,5
+65,"Inter-pass fast",23,94,35.955712,1,1,5
+65,"Inter-pass fast",23,95,36.298752,1,1,5
+65,"Inter-pass fast",23,96,35.998720,1,1,5
+65,"Inter-pass fast",23,97,36.278272,1,1,5
+65,"Inter-pass fast",23,98,36.225024,1,1,5
+65,"Inter-pass fast",23,99,36.152320,1,1,5
+65,"Inter-pass fast",23,100,36.125696,1,1,5
+65,"Inter-pass fast",23,101,36.395008,1,1,5
+65,"Inter-pass fast",23,102,36.149248,1,1,5
+65,"Inter-pass fast",23,103,36.418560,1,1,5
+65,"Inter-pass fast",23,104,36.169728,1,1,5
+65,"Inter-pass fast",23,105,36.208640,1,1,5
+65,"Inter-pass fast",23,106,36.132864,1,1,5
+65,"Inter-pass fast",23,107,36.673536,1,1,5
+65,"Inter-pass fast",23,108,36.048896,1,1,5
+65,"Inter-pass fast",23,109,36.304896,1,1,5
+65,"Inter-pass fast",23,110,36.182016,1,1,5
+65,"Inter-pass fast",23,111,36.086784,1,1,5
+65,"Inter-pass fast",23,112,35.992576,1,1,5
+65,"Inter-pass fast",23,113,36.321280,1,1,5
+65,"Inter-pass fast",23,114,36.169728,1,1,5
+65,"Inter-pass fast",23,115,36.310016,1,1,5
+65,"Inter-pass fast",23,116,36.169728,1,1,5
+65,"Inter-pass fast",23,117,36.158464,1,1,5
+65,"Inter-pass fast",23,118,36.050944,1,1,5
+65,"Inter-pass fast",23,119,36.317184,1,1,5
+65,"Inter-pass fast",23,120,35.888128,1,1,5
+65,"Inter-pass fast",23,121,36.355072,1,1,5
+65,"Inter-pass fast",23,122,36.184064,1,1,5
+65,"Inter-pass fast",23,123,36.204544,1,1,5
+65,"Inter-pass fast",23,124,36.256768,1,1,5
+65,"Inter-pass fast",23,125,36.263936,1,1,5
+65,"Inter-pass fast",23,126,36.136960,1,1,5
+65,"Inter-pass fast",23,127,36.301824,1,1,5
+65,"Inter-pass fast",23,128,36.196352,1,1,5
+65,"Inter-pass fast",23,129,36.222976,1,1,5
+65,"Inter-pass fast",23,130,36.042752,1,1,5
+65,"Inter-pass fast",23,131,36.359168,1,1,5
+65,"Inter-pass fast",23,132,35.933184,1,1,5
+65,"Inter-pass fast",23,133,36.327424,1,1,5
+65,"Inter-pass fast",23,134,36.005888,1,1,5
+65,"Inter-pass fast",23,135,36.132864,1,1,5
+65,"Inter-pass fast",23,136,36.037632,1,1,5
+65,"Inter-pass fast",23,137,36.014080,1,1,5
+65,"Inter-pass fast",23,138,36.103168,1,1,5
+65,"Inter-pass fast",23,139,36.267008,1,1,5
+65,"Inter-pass fast",23,140,35.861504,1,1,5
+65,"Inter-pass fast",23,141,36.056064,1,1,5
+65,"Inter-pass fast",23,142,36.022272,1,1,5
+65,"Inter-pass fast",23,143,35.938304,1,1,5
+65,"Inter-pass fast",23,144,36.150272,1,1,5
+65,"Inter-pass fast",23,145,36.460544,1,1,5
+65,"Inter-pass fast",23,146,36.003840,1,1,5
+65,"Inter-pass fast",23,147,36.221952,1,1,5
+65,"Inter-pass fast",23,148,36.247552,1,1,5
+65,"Inter-pass fast",23,149,36.258816,1,1,5
+65,"Inter-pass fast",23,150,36.164608,1,1,5
+65,"Inter-pass fast",23,151,36.427776,1,1,5
+65,"Inter-pass fast",23,152,35.983360,1,1,5
+65,"Inter-pass fast",23,153,36.160512,1,1,5
+65,"Inter-pass fast",23,154,36.220928,1,1,5
+65,"Inter-pass fast",23,155,36.491264,1,1,5
+65,"Inter-pass fast",23,156,36.443136,1,1,5
+65,"Inter-pass fast",23,157,36.222976,1,1,5
+65,"Inter-pass fast",23,158,36.135936,1,1,5
+65,"Inter-pass fast",23,159,36.142080,1,1,5

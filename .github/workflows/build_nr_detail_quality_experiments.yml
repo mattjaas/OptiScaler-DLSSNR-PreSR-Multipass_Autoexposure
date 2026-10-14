@@ -1,4 +1,4 @@
-name: Build NR v37 shared Low36 samples and Fast ABBA
+name: Build NR v38 neutral inter-pass low and Fast ABBA
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v37-${{ github.ref }}
+  group: nr-interpass-v38-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -46,7 +46,7 @@ jobs:
       - name: Verify retained arithmetic and benchmark
         shell: powershell
         run: |
-          foreach ($test in @("shared_bilinear", "dynamic_geometry", "classic_downsample_clamp", "classic_guided_stencil", "tiled_fused_area", "fast_experiments", "cadence", "low_cache")) {
+          foreach ($test in @("shared_bilinear", "dynamic_geometry", "classic_downsample_clamp", "classic_guided_stencil", "tiled_fused_area", "fast_experiments", "cadence", "low_cache", "neutral_low")) {
             python "tests/test_nr_interpass_${test}.py"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
@@ -95,15 +95,26 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
+      - name: Compile neutral low GPU contract
+        shell: powershell
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw "C++ toolchain missing" }
+          $vcvars = Join-Path $vs "VC/Auxiliary/Build/vcvars64.bat"
+          foreach ($fixture in @("interpass_neutral_low", "interpass_neutral_low_timing")) {
+            cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/${fixture}.cpp /Fe:artifacts/nr-v20/${fixture}.exe /Fo:artifacts/nr-v20/${fixture}.obj /link d3d12.lib dxgi.lib"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v37-low36-cache-20261012"
+        run: ./package_release.ps1 -Version "nr-interpass-v38-neutral-interpass-low-20261014"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v37-low36-cache-20261012
-          path: release/OptiScaler-NR-nr-interpass-v37-low36-cache-20261012.zip
+          name: OptiScaler-NR-interpass-v38-neutral-interpass-low-20261014
+          path: release/OptiScaler-NR-nr-interpass-v38-neutral-interpass-low-20261014.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -112,27 +123,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v37-low36-cache-20261012"
-          $archive = "release/OptiScaler-NR-nr-interpass-v37-low36-cache-20261012.zip"
+          $tag = "nr-interpass-v38-neutral-interpass-low-20261014"
+          $archive = "release/OptiScaler-NR-nr-interpass-v38-neutral-interpass-low-20261014.zip"
           $notes = @"
-          Shared Low36 samples from $env:GITHUB_SHA.
-          New opt-in Model / Inter-pass reconstruction: Fast cached low (experimental), INI mode 8.
-          Original Fast mode 4, reference modes and exact Optimized policy are retained.
-          Low36 keeps all 36 positive weights, overlap, signed residual sanitization and normalization.
-          An 8x8 low-output group shares a 34x34 sample tile: 13,872 bytes LDS and one group barrier.
-          No additional dispatch, texture, copy or per-frame allocation. PSO is created lazily.
-          Only inter-pass low shaping changes; equal high/low gains skip low work as before.
-          Source-coordinate FP rounding differs. Perceptual equivalence needs in-game motion/HDR inspection.
-          Local RTX4090 shader timestamps test low+Cross5, excluding NGX and final resolve.
-          Results and stress bounds are recorded in docs/NR-v37-low36-cache.md; no whole-game gain claim.
-          New comparison: P50/P59/P65, Off, both references, Optimized, then original Fast/cached/cached/Fast ABBA.
-          18 configurations / 24 windows, independent warmup, whole-NR GPU timestamps and paired CSV.
-          Preserves shaping/pass gains; optional visual holds; original settings restored on finish/cancel.
-          Benchmarks retain the limit P65 and do not append higher current scales.
-          All modes retain v36 cadence: below P74 every transition, P74-P84 stride 2, P85-P90 stride 3.
-          Between P84 and P85 and above P90 inter-pass is disabled. Never correct after the last model.
-          Original shaders including ordinary/final low filter and Vulkan bytecode are unchanged.
-          Cached low PSO failure falls back to the original standard low filter and reports fallback.
+          Neutral inter-pass low from $env:GITHUB_SHA.
+          New Model / Inter-pass reconstruction checkbox: Keep inter-pass low gain at 1.
+          Optional INI InterPassNeutralLow=true, default false.
+          Only inter-pass frequency shaping uses low gain 1; final resolve keeps its configured last-model low once.
+          High/mid per-model style/Structure gains and their compounding are unchanged.
+          This changes low shaping strength, not the low-filter kernel. Low filtering still separates bands when high differs from 1.
+          Active option changes reset model histories without recreating NGX features.
+          All modes and v36 cadence retain their behavior; shadow confidence remains configured.
+          No HLSL/bytecode, new GPU stage, allocation, resource or PSO changes. The existing low dispatch may activate when previously equal high/low become different.
+          Benchmark preserves/restores the option and records its value plus manual high/low gains for each style.
+          Original Fast, cached Low36, exact Optimized and reference controls remain available.
+          Supplied TLOU Part I in-game v37 ABBA: cached versus original Fast saves whole-NR GPU
+          P50 0.101632 ms, P59 0.286720 ms, P65 0.197120 ms. Both sides favor cached at all three points.
+          RTX4090, native 4K, six passes, Transfer 9, Area/radius 1, manual shaping, 90 warmup/160 samples per window.
+          These results precede the new checkbox; no performance or perceptual-quality claim for neutral-low mode.
+          Full audit, dispersion and source files: docs/NR-v37-20261014-ingame-analysis.md.
+          No in-game visual verdict supplied; cached Low36 remains an opt-in experiment.
+          Fast/cached comparison retains P50/P59/P65, Off, both references, Optimized and Fast/cache ABBA.
+          18 configurations / 24 windows, independent warmup, paired CSV and optional visual holds.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -143,8 +155,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v37 - Shared Low36 samples, Fast ABBA" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v38 - Neutral inter-pass low, Fast ABBA" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v37 - Shared Low36 samples, Fast ABBA" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v38 - Neutral inter-pass low, Fast ABBA" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

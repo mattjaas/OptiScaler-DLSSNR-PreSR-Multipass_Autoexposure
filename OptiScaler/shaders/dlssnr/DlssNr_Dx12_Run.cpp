@@ -982,19 +982,25 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     const bool interPassOptimized = DlssNr::InterPass::Optimized(interPassPath);
     const uint32_t selectedInterPassMode = DlssNr::InterPass::Fused(interPassPath) ? 2u : 1u;
     DlssNr::BenchmarkReportInterPassPath(DlssNr::InterPass::Name(interPassPath));
+    const bool interPassNeutralLow = interPassCadence != 0u &&
+        cfg.DlssNrGuidedResidualShaping.value_or_default() != 0u &&
+        cfg.DlssNrInterPassNeutralLow.value_or_default();
     if (!nr.interPassModeInitialized)
     {
         nr.interPassMode = static_cast<uint32_t>(interPassPath);
         nr.interPassCadence = interPassCadence;
+        nr.interPassNeutralLow = interPassNeutralLow;
         nr.interPassModeInitialized = true;
     }
     else if (nr.interPassMode != static_cast<uint32_t>(interPassPath) ||
-             nr.interPassCadence != interPassCadence)
+             nr.interPassCadence != interPassCadence ||
+             nr.interPassNeutralLow != interPassNeutralLow)
     {
         // The later temporal features now see a different input distribution. Reset history without
         // recreating NGX features; Off <-> Guided and reference <-> fused both start cleanly.
         nr.interPassMode = static_cast<uint32_t>(interPassPath);
         nr.interPassCadence = interPassCadence;
+        nr.interPassNeutralLow = interPassNeutralLow;
         nr.reset = true;
     }
 
