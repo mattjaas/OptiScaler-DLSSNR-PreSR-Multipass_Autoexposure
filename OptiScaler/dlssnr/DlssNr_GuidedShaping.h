@@ -27,4 +27,15 @@ inline float ProductGuidedHigh(unsigned first, unsigned completed, bool enabled,
     const float result = static_cast<float>(product);
     return std::isfinite(result) ? result : 1.0f;
 }
+// Arithmetic mean of the effective per-model low gains; never a product.
+template <class GainForPass>
+inline float MeanGuidedLow(unsigned first, unsigned completed, GainForPass gainForPass)
+{
+    if (completed <= first) return 1.0f;
+    double sum = 0.0;
+    for (unsigned pass = first; pass < completed; ++pass)
+        sum += gainForPass(pass);
+    const float result = static_cast<float>(sum / (completed - first));
+    return std::isfinite(result) ? result : 1.0f;
+}
 } // namespace DlssNr::Profiles

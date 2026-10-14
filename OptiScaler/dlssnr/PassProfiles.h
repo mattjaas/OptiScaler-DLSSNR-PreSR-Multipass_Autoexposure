@@ -160,7 +160,7 @@ inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock(const Config& cf
 {
     if (completedPasses <= firstPass)
         return {};
-    // Low remains a single gain from the block's last model. Only high/mid accumulates.
+    // High/mid retains its compounding policy; low averages the effective gains in this block.
     auto gains = EffectiveGuidedResidualGainsForPass(cfg, shapingMode, transfer, completedPasses - 1u, workScale);
     if (!gains.active || completedPasses - firstPass == 1u)
         return gains;
@@ -170,6 +170,11 @@ inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock(const Config& cf
                                       return EffectiveGuidedResidualGainsForPass(cfg, shapingMode, transfer, pass,
                                                                                 workScale).high;
                                   });
+    gains.low = MeanGuidedLow(firstPass, completedPasses,
+                             [&](unsigned pass) {
+                                 return EffectiveGuidedResidualGainsForPass(cfg, shapingMode, transfer, pass,
+                                                                           workScale).low;
+                             });
     return gains;
 }
 
@@ -181,6 +186,22 @@ inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass(const Config
     auto gains = EffectiveGuidedResidualGainsForBlock(cfg, shapingMode, 7u, firstPass, completedPasses, workScale);
     if (cfg.DlssNrInterPassNeutralLow.value_or_default())
         gains.low = 1.0f;
+    return gains;
+}
+
+inline GuidedResidualGains EffectiveGuidedResidualGainsForResolve(const Config& cfg, uint32_t shapingMode,
+                                                                  uint32_t transfer, unsigned int firstPass,
+                                                                  unsigned int completedPasses, float workScale)
+{
+    auto gains = EffectiveGuidedResidualGainsForBlock(cfg, shapingMode, transfer, firstPass, completedPasses, workScale);
+    // Neutral inter-pass low consumes no low shaping. Final low therefore averages the entire chain,
+    // while final high/mid still covers only models after the last successful inter-pass correction.
+    if (gains.active && cfg.DlssNrInterPassNeutralLow.value_or_default())
+        gains.low = MeanGuidedLow(0u, completedPasses,
+                                 [&](unsigned pass) {
+                                     return EffectiveGuidedResidualGainsForPass(cfg, shapingMode, transfer, pass,
+                                                                               workScale).low;
+                                 });
     return gains;
 }
 

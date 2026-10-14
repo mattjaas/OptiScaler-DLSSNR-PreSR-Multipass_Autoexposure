@@ -43,7 +43,8 @@ def test_cadence():
     assert 'StructureAdjustedHigh(GuidedResidualGainForScale(gains.high, workScale), settings.localStructure)' in single
     assert 'gains.low = GuidedResidualGainForScale(gains.low, workScale);' in single
     block = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock'):profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass')]
-    assert 'completedPasses - 1u, workScale' in block  # low and non-multiplied high use the actual last model
+    assert 'completedPasses - 1u, workScale' in block  # Non-multiplied high uses the actual last model.
+    assert 'gains.low = MeanGuidedLow(firstPass, completedPasses,' in block
     assert 'ProductGuidedHigh(firstPass, completedPasses,' in block
     assert 'DlssNrGuidedResidualCompoundPasses' in block
     assert 'transfer, pass,' in block  # each model, not the last style repeated N times

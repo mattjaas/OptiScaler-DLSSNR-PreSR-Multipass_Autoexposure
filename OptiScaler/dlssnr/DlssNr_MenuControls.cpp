@@ -556,12 +556,14 @@ void RenderInput(Config* config)
             if (shaping != 0)
             {
                 ImGui::Separator();
-                const auto finalGains = Profiles::EffectiveGuidedResidualGainsForBlock(*config, (uint32_t) shaping,
+                const auto finalGains = Profiles::EffectiveGuidedResidualGainsForResolve(*config, (uint32_t) shaping,
                                                                                      (uint32_t) transfer,
                                                                                      predictedCoveredPasses,
                                                                                      effectivePasses, shapingScale);
-                ImGui::Text("Expected final block (%u passes): high/mid %.4f, low %.4f", finalShapingPasses,
+                ImGui::Text("Expected final high/mid block (%u passes): high/mid %.4f, low %.4f", finalShapingPasses,
                             finalGains.high, finalGains.low);
+                ImGui::TextDisabled("Final low averages %u pass gains.",
+                    config->DlssNrInterPassNeutralLow.value_or_default() ? effectivePasses : finalShapingPasses);
                 if (ImGui::TreeNode("Per-pass frequency gains (final transfer)"))
                 {
                     for (unsigned pass = 0; pass < effectivePasses; ++pass)
@@ -1143,7 +1145,7 @@ void RenderModel(Config* config)
             config->DlssNrInterPassNeutralLow = neutralLow;
         HelpMarker("Sets the low-frequency shaping gain to exactly 1 only between model passes. "
                    "High/mid shaping retains its per-pass style and Structure gains. "
-                   "Final resolve uses the configured low gain once, without pass multiplication. "
+                   "Final resolve averages all model low gains when checked; otherwise only gains after the last correction. "
                    "The low filter is still needed to separate bands when high/mid differs from 1. "
                    "Applies with frequency shaping enabled; shadow confidence remains configured.");
         HelpMarker("Cached low shares overlapping Low36 samples while retaining all taps and weights. "
@@ -1171,7 +1173,8 @@ void RenderModel(Config* config)
         HelpMarker("Inter-pass frequency shaping accounts for each model since the "
                    "previous successful correction. High/mid multiplies the individual style/Structure gains in each block "
                    "and final resolve: six passes at 74-84% cover 2+2+2, five passes cover 2+2+1; at 85-90% they cover 3+3 or 3+2. "
-                   "Low frequency retains one gain per correction/resolve. No extra shaping dispatch is needed.");
+                   "Low frequency averages effective per-model gains in each block; neutral inter-pass low makes final low average all models. "
+                   "No extra shaping dispatch is needed.");
     }
 
     static unsigned selectedPass = 0;

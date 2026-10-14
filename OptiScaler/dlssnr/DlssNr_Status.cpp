@@ -492,8 +492,8 @@ void FinishBenchmark(bool cancelled)
                     << "Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.\n"
                     << "Structure adjustment: 1+(scale_corrected_high-1)*clamp(configured Structure,0,1); Low unchanged.\n"
                     << (savedBenchmarkConfig.neutralInterPassLow
-                        ? "Inter-pass low gain forced to 1; final resolve retains its configured single low gain.\n"
-                        : "Inter-pass and final resolve use their configured low gain once per correction/resolve.\n")
+                        ? "Inter-pass low gain forced to 1; final low averages all effective model gains.\n"
+                        : "Inter-pass low averages each unconsumed model block; final low averages models after the last successful correction.\n")
                     << "All pass styles/Structure settings are recorded; there is no repetition of the last model's gain.\n"
                     << "interpass_stride is the active cadence (0=Off); interpass_corrections counts successful corrections/frame.\n"
                     << "High/mid multiplies the actual per-pass style/Structure-adjusted gains since the last successful correction; at P74-P84 six passes cover 2+2+2, five cover 2+2+1; at P85-P90 they cover 3+3 or 3+2.\n"

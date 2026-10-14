@@ -60,6 +60,41 @@ int main()
         require(Due(2,7,3) && Due(5,7,3) && !Due(6,7,3));
         using DlssNr::Profiles::StructureAdjustedHigh;
         using DlssNr::Profiles::ProductGuidedHigh;
+        using DlssNr::Profiles::MeanGuidedLow;
+        const std::array<float,6> low {{0.609f,0.741f,0.780f,0.5f,0.8f,1.1f}};
+        const auto lowForPass = [&](unsigned pass) { return low.at(pass); };
+        require(std::abs(MeanGuidedLow(0,2,lowForPass)-0.675f)<1e-6f);
+        require(std::abs(MeanGuidedLow(2,4,lowForPass)-0.640f)<1e-6f);
+        require(std::abs(MeanGuidedLow(4,6,lowForPass)-0.950f)<1e-6f);
+        require(std::abs(MeanGuidedLow(0,3,lowForPass)-0.710f)<1e-6f);
+        require(std::abs(MeanGuidedLow(0,6,lowForPass)-0.755f)<1e-6f);
+        require(MeanGuidedLow(4,5,lowForPass)==low[4]);
+        require(MeanGuidedLow(0,0,lowForPass)==1.0f);
+        require(MeanGuidedLow(3,2,lowForPass)==1.0f);
+        require(MeanGuidedLow(0,6,[](unsigned) { return 0.0f; })==0.0f);
+        require(MeanGuidedLow(0,32,[](unsigned) { return 0.741f; })==0.741f);
+        require(MeanGuidedLow(0,6,[](unsigned) { return std::numeric_limits<float>::max(); })==std::numeric_limits<float>::max());
+        require(MeanGuidedLow(0,6,[](unsigned) { return std::numeric_limits<float>::quiet_NaN(); })==1.0f);
+        for (unsigned passes=1;passes<=32;++passes)
+        for (unsigned stride : {0u,1u,2u,3u})
+        for (unsigned failure : {0u,1u,2u,3u,6u})
+        {
+            unsigned covered=0;
+            double weightedSum=0.0, directSum=0.0;
+            const auto mixedLow=[&](unsigned pass) { return low[pass%low.size()]; };
+            for (unsigned pass=0;pass<passes;++pass)
+            {
+                directSum+=mixedLow(pass);
+                if (!Due(pass,passes,stride) || pass+1==failure) continue;
+                weightedSum+=MeanGuidedLow(covered,pass+1,mixedLow)*(pass+1-covered);
+                covered=pass+1;
+            }
+            weightedSum+=MeanGuidedLow(covered,passes,mixedLow)*(passes-covered);
+            // Range accounting only; model evaluation and guided filtering do not commute with shaping.
+            require(std::abs(weightedSum/passes-directSum/passes)<1e-6);
+            // With neutral low, inter-pass contributes gain 1 and final low covers all models.
+            require(std::abs(MeanGuidedLow(0,passes,mixedLow)-directSum/passes)<1e-6);
+        }
         require(std::abs(StructureAdjustedHigh(0.8f,0.5f)-0.9f)<1e-6f);
         require(std::abs(StructureAdjustedHigh(1.2f,0.5f)-1.1f)<1e-6f);
         require(StructureAdjustedHigh(0.8f,0)==1.0f);

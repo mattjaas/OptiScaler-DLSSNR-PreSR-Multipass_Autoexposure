@@ -1,5 +1,8 @@
 # NR v38 — neutralny gain low między modelami
 
+> Wersja historyczna. [v39](NR-v39-low-mean.md) zmienia low na średnią gainów modeli:
+> z checkboxem final low obejmuje całą serię, bez checkboxa odpowiedni blok.
+
 Checkbox **Model → Inter-pass reconstruction → Keep inter-pass low gain at 1**
 ustawia dokładnie `low=1` podczas korekcji interpass. INI:
 `InterPassNeutralLow=true`. Domyślnie jest wyłączony, aby zachować dotychczasowy
