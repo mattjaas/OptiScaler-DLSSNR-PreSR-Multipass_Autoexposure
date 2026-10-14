@@ -528,8 +528,8 @@ void RenderInput(Config* config)
                 HelpMarker("Multiply each pass's actual high/mid gain using its configured style, Structure and Intensity. "
                            "Each successful inter-pass correction consumes only its block; final resolve consumes the rest. "
                            "Corrections occur only before a model that would increase the high/low gap beyond 0.25. Without inter-pass the final block covers all passes. "
-                           "Reductions below Structure=1 and Intensity=1 add: 0.8 and 0.7 leave 0.5 of the high/mid gain deviation from 1. "
-                           "The combined reduction is capped at 100%; values above 1 retain the calibration at 1. Low is unchanged and never multiplied. "
+                           "Structure and Intensity multiply: 0.5 and 0.5 leave 0.25 of the high/mid gain deviation from 1. "
+                           "Either slider at 0 makes high/mid neutral; values above 1 retain the calibration at 1. Low is unchanged and never multiplied. "
                            "Disabling multiplication keeps the last pass's adjusted high/mid gain per correction/resolve.");
             }
 
@@ -1089,8 +1089,8 @@ static void DeferredSlider(const char* label, Option* opt, float mn, float mx, f
     }
 
     if (std::strcmp(label, "Intensity") == 0)
-        HelpMarker("Enhancement strength. 1 = default. Frequency shaping adds reductions below 1 to the "
-                   "Structure reduction for high/mid only; low gain is unchanged.");
+        HelpMarker("Enhancement strength. 1 = default. Frequency shaping multiplies it by "
+                   "Structure for high/mid only; low gain is unchanged.");
     else if (std::strcmp(label, "Local structure") == 0)
         HelpMarker("Fine detail and local contrast. 1 = default.");
     else if (std::strcmp(label, "Local tone") == 0)

@@ -490,7 +490,7 @@ void FinishBenchmark(bool cancelled)
                     << "Off, Classic reference and Fused reference retained.\n"
                     << "All modes: correct before the next model only if its effective high/low gap exceeds 0.25 and grows. No fixed stride. Off/spatial/above P90 remain inactive.\n"
                     << "Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.\n"
-                    << "High/mid adjustment: 1+(scale_corrected_high-1)*max(0,clamp(Structure,0,1)+clamp(Intensity,0,1)-1); Low unchanged.\n"
+                    << "High/mid adjustment: 1+(scale_corrected_high-1)*clamp(Structure,0,1)*clamp(Intensity,0,1); Low unchanged.\n"
                     << (savedBenchmarkConfig.neutralInterPassLow
                         ? "Inter-pass low gain forced to 1; final low averages all effective model gains.\n"
                         : "Inter-pass low averages each unconsumed model block; final low averages models after the last successful correction.\n")

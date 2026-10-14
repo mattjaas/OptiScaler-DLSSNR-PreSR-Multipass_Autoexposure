@@ -154,10 +154,11 @@ int main()
         require(StructureAdjustedHigh(std::numeric_limits<float>::quiet_NaN(),0.5f)==1.0f);
         require(StructureAdjustedHigh(0.8f,std::numeric_limits<float>::quiet_NaN())==0.8f);
         using DlssNr::Profiles::ModelAdjustedHigh;
-        require(std::abs(ModelAdjustedHigh(.7f,.8f,.7f)-.85f)<1e-6f); // reductions .2+.3=.5
-        require(std::abs(ModelAdjustedHigh(1.2f,.8f,.7f)-1.1f)<1e-6f);
-        require(ModelAdjustedHigh(.7f,.5f,.5f)==1.0f);
-        require(ModelAdjustedHigh(.7f,.2f,.7f)==1.0f);
+        require(std::abs(ModelAdjustedHigh(.7f,.8f,.7f)-.832f)<1e-6f); // .8*.7=.56
+        require(std::abs(ModelAdjustedHigh(1.2f,.8f,.7f)-1.112f)<1e-6f);
+        require(std::abs(ModelAdjustedHigh(.7f,.5f,.5f)-.925f)<1e-6f);
+        require(std::abs(ModelAdjustedHigh(.7f,.2f,.7f)-.958f)<1e-6f);
+        require(ModelAdjustedHigh(.7f,.75f,0.0f)==1.0f);
         require(ModelAdjustedHigh(.7f,1.0f,0.0f)==1.0f);
         require(ModelAdjustedHigh(.7f,0.0f,1.0f)==1.0f);
         require(std::abs(ModelAdjustedHigh(.7f,2.0f,.5f)-.85f)<1e-6f);
@@ -172,14 +173,15 @@ int main()
             ModelAdjustedHigh(.7f,.8f,.7f),.8f};});
         require(originalTuning.expectedMask==10 && combinedTuning.expectedMask==4);
         require(combinedTuning.Block(0,3).low==.8f); // Intensity must not alter low.
-        const auto fullyReduced=MakeGainSchedule(6,true,true,false,[](unsigned){return ScheduleGains{
+        const auto quarterEffect=MakeGainSchedule(6,true,true,false,[](unsigned){return ScheduleGains{
             ModelAdjustedHigh(.7f,.5f,.5f),.8f};});
-        require(fullyReduced.expectedMask==0);
+        require(quarterEffect.expectedMask==0);
+        require(std::abs(quarterEffect.gains[0].high-.925f)<1e-6f);
         for(float s : {-.5f,0.0f,.1f,.25f,.5f,.7f,.8f,1.0f,1.5f,2.0f})
         for(float i : {-.5f,0.0f,.1f,.25f,.5f,.7f,.8f,1.0f,1.5f,2.0f})
         for(float gain : {0.0f,.37f,.7f,1.0f,1.5f}) {
-            const double reduction=(1.0-std::clamp(double(s),0.0,1.0))+(1.0-std::clamp(double(i),0.0,1.0));
-            const double expected=1.0+(gain-1.0)*std::max(0.0,1.0-reduction);
+            const double factor=std::clamp(double(s),0.0,1.0)*std::clamp(double(i),0.0,1.0);
+            const double expected=1.0+(gain-1.0)*factor;
             require(std::abs(ModelAdjustedHigh(gain,s,i)-expected)<1e-6);
             require(ModelAdjustedHigh(gain,s,1.0f)==StructureAdjustedHigh(gain,s));
         }
@@ -346,7 +348,7 @@ int main()
             }
         }
         require(guarded>0);
-        std::cout<<"Inter-pass policy PASS: measured winners, aligned P40, rounded P42, all percentages, gain lookahead, scale/Structure/Intensity, additive reductions, unchanged low, strict gap and failure accounting, reference isolation, filters/radii and "<<groups<<" tile axes ("<<guarded<<" guarded overflow axes)\n";
+        std::cout<<"Inter-pass policy PASS: measured winners, aligned P40, rounded P42, all percentages, gain lookahead, scale/Structure/Intensity, multiplied Structure/Intensity, unchanged low, strict gap and failure accounting, reference isolation, filters/radii and "<<groups<<" tile axes ("<<guarded<<" guarded overflow axes)\n";
         return 0;
     } catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}
 }

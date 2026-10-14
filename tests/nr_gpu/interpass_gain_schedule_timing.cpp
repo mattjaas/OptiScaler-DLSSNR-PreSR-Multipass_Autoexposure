@@ -1,4 +1,4 @@
-// Resident synthetic transitions: fixed cadence vs lookahead, or v40 vs combined model tuning.
+// Resident synthetic transitions: cadence vs lookahead, v40/v41, or v41/v42 model tuning.
 // Excludes NGX, temporal processing and final resolve; never a whole-NR measurement.
 #include "pch.h"
 #include "interpass_timing_fixture.h"
@@ -62,9 +62,13 @@ struct TransitionFixture : LowFixture {
 
 int main(int argc,char** argv) {
     try {
-        if(argc!=3 && (argc!=4 || std::string(argv[3])!="model-intensity"))
-            throw std::runtime_error("Usage: interpass_gain_schedule_timing shader-dir output.csv [model-intensity]");
+        if(argc!=3 && (argc!=4 || (std::string(argv[3])!="model-intensity" && std::string(argv[3])!="model-product")))
+            throw std::runtime_error("Usage: interpass_gain_schedule_timing shader-dir output.csv [model-intensity|model-product]");
         const bool modelIntensity=argc==4;
+        const bool modelProduct=modelIntensity && std::string(argv[3])=="model-product";
+        // Retained only as the historical v41 control, never used by production shaping.
+        const auto additive=[](float high){return DlssNr::Profiles::StructureAdjustedHigh(high,
+            std::max(0.0f,.8f-(1.0f-.7f)));};
         Runner r(true,32);
         auto standard=r.pipeline(argv[1],"DlssNr");
         auto cross=r.pipeline(argv[1],"dlssnr_interpass_cross5");
@@ -77,12 +81,14 @@ int main(int argc,char** argv) {
             const auto before=DlssNr::InterPass::MakeGainSchedule(6,true,true,false,[&](unsigned) {
                 const float high=std::pow(.7f,exponent);
                 return DlssNr::InterPass::ScheduleGains{
-                    modelIntensity?DlssNr::Profiles::StructureAdjustedHigh(high,.8f):high,std::pow(.8f,exponent)};
+                    modelProduct?additive(high):modelIntensity?DlssNr::Profiles::StructureAdjustedHigh(high,.8f):high,
+                    std::pow(.8f,exponent)};
             });
             const auto plan=DlssNr::InterPass::MakeGainSchedule(6,true,true,false,[&](unsigned) {
                 const float high=std::pow(.7f,exponent);
                 return DlssNr::InterPass::ScheduleGains{
-                    modelIntensity?DlssNr::Profiles::ModelAdjustedHigh(high,.8f,.7f):high,std::pow(.8f,exponent)};
+                    modelProduct?DlssNr::Profiles::ModelAdjustedHigh(high,.8f,.7f):modelIntensity?additive(high):high,
+                    std::pow(.8f,exponent)};
             });
             const unsigned stride=scale>=85?3:scale>=74?2:1;
             uint32_t legacy=0;

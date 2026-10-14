@@ -1,5 +1,8 @@
 # NR v41 — sumowane obniżenia Structure i Intensity
 
+Historyczny opis v41. [v42](NR-v42-model-product.md) zastępuje sumowanie
+obniżeń iloczynem Structure i Intensity dla high/medium; low pozostaje.
+
 Ogólna intensywność danego modelu wpływa teraz na efektywny gain high/medium,
 tak jak dotychczas Structure. Zgodnie z ustaleniem low pozostaje bez zmian.
 Obniżenia obu suwaków względem 100% sumują się:

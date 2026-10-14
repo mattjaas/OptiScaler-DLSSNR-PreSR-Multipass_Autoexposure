@@ -1,4 +1,4 @@
-name: Build NR v41 additive model intensity
+name: Build NR v42 multiplied model intensity
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v41-${{ github.ref }}
+  group: nr-interpass-v42-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -108,13 +108,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v41-model-intensity-20261015"
+        run: ./package_release.ps1 -Version "nr-interpass-v42-model-product-20261015"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v41-model-intensity-20261015
-          path: release/OptiScaler-NR-nr-interpass-v41-model-intensity-20261015.zip
+          name: OptiScaler-NR-interpass-v42-model-product-20261015
+          path: release/OptiScaler-NR-nr-interpass-v42-model-product-20261015.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -123,25 +123,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v41-model-intensity-20261015"
-          $archive = "release/OptiScaler-NR-nr-interpass-v41-model-intensity-20261015.zip"
+          $tag = "nr-interpass-v42-model-product-20261015"
+          $archive = "release/OptiScaler-NR-nr-interpass-v42-model-product-20261015.zip"
           $notes = @"
-          Per-pass Intensity now adjusts frequency-shaping high/mid alongside Structure, from $env:GITHUB_SHA.
-          Apply resolution correction first, then add reductions below 100% from each slider.
-          Factor=max(0,clamp(Structure,0,1)+clamp(Intensity,0,1)-1); high=1+(scale_corrected_high-1)*factor.
-          Example: Structure 80% and Intensity 70% leave a factor of 50%, not 56%.
-          Combined reduction caps at 100%. A slider above 1 cannot compensate the other's reduction.
-          Low is unchanged by both sliders. Low mean and neutral-inter-pass checkbox retain v39/v40 rules.
-          Each model uses its own inherited/overridden intensity, style and configured Structure.
+          Structure and Intensity now multiply for high/medium shaping, from $env:GITHUB_SHA.
+          Apply resolution correction first, then factor=clamp(Structure,0,1)*clamp(Intensity,0,1).
+          high=1+(scale_corrected_high-1)*factor. At 50%/50%, 25% of the gain deviation remains.
+          Either slider at 0 makes high/medium neutral; Intensity=1 retains the previous Structure result.
+          Both sliders remain capped separately at the calibration at 1. Actual NVIDIA model settings stay configured.
+          Low is unchanged by both sliders. Low mean and neutral-inter-pass checkbox retain their existing rules.
           Shared per-pass helper drives lookahead scheduling, actual corrections, final resolve and menu preview.
-          Intensity=1 retains the exact previous Structure result. Actual NVIDIA model parameters stay configured.
+          Each model retains its own inherited/overridden intensity, style and configured Structure.
           Strict growing-gap >0.25 policy, failed-correction coverage, history reset and masks remain from v40.
-          Menu/INI explain additive reductions; benchmark metadata records each model's intensity.
+          Menu, INI and benchmark descriptions explain multiplication.
           No HLSL/bytecode, GPU stage, allocation, copy, barrier or PSO added to the normal path.
-          CPU tests cover additive/overlapping reductions, zero/neutral/above-one, invalid values and schedule changes.
-          Resident synthetic GPU ABBA compares v40 versus the new rule using existing Cached Low36/Cross5 and ClampProxy.
-          This excludes models NGX, final resolve and visual quality; real-game validation is still required.
-          Details: docs/NR-v41-model-intensity.md.
+          CPU checks cover 50%/50%, 75%/0%, neutral/above-one/invalid inputs, full slider matrix and unchanged low.
+          Synthetic GPU ABBA compares v41 additive versus v42 multiplication with the same resident textures and PSOs.
+          This excludes NGX and final resolve. In-game visual quality and whole-NR timing remain unverified.
+          Details: docs/NR-v42-model-product.md.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -152,8 +151,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v41 - Additive model intensity" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v42 - Multiplied model intensity" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v41 - Additive model intensity" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v42 - Multiplied model intensity" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }
