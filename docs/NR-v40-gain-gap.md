@@ -1,5 +1,8 @@
 # NR v40 — interpass zależny od różnicy gainów
 
+Historyczny opis v40. [v41](NR-v41-model-intensity.md) dodaje do high/medium
+sumowanie obniżeń Structure i Intensity; reguła harmonogramu pozostaje.
+
 Stały harmonogram co 1/2/3 modele zastępuje przewidywanie następnego modelu.
 Po bieżącym modelu, przed następnym, korekcja występuje wyłącznie gdy:
 

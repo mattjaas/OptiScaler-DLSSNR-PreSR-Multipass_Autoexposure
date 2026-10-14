@@ -525,11 +525,11 @@ void RenderInput(Config* config)
                 bool compoundPasses = config->DlssNrGuidedResidualCompoundPasses.value_or_default();
                 if (ImGui::Checkbox("Multiply per-pass high/mid within each block", &compoundPasses))
                     config->DlssNrGuidedResidualCompoundPasses = compoundPasses;
-                HelpMarker("Multiply each pass's actual high/mid gain using its configured style and Structure. "
+                HelpMarker("Multiply each pass's actual high/mid gain using its configured style, Structure and Intensity. "
                            "Each successful inter-pass correction consumes only its block; final resolve consumes the rest. "
                            "Corrections occur only before a model that would increase the high/low gap beyond 0.25. Without inter-pass the final block covers all passes. "
-                           "Structure below 1 moves the scale-corrected high/mid gain proportionally toward neutral 1; "
-                           "Structure 0 is neutral, above 1 uses the Structure=1 calibration. Low is never multiplied. "
+                           "Reductions below Structure=1 and Intensity=1 add: 0.8 and 0.7 leave 0.5 of the high/mid gain deviation from 1. "
+                           "The combined reduction is capped at 100%; values above 1 retain the calibration at 1. Low is unchanged and never multiplied. "
                            "Disabling multiplication keeps the last pass's adjusted high/mid gain per correction/resolve.");
             }
 
@@ -566,8 +566,9 @@ void RenderInput(Config* config)
                         const auto single = Profiles::EffectiveGuidedResidualGainsForPass(*config, (uint32_t) shaping,
                                                                                         (uint32_t) transfer,
                                                                                         pass, shapingScale);
-                        ImGui::Text("Pass %u (%s, Structure %.3f): high/mid %.4f, low %.4f", pass + 1u,
-                                    shapingStyleNames[settings.style], settings.localStructure, single.high, single.low);
+                        ImGui::Text("Pass %u (%s, Structure %.3f, Intensity %.3f): high/mid %.4f, low %.4f", pass + 1u,
+                                    shapingStyleNames[settings.style], settings.localStructure, settings.intensity,
+                                    single.high, single.low);
                     }
                     ImGui::TreePop();
                 }
@@ -1088,7 +1089,8 @@ static void DeferredSlider(const char* label, Option* opt, float mn, float mx, f
     }
 
     if (std::strcmp(label, "Intensity") == 0)
-        HelpMarker("Enhancement strength. 1 = default.");
+        HelpMarker("Enhancement strength. 1 = default. Frequency shaping adds reductions below 1 to the "
+                   "Structure reduction for high/mid only; low gain is unchanged.");
     else if (std::strcmp(label, "Local structure") == 0)
         HelpMarker("Fine detail and local contrast. 1 = default.");
     else if (std::strcmp(label, "Local tone") == 0)
@@ -1158,7 +1160,7 @@ void RenderModel(Config* config)
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 before the next model "
                    "only if its predicted absolute high/mid-to-low gain gap is greater than 0.25 AND grows. "
                    "Equal or shrinking gaps skip correction, even above 0.25. "
-                   "Prediction uses each model's style, resolution-adjusted gains, Structure and multiplication setting. "
+                   "Prediction uses each model's style, resolution-adjusted gains, Structure, Intensity and multiplication setting. "
                    "Low averages the pending block, or all models so far when neutral inter-pass low is checked. "
                    "Off, spatial compression and scales above 90% disable inter-pass. Skipped transitions use ClampProxy.");
         HelpMarker("Fast includes the approved positive overlapping 6x6 Low36 filter BETWEEN passes. "
@@ -1167,7 +1169,7 @@ void RenderModel(Config* config)
                    "including 50%. Ordinary/final low filtering keeps its "
                    "original 8x8 kernel. Fast benchmarks compare Fast against Optimized at scales up to 65%.");
         HelpMarker("Inter-pass frequency shaping accounts for each model since the "
-                   "previous successful correction. High/mid multiplies the individual style/Structure gains in each block "
+                   "previous successful correction. High/mid multiplies the individual style/Structure/Intensity gains in each block "
                    "and final resolve, when multiplication is enabled. "
                    "Low frequency averages effective per-model gains in each block; neutral inter-pass low makes final low average all models. "
                    "No extra shaping dispatch is needed.");

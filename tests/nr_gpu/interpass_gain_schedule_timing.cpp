@@ -1,4 +1,4 @@
-// Resident synthetic transition sequence: v39 fixed cadence versus gain lookahead.
+// Resident synthetic transitions: fixed cadence vs lookahead, or v40 vs combined model tuning.
 // Excludes NGX, temporal processing and final resolve; never a whole-NR measurement.
 #include "pch.h"
 #include "interpass_timing_fixture.h"
@@ -62,22 +62,33 @@ struct TransitionFixture : LowFixture {
 
 int main(int argc,char** argv) {
     try {
-        if(argc!=3)throw std::runtime_error("Usage: interpass_gain_schedule_timing shader-dir output.csv");
+        if(argc!=3 && (argc!=4 || std::string(argv[3])!="model-intensity"))
+            throw std::runtime_error("Usage: interpass_gain_schedule_timing shader-dir output.csv [model-intensity]");
+        const bool modelIntensity=argc==4;
         Runner r(true,32);
         auto standard=r.pipeline(argv[1],"DlssNr");
         auto cross=r.pipeline(argv[1],"dlssnr_interpass_cross5");
         auto cached=r.pipeline(argv[1],"dlssnr_interpass_low36_cached");
         std::ofstream out(argv[2]);if(!out)throw std::runtime_error("Cannot create CSV");
         out<<"scale,window,sample,mask,corrections,gpu_ms\n"<<std::setprecision(9);
-        for(int scale : {50,65,84,85}) {
+        const std::vector<int> scales=modelIntensity?std::vector<int>{50,59,65}:std::vector<int>{50,65,84,85};
+        for(int scale : scales) {
             const float exponent=std::log2(100.0f/scale);
+            const auto before=DlssNr::InterPass::MakeGainSchedule(6,true,true,false,[&](unsigned) {
+                const float high=std::pow(.7f,exponent);
+                return DlssNr::InterPass::ScheduleGains{
+                    modelIntensity?DlssNr::Profiles::StructureAdjustedHigh(high,.8f):high,std::pow(.8f,exponent)};
+            });
             const auto plan=DlssNr::InterPass::MakeGainSchedule(6,true,true,false,[&](unsigned) {
-                return DlssNr::InterPass::ScheduleGains{std::pow(.7f,exponent),std::pow(.8f,exponent)};
+                const float high=std::pow(.7f,exponent);
+                return DlssNr::InterPass::ScheduleGains{
+                    modelIntensity?DlssNr::Profiles::ModelAdjustedHigh(high,.8f,.7f):high,std::pow(.8f,exponent)};
             });
             const unsigned stride=scale>=85?3:scale>=74?2:1;
             uint32_t legacy=0;
             for(unsigned pass=0;pass<5;++pass)if((pass+1)%stride==0)legacy|=1u<<pass;
-            TransitionFixture fixture(r,scale,legacy,plan);
+            if(modelIntensity)legacy=before.expectedMask;
+            TransitionFixture fixture(r,scale,legacy,before);
             // One resident texture set; only pre-uploaded constant buffers change per window.
             std::array<ComPtr<ID3D12Resource>,5> old=fixture.constants;
             unsigned covered=0;

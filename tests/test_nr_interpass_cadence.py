@@ -45,8 +45,12 @@ def test_cadence():
     single = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForPass'):profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock')]
     assert 'const auto settings = BasePassSettings(cfg, pass);' in single
     assert 'GuidedResidualBaseGains(cfg, shapingMode, transfer, settings.style)' in single
-    assert 'StructureAdjustedHigh(GuidedResidualGainForScale(gains.high, workScale), settings.localStructure)' in single
+    assert 'ModelAdjustedHigh(GuidedResidualGainForScale(gains.high, workScale),' in single
+    assert 'settings.localStructure, settings.intensity)' in single
     assert 'gains.low = GuidedResidualGainForScale(gains.low, workScale);' in single
+    base = profiles[profiles.index('inline ModelSettings BasePassSettings'):profiles.index('inline ModelSettings PassSettings')]
+    assert 'cfg.DlssNrIntensity.value_or_default()' in base
+    assert 'result.intensity = extra.intensity.value_or(result.intensity);' in base
     block = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock'):profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass')]
     assert 'completedPasses - 1u, workScale' in block  # Non-multiplied high uses the actual last model.
     assert 'gains.low = MeanGuidedLow(firstPass, completedPasses,' in block
@@ -56,6 +60,8 @@ def test_cadence():
     assert 'std::pow' not in block and 'ProductGuidedHigh' not in single
     assert 'gains.low = ProductGuidedHigh' not in profiles
     assert 'high/mid compounding=' in status and 'configured_structure=' in status
+    assert 'configured_intensity=' in status
+    assert 'settings.localStructure, settings.intensity,' in menu
     build = profiles[profiles.index('inline InterPass::GainSchedule BuildInterPassSchedule'):]
     assert 'EffectiveGuidedResidualGainsForPass(cfg, shapingMode, 7u, pass, workScale)' in build
     assert 'DlssNrGuidedResidualCompoundPasses' in build and 'DlssNrInterPassNeutralLow' in build

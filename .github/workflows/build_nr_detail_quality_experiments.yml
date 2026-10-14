@@ -1,4 +1,4 @@
-name: Build NR v40 gain-gap scheduling
+name: Build NR v41 additive model intensity
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v40-${{ github.ref }}
+  group: nr-interpass-v41-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -108,13 +108,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v40-gain-gap-20261014"
+        run: ./package_release.ps1 -Version "nr-interpass-v41-model-intensity-20261015"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v40-gain-gap-20261014
-          path: release/OptiScaler-NR-nr-interpass-v40-gain-gap-20261014.zip
+          name: OptiScaler-NR-interpass-v41-model-intensity-20261015
+          path: release/OptiScaler-NR-nr-interpass-v41-model-intensity-20261015.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -123,26 +123,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v40-gain-gap-20261014"
-          $archive = "release/OptiScaler-NR-nr-interpass-v40-gain-gap-20261014.zip"
+          $tag = "nr-interpass-v41-model-intensity-20261015"
+          $archive = "release/OptiScaler-NR-nr-interpass-v41-model-intensity-20261015.zip"
           $notes = @"
-          Gain-based inter-pass scheduling from $env:GITHUB_SHA.
-          Replaces fixed 1/2/3-pass intervals: correct before the next model only when its predicted absolute high/mid-to-low gain gap exceeds 0.25 AND increases.
-          A shrinking or unchanged gap skips correction even above 0.25. Never correct after the final model.
-          Prediction uses each model's effective style gain after resolution correction and configured Structure; respects high/mid multiplication.
-          Without neutral low, prediction averages low gains in the pending block. With neutral low, it averages all models so far; actual inter-pass low stays 1.
-          Final low still averages the tail or all models according to the checkbox. Low is never multiplied.
-          Prediction uses the same signed working-space calibration (transfer 7) as inter-pass correction; final transfer remains configured.
-          Off, spatial compression and above P90 remain inactive; P84..P85 has no fixed-cadence gap anymore.
-          Failed corrections do not consume the block; subsequent decisions use actual successful coverage.
-          Schedule changes reset model history. Menu shows expected correction count and final gains from the same helpers.
-          Benchmarks report expected/successful correction masks and count, accept valid zero-correction schedules and reject failed schedules.
-          No HLSL/bytecode, new GPU resources, PSOs or timestamp queries on the default path.
-          Cached Low36 remains opt-in; reference/Off and ABBA controls remain available.
-          CPU checks cover strict thresholds, improving gaps, scale, Structure, variable styles, mean low, multiplication and failed corrections.
-          Synthetic GPU ABBA measures all five transition dispatches for six models, including ordinary ClampProxy; it excludes NGX and final resolve.
-          In-game performance and quality require separate scene/ABBA and visual validation.
-          Details: docs/NR-v40-gain-gap.md.
+          Per-pass Intensity now adjusts frequency-shaping high/mid alongside Structure, from $env:GITHUB_SHA.
+          Apply resolution correction first, then add reductions below 100% from each slider.
+          Factor=max(0,clamp(Structure,0,1)+clamp(Intensity,0,1)-1); high=1+(scale_corrected_high-1)*factor.
+          Example: Structure 80% and Intensity 70% leave a factor of 50%, not 56%.
+          Combined reduction caps at 100%. A slider above 1 cannot compensate the other's reduction.
+          Low is unchanged by both sliders. Low mean and neutral-inter-pass checkbox retain v39/v40 rules.
+          Each model uses its own inherited/overridden intensity, style and configured Structure.
+          Shared per-pass helper drives lookahead scheduling, actual corrections, final resolve and menu preview.
+          Intensity=1 retains the exact previous Structure result. Actual NVIDIA model parameters stay configured.
+          Strict growing-gap >0.25 policy, failed-correction coverage, history reset and masks remain from v40.
+          Menu/INI explain additive reductions; benchmark metadata records each model's intensity.
+          No HLSL/bytecode, GPU stage, allocation, copy, barrier or PSO added to the normal path.
+          CPU tests cover additive/overlapping reductions, zero/neutral/above-one, invalid values and schedule changes.
+          Resident synthetic GPU ABBA compares v40 versus the new rule using existing Cached Low36/Cross5 and ClampProxy.
+          This excludes models NGX, final resolve and visual quality; real-game validation is still required.
+          Details: docs/NR-v41-model-intensity.md.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -153,8 +152,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v40 - Gain-gap scheduling" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v41 - Additive model intensity" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v40 - Gain-gap scheduling" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v41 - Additive model intensity" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

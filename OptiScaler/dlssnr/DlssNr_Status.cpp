@@ -490,13 +490,13 @@ void FinishBenchmark(bool cancelled)
                     << "Off, Classic reference and Fused reference retained.\n"
                     << "All modes: correct before the next model only if its effective high/low gap exceeds 0.25 and grows. No fixed stride. Off/spatial/above P90 remain inactive.\n"
                     << "Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.\n"
-                    << "Structure adjustment: 1+(scale_corrected_high-1)*clamp(configured Structure,0,1); Low unchanged.\n"
+                    << "High/mid adjustment: 1+(scale_corrected_high-1)*max(0,clamp(Structure,0,1)+clamp(Intensity,0,1)-1); Low unchanged.\n"
                     << (savedBenchmarkConfig.neutralInterPassLow
                         ? "Inter-pass low gain forced to 1; final low averages all effective model gains.\n"
                         : "Inter-pass low averages each unconsumed model block; final low averages models after the last successful correction.\n")
-                    << "All pass styles/Structure settings are recorded; there is no repetition of the last model's gain.\n"
+                    << "All pass styles/Structure/Intensity settings are recorded; there is no repetition of the last model's gain.\n"
                     << "Mask bit N means correction after zero-based model N; expected/successful masks must match. No correction after the final model. interpass_corrections counts successes/frame.\n"
-                    << "Prediction uses scale-corrected per-model gains and configured Structure/compounding. A gap that shrinks or stays equal never triggers correction, even above 0.25.\n"
+                    << "Prediction uses scale-corrected per-model gains and configured Structure/Intensity/compounding. A gap that shrinks or stays equal never triggers correction, even above 0.25.\n"
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow ?
                         "Each scale: Off, both references, Optimized, then Fast/cached/cached/Fast with separate warmup.\n"
                         "Only low filtering uses shared samples; without low shaping both variants use original Cross5.\n" :
@@ -591,7 +591,8 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, I
         const auto settings = Profiles::BasePassSettings(c, pass);
         benchmarkSetup += ", pass" + std::to_string(pass + 1u) + "_preset=" + std::to_string(settings.preset) +
                           "_style=" + std::to_string(settings.style) +
-                          "_configured_structure=" + std::to_string(settings.localStructure);
+                          "_configured_structure=" + std::to_string(settings.localStructure) +
+                          "_configured_intensity=" + std::to_string(settings.intensity);
     }
     ApplyBenchmarkVariant(c, benchmarkVariants.front());
     benchmarkProgress = {};

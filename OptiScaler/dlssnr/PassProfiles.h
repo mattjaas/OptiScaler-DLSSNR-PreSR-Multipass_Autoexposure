@@ -143,14 +143,15 @@ inline GuidedResidualGains GuidedResidualBaseGains(const Config& cfg, uint32_t s
 inline GuidedResidualGains EffectiveGuidedResidualGainsForPass(const Config& cfg, uint32_t shapingMode,
                                                                uint32_t transfer, unsigned int pass, float workScale)
 {
-    // Use each pass's configured style/Structure (including its override). Structure calibration is
+    // Use each pass's configured style/Structure/Intensity (including its override). Calibration is
     // based on the user setting, before the separate experimental scale-aware model compensation.
     const auto settings = BasePassSettings(cfg, pass);
     auto gains = GuidedResidualBaseGains(cfg, shapingMode, transfer, settings.style);
     if (!gains.active)
         return gains;
 
-    gains.high = StructureAdjustedHigh(GuidedResidualGainForScale(gains.high, workScale), settings.localStructure);
+    gains.high = ModelAdjustedHigh(GuidedResidualGainForScale(gains.high, workScale),
+                                   settings.localStructure, settings.intensity);
     gains.low = GuidedResidualGainForScale(gains.low, workScale);
     return gains;
 }
