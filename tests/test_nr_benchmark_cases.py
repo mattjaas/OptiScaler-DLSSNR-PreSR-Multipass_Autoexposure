@@ -118,7 +118,7 @@ def test_benchmark():
     for field in ('gain_vs_fast_median_ms', '.pairs.csv', 'symmetric_gain_ms', 'first_gain_ms', 'last_gain_ms', 'symmetric_delta_ms', 'first_delta_ms', 'last_delta_ms', 'delta_vs_fast_median_ms'):
         assert field in status
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
-    override = run[run.index('if (configuredInterPassMode == 3u && interPassCadence != 0u)'):run.index('const bool interPassOptimized')]
+    override = run[run.index('if (configuredInterPassMode == 3u && interPassMask != 0u)'):run.index('const bool interPassOptimized')]
     assert 'DlssNr::InterPass::Fast(interPassPath)' not in override
     assert 'if (overridePath >= 0)' in override
     guard = run[run.index('const bool eligibleTiledDims'):run.index('if (workingScaleTiled && eligibleTiledDims')]

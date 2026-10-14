@@ -520,22 +520,14 @@ void RenderInput(Config* config)
                        0.0f, 1.5f, "%.3f", 0.780f);
             }
 
-            const unsigned interPassShapingCadence =
-                InterPass::Cadence(config->DlssNrInterPassReconstruction.value_or_default(),
-                                   config->DlssNrWorkingScale.value_or_default(),
-                                   config->DlssNrPasses.value_or_default(),
-                                   config->DlssNrSpatialCompression.value_or_default());
             if (shaping != 0)
             {
                 bool compoundPasses = config->DlssNrGuidedResidualCompoundPasses.value_or_default();
-                ImGui::BeginDisabled(interPassShapingCadence == 1u);
-                if (ImGui::Checkbox(interPassShapingCadence >= 2u ? "Multiply per-pass high/mid within each inter-pass block" :
-                                    "Multiply per-pass high/mid in final resolve", &compoundPasses))
+                if (ImGui::Checkbox("Multiply per-pass high/mid within each block", &compoundPasses))
                     config->DlssNrGuidedResidualCompoundPasses = compoundPasses;
-                ImGui::EndDisabled();
                 HelpMarker("Multiply each pass's actual high/mid gain using its configured style and Structure. "
                            "Each successful inter-pass correction consumes only its block; final resolve consumes the rest. "
-                           "Six passes at 74-84% cover 2+2+2, five cover 2+2+1; at 85-90% they cover 3+3 or 3+2. Without inter-pass the final block covers all passes. "
+                           "Corrections occur only before a model that would increase the high/low gap beyond 0.25. Without inter-pass the final block covers all passes. "
                            "Structure below 1 moves the scale-corrected high/mid gain proportionally toward neutral 1; "
                            "Structure 0 is neutral, above 1 uses the Structure=1 calibration. Low is never multiplied. "
                            "Disabling multiplication keeps the last pass's adjusted high/mid gain per correction/resolve.");
@@ -550,8 +542,10 @@ void RenderInput(Config* config)
             const float shapingScale =
                 std::clamp(config->DlssNrWorkingScale.value_or_default(), 0.25f, 2.0f);
             static const char* shapingStyleNames[] = { "Standard", "Natural", "Cinematic" };
-            const unsigned predictedCoveredPasses = interPassShapingCadence
-                ? ((effectivePasses - 1u) / interPassShapingCadence) * interPassShapingCadence : 0u;
+            const auto shapingSchedule = Profiles::BuildInterPassSchedule(*config,
+                config->DlssNrInterPassReconstruction.value_or_default(), shapingScale, effectivePasses,
+                config->DlssNrSpatialCompression.value_or_default());
+            const unsigned predictedCoveredPasses = shapingSchedule.expectedCovered;
             const unsigned finalShapingPasses = InterPass::PendingPasses(effectivePasses, predictedCoveredPasses);
             if (shaping != 0)
             {
@@ -1134,12 +1128,15 @@ void RenderModel(Config* config)
         int interPass = savedMode == 8u ? 5 : savedMode >= 4u ? 4 : (int)savedMode;
         if (ImGui::Combo("Inter-pass reconstruction", &interPass, interPassNames, IM_ARRAYSIZE(interPassNames)))
             config->DlssNrInterPassReconstruction = interPass == 5 ? 8u : (uint32_t) interPass;
-        const unsigned cadence = InterPass::Cadence(config->DlssNrInterPassReconstruction.value_or_default(),
-                                                   config->DlssNrWorkingScale.value_or_default(),
-                                                   config->DlssNrPasses.value_or_default(), false);
-        ImGui::TextDisabled(cadence == 0u ? "Inter-pass inactive at this scale / pass count" :
-                            cadence == 3u ? "Inter-pass after passes 3, 6, ..." :
-                            cadence == 2u ? "Inter-pass after passes 2, 4, ..." : "Inter-pass after each pass");
+        const unsigned passLimit = config->DlssNrUnlockPasses.value_or_default()
+            ? static_cast<unsigned>(std::size(config->DlssNrPassOverrides) + 1u) : 3u;
+        const auto schedule = Profiles::BuildInterPassSchedule(*config,
+            config->DlssNrInterPassReconstruction.value_or_default(),
+            std::clamp(config->DlssNrWorkingScale.value_or_default(), 0.25f, 2.0f),
+            std::clamp(config->DlssNrPasses.value_or_default(), 1u, passLimit),
+            config->DlssNrSpatialCompression.value_or_default());
+        ImGui::TextDisabled("Expected inter-pass corrections: %u (growing gap > 0.25)",
+                            InterPass::CorrectionCount(schedule.expectedMask));
         bool neutralLow = config->DlssNrInterPassNeutralLow.value_or_default();
         if (ImGui::Checkbox("Keep inter-pass low gain at 1", &neutralLow))
             config->DlssNrInterPassNeutralLow = neutralLow;
@@ -1156,15 +1153,14 @@ void RenderModel(Config* config)
         HelpMarker("Fast estimates the guided edit once per working pixel and reuses the immutable Area proxy. "
                    "It uses five axial neighbours with exact weights and shaping, approximating native-resolution integration. "
                    "Small residual changes at edges, fine detail and shadows may compound over passes. "
-                   "Area / radius 1 at active scales up to and including 90%; other settings use exact Optimized at the same cadence. "
+                   "Area / radius 1 at active scales up to and including 90%; other settings use exact Optimized with the same gain-based schedule. "
                    "Compare GPU time and inspect fine detail and motion with the Fast benchmarks.");
-        HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 between model passes, then "
-                   "feeds the corrected working-resolution image to the next NR pass. Below 74%: every transition. "
-                   "74% through 84%: after passes 2, 4, ... (six passes: two corrections). "
-                   "85% through 90%: after passes 3, 6, ... (six passes: one correction). "
-                   "Between 84% and 85% and above 90%: disabled for every inter-pass mode. "
-                   "Skipped transitions use ordinary ClampProxy. "
-                   "The saved mode is retained when changing scale.");
+        HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 before the next model "
+                   "only if its predicted absolute high/mid-to-low gain gap is greater than 0.25 AND grows. "
+                   "Equal or shrinking gaps skip correction, even above 0.25. "
+                   "Prediction uses each model's style, resolution-adjusted gains, Structure and multiplication setting. "
+                   "Low averages the pending block, or all models so far when neutral inter-pass low is checked. "
+                   "Off, spatial compression and scales above 90% disable inter-pass. Skipped transitions use ClampProxy.");
         HelpMarker("Fast includes the approved positive overlapping 6x6 Low36 filter BETWEEN passes. "
                    "It is skipped when shaping does not need a low field. Cross5 is part of Fast at every eligible scale, "
                    "removing the four diagonal neighbours and retaining exact exponential weights. "
@@ -1172,7 +1168,7 @@ void RenderModel(Config* config)
                    "original 8x8 kernel. Fast benchmarks compare Fast against Optimized at scales up to 65%.");
         HelpMarker("Inter-pass frequency shaping accounts for each model since the "
                    "previous successful correction. High/mid multiplies the individual style/Structure gains in each block "
-                   "and final resolve: six passes at 74-84% cover 2+2+2, five passes cover 2+2+1; at 85-90% they cover 3+3 or 3+2. "
+                   "and final resolve, when multiplication is enabled. "
                    "Low frequency averages effective per-model gains in each block; neutral inter-pass low makes final low average all models. "
                    "No extra shaping dispatch is needed.");
     }

@@ -1,5 +1,8 @@
 # NR v39 — średnia gainów low
 
+Historyczny opis v39. [v40](NR-v40-gain-gap.md) zastępuje stałe odstępy
+harmonogramem zależnym od gainów; zasady średniej low pozostają aktualne.
+
 Low jest średnią arytmetyczną efektywnych gainów modeli. Najpierw każdy gain
 pochodzi ze stylu danego passu i wybranych ustawień Auto/Manual oraz przechodzi
 dotychczasową korekcję skali. Dopiero te wartości są uśredniane. Nie jest to

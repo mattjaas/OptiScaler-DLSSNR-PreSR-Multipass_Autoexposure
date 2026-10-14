@@ -2,6 +2,7 @@
 #include <Config.h>
 #include "DlssNr_ModelParameters.h"
 #include "DlssNr_GuidedShaping.h"
+#include "DlssNr_InterPassPolicy.h"
 #include <algorithm>
 #include <cmath>
 
@@ -205,4 +206,16 @@ inline GuidedResidualGains EffectiveGuidedResidualGainsForResolve(const Config& 
     return gains;
 }
 
+inline InterPass::GainSchedule BuildInterPassSchedule(const Config& cfg, uint32_t mode,
+                                                      float workScale, unsigned passes, bool spatial)
+{
+    const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
+    return InterPass::MakeGainSchedule(passes, InterPass::Eligible(mode, workScale, passes, spatial) && shapingMode != 0u,
+        cfg.DlssNrGuidedResidualCompoundPasses.value_or_default(),
+        cfg.DlssNrInterPassNeutralLow.value_or_default(), [&](unsigned pass) {
+            // Same signed working-space calibration as inter-pass shaping. Do not force low=1
+            // here: prediction concerns the block without correction, not the correction itself.
+            return EffectiveGuidedResidualGainsForPass(cfg, shapingMode, 7u, pass, workScale);
+        });
+}
 } // namespace DlssNr::Profiles

@@ -6,6 +6,8 @@
 
 using namespace DlssNr::InterPass;
 void require(bool condition) { if (!condition) throw std::runtime_error("Inter-pass policy check failed"); }
+// Artificial partitions test gain accounting independently of production scheduling.
+bool StrideDue(unsigned pass, unsigned passes, unsigned stride) { return stride && pass < passes && pass + 1u < passes && (pass + 1u) % stride == 0; }
 int main()
 {
     try {
@@ -16,19 +18,8 @@ int main()
         for (unsigned passes=0;passes<=32;++passes)
         for (bool spatial : {false,true})
         {
-            const unsigned expected = mode==0 || spatial || percent>90 ? 0u :
-                                      percent>=85 ? 3u : percent>=74 ? 2u : 1u;
-            const unsigned stride = Cadence(mode, float(percent)/100.0f, passes, spatial);
-            require(stride == (passes>expected ? expected : 0u));
-            unsigned corrections=0;
-            for (unsigned pass=0;pass<passes;++pass)
-            {
-                const bool due=expected!=0 && (pass+1)%expected==0 && pass+1<passes;
-                require(Due(pass,passes,stride)==due);
-                corrections+=Due(pass,passes,stride);
-            }
-            require(corrections == (stride ? (passes-1)/stride : 0u));
-            require(!Due(passes,passes,stride));
+            require(Eligible(mode, float(percent)/100.0f, passes, spatial) ==
+                    (mode != 0 && !spatial && percent <= 90 && passes > 1));
         }
         require(Select(8,3840,2160,1920,1080,0,1,1)==Path::FastCachedLow36);
         require(Select(8,3840,2160,2496,1404,0,1,1)==Path::FastCachedLow36);
@@ -36,28 +27,86 @@ int main()
         require(Select(8,3840,2160,2496,1404,0,2,1)==Select(3,3840,2160,2496,1404,0,2,1));
         require(Select(8,3840,2160,2496,1404,0,1,0)==Select(3,3840,2160,2496,1404,0,1,0));
         require(Fast(Path::FastCachedLow36) && Fused(Path::FastCachedLow36) && Optimized(Path::FastCachedLow36));
-        require(Cadence(4,std::nextafter(0.74f,0.0f),6,false)==1);
-        require(Cadence(4,0.74f,6,false)==2);
-        require(Cadence(4,std::nextafter(0.74f,1.0f),6,false)==2);
-        require(Cadence(4,std::nextafter(0.84f,0.0f),6,false)==2);
-        require(Cadence(4,0.84f,6,false)==2);
-        require(Cadence(4,std::nextafter(0.84f,1.0f),6,false)==0);
-        require(Cadence(4,0.845f,6,false)==0);
-        require(Cadence(4,std::nextafter(0.85f,0.0f),6,false)==0);
-        require(Cadence(4,0.85f,6,false)==3);
-        require(Cadence(4,std::nextafter(0.85f,1.0f),6,false)==3);
-        require(Cadence(4,std::nextafter(0.90f,0.0f),6,false)==3);
-        require(Cadence(4,0.90f,6,false)==3);
-        require(Cadence(4,std::nextafter(0.90f,1.0f),6,false)==0);
-        require(Cadence(4,std::numeric_limits<float>::quiet_NaN(),6,false)==0);
-        require(Cadence(4,std::numeric_limits<float>::infinity(),6,false)==0);
-        require(Cadence(4,-1.0f,6,false)==0 && Cadence(4,0.0f,6,false)==0);
-        require(!Due(UINT32_MAX,UINT32_MAX,2));
-        require(!Due(0,6,0));
-        require(!Due(0,6,2) && Due(1,6,2) && !Due(2,6,2) && Due(3,6,2) && !Due(4,6,2));
-        require(!Due(UINT32_MAX,UINT32_MAX,3));
-        require(!Due(0,6,3) && !Due(1,6,3) && Due(2,6,3) && !Due(3,6,3) && !Due(4,6,3) && !Due(5,6,3));
-        require(Due(2,7,3) && Due(5,7,3) && !Due(6,7,3));
+        require(Eligible(4,0.845f,6,false));
+        require(Eligible(4,0.90f,6,false));
+        require(!Eligible(4,std::nextafter(0.90f,1.0f),6,false));
+        require(!Eligible(4,std::numeric_limits<float>::quiet_NaN(),6,false));
+        require(!Eligible(4,std::numeric_limits<float>::infinity(),6,false));
+        require(!Eligible(4,-1.0f,6,false) && !Eligible(4,0.0f,6,false));
+        require(GapWorsens({.7f,.8f},{.49f,.8f}));
+        require(!GapWorsens({.4f,.8f},{.5f,.8f})); // .4 -> .3
+        require(!GapWorsens({.4f,.8f},{.4f,.8f})); // unchanged above threshold
+        require(!GapWorsens({.75f,1.0f},{.75f,1.0f}));
+        require(!GapWorsens({1.0f,1.0f},{.75f,1.0f})); // exactly .25
+        require(GapWorsens({1.0f,1.0f},{std::nextafter(.75f,0.0f),1.0f}));
+        require(GapWorsens({1.1f,.8f},{1.2f,.8f})); // absolute gap above low
+        require(!GapWorsens({INFINITY,1.0f},{1.0f,1.0f}));
+        const auto same=[](unsigned){return ScheduleGains{.7f,.8f};};
+        const auto every=MakeGainSchedule(6,true,true,false,same);
+        require(every.expectedMask==31 && every.expectedCovered==5);
+        require(!every.Due(5,5) && !every.Due(UINT32_MAX,0));
+        require(!every.Due(0,1));
+        require(MakeGainSchedule(6,true,false,false,same).expectedMask==0);
+        require(MakeGainSchedule(6,false,true,false,same).expectedMask==0);
+        require(MakeGainSchedule(1,true,true,false,same).expectedMask==0);
+        require(MakeGainSchedule(0,true,true,false,same).expectedMask==0);
+        unsigned disabledCalls=0;
+        MakeGainSchedule(30,false,true,false,[&](unsigned){++disabledCalls;return same(0);});
+        require(disabledCalls==0);
+        const std::array<ScheduleGains,2> improving {{{.4f,.8f},{1.25f,.8f}}};
+        require(MakeGainSchedule(2,true,true,false,[&](unsigned pass){return improving[pass];}).expectedMask==0);
+        const std::array<ScheduleGains,2> mixedLow {{{.7f,.8f},{.7f,.2f}}};
+        require(MakeGainSchedule(2,true,true,false,[&](unsigned pass){return mixedLow[pass];}).expectedMask==0);
+        const std::array<ScheduleGains,3> differentScope {{{.7f,.2f},{.8f,.8f},{.8f,1.2f}}};
+        const auto pending=MakeGainSchedule(3,true,true,false,[&](unsigned pass){return differentScope[pass];});
+        const auto allLow=MakeGainSchedule(3,true,true,true,[&](unsigned pass){return differentScope[pass];});
+        require(pending.Due(1,1) && !allLow.Due(1,1));
+        require(MakeGainSchedule(30,true,true,false,[](unsigned){return ScheduleGains{};}).expectedMask==0);
+        const auto maximum=MakeGainSchedule(UINT32_MAX,true,true,false,same);
+        require(maximum.passes==32 && maximum.expectedMask==0x7fffffffu);
+        require(CorrectionCount(maximum.expectedMask)==31);
+        require(every.Due(1,0)); // first correction failed: predict from actual unconsumed block
+        const auto scaled=[&](float scale,float structure){
+            const float exponent=std::log2(1.0f/scale);
+            return MakeGainSchedule(6,true,true,false,[&](unsigned){return ScheduleGains{
+                DlssNr::Profiles::StructureAdjustedHigh(std::pow(.7f,exponent),structure),
+                std::pow(.8f,exponent)};});
+        };
+        require(scaled(.5f,1.0f).expectedMask==31);
+        require(scaled(.84f,1.0f).expectedMask!=31);
+        require(scaled(.5f,0.0f).expectedMask==0);
+        // Independent recomputation from real per-pass gains, including arbitrary failed corrections.
+        for(unsigned passes=1;passes<=32;++passes)
+        for(unsigned seed=0;seed<24;++seed)
+        for(bool compound : {false,true})
+        for(bool whole : {false,true}) {
+            unsigned calls=0;
+            const auto gains=[&](unsigned pass){return ScheduleGains{
+                .45f+float((pass*7+seed*3)%19)*.05f,
+                .50f+float((pass*11+seed)%15)*.05f};};
+            const auto plan=MakeGainSchedule(passes,true,compound,whole,[&](unsigned pass){++calls;return gains(pass);});
+            require(calls==passes);
+            const auto reference=[&](unsigned covered,unsigned completed){
+                const float h=DlssNr::Profiles::ProductGuidedHigh(covered,completed,compound,
+                    [&](unsigned pass){return gains(pass).high;});
+                const float l=DlssNr::Profiles::MeanGuidedLow(whole?0:covered,completed,
+                    [&](unsigned pass){return gains(pass).low;});
+                return ScheduleGains{h,l};
+            };
+            unsigned covered=0;uint32_t mask=0;
+            for(unsigned pass=0;pass+1<passes;++pass) {
+                const bool expected=GapWorsens(reference(covered,pass+1),reference(covered,pass+2));
+                require(plan.Due(pass,covered)==expected);
+                if(expected){mask|=uint32_t(1)<<pass;covered=pass+1;}
+            }
+            require(mask==plan.expectedMask && covered==plan.expectedCovered);
+            covered=0;
+            for(unsigned pass=0;pass+1<passes;++pass) {
+                const bool expected=GapWorsens(reference(covered,pass+1),reference(covered,pass+2));
+                require(plan.Due(pass,covered)==expected);
+                if(expected && (pass+seed)%3)covered=pass+1;
+            }
+        }
         using DlssNr::Profiles::StructureAdjustedHigh;
         using DlssNr::Profiles::ProductGuidedHigh;
         using DlssNr::Profiles::MeanGuidedLow;
@@ -85,7 +134,7 @@ int main()
             for (unsigned pass=0;pass<passes;++pass)
             {
                 directSum+=mixedLow(pass);
-                if (!Due(pass,passes,stride) || pass+1==failure) continue;
+                if (!StrideDue(pass,passes,stride) || pass+1==failure) continue;
                 weightedSum+=MeanGuidedLow(covered,pass+1,mixedLow)*(pass+1-covered);
                 covered=pass+1;
             }
@@ -131,7 +180,7 @@ int main()
             const auto countedGain=[&](unsigned pass) { ++visits.at(pass); return variableGain(pass); };
             for (unsigned pass=0;pass<passes;++pass)
             {
-                if (!Due(pass,passes,stride) || pass+1==failure) continue;
+                if (!StrideDue(pass,passes,stride) || pass+1==failure) continue;
                 accounted+=PendingPasses(pass+1,covered);
                 product*=ProductGuidedHigh(covered,pass+1,true,countedGain);
                 covered=pass+1;
@@ -267,7 +316,7 @@ int main()
             }
         }
         require(guarded>0);
-        std::cout<<"Inter-pass policy PASS: measured winners, aligned P40, rounded P42, all percentages, per-pass Structure/style products and failure accounting, reference isolation, filters/radii and "<<groups<<" tile axes ("<<guarded<<" guarded overflow axes)\n";
+        std::cout<<"Inter-pass policy PASS: measured winners, aligned P40, rounded P42, all percentages, gain lookahead, scale/Structure, mean low, strict gap and failure accounting, reference isolation, filters/radii and "<<groups<<" tile axes ("<<guarded<<" guarded overflow axes)\n";
         return 0;
     } catch(const std::exception& e){std::cerr<<e.what()<<"\n";return 1;}
 }

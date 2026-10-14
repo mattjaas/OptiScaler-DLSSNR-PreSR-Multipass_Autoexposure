@@ -108,7 +108,7 @@ struct BenchmarkVariant
     const char* name;
     std::vector<double> samples;
     unsigned nativeW = 0, nativeH = 0, workW = 0, workH = 0, effectivePasses = 0;
-    unsigned cadence = 0, corrections = 0;
+    unsigned expectedMask = 0, mask = 0, corrections = 0;
     std::string path;
     double historicalGain = 0.0;
     int comparison = 0; // Experimental ABBA block; 0 denotes unpaired reference windows.
@@ -128,7 +128,7 @@ std::string benchmarkSetup;
 std::string benchmarkAdapterInfo;
 unsigned benchmarkNativeW = 0, benchmarkNativeH = 0, benchmarkWorkW = 0,
          benchmarkWorkH = 0, benchmarkEffectivePasses = 0;
-unsigned benchmarkCadence = 0, benchmarkCorrections = 0;
+unsigned benchmarkExpectedMask = 0, benchmarkMask = 0, benchmarkCorrections = 0;
 
 BenchmarkConfig TakeBenchmarkConfig(const Config& c)
 {
@@ -360,8 +360,8 @@ void FinishBenchmark(bool cancelled)
                "delta_vs_off_median_ms,delta_vs_fused_reference_ms,delta_vs_expected_path_ms,"
                "historical_gain_vs_fused_ms,actual_gain_vs_fused_ms,path_matches_control,"
                "window_medians_ms,window_median_spread_ms,gain_vs_optimized_median_ms,gain_vs_fast_median_ms,delta_vs_fast_median_ms,"
-               "interpass_stride,interpass_corrections\n";
-        individual << "scale_percent,variant,window,sample_index,total_nr_gpu_ms,comparison,interpass_stride,interpass_corrections\n";
+               "interpass_expected_mask,interpass_mask,interpass_corrections\n";
+        individual << "scale_percent,variant,window,sample_index,total_nr_gpu_ms,comparison,interpass_expected_mask,interpass_mask,interpass_corrections\n";
         out << std::fixed << std::setprecision(5);
         individual << std::fixed << std::setprecision(6);
         std::vector<BenchmarkVariant> combined;
@@ -371,7 +371,7 @@ void FinishBenchmark(bool cancelled)
             if (v.samples.empty()) continue;
             for (size_t i = 0; i < v.samples.size(); ++i)
                 individual << v.percent << ',' << '"' << v.name << '"' << ',' << window << ',' << i << ',' << v.samples[i]
-                           << ',' << v.comparison << ',' << v.cadence << ',' << v.corrections << '\n';
+                           << ',' << v.comparison << ',' << v.expectedMask << ',' << v.mask << ',' << v.corrections << '\n';
             auto it = std::find_if(combined.begin(), combined.end(), [&](const auto& existing)
                 { return existing.percent == v.percent && std::string(existing.name) == v.name; });
             if (it == combined.end()) combined.push_back(v);
@@ -433,7 +433,7 @@ void FinishBenchmark(bool cancelled)
             out << "\"," << *range.second - *range.first << ',' << optimized.at(v.percent) - median << ','
                 << (fast.count(v.percent) ? fast.at(v.percent) - median : std::numeric_limits<double>::quiet_NaN()) << ','
                 << (fast.count(v.percent) ? median - fast.at(v.percent) : std::numeric_limits<double>::quiet_NaN()) << ','
-                << v.cadence << ',' << v.corrections << '\n';
+                << v.expectedMask << ',' << v.mask << ',' << v.corrections << '\n';
         }
         if (benchmarkProfile == InterPassBenchmarkProfile::FastQuality ||
             benchmarkProfile == InterPassBenchmarkProfile::FastBelow50 ||
@@ -488,15 +488,15 @@ void FinishBenchmark(bool cancelled)
                         "Regular profile: P50/P59/P65 plus current rounded percentage up to P65 when different.\n")
                     << "All benchmark profiles exclude percentages above P65, including the current scale.\n"
                     << "Off, Classic reference and Fused reference retained.\n"
-                    << "All modes: below P74 every transition; P74 through P84 after passes 2,4,...; P85 through P90 after passes 3,6,...; between P84 and P85 and above P90 disabled.\n"
+                    << "All modes: correct before the next model only if its effective high/low gap exceeds 0.25 and grows. No fixed stride. Off/spatial/above P90 remain inactive.\n"
                     << "Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.\n"
                     << "Structure adjustment: 1+(scale_corrected_high-1)*clamp(configured Structure,0,1); Low unchanged.\n"
                     << (savedBenchmarkConfig.neutralInterPassLow
                         ? "Inter-pass low gain forced to 1; final low averages all effective model gains.\n"
                         : "Inter-pass low averages each unconsumed model block; final low averages models after the last successful correction.\n")
                     << "All pass styles/Structure settings are recorded; there is no repetition of the last model's gain.\n"
-                    << "interpass_stride is the active cadence (0=Off); interpass_corrections counts successful corrections/frame.\n"
-                    << "High/mid multiplies the actual per-pass style/Structure-adjusted gains since the last successful correction; at P74-P84 six passes cover 2+2+2, five cover 2+2+1; at P85-P90 they cover 3+3 or 3+2.\n"
+                    << "Mask bit N means correction after zero-based model N; expected/successful masks must match. No correction after the final model. interpass_corrections counts successes/frame.\n"
+                    << "Prediction uses scale-corrected per-model gains and configured Structure/compounding. A gap that shrinks or stays equal never triggers correction, even above 0.25.\n"
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow ?
                         "Each scale: Off, both references, Optimized, then Fast/cached/cached/Fast with separate warmup.\n"
                         "Only low filtering uses shared samples; without low shaping both variants use original Cross5.\n" :
@@ -569,7 +569,7 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, I
     BuildBenchmarkVariants();
     benchmarkAdapterInfo.clear();
     benchmarkNativeW = benchmarkNativeH = benchmarkWorkW = benchmarkWorkH = benchmarkEffectivePasses = 0;
-    benchmarkCadence = benchmarkCorrections = 0;
+    benchmarkExpectedMask = benchmarkMask = benchmarkCorrections = 0;
     benchmarkSetup = "scene=" + std::string(scene ? scene : "unspecified") +
                      ", guide strength=" + std::to_string(savedBenchmarkConfig.strength) +
                      ", source scale=" + std::to_string(savedBenchmarkConfig.scale) +
@@ -649,10 +649,10 @@ void BenchmarkGpuSample(double rawGpuMs, bool modelRunning)
         return;
     }
     auto& variant = benchmarkVariants[benchmarkIndex];
-    const unsigned expectedCadence = InterPass::Cadence(unsigned(variant.mode), float(variant.percent) / 100.0f,
-                                                       benchmarkEffectivePasses, false);
-    const unsigned expectedCorrections = expectedCadence ? (benchmarkEffectivePasses - 1u) / expectedCadence : 0u;
-    if (benchmarkCadence != expectedCadence || benchmarkCorrections != expectedCorrections)
+    const auto expectedSchedule = Profiles::BuildInterPassSchedule(*Config::Instance(), unsigned(variant.mode),
+        float(variant.percent) / 100.0f, benchmarkEffectivePasses, false);
+    if (benchmarkExpectedMask != expectedSchedule.expectedMask || benchmarkMask != expectedSchedule.expectedMask ||
+        benchmarkCorrections != InterPass::CorrectionCount(expectedSchedule.expectedMask))
     {
         benchmarkProgress.message = "Waiting for the scheduled inter-pass corrections to complete successfully.";
         return;
@@ -665,13 +665,20 @@ void BenchmarkGpuSample(double rawGpuMs, bool modelRunning)
         benchmarkProgress.message = "Cancelled: texture dimensions changed during a measurement; settings restored.";
         return;
     }
+    if (!variant.samples.empty() && variant.expectedMask != benchmarkExpectedMask)
+    {
+        FinishBenchmark(true);
+        benchmarkProgress.message = "Cancelled: inter-pass schedule changed within a measurement window; settings restored.";
+        return;
+    }
     variant.nativeW = benchmarkNativeW;
     variant.nativeH = benchmarkNativeH;
     variant.workW = benchmarkWorkW;
     variant.workH = benchmarkWorkH;
     variant.effectivePasses = benchmarkEffectivePasses;
     variant.path = benchmarkPath;
-    variant.cadence = benchmarkCadence;
+    variant.expectedMask = benchmarkExpectedMask;
+    variant.mask = benchmarkMask;
     variant.corrections = benchmarkCorrections;
     if (benchmarkWarm < benchmarkWarmup)
         ++benchmarkWarm;
@@ -703,11 +710,12 @@ void BenchmarkReportInterPassPath(const char* path)
     std::lock_guard lock(benchmarkMutex);
     benchmarkPath = path;
 }
-void BenchmarkReportInterPassSchedule(unsigned cadence, unsigned corrections)
+void BenchmarkReportInterPassSchedule(unsigned expectedMask, unsigned successfulMask, unsigned corrections)
 {
     if (!benchmarkActive.load(std::memory_order_relaxed)) return;
     std::lock_guard lock(benchmarkMutex);
-    benchmarkCadence = cadence;
+    benchmarkExpectedMask = expectedMask;
+    benchmarkMask = successfulMask;
     benchmarkCorrections = corrections;
 }
 void BenchmarkReportGeometry(unsigned nativeW, unsigned nativeH, unsigned workW, unsigned workH,

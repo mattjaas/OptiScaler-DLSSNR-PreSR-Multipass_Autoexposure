@@ -1,20 +1,13 @@
 #pragma once
 #include <cstdint>
+#include "DlssNr_InterPassSchedule.h"
 
 namespace DlssNr::InterPass
 {
-// Requested scale before texture rounding: P74-P84 stride 2, P85-P90 stride 3 (inclusive).
-// Between P84 and P85 and above P90 correction is disabled. Zero means no correction.
-inline uint32_t Cadence(uint32_t mode, float scale, uint32_t passes, bool spatial)
+// Gain-based scheduling replaces fixed strides. Retain the near-native/spatial exclusions.
+inline bool Eligible(uint32_t mode, float scale, uint32_t passes, bool spatial)
 {
-    if (mode == 0 || spatial || !(scale > 0.0f && scale <= 0.90f) ||
-        (scale > 0.84f && scale < 0.85f)) return 0;
-    const uint32_t stride = scale >= 0.85f ? 3u : scale >= 0.74f ? 2u : 1u;
-    return passes > stride ? stride : 0u;
-}
-inline bool Due(uint32_t pass, uint32_t passes, uint32_t stride)
-{
-    return stride != 0 && pass < passes && pass + 1 < passes && (pass + 1) % stride == 0;
+    return mode != 0 && !spatial && scale > 0.0f && scale <= 0.90f && passes > 1u;
 }
 inline uint32_t PendingPasses(uint32_t completed, uint32_t covered)
 {

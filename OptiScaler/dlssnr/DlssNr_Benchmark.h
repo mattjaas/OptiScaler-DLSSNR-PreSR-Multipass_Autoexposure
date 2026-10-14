@@ -27,7 +27,7 @@ void AdvanceInterPassBenchmark();
 void CancelInterPassBenchmark();
 int BenchmarkInterPassOverride(); // -1 outside benchmark, no user-facing implementation switches.
 void BenchmarkReportInterPassPath(const char* path);
-void BenchmarkReportInterPassSchedule(unsigned cadence, unsigned corrections);
+void BenchmarkReportInterPassSchedule(unsigned expectedMask, unsigned successfulMask, unsigned corrections);
 BenchmarkProgress ReadInterPassBenchmark();
 void BenchmarkGpuSample(double rawGpuMs, bool modelRunning);
 void BenchmarkReportGeometry(unsigned nativeW, unsigned nativeH, unsigned workW, unsigned workH,

@@ -21,7 +21,7 @@ def test_neutral_low():
     assert 'gains.high =' not in interpass
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text()
     schedule = run[run.index('const bool interPassNeutralLow'):run.index('// Cache only dimension')]
-    assert 'interPassCadence != 0u' in schedule and 'DlssNrGuidedResidualShaping.value_or_default() != 0u' in schedule
+    assert 'interPassMask != 0u' in schedule and 'DlssNrGuidedResidualShaping.value_or_default() != 0u' in schedule
     assert 'nr.interPassNeutralLow != interPassNeutralLow' in schedule and 'nr.reset = true;' in schedule
     assert schedule.count('nr.interPassNeutralLow = interPassNeutralLow;') == 2
     config = (ROOT / 'OptiScaler/Config.cpp').read_text()

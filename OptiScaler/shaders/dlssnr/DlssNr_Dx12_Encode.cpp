@@ -446,7 +446,7 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
 
         const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
         // Multiply the actual per-model style/Structure gains only for passes after the last
-        // successful correction. Six passes at stride two: [0,2), [2,4), then [4,6) here.
+        // successful correction. The gain-based schedule leaves a variable-size final block.
         // Low averages the remaining block, or the complete chain when inter-pass low is neutral.
         const auto shaping =
             DlssNr::Profiles::EffectiveGuidedResidualGainsForResolve(cfg, shapingMode, configuredTransfer,

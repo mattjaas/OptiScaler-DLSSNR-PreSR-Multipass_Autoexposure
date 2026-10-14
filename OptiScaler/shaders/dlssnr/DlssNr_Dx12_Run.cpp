@@ -968,43 +968,44 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             ? cfg.DlssNrUpscaledResidualDownscaleFilter.value_or_default()
             : cfg.DlssNrProxyDownscaleFilter.value_or_default(), 11u);
     const float configuredGuide = cfg.DlssNrGuidedResidualGuideStrength.value_or_default();
-    const uint32_t interPassCadence =
-        DlssNr::InterPass::Cadence(configuredInterPassMode, workScale, effectivePasses, spatial);
+    const auto interPassSchedule =
+        DlssNr::Profiles::BuildInterPassSchedule(cfg, configuredInterPassMode, workScale, effectivePasses, spatial);
+    const uint32_t interPassMask = interPassSchedule.expectedMask;
     auto interPassPath = DlssNr::InterPass::Select(configuredInterPassMode, width, height, modelWidth, modelHeight,
         interPassFilter, std::clamp(cfg.DlssNrGuidedResidualRadius.value_or_default(), 1u, 3u),
         std::isfinite(configuredGuide) ? configuredGuide : 0.75f);
-    if (configuredInterPassMode == 3u && interPassCadence != 0u)
+    if (configuredInterPassMode == 3u && interPassMask != 0u)
     {
         const auto overridePath = DlssNr::BenchmarkInterPassOverride();
         if (overridePath >= 0) interPassPath = static_cast<DlssNr::InterPass::Path>(overridePath);
     }
-    if (interPassCadence == 0u) interPassPath = DlssNr::InterPass::Path::Off;
+    if (interPassMask == 0u) interPassPath = DlssNr::InterPass::Path::Off;
     const bool interPassOptimized = DlssNr::InterPass::Optimized(interPassPath);
     const uint32_t selectedInterPassMode = DlssNr::InterPass::Fused(interPassPath) ? 2u : 1u;
     DlssNr::BenchmarkReportInterPassPath(DlssNr::InterPass::Name(interPassPath));
-    const bool interPassNeutralLow = interPassCadence != 0u &&
+    const bool interPassNeutralLow = interPassMask != 0u &&
         cfg.DlssNrGuidedResidualShaping.value_or_default() != 0u &&
         cfg.DlssNrInterPassNeutralLow.value_or_default();
     if (!nr.interPassModeInitialized)
     {
         nr.interPassMode = static_cast<uint32_t>(interPassPath);
-        nr.interPassCadence = interPassCadence;
+        nr.interPassMask = interPassMask;
         nr.interPassNeutralLow = interPassNeutralLow;
         nr.interPassModeInitialized = true;
     }
     else if (nr.interPassMode != static_cast<uint32_t>(interPassPath) ||
-             nr.interPassCadence != interPassCadence ||
+             nr.interPassMask != interPassMask ||
              nr.interPassNeutralLow != interPassNeutralLow)
     {
         // The later temporal features now see a different input distribution. Reset history without
         // recreating NGX features; Off <-> Guided and reference <-> fused both start cleanly.
         nr.interPassMode = static_cast<uint32_t>(interPassPath);
-        nr.interPassCadence = interPassCadence;
+        nr.interPassMask = interPassMask;
         nr.interPassNeutralLow = interPassNeutralLow;
         nr.reset = true;
     }
 
-    const bool interPassActive = interPassCadence != 0u;
+    const bool interPassActive = interPassMask != 0u;
 
     // Cache only dimension-dependent scale geometry on the CPU. A change to the
     // slider that rounds to the same actual texture dimensions costs nothing.
@@ -1044,7 +1045,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     bool clampFailed = false;
     bool interPassFailed = false;
     uint32_t interPassCoveredPasses = 0;
-    uint32_t interPassCorrections = 0;
+    uint32_t interPassCorrections = 0, interPassSuccessfulMask = 0;
     uint32_t clampSlots[2] = { UINT32_MAX, UINT32_MAX };
 
     const auto MakeModelReadable = [&](ID3D12Resource* resource)
@@ -1479,7 +1480,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         if (pass + 1 < effectivePasses)
         {
             bool reconstructed = false;
-            const bool interPassDue = DlssNr::InterPass::Due(pass, effectivePasses, interPassCadence);
+            const bool interPassDue = interPassSchedule.Due(pass, interPassCoveredPasses);
             if (interPassDue)
                 reconstructed = BuildInterPassInput(pass, finalAnswer);
 
@@ -1487,6 +1488,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             {
                 interPassCoveredPasses = pass + 1u;
                 ++interPassCorrections;
+                interPassSuccessfulMask |= uint32_t(1) << pass;
                 passInput = nr.interPassWorking;
             }
             else
@@ -1551,7 +1553,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     }
 
     ngxTime->End(cmdList);
-    DlssNr::BenchmarkReportInterPassSchedule(interPassCadence, interPassCorrections);
+    DlssNr::BenchmarkReportInterPassSchedule(interPassMask, interPassSuccessfulMask, interPassCorrections);
 
     if (styleAnalysisCapture.active && !styleAnalysisCapture.copiesRecorded && styleAnalysisModelsReady)
     {

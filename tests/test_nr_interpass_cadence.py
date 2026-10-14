@@ -6,17 +6,21 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_cadence():
     run = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp').read_text(encoding='utf-8')
     policy = (ROOT / 'OptiScaler/dlssnr/DlssNr_InterPassPolicy.h').read_text(encoding='utf-8')
-    assert 'scale <= 0.90f' in policy and 'scale >= 0.85f ? 3u : scale >= 0.74f ? 2u : 1u' in policy
-    assert 'scale > 0.84f && scale < 0.85f' in policy
-    assert 'return passes > stride ? stride : 0u;' in policy
-    assert 'pass + 1 < passes' in policy  # never correct after the final model pass
+    schedule = (ROOT / 'OptiScaler/dlssnr/DlssNr_InterPassSchedule.h').read_text(encoding='utf-8')
+    assert 'scale <= 0.90f' in policy and 'passes > 1u' in policy
+    assert 'scale > 0.84f' not in policy and 'Cadence(' not in policy
+    assert 'after > 0.25 && after > before' in schedule
+    assert 'std::abs(double(current.high) - current.low)' in schedule
+    assert 'pass + 1u >= passes' in schedule  # never after the final model
+    assert 'wholeLow ? 0u : covered' in schedule
+    assert 'gains[completed - 1u].high' in schedule
     select = run[run.index('const uint32_t configuredInterPassMode'):run.index('// Cache only dimension')]
-    assert 'Cadence(configuredInterPassMode, workScale, effectivePasses, spatial)' in select
-    assert 'if (interPassCadence == 0u) interPassPath = DlssNr::InterPass::Path::Off;' in select
-    assert 'nr.interPassCadence != interPassCadence' in select and 'nr.reset = true;' in select
-    assert 'configuredInterPassMode == 3u && interPassCadence != 0u' in select
+    assert 'BuildInterPassSchedule(cfg, configuredInterPassMode, workScale, effectivePasses, spatial)' in select
+    assert 'if (interPassMask == 0u) interPassPath = DlssNr::InterPass::Path::Off;' in select
+    assert 'nr.interPassMask != interPassMask' in select and 'nr.reset = true;' in select
+    assert 'configuredInterPassMode == 3u && interPassMask != 0u' in select
     loop = run[run.index('for (unsigned int pass = 0; pass < effectivePasses'):run.index('ngxTime->End(cmdList);')]
-    assert 'const bool interPassDue = DlssNr::InterPass::Due(pass, effectivePasses, interPassCadence);' in loop
+    assert 'const bool interPassDue = interPassSchedule.Due(pass, interPassCoveredPasses);' in loop
     assert 'if (interPassDue)\n                reconstructed = BuildInterPassInput(pass, finalAnswer);' in loop
     fallback = loop[loop.index('else\n            {'):loop.index('// Capture the exact pass-2 input')]
     assert 'if (interPassDue)' in fallback and 'if (interPassActive)' not in fallback
@@ -27,12 +31,13 @@ def test_cadence():
     assert 'ID3D12Resource* const originalPassBase = modelInput;' in run
     assert 'low.Transfer = 0u; // ALWAYS current cumulative N - immutable original base.' in run
     assert 'MakeResolveConstants(encoded, effectivePasses, interPassCoveredPasses)' in run
-    assert 'BenchmarkReportInterPassSchedule(interPassCadence, interPassCorrections)' in run
+    assert 'BenchmarkReportInterPassSchedule(interPassMask, interPassSuccessfulMask, interPassCorrections)' in run
     status = (ROOT / 'OptiScaler/dlssnr/DlssNr_Status.cpp').read_text(encoding='utf-8')
-    assert 'benchmarkCorrections != expectedCorrections' in status
-    assert 'interpass_stride,interpass_corrections' in status
+    assert 'benchmarkMask != expectedSchedule.expectedMask' in status
+    assert 'benchmarkCorrections != InterPass::CorrectionCount(expectedSchedule.expectedMask)' in status
+    assert 'interpass_expected_mask,interpass_mask,interpass_corrections' in status
     menu = (ROOT / 'OptiScaler/dlssnr/DlssNr_MenuControls.cpp').read_text(encoding='utf-8')
-    assert 'InterPass::Cadence(config->DlssNrInterPassReconstruction.value_or_default(),' in menu
+    assert 'Profiles::BuildInterPassSchedule(*config,' in menu
     encode = (ROOT / 'OptiScaler/shaders/dlssnr/DlssNr_Dx12_Encode.cpp').read_text(encoding='utf-8')
     assert 'interPassCoveredPasses, effectivePasses,' in encode
     assert 'shapingMode, interPassCoveredPasses,' in run and 'pass + 1u, workScale' in run
@@ -51,10 +56,13 @@ def test_cadence():
     assert 'std::pow' not in block and 'ProductGuidedHigh' not in single
     assert 'gains.low = ProductGuidedHigh' not in profiles
     assert 'high/mid compounding=' in status and 'configured_structure=' in status
-    assert 'ImGui::BeginDisabled(interPassShapingCadence == 1u);' in menu
-    assert 'interPassShapingCadence >= 2u ?' in menu
-    assert 'cadence == 3u ? "Inter-pass after passes 3, 6, ..."' in menu
-    print('Cadence integration PASS: Off/every-one/two/three schedule, reset, ordinary fallback, debug input and reports')
+    build = profiles[profiles.index('inline InterPass::GainSchedule BuildInterPassSchedule'):]
+    assert 'EffectiveGuidedResidualGainsForPass(cfg, shapingMode, 7u, pass, workScale)' in build
+    assert 'DlssNrGuidedResidualCompoundPasses' in build and 'DlssNrInterPassNeutralLow' in build
+    assert 'shapingSchedule.expectedCovered' in menu
+    assert 'interPassSuccessfulMask |= uint32_t(1) << pass;' in loop
+    assert 'Multiply per-pass high/mid within each block' in menu
+    print('Gain schedule integration PASS: effective per-model gains, strict growing gap, actual coverage, fallback and reports')
 
 if __name__ == '__main__':
     test_cadence()
