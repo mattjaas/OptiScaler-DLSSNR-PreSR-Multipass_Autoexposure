@@ -3,6 +3,7 @@
 #include "DlssNr_ModelParameters.h"
 #include "DlssNr_GuidedShaping.h"
 #include "DlssNr_InterPassPolicy.h"
+#include "DlssNr_SuperiorScaling.h"
 #include <algorithm>
 #include <cmath>
 
@@ -47,7 +48,7 @@ inline ModelSettings PassSettings(const Config& cfg, unsigned int pass)
     // Experimental scale-aware compensation: Standard/Natural can draw coarse model-space structure
     // that becomes visually too thick after a strong P50/P60 -> P100 enlargement. Keep P100 exactly
     // unchanged, interpolate to the user-selected factor at P50, and leave Cinematic untouched.
-    if (cfg.DlssNrExperimentScaleAwareStructure.value_or_default() && result.style < 2u)
+    if (!SuperiorScaling::Enabled(cfg) && cfg.DlssNrExperimentScaleAwareStructure.value_or_default() && result.style < 2u)
     {
         const float scale = std::clamp(cfg.DlssNrWorkingScale.value_or_default(), 0.25f, 1.0f);
         const float configuredP50 = cfg.DlssNrExperimentStructureP50Factor.value_or_default();
@@ -87,6 +88,9 @@ inline GuidedResidualGains GuidedResidualBaseGains(const Config& cfg, uint32_t s
 {
     GuidedResidualGains gains {};
     style = std::min(style, 2u);
+
+    if (SuperiorScaling::Enabled(cfg))
+        return { SuperiorScaling::High(style), SuperiorScaling::Low(style), true };
 
     if (shapingMode == 0u)
         return gains;
@@ -167,7 +171,7 @@ inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock(const Config& cf
     if (!gains.active || completedPasses - firstPass == 1u)
         return gains;
     gains.high = ProductGuidedHigh(firstPass, completedPasses,
-                                  cfg.DlssNrGuidedResidualCompoundPasses.value_or_default(),
+                                  (SuperiorScaling::Enabled(cfg) || cfg.DlssNrGuidedResidualCompoundPasses.value_or_default()),
                                   [&](unsigned pass) {
                                       return EffectiveGuidedResidualGainsForPass(cfg, shapingMode, transfer, pass,
                                                                                 workScale).high;
@@ -186,7 +190,7 @@ inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass(const Config
 {
     // Signed working-space residual uses the plain P100-guided calibration, as before.
     auto gains = EffectiveGuidedResidualGainsForBlock(cfg, shapingMode, 7u, firstPass, completedPasses, workScale);
-    if (cfg.DlssNrInterPassNeutralLow.value_or_default())
+    if (!SuperiorScaling::Enabled(cfg) && cfg.DlssNrInterPassNeutralLow.value_or_default())
         gains.low = 1.0f;
     return gains;
 }
@@ -198,7 +202,7 @@ inline GuidedResidualGains EffectiveGuidedResidualGainsForResolve(const Config& 
     auto gains = EffectiveGuidedResidualGainsForBlock(cfg, shapingMode, transfer, firstPass, completedPasses, workScale);
     // Neutral inter-pass low consumes no low shaping. Final low therefore averages the entire chain,
     // while final high/mid still covers only models after the last successful inter-pass correction.
-    if (gains.active && cfg.DlssNrInterPassNeutralLow.value_or_default())
+    if (gains.active && !SuperiorScaling::Enabled(cfg) && cfg.DlssNrInterPassNeutralLow.value_or_default())
         gains.low = MeanGuidedLow(0u, completedPasses,
                                  [&](unsigned pass) {
                                      return EffectiveGuidedResidualGainsForPass(cfg, shapingMode, transfer, pass,
@@ -210,10 +214,10 @@ inline GuidedResidualGains EffectiveGuidedResidualGainsForResolve(const Config& 
 inline InterPass::GainSchedule BuildInterPassSchedule(const Config& cfg, uint32_t mode,
                                                       float workScale, unsigned passes, bool spatial)
 {
-    const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
+    const uint32_t shapingMode = SuperiorScaling::ShapingMode(cfg);
     return InterPass::MakeGainSchedule(passes, InterPass::Eligible(mode, workScale, passes, spatial) && shapingMode != 0u,
-        cfg.DlssNrGuidedResidualCompoundPasses.value_or_default(),
-        cfg.DlssNrInterPassNeutralLow.value_or_default(), [&](unsigned pass) {
+        (SuperiorScaling::Enabled(cfg) || cfg.DlssNrGuidedResidualCompoundPasses.value_or_default()),
+        (!SuperiorScaling::Enabled(cfg) && cfg.DlssNrInterPassNeutralLow.value_or_default()), [&](unsigned pass) {
             // Same signed working-space calibration as inter-pass shaping. Do not force low=1
             // here: prediction concerns the block without correction, not the correction itself.
             return EffectiveGuidedResidualGainsForPass(cfg, shapingMode, 7u, pass, workScale);

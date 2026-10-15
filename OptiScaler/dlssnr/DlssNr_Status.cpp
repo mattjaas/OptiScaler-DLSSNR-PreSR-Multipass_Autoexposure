@@ -555,6 +555,12 @@ void StartInterPassBenchmark(unsigned warmupSamples, unsigned measuredSamples, I
     if (benchmarkActive.load())
         return;
     auto& c = *Config::Instance();
+    if (SuperiorScaling::Enabled(c))
+    {
+        benchmarkProgress.message = "Select a legacy enlargement mode to run the inter-pass path lab.";
+        return;
+    }
+
     if (!c.DlssNrEnabled.value_or_default())
     {
         benchmarkProgress.message = "Enable Neural Rendering first.";

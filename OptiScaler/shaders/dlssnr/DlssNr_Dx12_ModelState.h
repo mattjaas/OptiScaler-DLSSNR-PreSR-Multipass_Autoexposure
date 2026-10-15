@@ -34,6 +34,7 @@ struct ModelStateDx12
     uint32_t interPassMode = 0;
     uint32_t interPassMask = 0;
     bool interPassNeutralLow = false;
+    bool interPassSuperior = false;
     bool interPassModeInitialized = false;
     bool interPassWarned = false;
     bool interPassFusedReferenceWarned = false;

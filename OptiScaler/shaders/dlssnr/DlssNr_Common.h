@@ -74,7 +74,9 @@ enum DlssNrMode : uint32_t
     // Opt-in approximation: one native guide and one 3x3 residual estimate per working pixel.
     DlssNrMode_InterPassFastGuided = 33,
     DlssNrMode_InterPassLow36 = 34,
-    DlssNrMode_InterPassFastCross5 = 36
+    DlssNrMode_InterPassFastCross5 = 36,
+    DlssNrMode_SuperiorCarrierEncode = 37, // fixed clamp(0.5 + N-P, -1, 2), no gain analysis
+    DlssNrMode_SuperiorCarrierDecode = 38  // fixed DLAA(carrier)-0.5, no gain texture
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)
@@ -88,7 +90,7 @@ inline uint32_t DlssNrSpatialTransfer(uint32_t transfer)
     // Native-output / guided families have no separate spatial-transfer meaning at 100%.
     // Until their reduced-resolution product exists, or when working at native resolution, use
     // ordinary classic composition. Reduced guided modes overwrite this with internal Transfer 8/9.
-    if (transfer >= 5 && transfer <= 10)
+    if (transfer >= 5 && transfer <= 11)
         return 0;
     return DlssNrUsesDlssEnlargement(transfer) ? transfer - 1 : std::min(transfer, 3u);
 }

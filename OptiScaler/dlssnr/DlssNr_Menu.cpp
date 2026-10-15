@@ -7,6 +7,7 @@
 #include "DlssNr_Upscaler.h"
 #include "DlssNr_MenuSections.h"
 #include "DlssNr_Benchmark.h"
+#include "DlssNr_SuperiorScaling.h"
 #include "DlssNr_Placement.h"
 #include <Config.h>
 #include <menu/menu_common.h>
@@ -268,120 +269,127 @@ void RenderMenu(Config* config, float menuResScale)
         ImGui::Separator();
         ImGui::Spacing();
         RenderStatus(config);
-        const auto bench = DlssNr::ReadInterPassBenchmark();
-        if (bench.active)
+        const bool showLab = !SuperiorScaling::Enabled(*config) || ImGui::CollapsingHeader("Legacy inter-pass benchmark lab");
+        if (showLab)
         {
-            ImGui::Text("NR benchmark %u/%u: %s", bench.current, bench.total, bench.variant.c_str());
-            ImGui::Text("Warmup %u/%u | Samples %u/%u", bench.warmed, bench.warmupTarget,
-                        bench.collected, bench.sampleTarget);
-            if (bench.awaitingVisualInspection)
+            const auto bench = DlssNr::ReadInterPassBenchmark();
+            if (bench.active)
             {
-                ImGui::TextWrapped("Inspect this warmed configuration. Close the menu to see the picture; "
-                                   "reopen it to continue. Held frames do not enter the timing report.");
-                if (ImGui::Button("Capture this configuration (before/after)"))
-                    DlssNr::RequestCapture(1);
-                if (ImGui::Button("Next comparison window / finish report"))
-                    DlssNr::AdvanceInterPassBenchmark();
+                ImGui::Text("NR benchmark %u/%u: %s", bench.current, bench.total, bench.variant.c_str());
+                ImGui::Text("Warmup %u/%u | Samples %u/%u", bench.warmed, bench.warmupTarget,
+                            bench.collected, bench.sampleTarget);
+                if (bench.awaitingVisualInspection)
+                {
+                    ImGui::TextWrapped("Inspect this warmed configuration. Close the menu to see the picture; "
+                                       "reopen it to continue. Held frames do not enter the timing report.");
+                    if (ImGui::Button("Capture this configuration (before/after)"))
+                        DlssNr::RequestCapture(1);
+                    if (ImGui::Button("Next comparison window / finish report"))
+                        DlssNr::AdvanceInterPassBenchmark();
+                }
+                if (ImGui::Button("Stop benchmark and restore settings"))
+                    DlssNr::CancelInterPassBenchmark();
             }
-            if (ImGui::Button("Stop benchmark and restore settings"))
-                DlssNr::CancelInterPassBenchmark();
+            else
+            {
+                static int warmup = 90, samples = 160;
+                ImGui::SetNextItemWidth(95.0f);
+                ImGui::InputInt("Benchmark warmup samples", &warmup, 0, 0);
+                warmup = std::clamp(warmup, 40, 600);
+                ImGui::SetNextItemWidth(95.0f);
+                ImGui::InputInt("Benchmark measured samples", &samples, 0, 0);
+                samples = std::clamp(samples, 40, 2000);
+                const bool canBenchmark = !SuperiorScaling::Enabled(*config) && ReadStatus(Backend::Dx12).running &&
+                                          !ReadStatus(Backend::Vulkan).running;
+                static bool inspectFastWindows = false;
+                static bool inspectExperimentWindows = false;
+                static char fastBenchmarkScene[160] = "";
+                ImGui::InputText("Fast benchmark scene (optional)", fastBenchmarkScene, sizeof(fastBenchmarkScene));
+                ImGui::Checkbox("Hold each Fast benchmark window for visual inspection", &inspectFastWindows);
+                ImGui::BeginDisabled(!canBenchmark);
+                if (ImGui::Button("Compare reference / Optimized / Fast at 50% / 59% / 65% (CSV)"))
+                    DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                                  DlssNr::InterPassBenchmarkProfile::FastQuality, inspectFastWindows,
+                                                  fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
+                                      "Exactly 50%, 59%, 65%: Off, Classic reference, Fused reference, then "
+                                      "Optimized / Fast / Fast / Optimized with independent warmup. "
+                                      "15 configurations / 21 windows. Reports whole-NR GPU ms, spread and gain vs Optimized. "
+                                      "Enable Hold to inspect/capture each warmed result and advance manually. "
+                                      "Check fine detail, edges, highlights and shadows, then also compare in motion. "
+                                      "Keep the scene static for timings; original settings restored on finish/cancel.");
+                ImGui::BeginDisabled(!canBenchmark);
+                if (ImGui::Button("Compare Fast / cached low at 50% / 59% / 65% (CSV)"))
+                    DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                                  DlssNr::InterPassBenchmarkProfile::FastCachedLow, inspectFastWindows,
+                                                  fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("Off, both references, Optimized, then Fast / cached low / cached low / Fast ABBA. "
+                                      "18 configurations / 24 windows, separate warmup. Whole-NR GPU timestamps. "
+                                      "Preserves your shaping and pass gains; without a low field the paths do the same work. "
+                                      "Use Hold for visual inspection; finish/cancel restores your settings.");
+                ImGui::Checkbox("Hold each low-scale Fast benchmark window for visual inspection", &inspectExperimentWindows);
+                ImGui::BeginDisabled(!canBenchmark);
+                if (ImGui::Button("Compare reference / Optimized / Fast below 50% (CSV)"))
+                    DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                                  DlssNr::InterPassBenchmarkProfile::FastBelow50, inspectExperimentWindows,
+                                                  fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
+                                      "P33/P40/P41/P42/P49 plus current scale below 50 if different. "
+                                      "Off, both references, then Optimized versus Fast ABBA. "
+                                      "25 configurations / 35 windows, or 30 / 42 with extra current scale; independent warmup. "
+                                      "Fast includes Low36 and Cross5. Exact-path controls remain in Verify optimized inter-pass below 50%. "
+                                      "Enable Hold for visual checks/captures; also inspect motion separately. "
+                                      "Whole-NR summary/raw/paired CSV and TXT; negative delta means faster. Settings restored.");
+                ImGui::BeginDisabled(!canBenchmark);
+                if (ImGui::Button("Verify automatic inter-pass performance (CSV)"))
+                    DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("DX12, SIX passes; independent warmup for each window and "
+                                      "Area / radius 1 / guide strength 1. "
+                                      "A/B/B/A windows for Optimized versus its expected path. Saves summary CSV, raw per-frame "
+                                      "samples CSV and metadata TXT in game/OptiScaler-NR-Benchmarks. "
+                                      "Includes GPU adapter, actual texture resolutions and complete-NR overhead. "
+                                      "50%, 59%, 65% plus current percentage up to 65% if different; both references and off retained. "
+                                      "A current scale below 50 compares its measured or predicted path with the alternate in ABBA. "
+                                      "Keep the scene static. Original configuration restored.");
+                ImGui::BeginDisabled(!canBenchmark);
+                if (ImGui::Button("Verify optimized inter-pass below 50% (CSV)"))
+                    DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                                  DlssNr::InterPassBenchmarkProfile::Below50);
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("DX12, six passes, Area / radius 1 / guide strength 1. "
+                                      "33%, 40%, 41%, 42%, 49% plus current percentage below 50 if different. "
+                                      "Forced expected path / automatic / automatic / forced expected path; alternate Classic or RGB20. "
+                                      "Includes Off, both references and the current automatic path. "
+                                      "RGB20 uses direct reconstruction for groups exceeding its 20x20 tile. "
+                                      "40 windows by default. Keep the scene static. Original settings restored.");
+                ImGui::BeginDisabled(!canBenchmark);
+                if (ImGui::Button("Verify optimized inter-pass 41% / 42% (CSV)"))
+                    DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
+                                                  DlssNr::InterPassBenchmarkProfile::Boundary);
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip("DX12, six passes, Area / radius 1 / guide strength 1. "
+                                      "Only 41% and 42%, regardless of current percentage: 16 windows, 12 configurations. "
+                                      "Forced winner / automatic / automatic / forced winner; alternate Classic or RGB20. "
+                                      "Includes Off, both references and the current automatic path. "
+                                      "Each window has independent warmup. Keep the scene static. "
+                                      "Original settings restored; results do not change the policy.");
+            }
+            if (!bench.message.empty())
+                ImGui::TextWrapped("%s", bench.message.c_str());
+            if (SuperiorScaling::Enabled(*config))
+                ImGui::TextDisabled("Select a legacy enlargement mode to run this path-comparison lab.");
         }
-        else
-        {
-            static int warmup = 90, samples = 160;
-            ImGui::SetNextItemWidth(95.0f);
-            ImGui::InputInt("Benchmark warmup samples", &warmup, 0, 0);
-            warmup = std::clamp(warmup, 40, 600);
-            ImGui::SetNextItemWidth(95.0f);
-            ImGui::InputInt("Benchmark measured samples", &samples, 0, 0);
-            samples = std::clamp(samples, 40, 2000);
-            const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
-                                      !ReadStatus(Backend::Vulkan).running;
-            static bool inspectFastWindows = false;
-            static bool inspectExperimentWindows = false;
-            static char fastBenchmarkScene[160] = "";
-            ImGui::InputText("Fast benchmark scene (optional)", fastBenchmarkScene, sizeof(fastBenchmarkScene));
-            ImGui::Checkbox("Hold each Fast benchmark window for visual inspection", &inspectFastWindows);
-            ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare reference / Optimized / Fast at 50% / 59% / 65% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
-                                              DlssNr::InterPassBenchmarkProfile::FastQuality, inspectFastWindows,
-                                              fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
-                                  "Exactly 50%, 59%, 65%: Off, Classic reference, Fused reference, then "
-                                  "Optimized / Fast / Fast / Optimized with independent warmup. "
-                                  "15 configurations / 21 windows. Reports whole-NR GPU ms, spread and gain vs Optimized. "
-                                  "Enable Hold to inspect/capture each warmed result and advance manually. "
-                                  "Check fine detail, edges, highlights and shadows, then also compare in motion. "
-                                  "Keep the scene static for timings; original settings restored on finish/cancel.");
-            ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare Fast / cached low at 50% / 59% / 65% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
-                                              DlssNr::InterPassBenchmarkProfile::FastCachedLow, inspectFastWindows,
-                                              fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("Off, both references, Optimized, then Fast / cached low / cached low / Fast ABBA. "
-                                  "18 configurations / 24 windows, separate warmup. Whole-NR GPU timestamps. "
-                                  "Preserves your shaping and pass gains; without a low field the paths do the same work. "
-                                  "Use Hold for visual inspection; finish/cancel restores your settings.");
-            ImGui::Checkbox("Hold each low-scale Fast benchmark window for visual inspection", &inspectExperimentWindows);
-            ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Compare reference / Optimized / Fast below 50% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
-                                              DlssNr::InterPassBenchmarkProfile::FastBelow50, inspectExperimentWindows,
-                                              fastBenchmarkScene[0] ? fastBenchmarkScene : "unspecified");
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("DX12, Temporal DLAA residual + P100-guided, six passes, Area / radius 1 / guide 1. "
-                                  "P33/P40/P41/P42/P49 plus current scale below 50 if different. "
-                                  "Off, both references, then Optimized versus Fast ABBA. "
-                                  "25 configurations / 35 windows, or 30 / 42 with extra current scale; independent warmup. "
-                                  "Fast includes Low36 and Cross5. Exact-path controls remain in Verify optimized inter-pass below 50%. "
-                                  "Enable Hold for visual checks/captures; also inspect motion separately. "
-                                  "Whole-NR summary/raw/paired CSV and TXT; negative delta means faster. Settings restored.");
-            ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Verify automatic inter-pass performance (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples);
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("DX12, SIX passes; independent warmup for each window and "
-                                  "Area / radius 1 / guide strength 1. "
-                                  "A/B/B/A windows for Optimized versus its expected path. Saves summary CSV, raw per-frame "
-                                  "samples CSV and metadata TXT in game/OptiScaler-NR-Benchmarks. "
-                                  "Includes GPU adapter, actual texture resolutions and complete-NR overhead. "
-                                  "50%, 59%, 65% plus current percentage up to 65% if different; both references and off retained. "
-                                  "A current scale below 50 compares its measured or predicted path with the alternate in ABBA. "
-                                  "Keep the scene static. Original configuration restored.");
-            ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Verify optimized inter-pass below 50% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
-                                              DlssNr::InterPassBenchmarkProfile::Below50);
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("DX12, six passes, Area / radius 1 / guide strength 1. "
-                                  "33%, 40%, 41%, 42%, 49% plus current percentage below 50 if different. "
-                                  "Forced expected path / automatic / automatic / forced expected path; alternate Classic or RGB20. "
-                                  "Includes Off, both references and the current automatic path. "
-                                  "RGB20 uses direct reconstruction for groups exceeding its 20x20 tile. "
-                                  "40 windows by default. Keep the scene static. Original settings restored.");
-            ImGui::BeginDisabled(!canBenchmark);
-            if (ImGui::Button("Verify optimized inter-pass 41% / 42% (CSV)"))
-                DlssNr::StartInterPassBenchmark((unsigned)warmup, (unsigned)samples,
-                                              DlssNr::InterPassBenchmarkProfile::Boundary);
-            ImGui::EndDisabled();
-            if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("DX12, six passes, Area / radius 1 / guide strength 1. "
-                                  "Only 41% and 42%, regardless of current percentage: 16 windows, 12 configurations. "
-                                  "Forced winner / automatic / automatic / forced winner; alternate Classic or RGB20. "
-                                  "Includes Off, both references and the current automatic path. "
-                                  "Each window has independent warmup. Keep the scene static. "
-                                  "Original settings restored; results do not change the policy.");
-        }
-        if (!bench.message.empty())
-            ImGui::TextWrapped("%s", bench.message.c_str());
+
         ImGui::SeparatorText(PipelineUi::SectionName(selected));
         ImGui::PushItemWidth(std::min(220.0f * menuResScale, ImGui::GetContentRegionAvail().x * 0.42f));
         static constexpr void (*sections[])(Config*) = { RenderPlacement, RenderInput, RenderModel, RenderBlend };

@@ -89,11 +89,12 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     if (queue && (FAILED(queue->GetDevice(IID_PPV_ARGS(&queueDevice))) || queueDevice.Get() != device))
         return say("NR enlargement queue/device mismatch.");
 
+    const bool superior = DlssNr::SuperiorScaling::Enabled(transfer);
     const bool structural = transfer == 4;
     const bool direct = transfer == 5;
     const bool upscaledResidual = transfer == 6;
-    const bool temporalDlaa = transfer == 8 || transfer == 9 || transfer == 10;
-    const bool residualDlaa = transfer == 9 || transfer == 10;
+    const bool temporalDlaa = transfer == 8 || transfer == 9 || transfer == 10 || superior;
+    const bool residualDlaa = transfer == 9 || transfer == 10 || superior;
     const bool imageAnchoredDlaa = transfer == 10;
     const auto& cfg = *Config::Instance();
     if (!referenceProxy)
@@ -111,32 +112,35 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         upscaledResidual ? std::min(cfg.DlssNrUpscaledResidualReferenceUpscaler.value_or_default(), 10u)
                          : direct ? std::min(cfg.DlssNrDirectDetailReferenceUpscaler.value_or_default(), 10u) : 0u;
     const uint32_t residualEncoding =
-        transfer == 9 ? std::min(cfg.DlssNrTemporalResidualEncoding.value_or_default(), 1u) : 0u;
+        superior ? 1u : transfer == 9 ? std::min(cfg.DlssNrTemporalResidualEncoding.value_or_default(), 1u) : 0u;
     const uint32_t carrierType = imageAnchoredDlaa ? 2u : residualEncoding; // 0 nonlinear, 1 linear, 2 anchored
-    const float configuredAnchorStrength = cfg.DlssNrTemporalAnchoredBaseStrength.value_or_default();
+    const float configuredAnchorStrength = superior ? .5f : cfg.DlssNrTemporalAnchoredBaseStrength.value_or_default();
     const float anchorStrength =
         std::clamp(std::isfinite(configuredAnchorStrength) ? configuredAnchorStrength : 0.5f, 0.0f, 1.0f);
     const bool pairedAnchorBaseline =
         imageAnchoredDlaa && cfg.DlssNrTemporalAnchoredPairedBaseline.value_or_default();
     constexpr float kCarrierFp16Limit = 65504.0f;
     const bool carrierRangeRelevant = residualDlaa && (imageAnchoredDlaa || residualEncoding == 1u);
-    float carrierRangeLow = carrierRangeRelevant ? cfg.DlssNrTemporalCarrierRangeMin.value_or_default() : 0.0f;
-    float carrierRangeHigh = carrierRangeRelevant ? cfg.DlssNrTemporalCarrierRangeMax.value_or_default() : 1.0f;
-    carrierRangeLow = std::clamp(std::isfinite(carrierRangeLow) ? carrierRangeLow : 0.0f,
-                                 -kCarrierFp16Limit, kCarrierFp16Limit);
-    carrierRangeHigh = std::clamp(std::isfinite(carrierRangeHigh) ? carrierRangeHigh : 1.0f,
-                                  -kCarrierFp16Limit, kCarrierFp16Limit);
-    if (!(carrierRangeHigh > carrierRangeLow))
+    float carrierRangeLow = superior ? -1.0f : carrierRangeRelevant ? cfg.DlssNrTemporalCarrierRangeMin.value_or_default() : 0.0f;
+    float carrierRangeHigh = superior ? 2.0f : carrierRangeRelevant ? cfg.DlssNrTemporalCarrierRangeMax.value_or_default() : 1.0f;
+    if (!superior)
     {
-        carrierRangeLow = 0.0f;
-        carrierRangeHigh = 1.0f;
+        carrierRangeLow = std::clamp(std::isfinite(carrierRangeLow) ? carrierRangeLow : 0.0f,
+                                     -kCarrierFp16Limit, kCarrierFp16Limit);
+        carrierRangeHigh = std::clamp(std::isfinite(carrierRangeHigh) ? carrierRangeHigh : 1.0f,
+                                      -kCarrierFp16Limit, kCarrierFp16Limit);
+        if (!(carrierRangeHigh > carrierRangeLow))
+        {
+            carrierRangeLow = 0.0f;
+            carrierRangeHigh = 1.0f;
+        }
     }
     const bool customCarrierRange =
         carrierRangeRelevant &&
         (std::abs(carrierRangeLow) > 1.0e-6f || std::abs(carrierRangeHigh - 1.0f) > 1.0e-6f);
-    const bool temporalDlaaIsHdr = temporalDlaa && cfg.DlssNrTemporalDlaaIsHdr.value_or_default();
+    const bool temporalDlaaIsHdr = temporalDlaa && (superior || cfg.DlssNrTemporalDlaaIsHdr.value_or_default());
     const bool temporalAutoExposure =
-        transfer == 8u ? cfg.DlssNrTemporalDlaaNrAutoExposure.value_or_default()
+        superior ? true : transfer == 8u ? cfg.DlssNrTemporalDlaaNrAutoExposure.value_or_default()
         : transfer == 9u ? cfg.DlssNrTemporalDlaaResidualAutoExposure.value_or_default()
         : transfer == 10u ? cfg.DlssNrTemporalDlaaAnchoredAutoExposure.value_or_default()
                           : false;
@@ -150,14 +154,14 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         (direct || upscaledResidual) && detailReferenceUpscaler == 10u &&
         cfg.DlssNrDetailReferenceDlssAutoExposure.value_or_default();
     const uint32_t baseCarrierMode =
-        imageAnchoredDlaa ? 7u
+        superior ? 6u : imageAnchoredDlaa ? 7u
         : transfer == 9 ? (residualEncoding == 0u ? 5u : 6u)
         : temporalDlaa ? 4u : upscaledResidual ? 3u : direct ? 2u : structural ? 1u : 0u;
     // Extra bits make experimental input-domain changes recreate/reset the private temporal feature.
     const uint32_t carrierMode = baseCarrierMode |
                                  (pairedAnchorBaseline ? 0x100u : 0u) |
                                  (customCarrierRange ? 0x200u : 0u) |
-                                 (temporalDlaaIsHdr ? 0x400u : 0u);
+                                 (temporalDlaaIsHdr ? 0x400u : 0u) | (superior ? 0x800u : 0u);
     const bool directAnswerSource = direct && DirectAnswerCanFeedUpscaler(answer);
     const bool p100GuidedExperiment =
         direct && (cfg.DlssNrExperimentP100EdgeLimiter.value_or_default() != 0 ||
@@ -170,7 +174,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     const bool fusedDirectOutput =
         directAnswerSource && DirectFusedResolveUpscaler(outputUpscaler) && !materializeExpensiveFused;
     const int dlssPreset =
-        transfer == 8u ? cfg.DlssNrTemporalDlaaNrPreset.value_or_default()
+        superior ? DlssNr::SuperiorScaling::Preset(cfg.DlssNrSuperiorScalingPreset.value_or_default())
+        : transfer == 8u ? cfg.DlssNrTemporalDlaaNrPreset.value_or_default()
         : transfer == 9u ? cfg.DlssNrTemporalDlaaResidualPreset.value_or_default()
         : transfer == 10u ? cfg.DlssNrTemporalDlaaAnchoredPreset.value_or_default()
                           : cfg.DlssNrScalingDlssPreset.value_or_default();
@@ -238,7 +243,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         g.depth.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, w, h));
         g.motion.Attach(CreateScratch(device, DXGI_FORMAT_R32G32_FLOAT, w, h));
         g.exposure.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, 1, 1));
-        if (residualDlaa)
+        if (residualDlaa && !superior)
         {
             temporalCarrierTelemetryValid = false;
             const unsigned tileW = std::max(1u, (w + 31u) / 32u);
@@ -264,7 +269,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         }
         g.failed = true;
         if (!g.input || !g.output || !g.depth || !g.motion || !g.exposure ||
-            (residualDlaa && (!g.carrierReduceA || !g.carrierReduceB || !g.carrierDiagA ||
+            (residualDlaa && !superior && (!g.carrierReduceA || !g.carrierReduceB || !g.carrierDiagA ||
                               !g.carrierDiagB || !g.carrierApplied)) ||
             (pairedAnchorBaseline && (!g.baselineInput || !g.baselineOutput)))
             return say("enlargement resource allocation failed; use Retry.");
@@ -334,48 +339,51 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     if (!g.submitted)
         return say("Waiting for enlargement initialization submission.");
 
-    // Non-blocking telemetry: consume a completed 1x1 carrier-gain readback from an older frame.
-    for (auto& slot : g.carrierReadback)
+    if (!superior)
     {
-        if (!slot.pending || !slot.ready || !slot.ready())
-            continue;
-        if (slot.image.readback)
+        // Non-blocking telemetry: consume a completed 1x1 carrier-gain readback from an older frame.
+        for (auto& slot : g.carrierReadback)
         {
-            void* mapped = nullptr;
-            const SIZE_T offset = static_cast<SIZE_T>(slot.image.layout.Offset);
-            D3D12_RANGE readRange { offset, offset + sizeof(float) * 4u };
-            D3D12_RANGE writtenRange {};
-            if (SUCCEEDED(slot.image.readback->Map(0, &readRange, &mapped)) && mapped)
+            if (!slot.pending || !slot.ready || !slot.ready())
+                continue;
+            if (slot.image.readback)
             {
-                const float* v = reinterpret_cast<const float*>(
-                    static_cast<const uint8_t*>(mapped) + offset);
-                temporalCarrierAppliedK = std::isfinite(v[0]) ? v[0] : 1.0f;
-                temporalCarrierSafeK = std::isfinite(v[1]) ? v[1] : 1.0f;
-                temporalCarrierPositiveLimit = std::isfinite(v[2]) && v[2] < 1.0e10f ? v[2] : -1.0f;
-                temporalCarrierNegativeLimit = std::isfinite(v[3]) && v[3] < 1.0e10f ? v[3] : -1.0f;
-                temporalCarrierTelemetryValid = true;
-                slot.image.readback->Unmap(0, &writtenRange);
-
-                if (slot.diagnostics.readback)
+                void* mapped = nullptr;
+                const SIZE_T offset = static_cast<SIZE_T>(slot.image.layout.Offset);
+                D3D12_RANGE readRange { offset, offset + sizeof(float) * 4u };
+                D3D12_RANGE writtenRange {};
+                if (SUCCEEDED(slot.image.readback->Map(0, &readRange, &mapped)) && mapped)
                 {
-                    void* diagMapped = nullptr;
-                    const SIZE_T diagOffset = static_cast<SIZE_T>(slot.diagnostics.layout.Offset);
-                    D3D12_RANGE diagRange { diagOffset, diagOffset + sizeof(float) * 4u };
-                    if (SUCCEEDED(slot.diagnostics.readback->Map(0, &diagRange, &diagMapped)) && diagMapped)
+                    const float* v = reinterpret_cast<const float*>(
+                        static_cast<const uint8_t*>(mapped) + offset);
+                    temporalCarrierAppliedK = std::isfinite(v[0]) ? v[0] : 1.0f;
+                    temporalCarrierSafeK = std::isfinite(v[1]) ? v[1] : 1.0f;
+                    temporalCarrierPositiveLimit = std::isfinite(v[2]) && v[2] < 1.0e10f ? v[2] : -1.0f;
+                    temporalCarrierNegativeLimit = std::isfinite(v[3]) && v[3] < 1.0e10f ? v[3] : -1.0f;
+                    temporalCarrierTelemetryValid = true;
+                    slot.image.readback->Unmap(0, &writtenRange);
+
+                    if (slot.diagnostics.readback)
                     {
-                        const float* d = reinterpret_cast<const float*>(
-                            static_cast<const uint8_t*>(diagMapped) + diagOffset);
-                        temporalCarrierWhiteLimitedPixels = std::isfinite(d[0]) ? d[0] : 0.0f;
-                        temporalCarrierBlackLimitedPixels = std::isfinite(d[1]) ? d[1] : 0.0f;
-                        temporalCarrierProxyBelowZeroPixels = std::isfinite(d[2]) ? d[2] : 0.0f;
-                        temporalCarrierProxyAboveOnePixels = std::isfinite(d[3]) ? d[3] : 0.0f;
-                        slot.diagnostics.readback->Unmap(0, &writtenRange);
+                        void* diagMapped = nullptr;
+                        const SIZE_T diagOffset = static_cast<SIZE_T>(slot.diagnostics.layout.Offset);
+                        D3D12_RANGE diagRange { diagOffset, diagOffset + sizeof(float) * 4u };
+                        if (SUCCEEDED(slot.diagnostics.readback->Map(0, &diagRange, &diagMapped)) && diagMapped)
+                        {
+                            const float* d = reinterpret_cast<const float*>(
+                                static_cast<const uint8_t*>(diagMapped) + diagOffset);
+                            temporalCarrierWhiteLimitedPixels = std::isfinite(d[0]) ? d[0] : 0.0f;
+                            temporalCarrierBlackLimitedPixels = std::isfinite(d[1]) ? d[1] : 0.0f;
+                            temporalCarrierProxyBelowZeroPixels = std::isfinite(d[2]) ? d[2] : 0.0f;
+                            temporalCarrierProxyAboveOnePixels = std::isfinite(d[3]) ? d[3] : 0.0f;
+                            slot.diagnostics.readback->Unmap(0, &writtenRange);
+                        }
                     }
                 }
             }
+            slot.pending = false;
+            slot.ready = {};
         }
-        slot.pending = false;
-        slot.ready = {};
     }
 
     lifetime.Record(cmd);
@@ -483,196 +491,208 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                 g.carrierDebugReadable = false;
             }
 
-            const float configuredMargin = cfg.DlssNrTemporalCarrierMargin.value_or_default();
-            const float margin =
-                std::clamp(std::isfinite(configuredMargin) ? std::abs(configuredMargin) : 0.01f, 0.0f, 0.49f);
-            const uint32_t gainMode =
-                std::min(transfer == 9 ? cfg.DlssNrTemporalResidualGainMode.value_or_default()
-                                       : cfg.DlssNrTemporalAnchoredGainMode.value_or_default(),
-                         2u);
-            const float configuredManual =
-                transfer == 9 ? cfg.DlssNrTemporalResidualManualGain.value_or_default()
-                              : cfg.DlssNrTemporalAnchoredManualGain.value_or_default();
-            const float manualK =
-                std::max(std::isfinite(configuredManual) ? std::abs(configuredManual) : 4.0f, 1.0e-6f);
-            const float configuredCeiling = cfg.DlssNrTemporalCarrierAutoMaxGain.value_or_default();
-            const float autoCeiling =
-                std::max(std::isfinite(configuredCeiling) ? std::abs(configuredCeiling) : 32.0f, 1.0e-6f);
-            const float configuredRise = cfg.DlssNrTemporalCarrierAutoRiseStopsPerSecond.value_or_default();
-            const float riseStopsPerSecond =
-                std::max(std::isfinite(configuredRise) ? configuredRise : 4.0f, 0.0f);
-            const float frameSeconds =
-                std::clamp(std::isfinite(frame.FrameTimeMs) ? frame.FrameTimeMs * 0.001f : 0.01667f,
-                           0.0f, 0.25f);
-            const float riseMultiplier = std::exp2(riseStopsPerSecond * frameSeconds);
-            const float previousAppliedK =
-                temporalCarrierTelemetryValid && std::isfinite(temporalCarrierAppliedK)
-                    ? std::max(temporalCarrierAppliedK, 1.0e-6f)
-                    : 1.0f;
-
-            unsigned statW = std::max(1u, (w + 31u) / 32u);
-            unsigned statH = std::max(1u, (h + 31u) / 32u);
-            DlssNrConstants limits {};
-            limits.Mode = DlssNrMode_TemporalCarrierLimits;
-            limits.Width = statW;
-            limits.Height = statH;
-            limits.GuideWidth = w;
-            limits.GuideHeight = h;
-            limits.Transfer = carrierType;
-            limits.TransferStrength = anchorStrength;
-            limits.ResidualScale = margin;
-            limits.WhitePoint = carrierRangeLow;
-            limits.DebugScale = carrierRangeHigh;
-            limits.Passthrough = cfg.DlssNrTemporalCarrierIgnoreNvidiaWatermarks.value_or_default() ? 1u : 0u;
-            limits.ExposureSourceWidth = resolve.Width;
-            limits.ExposureSourceHeight = resolve.Height;
-            const float configuredWatermarkMarginX = cfg.DlssNrTemporalCarrierWatermarkMarginX.value_or_default();
-            const float configuredWatermarkMarginY = cfg.DlssNrTemporalCarrierWatermarkMarginY.value_or_default();
-            limits.MvScaleX =
-                std::max(std::isfinite(configuredWatermarkMarginX) ? configuredWatermarkMarginX : 128.0f, 0.0f);
-            limits.MvScaleY =
-                std::max(std::isfinite(configuredWatermarkMarginY) ? configuredWatermarkMarginY : 64.0f, 0.0f);
-            ok = shader.DispatchPass(cmd, limits, proxy, answer, nullptr, nullptr, nullptr,
-                                     g.carrierReduceA.Get(), g.carrierDiagA.Get());
-
-            ID3D12Resource* statSource = g.carrierReduceA.Get();
-            ID3D12Resource* statTarget = g.carrierReduceB.Get();
-            ID3D12Resource* diagSource = g.carrierDiagA.Get();
-            ID3D12Resource* diagTarget = g.carrierDiagB.Get();
-            if (ok)
-            {
-                Barrier(cmd, statSource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                Barrier(cmd, diagSource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-            }
-
-            while (ok && (statW > 1u || statH > 1u))
-            {
-                const unsigned nextW = std::max(1u, (statW + 7u) / 8u);
-                const unsigned nextH = std::max(1u, (statH + 7u) / 8u);
-
-                DlssNrConstants reduce {};
-                reduce.Mode = DlssNrMode_TemporalCarrierReduce;
-                reduce.Width = nextW;
-                reduce.Height = nextH;
-                reduce.GuideWidth = statW;
-                reduce.GuideHeight = statH;
-                ok = shader.DispatchPass(cmd, reduce, statSource, nullptr, nullptr, nullptr, nullptr,
-                                         statTarget, nullptr);
-
-                DlssNrConstants diagReduce = reduce;
-                diagReduce.Mode = DlssNrMode_TemporalCarrierDiagnosticsReduce;
-                if (ok)
-                    ok = shader.DispatchPass(cmd, diagReduce, diagSource, nullptr, nullptr, nullptr, nullptr,
-                                             diagTarget, nullptr);
-                if (!ok)
-                    break;
-
-                Barrier(cmd, statTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                Barrier(cmd, diagTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                Barrier(cmd, statSource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-                Barrier(cmd, diagSource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-                std::swap(statSource, statTarget);
-                std::swap(diagSource, diagTarget);
-                statW = nextW;
-                statH = nextH;
-            }
-
-            if (ok)
+            if (superior)
             {
                 DlssNrConstants encode {};
-                encode.Mode = DlssNrMode_TemporalCarrierEncode;
+                encode.Mode = DlssNrMode_SuperiorCarrierEncode;
                 encode.Width = w;
                 encode.Height = h;
-                encode.Transfer = carrierType;
-                encode.DebugView = gainMode;
-                encode.ResidualScale = manualK;
-                encode.ResidualConfidenceSensitivity = autoCeiling;
-                encode.TransferStrength = previousAppliedK;
-                encode.ColourStrength = riseMultiplier;
-                encode.MaxRatio = anchorStrength;
-                encode.WhitePoint = carrierRangeLow;
-                encode.DebugScale = carrierRangeHigh;
-                ok = shader.DispatchPassAux2(cmd, encode, proxy, answer, nullptr, nullptr, nullptr,
-                                             statSource, g.input.Get(), g.carrierApplied.Get());
+                ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr,
+                                         g.input.Get(), nullptr);
             }
-
-            if (statSource)
-                Barrier(cmd, statSource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-            if (ok && pairedAnchorBaseline)
+            else
             {
-                DlssNrConstants anchor {};
-                anchor.Mode = DlssNrMode_TemporalAnchorEncode;
-                anchor.Width = w;
-                anchor.Height = h;
-                anchor.TransferStrength = anchorStrength;
-                anchor.WhitePoint = carrierRangeLow;
-                anchor.DebugScale = carrierRangeHigh;
-                ok = shader.DispatchPass(cmd, anchor, proxy, nullptr, nullptr, nullptr, nullptr,
-                                         g.baselineInput.Get(), nullptr);
+                const float configuredMargin = cfg.DlssNrTemporalCarrierMargin.value_or_default();
+                const float margin =
+                    std::clamp(std::isfinite(configuredMargin) ? std::abs(configuredMargin) : 0.01f, 0.0f, 0.49f);
+                const uint32_t gainMode =
+                    std::min(transfer == 9 ? cfg.DlssNrTemporalResidualGainMode.value_or_default()
+                                           : cfg.DlssNrTemporalAnchoredGainMode.value_or_default(),
+                             2u);
+                const float configuredManual =
+                    transfer == 9 ? cfg.DlssNrTemporalResidualManualGain.value_or_default()
+                                  : cfg.DlssNrTemporalAnchoredManualGain.value_or_default();
+                const float manualK =
+                    std::max(std::isfinite(configuredManual) ? std::abs(configuredManual) : 4.0f, 1.0e-6f);
+                const float configuredCeiling = cfg.DlssNrTemporalCarrierAutoMaxGain.value_or_default();
+                const float autoCeiling =
+                    std::max(std::isfinite(configuredCeiling) ? std::abs(configuredCeiling) : 32.0f, 1.0e-6f);
+                const float configuredRise = cfg.DlssNrTemporalCarrierAutoRiseStopsPerSecond.value_or_default();
+                const float riseStopsPerSecond =
+                    std::max(std::isfinite(configuredRise) ? configuredRise : 4.0f, 0.0f);
+                const float frameSeconds =
+                    std::clamp(std::isfinite(frame.FrameTimeMs) ? frame.FrameTimeMs * 0.001f : 0.01667f,
+                               0.0f, 0.25f);
+                const float riseMultiplier = std::exp2(riseStopsPerSecond * frameSeconds);
+                const float previousAppliedK =
+                    temporalCarrierTelemetryValid && std::isfinite(temporalCarrierAppliedK)
+                        ? std::max(temporalCarrierAppliedK, 1.0e-6f)
+                        : 1.0f;
+
+                unsigned statW = std::max(1u, (w + 31u) / 32u);
+                unsigned statH = std::max(1u, (h + 31u) / 32u);
+                DlssNrConstants limits {};
+                limits.Mode = DlssNrMode_TemporalCarrierLimits;
+                limits.Width = statW;
+                limits.Height = statH;
+                limits.GuideWidth = w;
+                limits.GuideHeight = h;
+                limits.Transfer = carrierType;
+                limits.TransferStrength = anchorStrength;
+                limits.ResidualScale = margin;
+                limits.WhitePoint = carrierRangeLow;
+                limits.DebugScale = carrierRangeHigh;
+                limits.Passthrough = cfg.DlssNrTemporalCarrierIgnoreNvidiaWatermarks.value_or_default() ? 1u : 0u;
+                limits.ExposureSourceWidth = resolve.Width;
+                limits.ExposureSourceHeight = resolve.Height;
+                const float configuredWatermarkMarginX = cfg.DlssNrTemporalCarrierWatermarkMarginX.value_or_default();
+                const float configuredWatermarkMarginY = cfg.DlssNrTemporalCarrierWatermarkMarginY.value_or_default();
+                limits.MvScaleX =
+                    std::max(std::isfinite(configuredWatermarkMarginX) ? configuredWatermarkMarginX : 128.0f, 0.0f);
+                limits.MvScaleY =
+                    std::max(std::isfinite(configuredWatermarkMarginY) ? configuredWatermarkMarginY : 64.0f, 0.0f);
+                ok = shader.DispatchPass(cmd, limits, proxy, answer, nullptr, nullptr, nullptr,
+                                         g.carrierReduceA.Get(), g.carrierDiagA.Get());
+
+                ID3D12Resource* statSource = g.carrierReduceA.Get();
+                ID3D12Resource* statTarget = g.carrierReduceB.Get();
+                ID3D12Resource* diagSource = g.carrierDiagA.Get();
+                ID3D12Resource* diagTarget = g.carrierDiagB.Get();
                 if (ok)
-                    Barrier(cmd, g.baselineInput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-            }
-
-            if (ok && resolve.DebugView == 5u)
-            {
-                if (!g.carrierDebug)
-                    g.carrierDebug.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, w, h));
-                if (g.carrierDebug)
                 {
-                    Barrier(cmd, g.input.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                    Barrier(cmd, statSource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                             D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                    g.inputReadable = true;
-                    DlssNrConstants copy {};
-                    copy.Mode = DlssNrMode_TemporalCarrierDebugCopy;
-                    copy.Width = w;
-                    copy.Height = h;
-                    ok = shader.DispatchPass(cmd, copy, g.input.Get(), nullptr, nullptr, nullptr, nullptr,
-                                             g.carrierDebug.Get(), nullptr);
+                    Barrier(cmd, diagSource, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                }
+
+                while (ok && (statW > 1u || statH > 1u))
+                {
+                    const unsigned nextW = std::max(1u, (statW + 7u) / 8u);
+                    const unsigned nextH = std::max(1u, (statH + 7u) / 8u);
+
+                    DlssNrConstants reduce {};
+                    reduce.Mode = DlssNrMode_TemporalCarrierReduce;
+                    reduce.Width = nextW;
+                    reduce.Height = nextH;
+                    reduce.GuideWidth = statW;
+                    reduce.GuideHeight = statH;
+                    ok = shader.DispatchPass(cmd, reduce, statSource, nullptr, nullptr, nullptr, nullptr,
+                                             statTarget, nullptr);
+
+                    DlssNrConstants diagReduce = reduce;
+                    diagReduce.Mode = DlssNrMode_TemporalCarrierDiagnosticsReduce;
                     if (ok)
-                    {
-                        Barrier(cmd, g.carrierDebug.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                        ok = shader.DispatchPass(cmd, diagReduce, diagSource, nullptr, nullptr, nullptr, nullptr,
+                                                 diagTarget, nullptr);
+                    if (!ok)
+                        break;
+
+                    Barrier(cmd, statTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                    Barrier(cmd, diagTarget, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                    Barrier(cmd, statSource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                    Barrier(cmd, diagSource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                    std::swap(statSource, statTarget);
+                    std::swap(diagSource, diagTarget);
+                    statW = nextW;
+                    statH = nextH;
+                }
+
+                if (ok)
+                {
+                    DlssNrConstants encode {};
+                    encode.Mode = DlssNrMode_TemporalCarrierEncode;
+                    encode.Width = w;
+                    encode.Height = h;
+                    encode.Transfer = carrierType;
+                    encode.DebugView = gainMode;
+                    encode.ResidualScale = manualK;
+                    encode.ResidualConfidenceSensitivity = autoCeiling;
+                    encode.TransferStrength = previousAppliedK;
+                    encode.ColourStrength = riseMultiplier;
+                    encode.MaxRatio = anchorStrength;
+                    encode.WhitePoint = carrierRangeLow;
+                    encode.DebugScale = carrierRangeHigh;
+                    ok = shader.DispatchPassAux2(cmd, encode, proxy, answer, nullptr, nullptr, nullptr,
+                                                 statSource, g.input.Get(), g.carrierApplied.Get());
+                }
+
+                if (statSource)
+                    Barrier(cmd, statSource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+                if (ok && pairedAnchorBaseline)
+                {
+                    DlssNrConstants anchor {};
+                    anchor.Mode = DlssNrMode_TemporalAnchorEncode;
+                    anchor.Width = w;
+                    anchor.Height = h;
+                    anchor.TransferStrength = anchorStrength;
+                    anchor.WhitePoint = carrierRangeLow;
+                    anchor.DebugScale = carrierRangeHigh;
+                    ok = shader.DispatchPass(cmd, anchor, proxy, nullptr, nullptr, nullptr, nullptr,
+                                             g.baselineInput.Get(), nullptr);
+                    if (ok)
+                        Barrier(cmd, g.baselineInput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                                 D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                        g.carrierDebugReadable = true;
+                }
+
+                if (ok && resolve.DebugView == 5u)
+                {
+                    if (!g.carrierDebug)
+                        g.carrierDebug.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, w, h));
+                    if (g.carrierDebug)
+                    {
+                        Barrier(cmd, g.input.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                        g.inputReadable = true;
+                        DlssNrConstants copy {};
+                        copy.Mode = DlssNrMode_TemporalCarrierDebugCopy;
+                        copy.Width = w;
+                        copy.Height = h;
+                        ok = shader.DispatchPass(cmd, copy, g.input.Get(), nullptr, nullptr, nullptr, nullptr,
+                                                 g.carrierDebug.Get(), nullptr);
+                        if (ok)
+                        {
+                            Barrier(cmd, g.carrierDebug.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                            g.carrierDebugReadable = true;
+                        }
                     }
                 }
-            }
 
-            if (ok)
-            {
-                Barrier(cmd, g.carrierApplied.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-
-                // Asynchronous UI telemetry. The main 1x1 readback carries K/headroom; the tile-sized
-                // diagnostic readback uses only its first texel after the sum reduction.
-                for (unsigned attempt = 0; attempt < g.carrierReadback.size(); ++attempt)
+                if (ok)
                 {
-                    const unsigned index = (g.carrierReadbackCursor + attempt) % unsigned(g.carrierReadback.size());
-                    auto& slot = g.carrierReadback[index];
-                    if (slot.pending || !slot.image.readback || !slot.diagnostics.readback)
-                        continue;
-                    slot.image.Copy(cmd, g.carrierApplied.Get(),
-                                    D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                    slot.diagnostics.Copy(cmd, diagSource,
-                                          D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
-                    slot.ready = g.lifetime.CompletionProbe(cmd);
-                    slot.pending = true;
-                    g.carrierReadbackCursor = (index + 1u) % unsigned(g.carrierReadback.size());
-                    break;
-                }
-            }
+                    Barrier(cmd, g.carrierApplied.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                            D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 
-            if (diagSource)
-                Barrier(cmd, diagSource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+                    // Asynchronous UI telemetry. The main 1x1 readback carries K/headroom; the tile-sized
+                    // diagnostic readback uses only its first texel after the sum reduction.
+                    for (unsigned attempt = 0; attempt < g.carrierReadback.size(); ++attempt)
+                    {
+                        const unsigned index = (g.carrierReadbackCursor + attempt) % unsigned(g.carrierReadback.size());
+                        auto& slot = g.carrierReadback[index];
+                        if (slot.pending || !slot.image.readback || !slot.diagnostics.readback)
+                            continue;
+                        slot.image.Copy(cmd, g.carrierApplied.Get(),
+                                        D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                        slot.diagnostics.Copy(cmd, diagSource,
+                                              D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+                        slot.ready = g.lifetime.CompletionProbe(cmd);
+                        slot.pending = true;
+                        g.carrierReadbackCursor = (index + 1u) % unsigned(g.carrierReadback.size());
+                        break;
+                    }
+                }
+
+                if (diagSource)
+                    Barrier(cmd, diagSource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            }
         }
         else
         {
@@ -875,18 +895,24 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         g.inputReadable = false;
         DlssNrConstants decode {};
-        decode.Mode = DlssNrMode_TemporalCarrierDecode;
+        decode.Mode = superior ? DlssNrMode_SuperiorCarrierDecode : DlssNrMode_TemporalCarrierDecode;
         decode.Width = w;
         decode.Height = h;
-        decode.Transfer = carrierType;
-        decode.TransferStrength = anchorStrength;
-        decode.DebugView = pairedAnchorBaseline ? 1u : 0u;
-        decode.WhitePoint = carrierRangeLow;
-        decode.DebugScale = carrierRangeHigh;
-        ID3D12Resource* const decodeBase = pairedAnchorBaseline ? g.baselineOutput.Get() : proxy;
-        const bool decoded =
-            shader.DispatchPassAux2(cmd, decode, g.output.Get(), decodeBase, nullptr, nullptr, nullptr,
-                                    g.carrierApplied.Get(), g.input.Get(), nullptr);
+        bool decoded = false;
+        if (superior)
+            decoded = shader.DispatchPass(cmd, decode, g.output.Get(), nullptr, nullptr, nullptr, nullptr,
+                                          g.input.Get(), nullptr);
+        else
+        {
+            decode.Transfer = carrierType;
+            decode.TransferStrength = anchorStrength;
+            decode.DebugView = pairedAnchorBaseline ? 1u : 0u;
+            decode.WhitePoint = carrierRangeLow;
+            decode.DebugScale = carrierRangeHigh;
+            ID3D12Resource* const decodeBase = pairedAnchorBaseline ? g.baselineOutput.Get() : proxy;
+            decoded = shader.DispatchPassAux2(cmd, decode, g.output.Get(), decodeBase, nullptr, nullptr, nullptr,
+                                              g.carrierApplied.Get(), g.input.Get(), nullptr);
+        }
         if (decoded)
         {
             Barrier(cmd, g.input.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
@@ -899,8 +925,9 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             outputOk = false;
         }
 
-        Barrier(cmd, g.carrierApplied.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
-                D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        if (!superior)
+            Barrier(cmd, g.carrierApplied.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         if (pairedAnchorBaseline)
         {
             Barrier(cmd, g.baselineInput.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,

@@ -235,7 +235,7 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
                 workScale < 1.0f && cfg.DlssNrTransfer.value_or_default() == 6;
             const uint32_t proxyFilter =
                 std::min(upscaledResidual ? cfg.DlssNrUpscaledResidualDownscaleFilter.value_or_default()
-                                          : cfg.DlssNrProxyDownscaleFilter.value_or_default(),
+                                          : DlssNr::SuperiorScaling::DownscaleFilter(cfg),
                          11u);
             Scaler exactScaler = Scaler::Count;
             switch (proxyFilter)
@@ -297,10 +297,10 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
         // low-resolution dispatch after the selected downscaler, so every P100->P50 filter can be
         // compared with identical preconditioning and the cost scales with the small raster.
         const uint32_t experimentTransfer = cfg.DlssNrTransfer.value_or_default();
-        const uint32_t inputFilter = std::min(cfg.DlssNrExperimentInputFilter.value_or_default(), 4u);
+        const uint32_t inputFilter = (DlssNr::SuperiorScaling::Enabled(cfg) ? 0u : std::min(cfg.DlssNrExperimentInputFilter.value_or_default(), 4u));
         const float inputStrengthRaw = cfg.DlssNrExperimentInputStrength.value_or_default();
         const float inputStrength = std::isfinite(inputStrengthRaw) ? inputStrengthRaw : 1.0f;
-        const uint32_t coreMode = std::min(cfg.DlssNrExperimentCoreAttenuation.value_or_default(), 2u);
+        const uint32_t coreMode = (DlssNr::SuperiorScaling::Enabled(cfg) ? 0u : std::min(cfg.DlssNrExperimentCoreAttenuation.value_or_default(), 2u));
         const float coreStrengthRaw = cfg.DlssNrExperimentCoreAttenuationStrength.value_or_default();
         const float coreStrength = std::isfinite(coreStrengthRaw) ? coreStrengthRaw : 0.75f;
         const bool legacyInputActive = inputFilter >= 1u && inputFilter <= 3u && inputStrength != 0.0f;
@@ -401,6 +401,9 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
     resolveParams.EnvironmentColour = strength(cfg.DlssNrEnvironmentColour.value_or_default());
     resolveParams.ColourStrength = cfg.DlssNrColourStrength.value_or_default();
     resolveParams.DebugView = cfg.DlssNrDebugView.value_or_default();
+    // Superior has no pre-DLAA carrier inspection copy; ignore a view inherited from a legacy mode.
+    if (DlssNr::SuperiorScaling::Enabled(cfg) && resolveParams.DebugView == 5u)
+        resolveParams.DebugView = 0u;
     resolveParams.MaxRatio = cfg.DlssNrMaxRatio.value_or_default();
     resolveParams.MaxDarkening = std::clamp(cfg.DlssNrMaxDarkening.value_or_default(), 0.0f, 100.0f);
     resolveParams.Transfer = DlssNrSpatialTransfer(cfg.DlssNrTransfer.value_or_default());
@@ -424,7 +427,7 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
     // residual shader has its own constant buffer. Reuse them here so experimental final-resolve controls
     // add no bytes and keep DlssNrConstants exactly 256 bytes.
     const uint32_t configuredTransfer = cfg.DlssNrTransfer.value_or_default();
-    if (context.workScale < 1.0f && configuredTransfer >= 7u && configuredTransfer <= 10u)
+    if (context.workScale < 1.0f && configuredTransfer >= 7u && configuredTransfer <= 11u)
     {
         // P100-guided residual family, internal final-resolve Transfer=8/9 (9 is decoded signed residual):
         // ResidualHistoryValid = source-space radius (1..3)
@@ -435,16 +438,12 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
         // GuideWidth = low-frequency shaping active (Aux2 contains 1/8 E50).
         // GuideHeight = experimental shadow confidence active.
         // ExposureSourceWidth/Height/Padding = raw float bits of shadow low/high/floor.
-        resolveParams.ResidualHistoryValid =
-            std::clamp(cfg.DlssNrGuidedResidualRadius.value_or_default(), 1u, 3u);
-        const float rangeSigma = cfg.DlssNrGuidedResidualRangeSigma.value_or_default();
-        resolveParams.ResidualBlend = std::isfinite(rangeSigma) ? rangeSigma : 0.015f;
-        const float spatialSigma = cfg.DlssNrGuidedResidualSpatialSigma.value_or_default();
-        resolveParams.ResidualScale = std::isfinite(spatialSigma) ? spatialSigma : 1.20f;
-        const float guideStrength = cfg.DlssNrGuidedResidualGuideStrength.value_or_default();
-        resolveParams.ResidualConfidenceSensitivity = std::isfinite(guideStrength) ? guideStrength : 0.75f;
+        resolveParams.ResidualHistoryValid = DlssNr::SuperiorScaling::Radius(cfg);
+        resolveParams.ResidualBlend = DlssNr::SuperiorScaling::RangeSigma(cfg);
+        resolveParams.ResidualScale = DlssNr::SuperiorScaling::SpatialSigma(cfg);
+        resolveParams.ResidualConfidenceSensitivity = DlssNr::SuperiorScaling::GuideStrength(cfg);
 
-        const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
+        const uint32_t shapingMode = DlssNr::SuperiorScaling::ShapingMode(cfg);
         // Multiply the actual per-model style/Structure gains only for passes after the last
         // successful correction. The gain-based schedule leaves a variable-size final block.
         // Low averages the remaining block, or the complete chain when inter-pass low is neutral.
@@ -454,24 +453,30 @@ DlssNrConstants DlssNr_Dx12::State::MakeResolveConstants(const EncodeContext& co
                                                                   context.workScale);
         resolveParams.MvScaleX = shaping.high;
         resolveParams.MvScaleY = shaping.low;
-        resolveParams.GuideWidth = shaping.active ? 1u : 0u;
-        resolveParams.GuideHeight = cfg.DlssNrGuidedResidualShadowGate.value_or_default() ? 1u : 0u;
+        resolveParams.GuideWidth = shaping.active && !(DlssNr::SuperiorScaling::Enabled(cfg) &&
+            shaping.high == 1.0f && shaping.low == 1.0f) ? 1u : 0u;
+        resolveParams.GuideHeight = !DlssNr::SuperiorScaling::Enabled(cfg) && cfg.DlssNrGuidedResidualShadowGate.value_or_default() ? 1u : 0u;
 
-        float shadowLow = cfg.DlssNrGuidedResidualShadowLow.value_or_default();
-        float shadowHigh = cfg.DlssNrGuidedResidualShadowHigh.value_or_default();
-        float shadowFloor = cfg.DlssNrGuidedResidualShadowFloor.value_or_default();
-        if (!std::isfinite(shadowLow))
-            shadowLow = 0.02f;
-        if (!std::isfinite(shadowHigh))
-            shadowHigh = 0.08f;
-        if (!std::isfinite(shadowFloor))
-            shadowFloor = 0.15f;
-        static_assert(sizeof(shadowLow) == sizeof(resolveParams.ExposureSourceWidth));
-        static_assert(sizeof(shadowHigh) == sizeof(resolveParams.ExposureSourceHeight));
-        static_assert(sizeof(shadowFloor) == sizeof(resolveParams.ExposurePadding));
-        std::memcpy(&resolveParams.ExposureSourceWidth, &shadowLow, sizeof(shadowLow));
-        std::memcpy(&resolveParams.ExposureSourceHeight, &shadowHigh, sizeof(shadowHigh));
-        std::memcpy(&resolveParams.ExposurePadding, &shadowFloor, sizeof(shadowFloor));
+        if (DlssNr::SuperiorScaling::Enabled(cfg))
+            resolveParams.DirectResolveFlags |= DlssNr::SuperiorScaling::ShaderFlag;
+        else
+        {
+            float shadowLow = cfg.DlssNrGuidedResidualShadowLow.value_or_default();
+            float shadowHigh = cfg.DlssNrGuidedResidualShadowHigh.value_or_default();
+            float shadowFloor = cfg.DlssNrGuidedResidualShadowFloor.value_or_default();
+            if (!std::isfinite(shadowLow))
+                shadowLow = 0.02f;
+            if (!std::isfinite(shadowHigh))
+                shadowHigh = 0.08f;
+            if (!std::isfinite(shadowFloor))
+                shadowFloor = 0.15f;
+            static_assert(sizeof(shadowLow) == sizeof(resolveParams.ExposureSourceWidth));
+            static_assert(sizeof(shadowHigh) == sizeof(resolveParams.ExposureSourceHeight));
+            static_assert(sizeof(shadowFloor) == sizeof(resolveParams.ExposurePadding));
+            std::memcpy(&resolveParams.ExposureSourceWidth, &shadowLow, sizeof(shadowLow));
+            std::memcpy(&resolveParams.ExposureSourceHeight, &shadowHigh, sizeof(shadowHigh));
+            std::memcpy(&resolveParams.ExposurePadding, &shadowFloor, sizeof(shadowFloor));
+        }
     }
     else if (context.workScale < 1.0f &&
              (cfg.DlssNrTransfer.value_or_default() == 5u || cfg.DlssNrTransfer.value_or_default() == 6u))

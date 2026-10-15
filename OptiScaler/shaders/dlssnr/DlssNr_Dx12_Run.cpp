@@ -170,7 +170,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     const auto workHeight = (unsigned int) (height * workScale + 0.5f);
     const bool reduced = workWidth != width || workHeight != height;
 
-    const auto spatialSettings = DlssNr::Spatial::ReadSettings(cfg);
+    auto spatialSettings = DlssNr::Spatial::ReadSettings(cfg);
+    if (DlssNr::SuperiorScaling::Enabled(cfg)) spatialSettings.enabled = false;
     const auto spatialLayout = DlssNr::Spatial::Build(spatialSettings, width, height, workScale);
     const bool spatialSignatureChanged =
         nr.spatialSignatureValid &&
@@ -534,7 +535,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     targetState = encoded.targetState;
     const bool cancelInputPreparationFootprint =
         encoded.inputPreparationActive &&
-        cfg.DlssNrExperimentCancelInputPreparationFootprint.value_or_default();
+        !DlssNr::SuperiorScaling::Enabled(cfg) && cfg.DlssNrExperimentCancelInputPreparationFootprint.value_or_default();
 
     if (asyncDetailActive)
     {
@@ -962,17 +963,17 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     DlssNr::BenchmarkReportDevice(device);
 
     const uint32_t configuredInterPassMode =
-        std::min(cfg.DlssNrInterPassReconstruction.value_or_default(), 8u);
+        DlssNr::SuperiorScaling::InterPassMode(cfg);
     const uint32_t interPassFilter = std::min(
         workScale < 1.0f && cfg.DlssNrTransfer.value_or_default() == 6u
             ? cfg.DlssNrUpscaledResidualDownscaleFilter.value_or_default()
-            : cfg.DlssNrProxyDownscaleFilter.value_or_default(), 11u);
-    const float configuredGuide = cfg.DlssNrGuidedResidualGuideStrength.value_or_default();
+            : DlssNr::SuperiorScaling::DownscaleFilter(cfg), 11u);
+    const float configuredGuide = DlssNr::SuperiorScaling::GuideStrength(cfg);
     const auto interPassSchedule =
         DlssNr::Profiles::BuildInterPassSchedule(cfg, configuredInterPassMode, workScale, effectivePasses, spatial);
     const uint32_t interPassMask = interPassSchedule.expectedMask;
     auto interPassPath = DlssNr::InterPass::Select(configuredInterPassMode, width, height, modelWidth, modelHeight,
-        interPassFilter, std::clamp(cfg.DlssNrGuidedResidualRadius.value_or_default(), 1u, 3u),
+        interPassFilter, DlssNr::SuperiorScaling::Radius(cfg),
         std::isfinite(configuredGuide) ? configuredGuide : 0.75f);
     if (configuredInterPassMode == 3u && interPassMask != 0u)
     {
@@ -983,25 +984,28 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     const bool interPassOptimized = DlssNr::InterPass::Optimized(interPassPath);
     const uint32_t selectedInterPassMode = DlssNr::InterPass::Fused(interPassPath) ? 2u : 1u;
     DlssNr::BenchmarkReportInterPassPath(DlssNr::InterPass::Name(interPassPath));
-    const bool interPassNeutralLow = interPassMask != 0u &&
+    const bool interPassNeutralLow = !DlssNr::SuperiorScaling::Enabled(cfg) && interPassMask != 0u &&
         cfg.DlssNrGuidedResidualShaping.value_or_default() != 0u &&
         cfg.DlssNrInterPassNeutralLow.value_or_default();
+    const bool interPassSuperior = DlssNr::SuperiorScaling::Enabled(cfg);
     if (!nr.interPassModeInitialized)
     {
         nr.interPassMode = static_cast<uint32_t>(interPassPath);
         nr.interPassMask = interPassMask;
         nr.interPassNeutralLow = interPassNeutralLow;
+        nr.interPassSuperior = interPassSuperior;
         nr.interPassModeInitialized = true;
     }
     else if (nr.interPassMode != static_cast<uint32_t>(interPassPath) ||
              nr.interPassMask != interPassMask ||
-             nr.interPassNeutralLow != interPassNeutralLow)
+             nr.interPassNeutralLow != interPassNeutralLow || nr.interPassSuperior != interPassSuperior)
     {
         // The later temporal features now see a different input distribution. Reset history without
         // recreating NGX features; Off <-> Guided and reference <-> fused both start cleanly.
         nr.interPassMode = static_cast<uint32_t>(interPassPath);
         nr.interPassMask = interPassMask;
         nr.interPassNeutralLow = interPassNeutralLow;
+        nr.interPassSuperior = interPassSuperior;
         nr.reset = true;
     }
 
@@ -1095,23 +1099,19 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         guided.Mode = mode;
         guided.Width = outW;
         guided.Height = outH;
-        guided.ResidualHistoryValid =
-            std::clamp(cfg.DlssNrGuidedResidualRadius.value_or_default(), 1u, 3u);
-        const float rangeSigma = cfg.DlssNrGuidedResidualRangeSigma.value_or_default();
-        guided.ResidualBlend = std::isfinite(rangeSigma) ? rangeSigma : 0.015f;
-        const float spatialSigma = cfg.DlssNrGuidedResidualSpatialSigma.value_or_default();
-        guided.ResidualScale = std::isfinite(spatialSigma) ? spatialSigma : 1.20f;
-        const float guideStrength = cfg.DlssNrGuidedResidualGuideStrength.value_or_default();
-        guided.ResidualConfidenceSensitivity = std::isfinite(guideStrength) ? guideStrength : 0.75f;
+        guided.ResidualHistoryValid = DlssNr::SuperiorScaling::Radius(cfg);
+        guided.ResidualBlend = DlssNr::SuperiorScaling::RangeSigma(cfg);
+        guided.ResidualScale = DlssNr::SuperiorScaling::SpatialSigma(cfg);
+        guided.ResidualConfidenceSensitivity = DlssNr::SuperiorScaling::GuideStrength(cfg);
 
-        const uint32_t shapingMode = std::min(cfg.DlssNrGuidedResidualShaping.value_or_default(), 2u);
+        const uint32_t shapingMode = DlssNr::SuperiorScaling::ShapingMode(cfg);
         const auto shaping =
             DlssNr::Profiles::EffectiveGuidedResidualGainsForInterPass(cfg, shapingMode, interPassCoveredPasses,
                                                                      pass + 1u, workScale);
         guided.MvScaleX = shaping.high;
         guided.MvScaleY = shaping.low;
         guided.GuideWidth = shaping.active ? 1u : 0u;
-        guided.GuideHeight = cfg.DlssNrGuidedResidualShadowGate.value_or_default() ? 1u : 0u;
+        guided.GuideHeight = !DlssNr::SuperiorScaling::Enabled(cfg) && cfg.DlssNrGuidedResidualShadowGate.value_or_default() ? 1u : 0u;
         // Only inter-pass Mode 27/28 reads these flags. Bit 4 uses cheaper weights
         // and shared P50 Area candidate loads; bit 5 removes an identically-zero
         // low-band contribution, including the small low texture dispatch.
@@ -1127,18 +1127,23 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             }
         }
 
-        float shadowLow = cfg.DlssNrGuidedResidualShadowLow.value_or_default();
-        float shadowHigh = cfg.DlssNrGuidedResidualShadowHigh.value_or_default();
-        float shadowFloor = cfg.DlssNrGuidedResidualShadowFloor.value_or_default();
-        if (!std::isfinite(shadowLow))
-            shadowLow = 0.02f;
-        if (!std::isfinite(shadowHigh))
-            shadowHigh = 0.08f;
-        if (!std::isfinite(shadowFloor))
-            shadowFloor = 0.15f;
-        std::memcpy(&guided.ExposureSourceWidth, &shadowLow, sizeof(shadowLow));
-        std::memcpy(&guided.ExposureSourceHeight, &shadowHigh, sizeof(shadowHigh));
-        std::memcpy(&guided.ExposurePadding, &shadowFloor, sizeof(shadowFloor));
+        if (DlssNr::SuperiorScaling::Enabled(cfg))
+            guided.DirectResolveFlags |= DlssNr::SuperiorScaling::ShaderFlag;
+        else
+        {
+            float shadowLow = cfg.DlssNrGuidedResidualShadowLow.value_or_default();
+            float shadowHigh = cfg.DlssNrGuidedResidualShadowHigh.value_or_default();
+            float shadowFloor = cfg.DlssNrGuidedResidualShadowFloor.value_or_default();
+            if (!std::isfinite(shadowLow))
+                shadowLow = 0.02f;
+            if (!std::isfinite(shadowHigh))
+                shadowHigh = 0.08f;
+            if (!std::isfinite(shadowFloor))
+                shadowFloor = 0.15f;
+            std::memcpy(&guided.ExposureSourceWidth, &shadowLow, sizeof(shadowLow));
+            std::memcpy(&guided.ExposureSourceHeight, &shadowHigh, sizeof(shadowHigh));
+            std::memcpy(&guided.ExposurePadding, &shadowFloor, sizeof(shadowFloor));
+        }
         return guided;
     };
 
@@ -1148,7 +1153,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             workScale < 1.0f && cfg.DlssNrTransfer.value_or_default() == 6u;
         return std::min(upscaledResidualBase
                             ? cfg.DlssNrUpscaledResidualDownscaleFilter.value_or_default()
-                            : cfg.DlssNrProxyDownscaleFilter.value_or_default(),
+                            : DlssNr::SuperiorScaling::DownscaleFilter(cfg),
                         11u);
     };
 
@@ -1635,7 +1640,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 << "working_scale " << workScale << "\n"
                 << "p100_width " << width << " p100_height " << height << "\n"
                 << "p50_width " << workWidth << " p50_height " << workHeight << "\n"
-                << "proxy_downscale_filter " << cfg.DlssNrProxyDownscaleFilter.value_or_default() << "\n"
+                << "proxy_downscale_filter " << DlssNr::SuperiorScaling::DownscaleFilter(cfg) << "\n"
                 << "match_guides " << cfg.DlssNrMatchGuides.value_or_default() << "\n"
                 << "render_motion_scale " << renderMotionScale << "\n"
                 << "nr50_mv_scale " << diagnostic50.mvScaleX << " " << diagnostic50.mvScaleY << "\n"
@@ -1719,15 +1724,15 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
     // Detail-quality lab post-NR artifact control. The sequence inside this ONE low-resolution dispatch is:
     // raw N-B -> optional NR50 edge treatment -> optional ghost-band suppression -> optional Ghost Guard
     // -> optional rebase onto sharp S. Ghost/cancellation work is skipped unless Mode 16 actually produced B.
-    const uint32_t nrEdgeFilter = std::min(cfg.DlssNrExperimentNrEdgeFilter.value_or_default(), 4u);
+    const uint32_t nrEdgeFilter = (DlssNr::SuperiorScaling::Enabled(cfg) ? 0u : std::min(cfg.DlssNrExperimentNrEdgeFilter.value_or_default(), 4u));
     const float nrStrengthRaw = cfg.DlssNrExperimentNrEdgeStrength.value_or_default();
     const float nrStrength = std::isfinite(nrStrengthRaw) ? nrStrengthRaw : 1.0f;
-    const uint32_t ghostGuard = std::min(cfg.DlssNrExperimentGhostGuard.value_or_default(), 3u);
+    const uint32_t ghostGuard = (DlssNr::SuperiorScaling::Enabled(cfg) ? 0u : std::min(cfg.DlssNrExperimentGhostGuard.value_or_default(), 3u));
     const float ghostStrengthRaw = cfg.DlssNrExperimentGhostGuardStrength.value_or_default();
     const float ghostStrength = std::isfinite(ghostStrengthRaw) ? ghostStrengthRaw : 1.0f;
     const float ghostMaxRaw = cfg.DlssNrExperimentGhostMaxSuppression.value_or_default();
     const float ghostMax = std::isfinite(ghostMaxRaw) ? ghostMaxRaw : 1.0f;
-    const uint32_t ghostBands = std::min(cfg.DlssNrExperimentGhostBandSuppression.value_or_default(), 2u);
+    const uint32_t ghostBands = (DlssNr::SuperiorScaling::Enabled(cfg) ? 0u : std::min(cfg.DlssNrExperimentGhostBandSuppression.value_or_default(), 2u));
     const float bandStrengthRaw = cfg.DlssNrExperimentBandSuppressionStrength.value_or_default();
     const float bandStrength = std::isfinite(bandStrengthRaw) ? bandStrengthRaw : 1.0f;
 
@@ -2022,7 +2027,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
             }
         }
         else if (!reduced || workScale >= 1.0f ||
-                 (!DlssNrUsesDlssEnlargement(transfer) && transfer != 8u && transfer != 9u && transfer != 10u))
+                 (!DlssNrUsesDlssEnlargement(transfer) && transfer != 8u && transfer != 9u && transfer != 10u && transfer != 11u))
         {
             // Below native, temporal modes 8/9/10 keep their private history alive frame-to-frame.
             // At native scale no private enlargement/DLAA work is needed, so release those NGX
@@ -2034,7 +2039,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
         // P100-guided residual family. Transfer 7 uses NR50 directly. Transfer 8 temporalizes NR50;
         // 9 temporalizes a residual carrier; 10 temporalizes Proxy50+K*E50. Modes 9/10 are decoded
         // back to one signed E50 texture before this point. DLSS never performs the P50->P100 resize.
-        const bool guidedFamily = transfer >= 7u && transfer <= 10u;
+        const bool guidedFamily = transfer >= 7u && transfer <= 11u;
         if (guidedFamily && !spatialDownFailed && reduced && workScale < 1.0f)
         {
             if (!spatial && ordinaryProxy && ordinaryAnswer)
@@ -2044,7 +2049,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                 resolveParams.Transfer = 8u;
                 enlargementReady = true;
 
-                if (transfer == 8u || transfer == 9u || transfer == 10u)
+                if (transfer == 8u || transfer == 9u || transfer == 10u || transfer == 11u)
                 {
                     auto* temporal =
                         EnlargeMatchedResidual(cmdList, device, ordinaryProxy, ordinaryReference, ordinaryAnswer,

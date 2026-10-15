@@ -356,6 +356,7 @@ bool Config::Reload(std::filesystem::path iniPath)
                 readFloat("DlssNr", "FinalHighSaturationProtection"));
             DlssNrFinalColourSmoothingMs.set_from_config(readFloat("DlssNr", "FinalColourSmoothingMs"));
             DlssNrTransfer.set_from_config(readUInt("DlssNr", "Transfer"));
+            DlssNrSuperiorScalingPreset.set_from_config(readInt("DlssNr", "SuperiorScalingPreset"));
             DlssNrScalingDlssPreset.set_from_config(readInt("DlssNr", "ScalingDlssPreset"));
             DlssNrTemporalDlaaNrPreset.set_from_config(readInt("DlssNr", "TemporalDlaaNrPreset"));
             DlssNrTemporalDlaaResidualPreset.set_from_config(readInt("DlssNr", "TemporalDlaaResidualPreset"));
@@ -1469,6 +1470,7 @@ bool Config::SaveIni(std::filesystem::path destination)
         ini.SetValue("DlssNr", "FinalColourSmoothingMs",
                      GetFloatValue(Instance()->DlssNrFinalColourSmoothingMs.value_for_config()).c_str());
         ini.SetValue("DlssNr", "Transfer", GetIntValue(Instance()->DlssNrTransfer.value_for_config()).c_str());
+        ini.SetValue("DlssNr", "SuperiorScalingPreset", GetIntValue(Instance()->DlssNrSuperiorScalingPreset.value_for_config()).c_str());
         ini.SetValue("DlssNr", "ScalingDlssPreset",
                      GetIntValue(Instance()->DlssNrScalingDlssPreset.value_for_config()).c_str());
         ini.SetValue("DlssNr", "TemporalDlaaNrPreset",

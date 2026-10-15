@@ -11,6 +11,9 @@
 #include "precompile/dlssnr_interpass_low36_Shader.h"
 #include "precompile/dlssnr_interpass_low36_cached_Shader.h"
 #include "precompile/dlssnr_interpass_cross5_Shader.h"
+#include "precompile/dlssnr_superior_carrier_Shader.h"
+#include "precompile/dlssnr_superior_resolve_Shader.h"
+#include "precompile/dlssnr_superior_cross5_Shader.h"
 
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -170,6 +173,23 @@ ID3D12PipelineState* DlssNr_Dx12::InterPassExperimentPipeline(uint32_t mode, uin
     return _pipelineState;
 }
 
+ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& constants)
+{
+    const bool carrier = constants.Mode == DlssNrMode_SuperiorCarrierEncode ||
+                         constants.Mode == DlssNrMode_SuperiorCarrierDecode;
+    if (!carrier && (constants.DirectResolveFlags & DlssNr::SuperiorScaling::ShaderFlag) == 0u) return nullptr;
+    const unsigned index = carrier ? 0u : constants.Mode == DlssNrMode_InterPassFastCross5 ? 2u : 1u;
+    const void* const blobs[] { dlssnr_superior_carrier_cso, dlssnr_superior_resolve_cso, dlssnr_superior_cross5_cso };
+    const size_t sizes[] { sizeof(dlssnr_superior_carrier_cso), sizeof(dlssnr_superior_resolve_cso), sizeof(dlssnr_superior_cross5_cso) };
+    if (!_superiorAttempted[index])
+    {
+        _superiorAttempted[index] = true;
+        if (!CreateComputePipeline(_device, &_superiorPipeline[index], blobs[index], sizes[index], nullptr))
+            LOG_WARN("Superior Scaling PSO {} creation failed", index);
+    }
+    return _superiorPipeline[index];
+}
+
 bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,
                                ID3D12Resource* InSource, ID3D12Resource* InModel, ID3D12Resource* InOriginal,
                                ID3D12Resource* InMotion, ID3D12Resource* InPrevEdit, ID3D12Resource* OutTarget,
@@ -177,7 +197,9 @@ bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssN
 {
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
-    ID3D12PipelineState* pipeline = InterPassExperimentPipeline(InConstants.Mode, InConstants.DirectResolveFlags);
+    ID3D12PipelineState* pipeline = SuperiorPipeline(InConstants);
+    if (!pipeline && (InConstants.Mode == DlssNrMode_SuperiorCarrierEncode || InConstants.Mode == DlssNrMode_SuperiorCarrierDecode)) return false;
+    if (!pipeline) pipeline = InterPassExperimentPipeline(InConstants.Mode, InConstants.DirectResolveFlags);
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion, InPrevEdit,
                            nullptr, OutTarget, OutKeep, immutableSlot);
 }
@@ -190,10 +212,14 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
 {
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
-    // Lazy, isolated RGB PSOs; references stay on the standard shader.
-    ID3D12PipelineState* pipeline = _pipelineState;
+    // Superior specializations bypass legacy PSO creation. Shading can safely fall back;
+    // fixed carrier modes require their dedicated entry point.
+    ID3D12PipelineState* pipeline = SuperiorPipeline(InConstants);
+    const bool usingSuperior = pipeline != nullptr;
+    if (!pipeline && (InConstants.Mode == DlssNrMode_SuperiorCarrierEncode || InConstants.Mode == DlssNrMode_SuperiorCarrierDecode)) return false;
+    if (!pipeline) pipeline = _pipelineState;
     const auto flags = InConstants.DirectResolveFlags;
-    if (InConstants.Mode == DlssNrMode_InterPassFastCross5)
+    if (!usingSuperior && InConstants.Mode == DlssNrMode_InterPassFastCross5)
         pipeline = InterPassExperimentPipeline(InConstants.Mode, InConstants.DirectResolveFlags);
     if (InConstants.Mode == DlssNrMode_InterPassFastGuided)
     {
@@ -422,6 +448,8 @@ DlssNr_Dx12::~DlssNr_Dx12()
     for (auto*& pipeline : _interPassRgbPipeline)
         if (pipeline) pipeline->Release();
     if (_interPassFastPipeline) _interPassFastPipeline->Release();
+    for (auto*& pipeline : _superiorPipeline)
+        if (pipeline) pipeline->Release();
     for (auto*& pipeline : _interPassExperimentPipeline)
         if (pipeline) pipeline->Release();
     if (_spatialPipelineState != nullptr)

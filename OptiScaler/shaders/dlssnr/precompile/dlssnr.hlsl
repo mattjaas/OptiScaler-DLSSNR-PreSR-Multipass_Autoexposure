@@ -921,6 +921,7 @@ float3 InterPassShapeEditAt(float3 guidedEditRaw, float2 uvq, float3 nativeGuide
         guidedEditRaw *= gMvScaleX;
     }
 
+#if !defined(DLSSNR_SUPERIOR_SCALING)
     if (gGuideHeight != 0u)
     {
         const float shadowLowRaw = asfloat(gExposureSourceWidth);
@@ -934,6 +935,7 @@ float3 InterPassShapeEditAt(float3 guidedEditRaw, float2 uvq, float3 nativeGuide
         const float y = max(dot(nativeGuide, kLuma), 0.0);
         guidedEditRaw *= lerp(saturate(shadowFloor), 1.0, smoothstep(lo, hi, y));
     }
+#endif
     return SanitizeFinite3(guidedEditRaw, 0.0);
 }
 
@@ -2272,6 +2274,28 @@ void CacheLow36(uint2 groupId, uint2 localId)
 }
 #endif
 
+// Fixed Superior Scaling carrier: no K texture, analysis, headroom or telemetry.
+[numthreads(8, 8, 1)]
+void SuperiorCarrierMain(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= gWidth || id.y >= gHeight) return;
+    const int3 p = int3(id.xy, 0);
+    if (gMode == 37u)
+    {
+        const float3 proxy = SanitizeFinite3(gSource.Load(p).rgb, 0.0);
+        const float3 model = SanitizeFinite3(gModel.Load(p).rgb, proxy);
+        // Preserve the legacy K=1 rounding order; do not reassociate the neutral offset.
+        precise float3 residual = model - proxy;
+        precise float3 encoded = 0.5 + residual;
+        gTarget[id.xy] = float4(clamp(encoded, -1.0, 2.0), 1.0);
+    }
+    else
+    {
+        const float3 filtered = SanitizeFinite3(gSource.Load(p).rgb, 0.5);
+        gTarget[id.xy] = float4(filtered - 0.5, 1.0);
+    }
+}
+
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
 {
@@ -3506,6 +3530,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             guidedEditRaw = gMvScaleX * guidedEditRaw + (gMvScaleY - gMvScaleX) * lowEditRaw;
         }
 
+#if !defined(DLSSNR_SUPERIOR_SCALING)
         if (gGuideHeight != 0u)
         {
             const float shadowLowRaw = asfloat(gExposureSourceWidth);
@@ -3520,6 +3545,7 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             const float confidence = lerp(saturate(shadowFloor), 1.0, smoothstep(lo, hi, y));
             guidedEditRaw *= confidence;
         }
+#endif
 
         const float3 modelRaw = nativeProxyRaw + guidedEditRaw;
         proxy = nativeProxyLinear;

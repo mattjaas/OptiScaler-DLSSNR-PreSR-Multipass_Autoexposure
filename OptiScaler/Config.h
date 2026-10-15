@@ -344,6 +344,8 @@ class Config
     // 9 temporal DLAA residual: stabilize a signed E50 carrier at the working resolution,
     // 10 image-anchored temporal DLAA residual: stabilize Proxy50 + K*(NR50-Proxy50), then recover E50.
     CustomOptional<uint32_t> DlssNrTransfer { 1 };
+    // Superior Scaling (Transfer=11): only private DLAA preset A or K is configurable.
+    CustomOptional<int> DlssNrSuperiorScalingPreset { 1 };
     // NGX render preset for private DLSS SR used by NR enlargement: 0 default, 1..15 A..O,
     // NV_PRESET_LATEST for the latest model supported by the loaded DLSS DLL.
     CustomOptional<int> DlssNrScalingDlssPreset { 1 };

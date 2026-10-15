@@ -63,7 +63,8 @@ bool ModelVk::Impl::Evaluate(VkCommandBuffer cmdBuffer, const VkImageInfo& colou
 
     std::lock_guard<std::mutex> lock(mutex);
     state.spatialRan = false;
-    if (DlssNrUsesDlssEnlargement(cfg.DlssNrTransfer.value_or_default()) &&
+    if ((DlssNrUsesDlssEnlargement(cfg.DlssNrTransfer.value_or_default()) ||
+         cfg.DlssNrTransfer.value_or_default() == 11u) &&
         cfg.DlssNrWorkingScale.value_or_default() < 1.0f)
     {
         PublishStatus(this, Backend::Vulkan, { false, "DLSS enlargement requires the DX12 processing path." });

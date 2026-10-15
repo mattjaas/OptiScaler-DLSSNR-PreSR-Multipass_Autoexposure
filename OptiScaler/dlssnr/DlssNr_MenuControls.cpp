@@ -2,6 +2,7 @@
 #include "DlssNr_MenuSections.h"
 #include "DlssNr_Placement.h"
 #include "DlssNr_Status.h"
+#include "DlssNr_Benchmark.h"
 #include "DlssNr_InterPassPolicy.h"
 #include "PassProfiles.h"
 #include <shaders/dlssnr/DlssNr_Spatial.h>
@@ -151,7 +152,7 @@ void RenderInput(Config* config)
     if (ImGui::IsItemDeactivatedAfterEdit() && pendingScale >= 0)
     {
         config->DlssNrWorkingScale = std::clamp(pendingScale, 25, 200) / 100.0f;
-        if (config->DlssNrSpatialCompression.value_or_default())
+        if (!SuperiorScaling::Enabled(*config) && config->DlssNrSpatialCompression.value_or_default())
         {
             auto spatial = Spatial::ReadSettings(*config);
             ConstrainSpatialControls(spatial, config->DlssNrWorkingScale.value_or_default());
@@ -161,9 +162,9 @@ void RenderInput(Config* config)
     }
 
     HelpMarker("50% halves width and height. 100% uses the full input size.");
-    RenderSpatial(config);
+    if (!SuperiorScaling::Enabled(*config)) RenderSpatial(config);
 
-    if (scalePercent < 100 && !config->DlssNrSpatialCompression.value_or_default())
+    if (scalePercent < 100 && !SuperiorScaling::Enabled(*config) && !config->DlssNrSpatialCompression.value_or_default())
     {
         static const char* proxyDownNames[] = { "Area (default)", "Bilinear", "Catmull-Rom", "Lanczos2",
                                                 "Point / nearest", "FSR1", "Bicubic", "Lanczos3", "Kaiser2",
@@ -202,13 +203,26 @@ void RenderInput(Config* config)
                                               "Upscaled NR residual", "P100-guided residual",
                                               "Temporal DLAA NR50 + P100-guided",
                                               "Temporal DLAA residual + P100-guided",
-                                              "Temporal image-anchored residual + P100-guided" };
-        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 10u);
+                                              "Temporal image-anchored residual + P100-guided", "Superior Scaling" };
+        int enlarge = (int) std::min(config->DlssNrTransfer.value_or_default(), 11u);
 
         if (ImGui::Combo("Enlargement", &enlarge, enlargeNames, IM_ARRAYSIZE(enlargeNames)))
+        {
+            if (enlarge == 11 && ReadInterPassBenchmark().active) CancelInterPassBenchmark();
             config->DlssNrTransfer = (uint32_t) enlarge;
+        }
 
         ImGui::EndDisabled();
+        if (SuperiorScaling::Enabled(config->DlssNrTransfer.value_or_default()))
+        {
+            static const char* presets[] = { "A - Faster", "K - More stable NR in motion" };
+            int preset = SuperiorScaling::Preset(config->DlssNrSuperiorScalingPreset.value_or_default()) == 11 ? 1 : 0;
+            if (ImGui::Combo("DLSS preset", &preset, presets, IM_ARRAYSIZE(presets)))
+                config->DlssNrSuperiorScalingPreset = preset == 1 ? 11 : 1;
+            HelpMarker("A offers better performance. K is slower, with more stable NR in motion.");
+            return;
+        }
+
 
         HelpMarker("Below 100%: Lighting + colour resizes lighting gain and colour changes separately. Direct NR "
                    "enlarges the NR answer itself and composes it like a native 100% model result. Upscaled NR "
@@ -1121,7 +1135,7 @@ void RenderModel(Config* config)
         config->DlssNrPasses.value_or_default() > 1u &&
         config->DlssNrWorkingScale.value_or_default() < 0.999f &&
         !config->DlssNrSpatialCompression.value_or_default();
-    if (interPassAvailable)
+    if (interPassAvailable && !SuperiorScaling::Enabled(*config))
     {
         static const char* interPassNames[] = {
             "Off", "Classic reference", "Fused reference", "Inter-pass optimized", "Inter-pass fast", "Fast cached low (experimental)"
@@ -1378,7 +1392,18 @@ void RenderInspect(Config* config)
                                         "Decoded temporal residual (20x, zero=grey)",
                                         "Inter-pass corrected input (pass 2)" };
     int debugView = (int) config->DlssNrDebugView.value_or_default();
-    if (ImGui::Combo("Debug view", &debugView, debugNames, IM_ARRAYSIZE(debugNames)))
+    if (SuperiorScaling::Enabled(*config))
+    {
+        static const char* superiorDebug[] = { debugNames[0], debugNames[1], debugNames[2], debugNames[3],
+                                              debugNames[4], debugNames[6], debugNames[7] };
+        static constexpr uint32_t values[] = { 0, 1, 2, 3, 4, 6, 7 };
+        int selected = 0;
+        for (int i = 0; i < IM_ARRAYSIZE(values); ++i)
+            if (values[i] == (uint32_t) debugView) selected = i;
+        if (ImGui::Combo("Debug view", &selected, superiorDebug, IM_ARRAYSIZE(superiorDebug)))
+            config->DlssNrDebugView = values[selected];
+    }
+    else if (ImGui::Combo("Debug view", &debugView, debugNames, IM_ARRAYSIZE(debugNames)))
         config->DlssNrDebugView = (uint32_t) debugView;
 
     HelpMarker("Difference is amplified 20x. Grey means unchanged. Proxy and raw model output use unpacked geometry. "

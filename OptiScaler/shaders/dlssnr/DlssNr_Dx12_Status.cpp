@@ -51,7 +51,7 @@ auto DlssNr_Dx12::State::ConsumeControls() -> void
     // Transfers 8/9/10 also own a persistent private DLSS feature/history, even though they do not
     // use the ordinary P50->P100 enlargement path. Do not destroy that 1:1 DLAA history every frame.
     const bool ownsPrivateTemporalHistory =
-        DlssNrUsesDlssEnlargement(transfer) || transfer == 8u || transfer == 9u || transfer == 10u;
+        DlssNrUsesDlssEnlargement(transfer) || transfer == 8u || transfer == 9u || transfer == 10u || transfer == 11u;
     if (!cfg.DlssNrEnabled.value_or_default() || !ownsPrivateTemporalHistory ||
         cfg.DlssNrWorkingScale.value_or_default() >= 1.0f)
     {
@@ -109,15 +109,18 @@ auto DlssNr_Dx12::State::Publish() -> void
     snapshot.frames = frames;
     snapshot.spatialStatus = spatialStatus;
     snapshot.spatialActive = nr.spatialActive;
-    snapshot.temporalCarrierTelemetryValid = temporalCarrierTelemetryValid;
-    snapshot.temporalCarrierAppliedK = temporalCarrierAppliedK;
-    snapshot.temporalCarrierSafeK = temporalCarrierSafeK;
-    snapshot.temporalCarrierPositiveLimit = temporalCarrierPositiveLimit;
-    snapshot.temporalCarrierNegativeLimit = temporalCarrierNegativeLimit;
-    snapshot.temporalCarrierWhiteLimitedPixels = temporalCarrierWhiteLimitedPixels;
-    snapshot.temporalCarrierBlackLimitedPixels = temporalCarrierBlackLimitedPixels;
-    snapshot.temporalCarrierProxyBelowZeroPixels = temporalCarrierProxyBelowZeroPixels;
-    snapshot.temporalCarrierProxyAboveOnePixels = temporalCarrierProxyAboveOnePixels;
+    if (!DlssNr::SuperiorScaling::Enabled(*Config::Instance()))
+    {
+        snapshot.temporalCarrierTelemetryValid = temporalCarrierTelemetryValid;
+        snapshot.temporalCarrierAppliedK = temporalCarrierAppliedK;
+        snapshot.temporalCarrierSafeK = temporalCarrierSafeK;
+        snapshot.temporalCarrierPositiveLimit = temporalCarrierPositiveLimit;
+        snapshot.temporalCarrierNegativeLimit = temporalCarrierNegativeLimit;
+        snapshot.temporalCarrierWhiteLimitedPixels = temporalCarrierWhiteLimitedPixels;
+        snapshot.temporalCarrierBlackLimitedPixels = temporalCarrierBlackLimitedPixels;
+        snapshot.temporalCarrierProxyBelowZeroPixels = temporalCarrierProxyBelowZeroPixels;
+        snapshot.temporalCarrierProxyAboveOnePixels = temporalCarrierProxyAboveOnePixels;
+    }
     DlssNr::PublishStatus(&shader, DlssNr::Backend::Dx12, snapshot);
 }
 
