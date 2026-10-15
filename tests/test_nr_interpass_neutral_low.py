@@ -5,6 +5,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_neutral_low():
     profiles = (ROOT / 'OptiScaler/dlssnr/PassProfiles.h').read_text()
+    per_pass = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForPass'):
+                        profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock')]
+    assert 'ModelGainFactor(settings.localStructure, settings.intensity)' in per_pass
+    assert 'gains.low = StrengthAdjustedGain(GuidedResidualGainForScale(gains.low, workScale), modelFactor);' in per_pass
     interpass = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass'):
                          profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForResolve')]
     resolve = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForResolve'):]
@@ -12,7 +16,7 @@ def test_neutral_low():
                            profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForInterPass')]
     assert 'DlssNrInterPassNeutralLow' not in final_block
     assert 'gains.low = MeanGuidedLow(firstPass, completedPasses,' in final_block
-    assert 'workScale).low;' in final_block  # Mean of each model's scale-adjusted low gain.
+    assert 'workScale).low;' in final_block  # Mean of each model's scale/Structure/Intensity-adjusted low gain.
     assert 'DlssNrInterPassNeutralLow.value_or_default()' in resolve
     assert 'gains.low = MeanGuidedLow(0u, completedPasses,' in resolve
     assert 'transfer, firstPass, completedPasses, workScale' in resolve  # High still covers only the tail.

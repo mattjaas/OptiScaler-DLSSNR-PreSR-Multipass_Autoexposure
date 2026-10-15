@@ -45,9 +45,9 @@ def test_cadence():
     single = profiles[profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForPass'):profiles.index('inline GuidedResidualGains EffectiveGuidedResidualGainsForBlock')]
     assert 'const auto settings = BasePassSettings(cfg, pass);' in single
     assert 'GuidedResidualBaseGains(cfg, shapingMode, transfer, settings.style)' in single
-    assert 'ModelAdjustedHigh(GuidedResidualGainForScale(gains.high, workScale),' in single
-    assert 'settings.localStructure, settings.intensity)' in single
-    assert 'gains.low = GuidedResidualGainForScale(gains.low, workScale);' in single
+    assert 'const float modelFactor = ModelGainFactor(settings.localStructure, settings.intensity);' in single
+    assert 'gains.high = StrengthAdjustedGain(GuidedResidualGainForScale(gains.high, workScale), modelFactor);' in single
+    assert 'gains.low = StrengthAdjustedGain(GuidedResidualGainForScale(gains.low, workScale), modelFactor);' in single
     base = profiles[profiles.index('inline ModelSettings BasePassSettings'):profiles.index('inline ModelSettings PassSettings')]
     assert 'cfg.DlssNrIntensity.value_or_default()' in base
     assert 'result.intensity = extra.intensity.value_or(result.intensity);' in base

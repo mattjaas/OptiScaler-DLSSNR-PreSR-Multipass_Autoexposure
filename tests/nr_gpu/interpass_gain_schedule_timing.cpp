@@ -1,4 +1,4 @@
-// Resident synthetic transitions: historical controls and v42/v43 gain-gap thresholds.
+// Resident synthetic transitions: historical controls and v43/v44 low-band model tuning.
 // Excludes NGX, temporal processing and final resolve; never a whole-NR measurement.
 #include "pch.h"
 #include "interpass_timing_fixture.h"
@@ -63,10 +63,10 @@ struct TransitionFixture : LowFixture {
 int main(int argc,char** argv) {
     try {
         const std::string mode=argc==4?argv[3]:"";
-        if((argc!=3 && argc!=4) || (argc==4 && mode!="model-intensity" && mode!="model-product" && mode!="gap-015"))
-            throw std::runtime_error("Usage: interpass_gain_schedule_timing shader-dir output.csv [model-intensity|model-product|gap-015]");
+        if((argc!=3 && argc!=4) || (argc==4 && mode!="model-intensity" && mode!="model-product" && mode!="gap-015" && mode!="low-tuning"))
+            throw std::runtime_error("Usage: interpass_gain_schedule_timing shader-dir output.csv [model-intensity|model-product|gap-015|low-tuning]");
         const bool modelIntensity=argc==4;
-        const bool modelProduct=mode=="model-product", gap015=mode=="gap-015";
+        const bool modelProduct=mode=="model-product", gap015=mode=="gap-015", lowTuning=mode=="low-tuning";
         // Historical 0.25 control only; the normal rendering path uses the production threshold.
         const auto historical=[](DlssNr::InterPass::GainSchedule plan) {
             plan.expectedMask=0;plan.expectedCovered=0;
@@ -96,22 +96,31 @@ int main(int argc,char** argv) {
             const auto before=historical(DlssNr::InterPass::MakeGainSchedule(6,true,true,false,[&](unsigned) {
                 const float high=std::pow(.7f,exponent);
                 return DlssNr::InterPass::ScheduleGains{
-                    gap015?DlssNr::Profiles::ModelAdjustedHigh(high,.8f,.7f):
+                    (gap015 || lowTuning)?DlssNr::Profiles::ModelAdjustedGain(high,.8f,.7f):
                     modelProduct?additive(high):modelIntensity?DlssNr::Profiles::StructureAdjustedHigh(high,.8f):high,
                     std::pow(.8f,exponent)};
             }));
+            // The v43 control uses 0.15 with unadjusted low; other controls retain 0.25.
+            auto control=before;
+            if(lowTuning) {
+                control.expectedMask=0;control.expectedCovered=0;
+                for(unsigned pass=0;pass+1<control.passes;++pass)
+                    if(control.Due(pass,control.expectedCovered)) {
+                        control.expectedMask|=1u<<pass;control.expectedCovered=pass+1;
+                    }
+            }
             auto plan=DlssNr::InterPass::MakeGainSchedule(6,true,true,false,[&](unsigned) {
                 const float high=std::pow(.7f,exponent);
                 return DlssNr::InterPass::ScheduleGains{
-                    (modelProduct || gap015)?DlssNr::Profiles::ModelAdjustedHigh(high,.8f,.7f):modelIntensity?additive(high):high,
-                    std::pow(.8f,exponent)};
+                    (modelProduct || gap015 || lowTuning)?DlssNr::Profiles::ModelAdjustedGain(high,.8f,.7f):modelIntensity?additive(high):high,
+                    lowTuning?DlssNr::Profiles::ModelAdjustedGain(std::pow(.8f,exponent),.8f,.7f):std::pow(.8f,exponent)};
             });
-            if(!gap015)plan=historical(plan);
+            if(!gap015 && !lowTuning)plan=historical(plan);
             const unsigned stride=scale>=85?3:scale>=74?2:1;
             uint32_t legacy=0;
             for(unsigned pass=0;pass<5;++pass)if((pass+1)%stride==0)legacy|=1u<<pass;
-            if(modelIntensity)legacy=before.expectedMask;
-            TransitionFixture fixture(r,scale,legacy,before);
+            if(modelIntensity)legacy=control.expectedMask;
+            TransitionFixture fixture(r,scale,legacy,control);
             // One resident texture set; only pre-uploaded constant buffers change per window.
             std::array<ComPtr<ID3D12Resource>,5> old=fixture.constants;
             unsigned covered=0;

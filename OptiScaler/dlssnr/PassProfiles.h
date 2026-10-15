@@ -150,9 +150,9 @@ inline GuidedResidualGains EffectiveGuidedResidualGainsForPass(const Config& cfg
     if (!gains.active)
         return gains;
 
-    gains.high = ModelAdjustedHigh(GuidedResidualGainForScale(gains.high, workScale),
-                                   settings.localStructure, settings.intensity);
-    gains.low = GuidedResidualGainForScale(gains.low, workScale);
+    const float modelFactor = ModelGainFactor(settings.localStructure, settings.intensity);
+    gains.high = StrengthAdjustedGain(GuidedResidualGainForScale(gains.high, workScale), modelFactor);
+    gains.low = StrengthAdjustedGain(GuidedResidualGainForScale(gains.low, workScale), modelFactor);
     return gains;
 }
 

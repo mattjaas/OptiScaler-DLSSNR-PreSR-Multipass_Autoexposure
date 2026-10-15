@@ -1,4 +1,4 @@
-name: Build NR v43 gain gap 0.15
+name: Build NR v44 low band model tuning
 
 on:
   push:
@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v43-${{ github.ref }}
+  group: nr-interpass-v44-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -108,13 +108,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-interpass-v43-gap-015-20261015"
+        run: ./package_release.ps1 -Version "nr-interpass-v44-low-tuning-20261015"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-interpass-v43-gap-015-20261015
-          path: release/OptiScaler-NR-nr-interpass-v43-gap-015-20261015.zip
+          name: OptiScaler-NR-interpass-v44-low-tuning-20261015
+          path: release/OptiScaler-NR-nr-interpass-v44-low-tuning-20261015.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -123,21 +123,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-interpass-v43-gap-015-20261015"
-          $archive = "release/OptiScaler-NR-nr-interpass-v43-gap-015-20261015.zip"
+          $tag = "nr-interpass-v44-low-tuning-20261015"
+          $archive = "release/OptiScaler-NR-nr-interpass-v44-low-tuning-20261015.zip"
           $notes = @"
-          Inter-pass gain-gap threshold lowered from 0.25 to 0.15, from $env:GITHUB_SHA.
-          Correct before the next model only when the predicted absolute high/medium-to-low gap exceeds 0.15 AND grows.
-          Equal or shrinking gaps still skip correction, including above the threshold. Never correct after the final model.
-          Threshold boundary tests use the same float representation as model gains; no epsilon band added.
-          Scale correction, per-pass Structure*Intensity, low averages, neutral-low checkbox and failure coverage remain unchanged.
-          Menu, INI and benchmark descriptions now show 0.15.
-          No HLSL/bytecode, new GPU resources, PSOs or stages. Existing corrections can run more often.
-          CPU tests cover the threshold and its neighbours, rising/shrinking/unchanged gaps and updated schedules.
-          Resident GPU ABBA fixture prepared for v42 (0.25) versus v43 (0.15), with identical gains and textures.
-          Local timing was aborted under non-comparable GPU load; no reliable v43 GPU delta is reported.
-          NGX and final resolve are excluded; in-game quality and whole-NR GPU time still need validation.
-          Details: docs/NR-v43-gap-015.md.
+          Structure*Intensity now scales low-frequency gain as well as high/medium, from $env:GITHUB_SHA.
+          Each band: gain=1+(scale_corrected_gain-1)*clamp(Structure,0,1)*clamp(Intensity,0,1).
+          The shared factor is computed once per model; each model retains its own inherited/overridden settings.
+          Low is averaged after adjusting each model, never compounded across passes.
+          Neutral inter-pass low still forces actual inter-pass low=1; final low averages all adjusted model gains.
+          Without that checkbox, correction/final low averages the adjusted gains in its pending model block.
+          Lookahead scheduling, actual corrections, final resolve and menu preview all use the shared effective gains.
+          High/medium math and the strict growing-gap threshold >0.15 remain unchanged.
+          Either slider at 0 neutralizes both band gains; values above 1 retain the calibration at 1.
+          No HLSL/bytecode, new GPU stage, resource, allocation, copy, barrier or PSO added to the normal path.
+          CPU checks cover low toward 1, zero intensity, mixed styles/settings, averages and updated schedules.
+          Resident ABBA fixture prepared: v43 unadjusted low versus v44 adjusted low, with the same high gains and threshold.
+          Local GPU timing unavailable under current saturated GPU load; in-game quality and whole-NR time remain unverified.
+          Details: docs/NR-v44-low-tuning.md.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -148,8 +150,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v43 - Gain gap 0.15" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v44 - Low band model tuning" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v43 - Gain gap 0.15" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v44 - Low band model tuning" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

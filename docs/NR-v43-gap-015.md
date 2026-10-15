@@ -1,5 +1,8 @@
 # NR v43 — próg interpassu 0,15
 
+Historyczny opis v43. [v44](NR-v44-low-tuning.md) dodaje skalowanie gainu
+low przez Structure i Intensity; próg 0,15 pozostaje aktualny.
+
 Próg przewidywanej bezwzględnej różnicy high/medium względem low spada
 z 0,25 do 0,15. Interpass przed następnym modelem występuje wyłącznie,
 gdy przewidywana różnica bez korekcji przekracza 0,15 i rośnie względem

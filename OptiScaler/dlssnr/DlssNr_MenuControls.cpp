@@ -528,8 +528,8 @@ void RenderInput(Config* config)
                 HelpMarker("Multiply each pass's actual high/mid gain using its configured style, Structure and Intensity. "
                            "Each successful inter-pass correction consumes only its block; final resolve consumes the rest. "
                            "Corrections occur only before a model that would increase the high/low gap beyond 0.15. Without inter-pass the final block covers all passes. "
-                           "Structure and Intensity multiply: 0.5 and 0.5 leave 0.25 of the high/mid gain deviation from 1. "
-                           "Either slider at 0 makes high/mid neutral; values above 1 retain the calibration at 1. Low is unchanged and never multiplied. "
+                           "Structure and Intensity multiply: 0.5 and 0.5 leave 0.25 of each band gain deviation from 1. "
+                           "Either slider at 0 makes both band gains neutral; values above 1 retain the calibration at 1. Low averages adjusted model gains across passes. "
                            "Disabling multiplication keeps the last pass's adjusted high/mid gain per correction/resolve.");
             }
 
@@ -1090,7 +1090,7 @@ static void DeferredSlider(const char* label, Option* opt, float mn, float mx, f
 
     if (std::strcmp(label, "Intensity") == 0)
         HelpMarker("Enhancement strength. 1 = default. Frequency shaping multiplies it by "
-                   "Structure for high/mid only; low gain is unchanged.");
+                   "Structure for both high/mid and low gains; low still averages the adjusted model gains.");
     else if (std::strcmp(label, "Local structure") == 0)
         HelpMarker("Fine detail and local contrast. 1 = default.");
     else if (std::strcmp(label, "Local tone") == 0)
@@ -1143,8 +1143,8 @@ void RenderModel(Config* config)
         if (ImGui::Checkbox("Keep inter-pass low gain at 1", &neutralLow))
             config->DlssNrInterPassNeutralLow = neutralLow;
         HelpMarker("Sets the low-frequency shaping gain to exactly 1 only between model passes. "
-                   "High/mid shaping retains its per-pass style and Structure gains. "
-                   "Final resolve averages all model low gains when checked; otherwise only gains after the last correction. "
+                   "High/mid shaping retains its per-pass style, Structure and Intensity gains. "
+                   "Final resolve averages all adjusted model low gains when checked; otherwise only gains after the last correction. "
                    "The low filter is still needed to separate bands when high/mid differs from 1. "
                    "Applies with frequency shaping enabled; shadow confidence remains configured.");
         HelpMarker("Cached low shares overlapping Low36 samples while retaining all taps and weights. "
@@ -1171,7 +1171,7 @@ void RenderModel(Config* config)
         HelpMarker("Inter-pass frequency shaping accounts for each model since the "
                    "previous successful correction. High/mid multiplies the individual style/Structure/Intensity gains in each block "
                    "and final resolve, when multiplication is enabled. "
-                   "Low frequency averages effective per-model gains in each block; neutral inter-pass low makes final low average all models. "
+                   "Low frequency averages scale/Structure/Intensity-adjusted model gains in each block; neutral inter-pass low makes final low average all models. "
                    "No extra shaping dispatch is needed.");
     }
 

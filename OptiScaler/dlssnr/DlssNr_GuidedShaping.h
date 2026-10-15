@@ -4,23 +4,31 @@
 
 namespace DlssNr::Profiles
 {
-// Calibrated high/mid gains describe Structure=1. Reduce their deviation from neutral
-// proportionally below one; never extrapolate the calibration above Structure=1.
-inline float StructureAdjustedHigh(float gain, float structure)
+// Move a calibrated band gain toward neutral 1 without extrapolating past strength 1.
+inline float StrengthAdjustedGain(float gain, float strength)
 {
     gain = std::isfinite(gain) ? gain : 1.0f;
-    const float factor = std::isfinite(structure) ? std::clamp(structure, 0.0f, 1.0f) : 1.0f;
+    const float factor = std::isfinite(strength) ? std::clamp(strength, 0.0f, 1.0f) : 1.0f;
     if (factor == 0.0f) return 1.0f;
     if (factor == 1.0f) return gain;
     return 1.0f + factor * (gain - 1.0f);
 }
+// Historical Structure-only high/mid calibration, retained by the comparison fixtures.
+inline float StructureAdjustedHigh(float gain, float structure)
+{
+    return StrengthAdjustedGain(gain, structure);
+}
 // Apply Structure and Intensity sequentially to the deviation from neutral gain 1.
 // Clamp each slider independently to its calibrated range before multiplying.
-inline float ModelAdjustedHigh(float gain, float structure, float intensity)
+inline float ModelGainFactor(float structure, float intensity)
 {
     const float s = std::isfinite(structure) ? std::clamp(structure, 0.0f, 1.0f) : 1.0f;
     const float i = std::isfinite(intensity) ? std::clamp(intensity, 0.0f, 1.0f) : 1.0f;
-    return StructureAdjustedHigh(gain, s * i);
+    return s * i;
+}
+inline float ModelAdjustedGain(float gain, float structure, float intensity)
+{
+    return StrengthAdjustedGain(gain, ModelGainFactor(structure, intensity));
 }
 // Half-open model range [first, completed). A callback avoids a per-frame allocation.
 template <class GainForPass>
