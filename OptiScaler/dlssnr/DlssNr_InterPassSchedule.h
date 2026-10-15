@@ -10,7 +10,7 @@ inline bool GapWorsens(ScheduleGains current, ScheduleGains next)
 {
     const double before = std::abs(double(current.high) - current.low);
     const double after = std::abs(double(next.high) - next.low);
-    return std::isfinite(before) && std::isfinite(after) && after > 0.25 && after > before;
+    return std::isfinite(before) && std::isfinite(after) && after > 0.15f && after > before;
 }
 inline unsigned CorrectionCount(uint32_t mask)
 {

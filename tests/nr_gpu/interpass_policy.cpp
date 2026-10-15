@@ -37,8 +37,12 @@ int main()
         require(!GapWorsens({.4f,.8f},{.5f,.8f})); // .4 -> .3
         require(!GapWorsens({.4f,.8f},{.4f,.8f})); // unchanged above threshold
         require(!GapWorsens({.75f,1.0f},{.75f,1.0f}));
-        require(!GapWorsens({1.0f,1.0f},{.75f,1.0f})); // exactly .25
-        require(GapWorsens({1.0f,1.0f},{std::nextafter(.75f,0.0f),1.0f}));
+        require(!GapWorsens({0.0f,0.0f},{.15f,0.0f})); // exactly the float threshold
+        require(!GapWorsens({0.0f,0.0f},{std::nextafter(.15f,0.0f),0.0f}));
+        require(GapWorsens({0.0f,0.0f},{std::nextafter(.15f,1.0f),0.0f}));
+        require(GapWorsens({.1f,0.0f},{.2f,0.0f})); // new correction between .15 and .25
+        require(!GapWorsens({.2f,0.0f},{.18f,0.0f})); // shrinking above new threshold
+        require(!GapWorsens({.18f,0.0f},{.18f,0.0f}));
         require(GapWorsens({1.1f,.8f},{1.2f,.8f})); // absolute gap above low
         require(!GapWorsens({INFINITY,1.0f},{1.0f,1.0f}));
         const auto same=[](unsigned){return ScheduleGains{.7f,.8f};};
@@ -171,11 +175,11 @@ int main()
             DlssNr::Profiles::StructureAdjustedHigh(.7f,.8f),.8f};});
         const auto combinedTuning=MakeGainSchedule(6,true,true,false,[](unsigned){return ScheduleGains{
             ModelAdjustedHigh(.7f,.8f,.7f),.8f};});
-        require(originalTuning.expectedMask==10 && combinedTuning.expectedMask==4);
+        require(originalTuning.expectedMask==31 && combinedTuning.expectedMask==10);
         require(combinedTuning.Block(0,3).low==.8f); // Intensity must not alter low.
         const auto quarterEffect=MakeGainSchedule(6,true,true,false,[](unsigned){return ScheduleGains{
             ModelAdjustedHigh(.7f,.5f,.5f),.8f};});
-        require(quarterEffect.expectedMask==0);
+        require(quarterEffect.expectedMask==16);
         require(std::abs(quarterEffect.gains[0].high-.925f)<1e-6f);
         for(float s : {-.5f,0.0f,.1f,.25f,.5f,.7f,.8f,1.0f,1.5f,2.0f})
         for(float i : {-.5f,0.0f,.1f,.25f,.5f,.7f,.8f,1.0f,1.5f,2.0f})

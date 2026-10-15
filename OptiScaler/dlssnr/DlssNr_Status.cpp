@@ -488,7 +488,7 @@ void FinishBenchmark(bool cancelled)
                         "Regular profile: P50/P59/P65 plus current rounded percentage up to P65 when different.\n")
                     << "All benchmark profiles exclude percentages above P65, including the current scale.\n"
                     << "Off, Classic reference and Fused reference retained.\n"
-                    << "All modes: correct before the next model only if its effective high/low gap exceeds 0.25 and grows. No fixed stride. Off/spatial/above P90 remain inactive.\n"
+                    << "All modes: correct before the next model only if its effective high/low gap exceeds 0.15 and grows. No fixed stride. Off/spatial/above P90 remain inactive.\n"
                     << "Skipped transitions use ordinary ClampProxy; no inter-pass scratch/low/correction dispatch.\n"
                     << "High/mid adjustment: 1+(scale_corrected_high-1)*clamp(Structure,0,1)*clamp(Intensity,0,1); Low unchanged.\n"
                     << (savedBenchmarkConfig.neutralInterPassLow
@@ -496,7 +496,7 @@ void FinishBenchmark(bool cancelled)
                         : "Inter-pass low averages each unconsumed model block; final low averages models after the last successful correction.\n")
                     << "All pass styles/Structure/Intensity settings are recorded; there is no repetition of the last model's gain.\n"
                     << "Mask bit N means correction after zero-based model N; expected/successful masks must match. No correction after the final model. interpass_corrections counts successes/frame.\n"
-                    << "Prediction uses scale-corrected per-model gains and configured Structure/Intensity/compounding. A gap that shrinks or stays equal never triggers correction, even above 0.25.\n"
+                    << "Prediction uses scale-corrected per-model gains and configured Structure/Intensity/compounding. A gap that shrinks or stays equal never triggers correction, even above 0.15.\n"
                     << (benchmarkProfile == InterPassBenchmarkProfile::FastCachedLow ?
                         "Each scale: Off, both references, Optimized, then Fast/cached/cached/Fast with separate warmup.\n"
                         "Only low filtering uses shared samples; without low shaping both variants use original Cross5.\n" :

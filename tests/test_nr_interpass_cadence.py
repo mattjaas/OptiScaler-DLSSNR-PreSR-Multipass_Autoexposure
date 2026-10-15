@@ -9,7 +9,7 @@ def test_cadence():
     schedule = (ROOT / 'OptiScaler/dlssnr/DlssNr_InterPassSchedule.h').read_text(encoding='utf-8')
     assert 'scale <= 0.90f' in policy and 'passes > 1u' in policy
     assert 'scale > 0.84f' not in policy and 'Cadence(' not in policy
-    assert 'after > 0.25 && after > before' in schedule
+    assert 'after > 0.15f && after > before' in schedule
     assert 'std::abs(double(current.high) - current.low)' in schedule
     assert 'pass + 1u >= passes' in schedule  # never after the final model
     assert 'wholeLow ? 0u : covered' in schedule

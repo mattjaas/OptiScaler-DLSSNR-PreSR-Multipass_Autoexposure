@@ -1,4 +1,4 @@
-// Resident synthetic transitions: cadence vs lookahead, v40/v41, or v41/v42 model tuning.
+// Resident synthetic transitions: historical controls and v42/v43 gain-gap thresholds.
 // Excludes NGX, temporal processing and final resolve; never a whole-NR measurement.
 #include "pch.h"
 #include "interpass_timing_fixture.h"
@@ -62,10 +62,25 @@ struct TransitionFixture : LowFixture {
 
 int main(int argc,char** argv) {
     try {
-        if(argc!=3 && (argc!=4 || (std::string(argv[3])!="model-intensity" && std::string(argv[3])!="model-product")))
-            throw std::runtime_error("Usage: interpass_gain_schedule_timing shader-dir output.csv [model-intensity|model-product]");
+        const std::string mode=argc==4?argv[3]:"";
+        if((argc!=3 && argc!=4) || (argc==4 && mode!="model-intensity" && mode!="model-product" && mode!="gap-015"))
+            throw std::runtime_error("Usage: interpass_gain_schedule_timing shader-dir output.csv [model-intensity|model-product|gap-015]");
         const bool modelIntensity=argc==4;
-        const bool modelProduct=modelIntensity && std::string(argv[3])=="model-product";
+        const bool modelProduct=mode=="model-product", gap015=mode=="gap-015";
+        // Historical 0.25 control only; the normal rendering path uses the production threshold.
+        const auto historical=[](DlssNr::InterPass::GainSchedule plan) {
+            plan.expectedMask=0;plan.expectedCovered=0;
+            for(unsigned pass=0;plan.enabled && pass+1<plan.passes;++pass) {
+                const auto current=plan.Block(plan.expectedCovered,pass+1);
+                const auto next=plan.Block(plan.expectedCovered,pass+2);
+                const double before=std::abs(double(current.high)-current.low);
+                const double after=std::abs(double(next.high)-next.low);
+                if(std::isfinite(before) && std::isfinite(after) && after>0.25 && after>before) {
+                    plan.expectedMask|=1u<<pass;plan.expectedCovered=pass+1;
+                }
+            }
+            return plan;
+        };
         // Retained only as the historical v41 control, never used by production shaping.
         const auto additive=[](float high){return DlssNr::Profiles::StructureAdjustedHigh(high,
             std::max(0.0f,.8f-(1.0f-.7f)));};
@@ -78,18 +93,20 @@ int main(int argc,char** argv) {
         const std::vector<int> scales=modelIntensity?std::vector<int>{50,59,65}:std::vector<int>{50,65,84,85};
         for(int scale : scales) {
             const float exponent=std::log2(100.0f/scale);
-            const auto before=DlssNr::InterPass::MakeGainSchedule(6,true,true,false,[&](unsigned) {
+            const auto before=historical(DlssNr::InterPass::MakeGainSchedule(6,true,true,false,[&](unsigned) {
                 const float high=std::pow(.7f,exponent);
                 return DlssNr::InterPass::ScheduleGains{
+                    gap015?DlssNr::Profiles::ModelAdjustedHigh(high,.8f,.7f):
                     modelProduct?additive(high):modelIntensity?DlssNr::Profiles::StructureAdjustedHigh(high,.8f):high,
                     std::pow(.8f,exponent)};
-            });
-            const auto plan=DlssNr::InterPass::MakeGainSchedule(6,true,true,false,[&](unsigned) {
+            }));
+            auto plan=DlssNr::InterPass::MakeGainSchedule(6,true,true,false,[&](unsigned) {
                 const float high=std::pow(.7f,exponent);
                 return DlssNr::InterPass::ScheduleGains{
-                    modelProduct?DlssNr::Profiles::ModelAdjustedHigh(high,.8f,.7f):modelIntensity?additive(high):high,
+                    (modelProduct || gap015)?DlssNr::Profiles::ModelAdjustedHigh(high,.8f,.7f):modelIntensity?additive(high):high,
                     std::pow(.8f,exponent)};
             });
+            if(!gap015)plan=historical(plan);
             const unsigned stride=scale>=85?3:scale>=74?2:1;
             uint32_t legacy=0;
             for(unsigned pass=0;pass<5;++pass)if((pass+1)%stride==0)legacy|=1u<<pass;

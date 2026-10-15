@@ -1,5 +1,8 @@
 # NR v42 — iloczyn Structure i Intensity
 
+Historyczny opis v42. [v43](NR-v43-gap-015.md) obniża próg interpassu
+z 0,25 do 0,15; iloczyn Structure i Intensity pozostaje aktualny.
+
 Współczynniki Structure i ogólnej intensywności danego passu są mnożone
 przy obliczaniu gainu high/medium. Zastępuje to sumowanie obniżeń z v41:
 

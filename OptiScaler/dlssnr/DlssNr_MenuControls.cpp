@@ -527,7 +527,7 @@ void RenderInput(Config* config)
                     config->DlssNrGuidedResidualCompoundPasses = compoundPasses;
                 HelpMarker("Multiply each pass's actual high/mid gain using its configured style, Structure and Intensity. "
                            "Each successful inter-pass correction consumes only its block; final resolve consumes the rest. "
-                           "Corrections occur only before a model that would increase the high/low gap beyond 0.25. Without inter-pass the final block covers all passes. "
+                           "Corrections occur only before a model that would increase the high/low gap beyond 0.15. Without inter-pass the final block covers all passes. "
                            "Structure and Intensity multiply: 0.5 and 0.5 leave 0.25 of the high/mid gain deviation from 1. "
                            "Either slider at 0 makes high/mid neutral; values above 1 retain the calibration at 1. Low is unchanged and never multiplied. "
                            "Disabling multiplication keeps the last pass's adjusted high/mid gain per correction/resolve.");
@@ -1137,7 +1137,7 @@ void RenderModel(Config* config)
             std::clamp(config->DlssNrWorkingScale.value_or_default(), 0.25f, 2.0f),
             std::clamp(config->DlssNrPasses.value_or_default(), 1u, passLimit),
             config->DlssNrSpatialCompression.value_or_default());
-        ImGui::TextDisabled("Expected inter-pass corrections: %u (growing gap > 0.25)",
+        ImGui::TextDisabled("Expected inter-pass corrections: %u (growing gap > 0.15)",
                             InterPass::CorrectionCount(schedule.expectedMask));
         bool neutralLow = config->DlssNrInterPassNeutralLow.value_or_default();
         if (ImGui::Checkbox("Keep inter-pass low gain at 1", &neutralLow))
@@ -1158,8 +1158,8 @@ void RenderModel(Config* config)
                    "Area / radius 1 at active scales up to and including 90%; other settings use exact Optimized with the same gain-based schedule. "
                    "Compare GPU time and inspect fine detail and motion with the Fast benchmarks.");
         HelpMarker("Reconstructs the cumulative NR edit against untouched native P100 before the next model "
-                   "only if its predicted absolute high/mid-to-low gain gap is greater than 0.25 AND grows. "
-                   "Equal or shrinking gaps skip correction, even above 0.25. "
+                   "only if its predicted absolute high/mid-to-low gain gap is greater than 0.15 AND grows. "
+                   "Equal or shrinking gaps skip correction, even above 0.15. "
                    "Prediction uses each model's style, resolution-adjusted gains, Structure, Intensity and multiplication setting. "
                    "Low averages the pending block, or all models so far when neutral inter-pass low is checked. "
                    "Off, spatial compression and scales above 90% disable inter-pass. Skipped transitions use ClampProxy.");
