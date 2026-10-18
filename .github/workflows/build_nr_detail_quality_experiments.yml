@@ -1,4 +1,4 @@
-name: Build NR v47 Superior Scaling menu fix
+name: Build NR v48 Superior Scaling exact resolve
 
 on:
   push:
@@ -23,7 +23,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v47-${{ github.ref }}
+  group: nr-interpass-v48-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -119,20 +119,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & ./artifacts/nr-v20/superior_policy.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($fixture in @("superior_carrier", "superior_timing")) {
+          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing")) {
             cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/${fixture}.cpp /Fe:artifacts/nr-v20/${fixture}.exe /Fo:artifacts/nr-v20/${fixture}.obj /link d3d12.lib dxgi.lib"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-superior-scaling-v47-20261018"
+        run: ./package_release.ps1 -Version "nr-superior-scaling-v48-20261018"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-superior-scaling-v47-20261018
-          path: release/OptiScaler-NR-nr-superior-scaling-v47-20261018.zip
+          name: OptiScaler-NR-superior-scaling-v48-20261018
+          path: release/OptiScaler-NR-nr-superior-scaling-v48-20261018.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -141,17 +141,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-superior-scaling-v47-20261018"
-          $archive = "release/OptiScaler-NR-nr-superior-scaling-v47-20261018.zip"
+          $tag = "nr-superior-scaling-v48-20261018"
+          $archive = "release/OptiScaler-NR-nr-superior-scaling-v48-20261018.zip"
           $notes = @"
-          Restores shared HDR input controls in Superior Scaling, from $env:GITHUB_SHA.
-          HDR mapping, white point source, exposure trim, highlight protection, trim anchors and paper white remain available.
-          Enlargement rendering now returns only from its own helper, leaving shared input controls reachable.
-          Removes the entire Legacy benchmark section from the Superior Scaling menu.
-          Legacy Enlargement modes retain their original benchmark profiles and controls.
-          Fixed Superior Scaling parameters and v46 gains remain unchanged; no rendering or shader changes.
-          Integration checks cover HDR reachability and absence of the Legacy section in Superior Scaling.
-          Details: docs/NR-v47-superior-menu.md.
+          Optimizes Superior Scaling final resolve without changing taps, weights, FP formats or arithmetic order, from $env:GITHUB_SHA.
+          Dedicated Mode 1/radius 1 PSO removes unrelated stages and skipped loop iterations; other stages/radii retain general fallback.
+          Loop-carried accumulation remains intact; unrolling was rejected after bitwise parity detected different rounding.
+          RTX 4090: 864 bit-exact GPU comparisons across FP16/FP32, HDR mappings, compare/debug, signed/NaN data and frame edges.
+          Resident low + final resolve ABBA, native 4K: P50 .672000 to .503040 ms; P59 .704256 to .552960; P65 .713984 to .564864.
+          Gains, pass scheduling, low filters, NR models, carrier and DLAA remain unchanged; no new stages, copies or resources.
+          Timings compare v47 Superior Scaling versus v48; they exclude inference, inter-pass, carrier and NGX/DLAA.
+          Full in-game NR timing remains unverified. GPU samples, variability and reproduction: docs/NR-v48-superior-exact-resolve.md.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -162,8 +162,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v47 - Superior Scaling menu fix" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v48 - Superior Scaling exact resolve" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v47 - Superior Scaling menu fix" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v48 - Superior Scaling exact resolve" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

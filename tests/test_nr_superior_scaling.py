@@ -64,6 +64,16 @@ def test_superior():
     assert "filtered - 0.5" in carrier
     assert not any(word in carrier for word in ("gAux2", "TemporalCarrierRange", "gKeep", "headroom"))
     assert shader.count("#if !defined(DLSSNR_SUPERIOR_SCALING)") == 2
+    assert "#if defined(DLSSNR_SUPERIOR_RESOLVE)" in shader
+    guided = block(shader, "float3 P100GuidedResidualAt(float2 uvq")
+    assert "const int radius = 1;" in guided
+    assert "[loop] for (int oy = -1; oy <= 1; ++oy)" in guided
+    assert "[loop] for (int ox = -1; ox <= 1; ++ox)" in guided
+    assert "[unroll]" not in guided
+    assert "wRange * wSpatial" in guided  # No exp2-of-sum approximation or changed weights.
+    pipelines = read("OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp")
+    select = block(pipelines, "ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline")
+    assert "constants.Mode != DlssNrMode_Resolve || constants.ResidualHistoryValid != 1u" in select
     run = read("OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp")
     assert "nr.interPassSuperior != interPassSuperior" in run
     assert "if (DlssNr::SuperiorScaling::Enabled(cfg)) spatialSettings.enabled = false;" in run
@@ -76,6 +86,7 @@ def test_superior():
     assert 'ini.SetValue("DlssNr", "SuperiorScalingPreset"' in config
     compile_script = read("tools/compile_nr_interpass.ps1")
     assert '"SuperiorCarrierMain"' in compile_script and '"carrier", "resolve", "cross5"' in compile_script
+    assert 'if ($variant -eq "resolve")' in compile_script and '"DLSSNR_SUPERIOR_RESOLVE=1"' in compile_script
     print("Superior integration PASS: fixed settings, A/K-only UI, no analysis dispatch/resources/readbacks, shadow-free PSOs, history and legacy isolation")
 
 

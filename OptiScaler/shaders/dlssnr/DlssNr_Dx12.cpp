@@ -178,6 +178,9 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& consta
     const bool carrier = constants.Mode == DlssNrMode_SuperiorCarrierEncode ||
                          constants.Mode == DlssNrMode_SuperiorCarrierDecode;
     if (!carrier && (constants.DirectResolveFlags & DlssNr::SuperiorScaling::ShaderFlag) == 0u) return nullptr;
+    // The final PSO has a fixed stage and radius; other stages retain their exact general fallback.
+    if (!carrier && constants.Mode != DlssNrMode_InterPassFastCross5 &&
+        (constants.Mode != DlssNrMode_Resolve || constants.ResidualHistoryValid != 1u)) return nullptr;
     const unsigned index = carrier ? 0u : constants.Mode == DlssNrMode_InterPassFastCross5 ? 2u : 1u;
     const void* const blobs[] { dlssnr_superior_carrier_cso, dlssnr_superior_resolve_cso, dlssnr_superior_cross5_cso };
     const size_t sizes[] { sizeof(dlssnr_superior_carrier_cso), sizeof(dlssnr_superior_resolve_cso), sizeof(dlssnr_superior_cross5_cso) };

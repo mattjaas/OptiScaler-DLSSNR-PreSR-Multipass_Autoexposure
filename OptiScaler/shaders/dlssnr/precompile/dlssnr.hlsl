@@ -64,6 +64,10 @@ cbuffer Params : register(b0)
 #if defined(DLSSNR_INTERPASS_CROSS5)
 #define gMode 36u
 #endif
+#if defined(DLSSNR_SUPERIOR_RESOLVE)
+// This PSO is selected only for final Resolve. Keep the cbuffer ABI, eliminate unrelated stages.
+#define gMode 1u
+#endif
 
 float3 InterPassGuideBlend(float3 bilinear, float3 guided, float strength)
 {
@@ -808,7 +812,11 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
         return 0.0;
 
     const float3 bilinearResidual = GuidedResidualBilinear(uvq);
+#if defined(DLSSNR_SUPERIOR_RESOLVE)
+    const int radius = 1;
+#else
     const int radius = (int) clamp(gResidualHistoryValidUnused, 1u, 3u);
+#endif
     const float rangeSigma = max(abs(gResidualBlendUnused), 1e-5);
     const float spatialSigma = max(abs(gResidualScale), 1e-4);
     const float invRange2 = 1.0 / (rangeSigma * rangeSigma);
@@ -821,11 +829,20 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
 
     float3 weighted = 0.0;
     float weightSum = 0.0;
+#if defined(DLSSNR_SUPERIOR_RESOLVE)
+    // Preserve loop-carried FP accumulation. Unrolling can reassociate weighted sums.
+    [loop] for (int oy = -1; oy <= 1; ++oy)
+#else
     [loop] for (int oy = -3; oy <= 3; ++oy)
+#endif
     {
         if (abs(oy) > radius)
             continue;
+#if defined(DLSSNR_SUPERIOR_RESOLVE)
+        [loop] for (int ox = -1; ox <= 1; ++ox)
+#else
         [loop] for (int ox = -3; ox <= 3; ++ox)
+#endif
         {
             if (abs(ox) > radius)
                 continue;

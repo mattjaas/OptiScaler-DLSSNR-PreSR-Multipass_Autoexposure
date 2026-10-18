@@ -121,6 +121,13 @@ struct Runner
                     for (int c=0;c<3;++c) v[c]=0.4f+(n==1 ? (fixture%2 ? -0.08f : 0.08f) : 0.0f);
                     v[3]=0.7f;
                 }
+                if (pattern == 2) // Correlated native/proxy guides and a spatially varying signed E50.
+                {
+                    for (int c=0;c<3;++c)
+                        v[c]=n==1 ? float(int((x*29+y*17+c*5)%31)-15)*.003f
+                                  : .4f+float((x*13+y*7+c*3)%11)*.0001f;
+                    v[3]=.7f;
+                }
                 std::memcpy(mapped+y*fp.Footprint.RowPitch+x*16,v,16);
             }
             upload->Unmap(0,nullptr); keep.push_back(upload);
