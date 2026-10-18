@@ -14,6 +14,7 @@
 #include "precompile/dlssnr_superior_carrier_Shader.h"
 #include "precompile/dlssnr_superior_resolve_Shader.h"
 #include "precompile/dlssnr_superior_cross5_Shader.h"
+#include "precompile/dlssnr_superior_normal_Shader.h"
 
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -173,7 +174,7 @@ ID3D12PipelineState* DlssNr_Dx12::InterPassExperimentPipeline(uint32_t mode, uin
     return _pipelineState;
 }
 
-ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& constants)
+ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& constants, ID3D12Resource* source)
 {
     const bool carrier = constants.Mode == DlssNrMode_SuperiorCarrierEncode ||
                          constants.Mode == DlssNrMode_SuperiorCarrierDecode;
@@ -181,9 +182,13 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& consta
     // The final PSO has a fixed stage and radius; other stages retain their exact general fallback.
     if (!carrier && constants.Mode != DlssNrMode_InterPassFastCross5 &&
         (constants.Mode != DlssNrMode_Resolve || constants.ResidualHistoryValid != 1u)) return nullptr;
-    const unsigned index = carrier ? 0u : constants.Mode == DlssNrMode_InterPassFastCross5 ? 2u : 1u;
-    const void* const blobs[] { dlssnr_superior_carrier_cso, dlssnr_superior_resolve_cso, dlssnr_superior_cross5_cso };
-    const size_t sizes[] { sizeof(dlssnr_superior_carrier_cso), sizeof(dlssnr_superior_resolve_cso), sizeof(dlssnr_superior_cross5_cso) };
+    const auto d = constants.Mode == DlssNrMode_Resolve && source ? source->GetDesc() : D3D12_RESOURCE_DESC {};
+    const bool normalResolve = DlssNr::SuperiorScaling::NormalResolve(constants, d.Width, d.Height);
+    const unsigned index = carrier ? 0u : normalResolve ? 3u : constants.Mode == DlssNrMode_InterPassFastCross5 ? 2u : 1u;
+    const void* const blobs[] { dlssnr_superior_carrier_cso, dlssnr_superior_resolve_cso,
+                              dlssnr_superior_cross5_cso, dlssnr_superior_normal_cso };
+    const size_t sizes[] { sizeof(dlssnr_superior_carrier_cso), sizeof(dlssnr_superior_resolve_cso),
+                          sizeof(dlssnr_superior_cross5_cso), sizeof(dlssnr_superior_normal_cso) };
     if (!_superiorAttempted[index])
     {
         _superiorAttempted[index] = true;
@@ -200,7 +205,7 @@ bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssN
 {
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
-    ID3D12PipelineState* pipeline = SuperiorPipeline(InConstants);
+    ID3D12PipelineState* pipeline = SuperiorPipeline(InConstants, InSource);
     if (!pipeline && (InConstants.Mode == DlssNrMode_SuperiorCarrierEncode || InConstants.Mode == DlssNrMode_SuperiorCarrierDecode)) return false;
     if (!pipeline) pipeline = InterPassExperimentPipeline(InConstants.Mode, InConstants.DirectResolveFlags);
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion, InPrevEdit,
@@ -217,7 +222,7 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
     std::lock_guard stateLock(_state->mutex);
     // Superior specializations bypass legacy PSO creation. Shading can safely fall back;
     // fixed carrier modes require their dedicated entry point.
-    ID3D12PipelineState* pipeline = SuperiorPipeline(InConstants);
+    ID3D12PipelineState* pipeline = SuperiorPipeline(InConstants, InSource);
     const bool usingSuperior = pipeline != nullptr;
     if (!pipeline && (InConstants.Mode == DlssNrMode_SuperiorCarrierEncode || InConstants.Mode == DlssNrMode_SuperiorCarrierDecode)) return false;
     if (!pipeline) pipeline = _pipelineState;

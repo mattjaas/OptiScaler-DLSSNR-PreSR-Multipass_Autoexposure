@@ -68,9 +68,9 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     ID3D12PipelineState* _interPassExperimentPipeline[3] {};
     bool _interPassExperimentAttempted[3] {};
     ID3D12PipelineState* InterPassExperimentPipeline(uint32_t mode, uint32_t flags = 0);
-    ID3D12PipelineState* _superiorPipeline[3] {};
-    bool _superiorAttempted[3] {};
-    ID3D12PipelineState* SuperiorPipeline(const DlssNrConstants& constants);
+    ID3D12PipelineState* _superiorPipeline[4] {};
+    bool _superiorAttempted[4] {};
+    ID3D12PipelineState* SuperiorPipeline(const DlssNrConstants& constants, ID3D12Resource* source);
     ID3D12PipelineState* _finishedColorPipelineState = nullptr;
     ID3D12PipelineState* _spatialPipelineState = nullptr;
     ID3D12PipelineState* _spatialGuidesPipelineState = nullptr;

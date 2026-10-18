@@ -68,6 +68,14 @@ cbuffer Params : register(b0)
 // This PSO is selected only for final Resolve. Keep the cbuffer ABI, eliminate unrelated stages.
 #define gMode 1u
 #endif
+#if defined(DLSSNR_SUPERIOR_NORMAL)
+// Selected only for the reduced signed-residual gameplay path. Inspector uses the general PSO.
+#define gTransfer 9u
+#define gDebugView 0u
+#define gCompareMode 0u
+#define gApplyModel 1u
+#define gDirectResolveFlags 65536u
+#endif
 
 float3 InterPassGuideBlend(float3 bilinear, float3 guided, float strength)
 {
@@ -3515,7 +3523,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
 
     uint proxyW, proxyH;
     gSource.GetDimensions(proxyW, proxyH);
+#if defined(DLSSNR_SUPERIOR_NORMAL)
+    const bool modelRanSmall = true; // Actual source dimensions are checked before selecting this PSO.
+#else
     const bool modelRanSmall = proxyW != gWidth || proxyH != gHeight;
+#endif
     if ((gTransfer == 3 || gTransfer == 4) && (proxyW < gWidth || proxyH < gHeight))
     {
         proxy = gPassthrough != 0 ? saturate(original)

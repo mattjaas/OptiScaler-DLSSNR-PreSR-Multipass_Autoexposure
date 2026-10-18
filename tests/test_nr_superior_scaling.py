@@ -74,6 +74,16 @@ def test_superior():
     pipelines = read("OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp")
     select = block(pipelines, "ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline")
     assert "constants.Mode != DlssNrMode_Resolve || constants.ResidualHistoryValid != 1u" in select
+    assert "SuperiorScaling::NormalResolve(constants, d.Width, d.Height)" in select
+    normal = block(policy, "inline bool NormalResolve")
+    for guard in ("c.DebugView == 0u", "c.CompareMode == 0u", "c.ShowSkinMask == 0u", "c.ApplyModel != 0u",
+                  "c.DirectResolveFlags == ShaderFlag", "sourceWidth <= c.Width",
+                  "sourceHeight <= c.Height", "sourceWidth != c.Width || sourceHeight != c.Height"):
+        assert guard in normal
+    normal_defines = shader.split("#if defined(DLSSNR_SUPERIOR_NORMAL)", 1)[1].split("#endif", 1)[0]
+    for define in ("gTransfer 9u", "gDebugView 0u", "gCompareMode 0u", "gApplyModel 1u",
+                   "gDirectResolveFlags 65536u"):
+        assert f"#define {define}" in normal_defines
     run = read("OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp")
     assert "nr.interPassSuperior != interPassSuperior" in run
     assert "if (DlssNr::SuperiorScaling::Enabled(cfg)) spatialSettings.enabled = false;" in run
@@ -86,7 +96,8 @@ def test_superior():
     assert 'ini.SetValue("DlssNr", "SuperiorScalingPreset"' in config
     compile_script = read("tools/compile_nr_interpass.ps1")
     assert '"SuperiorCarrierMain"' in compile_script and '"carrier", "resolve", "cross5"' in compile_script
-    assert 'if ($variant -eq "resolve")' in compile_script and '"DLSSNR_SUPERIOR_RESOLVE=1"' in compile_script
+    assert 'if ($variant -in @("resolve", "normal"))' in compile_script and '"DLSSNR_SUPERIOR_RESOLVE=1"' in compile_script
+    assert '"DLSSNR_SUPERIOR_NORMAL=1"' in compile_script
     print("Superior integration PASS: fixed settings, A/K-only UI, no analysis dispatch/resources/readbacks, shadow-free PSOs, history and legacy isolation")
 
 

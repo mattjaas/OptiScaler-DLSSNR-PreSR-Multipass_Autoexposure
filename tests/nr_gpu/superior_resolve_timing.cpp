@@ -73,9 +73,11 @@ struct ResolveFixture {
 };
 int main(int argc,char** argv) {
     try {
-        if(argc!=4)throw std::runtime_error("Usage: superior_resolve_timing baseline-dir candidate-dir output.csv");
+        if(argc!=4 && argc!=5)throw std::runtime_error("Usage: superior_resolve_timing baseline-dir candidate-dir output.csv [normal]");
+        const bool normal=argc==5;
+        if(normal && std::string(argv[4])!="normal")throw std::runtime_error("Unknown timing profile");
         Runner r(true,64);auto before=r.pipeline(argv[1],"dlssnr_superior_resolve");
-        auto after=r.pipeline(argv[2],"dlssnr_superior_resolve"),low=r.pipeline(argv[2],"DlssNr");
+        auto after=r.pipeline(argv[2],normal?"dlssnr_superior_normal":"dlssnr_superior_resolve"),low=r.pipeline(argv[2],"DlssNr");
         auto carrier=r.pipeline(argv[2],"dlssnr_superior_carrier");
         std::ofstream out(argv[3]);if(!out)throw std::runtime_error("Cannot create CSV");
         out<<"scale,variant,window,sample,gpu_ms\n"<<std::setprecision(9);
@@ -86,7 +88,7 @@ int main(int argc,char** argv) {
                 for(UINT warm=0;warm<90;warm+=16)f.batch(pso,low.Get(),std::min(16u,90-warm));
                 for(UINT sample=0;sample<160;sample+=16) {
                     auto values=f.batch(pso,low.Get(),16);
-                    for(UINT i=0;i<values.size();++i)out<<scale<<','<<(candidate?"v48":"v47")<<','<<window<<','<<sample+i<<','<<values[i]<<'\n';
+                    for(UINT i=0;i<values.size();++i)out<<scale<<','<<(normal?(candidate?"v49":"v48"):(candidate?"v48":"v47"))<<','<<window<<','<<sample+i<<','<<values[i]<<'\n';
                 }
                 out.flush();if(!out)throw std::runtime_error("CSV write failed");
             }

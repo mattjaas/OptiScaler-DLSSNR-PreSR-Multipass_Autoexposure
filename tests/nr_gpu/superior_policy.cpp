@@ -21,6 +21,20 @@ int main() {
         require(High(2)==.95f && Low(2)==.784f && High(99)==High(2));
         for(int i=-5;i<30;++i)require(Preset(i)==(i==11?11:1));
         require(DlssNrSpatialTransfer(11)==0); // native-scale fallback is ordinary composition
+        DlssNrConstants resolve{};resolve.Mode=1;resolve.Transfer=9;resolve.Width=3840;resolve.Height=2160;
+        resolve.ResidualHistoryValid=1;resolve.ApplyModel=1;resolve.DirectResolveFlags=ShaderFlag;
+        require(NormalResolve(resolve,1920,1080) && NormalResolve(resolve,3840,1080) && NormalResolve(resolve,1920,2160));
+        require(!NormalResolve(resolve,3840,2160) && !NormalResolve(resolve,7680,4320));
+        require(!NormalResolve(resolve,0,1080) && !NormalResolve(resolve,1920,0) && !NormalResolve(resolve,7680,1080));
+        for(auto field : {&DlssNrConstants::DebugView,&DlssNrConstants::CompareMode,&DlssNrConstants::ShowSkinMask}) {
+            resolve.*field=1;require(!NormalResolve(resolve,1920,1080));resolve.*field=0;
+        }
+        resolve.ApplyModel=0;require(!NormalResolve(resolve,1920,1080));resolve.ApplyModel=1;
+        resolve.Transfer=8;require(!NormalResolve(resolve,1920,1080));resolve.Transfer=9;
+        resolve.Mode=18;require(!NormalResolve(resolve,1920,1080));resolve.Mode=1;
+        resolve.ResidualHistoryValid=2;require(!NormalResolve(resolve,1920,1080));resolve.ResidualHistoryValid=1;
+        resolve.DirectResolveFlags|=4;require(!NormalResolve(resolve,1920,1080));resolve.DirectResolveFlags=ShaderFlag;
+        resolve.Width=resolve.Height=1;require(!NormalResolve(resolve,1,1)); // A rounded 1x1 is not reduced.
         for(uint32_t mode=0;mode<=10;++mode) {
             cfg.DlssNrTransfer.value=mode;
             require(!Enabled(cfg) && InterPassMode(cfg)==0 && DownscaleFilter(cfg)==11);
@@ -28,6 +42,6 @@ int main() {
             require(ShapingMode(cfg)==0);
         }
         require(cfg.DlssNrInterPassReconstruction.value==0 && cfg.DlssNrProxyDownscaleFilter.value==11);
-        std::cout<<"Superior policy PASS: fixed settings, A/K, all styles, native fallback and legacy preservation\n";
+        std::cout<<"Superior policy PASS: fixed settings, A/K, all styles, normal PSO guards, native fallback and legacy preservation\n";
     }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}
 }

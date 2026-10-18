@@ -3,16 +3,20 @@
 
 int main(int argc,char** argv) {
     try {
-        if(argc!=3)throw std::runtime_error("Usage: superior_resolve_quality baseline-dir candidate-dir");
+        if(argc!=3 && argc!=4)throw std::runtime_error("Usage: superior_resolve_quality baseline-dir candidate-dir [normal]");
+        const bool normal=argc==4;
+        if(normal && std::string(argv[3])!="normal")throw std::runtime_error("Unknown quality profile");
         Runner r(true);
         auto before=r.pipeline(argv[1],"dlssnr_superior_resolve");
-        auto after=r.pipeline(argv[2],"dlssnr_superior_resolve");
+        auto after=r.pipeline(argv[2],normal?"dlssnr_superior_normal":"dlssnr_superior_resolve");
         unsigned checks=0;size_t words=0;
         struct Geometry { UINT nw,nh,sw,sh; };
-        for(auto d : {Geometry{1,1,1,1},{3,3,1,1},{33,17,17,9},{64,32,32,16},{79,43,47,25},{129,73,84,47}})
+        for(auto d : {Geometry{1,1,1,1},{3,3,1,1},{33,17,17,9},{64,32,32,16},{79,43,47,25},{129,73,84,47},
+                      {33,17,33,9},{33,17,17,17}})
         for(bool half : {false,true})
         for(unsigned scenario=0;scenario<18;++scenario)
         for(int fixture=0;fixture<4;++fixture) {
+            if(normal && d.nw==d.sw && d.nh==d.sh)continue; // Normal PSO requires actual reduction.
             const UINT lw=(d.sw+7)/8,lh=(d.sh+7)/8;
             std::vector<uint32_t> low(size_t(lw)*lh*(half?2:4));
             for(size_t i=0;i<low.size();++i) {
@@ -33,6 +37,7 @@ int main(int argc,char** argv) {
             c.DebugScale=20;c.CompareMode=scenario%3;c.CompareSplit=.4f;c.CompareZoom=1.3f;c.CompareSwap=scenario%2;
             c.SkinProtection=scenario%2;c.SkinDetail=.75f;c.SkinColour=1.2f;
             c.EnvironmentDetail=1;c.EnvironmentColour=.8f;
+            if(normal) { c.DebugView=0;c.CompareMode=0;c.ApplyModel=1; }
             const int pattern=fixture<2?2:0;
             const auto a=r.run(before.Get(),d.nw,d.nh,d.nw,d.nh,c,fixture,half,8,d.sw,d.sh,nullptr,pattern,&low,lw,lh);
             const auto b=r.run(after.Get(),d.nw,d.nh,d.nw,d.nh,c,fixture,half,8,d.sw,d.sh,nullptr,pattern,&low,lw,lh);
@@ -46,7 +51,8 @@ int main(int argc,char** argv) {
             }
             words+=a.size();++checks;
         }
-        std::cout<<"Superior resolve GPU parity PASS: "<<checks<<" cases, "<<words
-            <<" words, FP16/FP32, HDR mappings, compare/debug, signed/non-finite data and edges\n";
+        std::cout<<"Superior "<<(normal?"normal ":"")<<"resolve GPU parity PASS: "<<checks<<" cases, "<<words
+            <<" words, FP16/FP32, HDR mappings, "<<(normal?"normal rendering, ":"compare/debug, ")
+            <<"signed/non-finite data and edges\n";
     }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}
 }
