@@ -138,61 +138,9 @@ static void RenderSpatial(Config* config)
                        "during movement.");
 }
 
-void RenderInput(Config* config)
+// Returning from enlargement-specific controls must not hide shared HDR input settings.
+static void RenderEnlargement(Config* config)
 {
-    // Resolution changes rebuild model resources; commit only after releasing the slider.
-    static int pendingScale = -1;
-
-    int scalePercent =
-        pendingScale >= 0 ? pendingScale : (int) lroundf(config->DlssNrWorkingScale.value_or_default() * 100.0f);
-
-    if (ImGui::SliderInt("Model resolution", &scalePercent, 25, 200, "%d%%"))
-        pendingScale = scalePercent;
-
-    if (ImGui::IsItemDeactivatedAfterEdit() && pendingScale >= 0)
-    {
-        config->DlssNrWorkingScale = std::clamp(pendingScale, 25, 200) / 100.0f;
-        if (!SuperiorScaling::Enabled(*config) && config->DlssNrSpatialCompression.value_or_default())
-        {
-            auto spatial = Spatial::ReadSettings(*config);
-            ConstrainSpatialControls(spatial, config->DlssNrWorkingScale.value_or_default());
-            StoreSpatial(config, spatial);
-        }
-        pendingScale = -1;
-    }
-
-    HelpMarker("50% halves width and height. 100% uses the full input size.");
-    if (!SuperiorScaling::Enabled(*config)) RenderSpatial(config);
-
-    if (scalePercent < 100 && !SuperiorScaling::Enabled(*config) && !config->DlssNrSpatialCompression.value_or_default())
-    {
-        static const char* proxyDownNames[] = { "Area (default)", "Bilinear", "Catmull-Rom", "Lanczos2",
-                                                "Point / nearest", "FSR1", "Bicubic", "Lanczos3", "Kaiser2",
-                                                "Kaiser3", "MAGIC", "SSIM Sharp (experimental)" };
-        int filter = (int) std::min(config->DlssNrProxyDownscaleFilter.value_or_default(), 11u);
-        if (ImGui::Combo("Proxy downscale filter", &filter, proxyDownNames, IM_ARRAYSIZE(proxyDownNames)))
-            config->DlssNrProxyDownscaleFilter = (uint32_t) filter;
-
-        HelpMarker("Filter used only to shrink the full-resolution proxy before NR below 100%. "
-                   "FSR1, Bicubic, Catmull-Rom, Lanczos2/3, Kaiser2/3 and MAGIC reuse the exact existing "
-                   "Output Scaling downscalers. Area is the default; Bilinear and Point are "
-                   "simple references. SSIM Sharp is an experimental local structural-contrast variant tuned "
-                   "to keep more high-frequency structure. Spatial compression is unaffected.");
-    }
-
-    if (scalePercent > 100)
-    {
-        static const char* dsNames[] = { "FSR1",     "Bicubic", "Catmull-Rom", "Lanczos2",
-                                         "Lanczos3", "Kaiser2", "Kaiser3",     "MAGIC" };
-        int ds = (int) config->DlssNrScalingDownscaler.value_or_default();
-        if (ds < 0 || ds >= IM_ARRAYSIZE(dsNames))
-            ds = (int) Scaler::Lanczos3;
-
-        if (ImGui::Combo("Downscaler (NR)", &ds, dsNames, IM_ARRAYSIZE(dsNames)))
-            config->DlssNrScalingDownscaler = (Scaler) ds;
-
-        HelpMarker("Downsampling filter for resolutions above 100%.");
-    }
     {
         const bool reduced = config->DlssNrWorkingScale.value_or_default() < 0.999f;
 
@@ -1033,6 +981,65 @@ void RenderInput(Config* config)
             }
         }
     }
+}
+
+void RenderInput(Config* config)
+{
+    // Resolution changes rebuild model resources; commit only after releasing the slider.
+    static int pendingScale = -1;
+
+    int scalePercent =
+        pendingScale >= 0 ? pendingScale : (int) lroundf(config->DlssNrWorkingScale.value_or_default() * 100.0f);
+
+    if (ImGui::SliderInt("Model resolution", &scalePercent, 25, 200, "%d%%"))
+        pendingScale = scalePercent;
+
+    if (ImGui::IsItemDeactivatedAfterEdit() && pendingScale >= 0)
+    {
+        config->DlssNrWorkingScale = std::clamp(pendingScale, 25, 200) / 100.0f;
+        if (!SuperiorScaling::Enabled(*config) && config->DlssNrSpatialCompression.value_or_default())
+        {
+            auto spatial = Spatial::ReadSettings(*config);
+            ConstrainSpatialControls(spatial, config->DlssNrWorkingScale.value_or_default());
+            StoreSpatial(config, spatial);
+        }
+        pendingScale = -1;
+    }
+
+    HelpMarker("50% halves width and height. 100% uses the full input size.");
+    if (!SuperiorScaling::Enabled(*config)) RenderSpatial(config);
+
+    if (scalePercent < 100 && !SuperiorScaling::Enabled(*config) && !config->DlssNrSpatialCompression.value_or_default())
+    {
+        static const char* proxyDownNames[] = { "Area (default)", "Bilinear", "Catmull-Rom", "Lanczos2",
+                                                "Point / nearest", "FSR1", "Bicubic", "Lanczos3", "Kaiser2",
+                                                "Kaiser3", "MAGIC", "SSIM Sharp (experimental)" };
+        int filter = (int) std::min(config->DlssNrProxyDownscaleFilter.value_or_default(), 11u);
+        if (ImGui::Combo("Proxy downscale filter", &filter, proxyDownNames, IM_ARRAYSIZE(proxyDownNames)))
+            config->DlssNrProxyDownscaleFilter = (uint32_t) filter;
+
+        HelpMarker("Filter used only to shrink the full-resolution proxy before NR below 100%. "
+                   "FSR1, Bicubic, Catmull-Rom, Lanczos2/3, Kaiser2/3 and MAGIC reuse the exact existing "
+                   "Output Scaling downscalers. Area is the default; Bilinear and Point are "
+                   "simple references. SSIM Sharp is an experimental local structural-contrast variant tuned "
+                   "to keep more high-frequency structure. Spatial compression is unaffected.");
+    }
+
+    if (scalePercent > 100)
+    {
+        static const char* dsNames[] = { "FSR1",     "Bicubic", "Catmull-Rom", "Lanczos2",
+                                         "Lanczos3", "Kaiser2", "Kaiser3",     "MAGIC" };
+        int ds = (int) config->DlssNrScalingDownscaler.value_or_default();
+        if (ds < 0 || ds >= IM_ARRAYSIZE(dsNames))
+            ds = (int) Scaler::Lanczos3;
+
+        if (ImGui::Combo("Downscaler (NR)", &ds, dsNames, IM_ARRAYSIZE(dsNames)))
+            config->DlssNrScalingDownscaler = (Scaler) ds;
+
+        HelpMarker("Downsampling filter for resolutions above 100%.");
+    }
+    RenderEnlargement(config);
+
     static const char* reversibleNames[] = { "Off (soft knee)", "Neutwo proxy + composed", "Neutwo proxy + replace",
                                              "Hybrid proxy + composed", "Hybrid proxy + replace" };
     int reversible = (int) config->DlssNrReversibleMode.value_or_default();

@@ -269,8 +269,7 @@ void RenderMenu(Config* config, float menuResScale)
         ImGui::Separator();
         ImGui::Spacing();
         RenderStatus(config);
-        const bool showLab = !SuperiorScaling::Enabled(*config) || ImGui::CollapsingHeader("Legacy inter-pass benchmark lab");
-        if (showLab)
+        if (!SuperiorScaling::Enabled(*config))
         {
             const auto bench = DlssNr::ReadInterPassBenchmark();
             if (bench.active)
@@ -299,7 +298,7 @@ void RenderMenu(Config* config, float menuResScale)
                 ImGui::SetNextItemWidth(95.0f);
                 ImGui::InputInt("Benchmark measured samples", &samples, 0, 0);
                 samples = std::clamp(samples, 40, 2000);
-                const bool canBenchmark = !SuperiorScaling::Enabled(*config) && ReadStatus(Backend::Dx12).running &&
+                const bool canBenchmark = ReadStatus(Backend::Dx12).running &&
                                           !ReadStatus(Backend::Vulkan).running;
                 static bool inspectFastWindows = false;
                 static bool inspectExperimentWindows = false;
@@ -386,8 +385,6 @@ void RenderMenu(Config* config, float menuResScale)
             }
             if (!bench.message.empty())
                 ImGui::TextWrapped("%s", bench.message.c_str());
-            if (SuperiorScaling::Enabled(*config))
-                ImGui::TextDisabled("Select a legacy enlargement mode to run this path-comparison lab.");
         }
 
         ImGui::SeparatorText(PipelineUi::SectionName(selected));

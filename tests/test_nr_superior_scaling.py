@@ -28,6 +28,19 @@ def test_superior():
     assert 'ImGui::Combo("DLSS preset"' in panel and "return;" in panel
     assert "Slider" not in panel and "EffectiveGuided" not in panel
     assert '"A - Faster", "K - More stable NR in motion"' in panel
+    # Shared input/HDR settings must remain reachable after the Superior preset panel returns.
+    enlargement_panel = block(menu, "static void RenderEnlargement(Config* config)")
+    input_panel = block(menu, "void RenderInput(Config* config)")
+    assert 'ImGui::Combo("Enlargement"' in enlargement_panel
+    assert "RenderEnlargement(config);" in input_panel and "return;" not in input_panel
+    for label in ("HDR mapping (experimental)", "White point source", "Exposure trim",
+                  "Highlight protection", "Trim anchors", "Paper white"):
+        assert f'"{label}"' in input_panel and f'"{label}"' not in enlargement_panel
+    main_menu = read("OptiScaler/dlssnr/DlssNr_Menu.cpp")
+    assert "Legacy inter-pass benchmark lab" not in main_menu
+    lab = block(main_menu, "if (!SuperiorScaling::Enabled(*config))")
+    assert 'ImGui::InputInt("Benchmark warmup samples"' in lab
+    assert "StartInterPassBenchmark" in lab
     assert "interPassAvailable && !SuperiorScaling::Enabled(*config)" in menu
     profiles = read("OptiScaler/dlssnr/PassProfiles.h")
     base = profiles[profiles.index("inline GuidedResidualGains GuidedResidualBaseGains"):]
