@@ -31,6 +31,19 @@ template<class C> inline bool NormalResolve(const C& c, uint64_t sourceWidth, ui
            sourceWidth <= c.Width && sourceHeight <= c.Height &&
            (sourceWidth != c.Width || sourceHeight != c.Height);
 }
+
+// Called after NormalResolve eligibility. Zero retains the general normal PSO.
+template<class C> inline uint32_t NormalColorProfile(const C& c)
+{
+    // Retain v50 rounding in the optional replace-mode native-detail restoration.
+    if ((c.ReversibleMode == 2u || c.ReversibleMode == 4u) && c.ModelWorkScale > 0.0f &&
+        c.ModelWorkScale < .999f && c.ReplaceDetailStrength > 0.0f) return 0u;
+    if (c.ReversibleMode > 4u) return 0u;
+    if (c.Passthrough == 1u) return 1u; // SDR; its mapping selector remains dynamic.
+    if (c.Passthrough != 0u) return 0u;
+    // Composed HDR candidates did not show a sufficiently repeatable gain.
+    return c.ReversibleMode == 2u ? 2u : c.ReversibleMode == 4u ? 3u : 0u;
+}
 template<class C> inline uint32_t InterPassMode(const C& cfg)
 { return Enabled(cfg) ? 8u : std::min(cfg.DlssNrInterPassReconstruction.value_or_default(),8u); }
 template<class C> inline uint32_t DownscaleFilter(const C& cfg)

@@ -51,6 +51,20 @@ int main() {
         resolve.Mode=18;require(!NormalResolve(resolve,1920,1080));resolve.Mode=1;
         resolve.ResidualHistoryValid=2;require(!NormalResolve(resolve,1920,1080));resolve.ResidualHistoryValid=1;
         resolve.DirectResolveFlags|=4;require(!NormalResolve(resolve,1920,1080));resolve.DirectResolveFlags=ShaderFlag;
+        for(uint32_t mode=0;mode<12;++mode) {
+            resolve.ReversibleMode=mode;resolve.Passthrough=1;require(NormalColorProfile(resolve)==(mode<=4?1:0));
+            resolve.Passthrough=0;require(NormalColorProfile(resolve)==(mode==2?2:mode==4?3:0));
+            resolve.Passthrough=2;require(NormalColorProfile(resolve)==0);
+        }
+        for(uint32_t mode : {2u,4u}) {
+            resolve.ReversibleMode=mode;resolve.Passthrough=0;resolve.ReplaceDetailStrength=.5f;
+            resolve.ModelWorkScale=.5f;require(NormalColorProfile(resolve)==0);
+            resolve.Passthrough=1;require(NormalColorProfile(resolve)==0);
+            resolve.ModelWorkScale=.999f;require(NormalColorProfile(resolve)==1);
+            resolve.ModelWorkScale=1;require(NormalColorProfile(resolve)==1);
+            resolve.ModelWorkScale=0;require(NormalColorProfile(resolve)==1);
+            resolve.ModelWorkScale=.5f;resolve.ReplaceDetailStrength=0;require(NormalColorProfile(resolve)==1);
+        }
         resolve.Width=resolve.Height=1;require(!NormalResolve(resolve,1,1)); // A rounded 1x1 is not reduced.
         for(uint32_t mode=0;mode<=10;++mode) {
             cfg.DlssNrTransfer.value=mode;

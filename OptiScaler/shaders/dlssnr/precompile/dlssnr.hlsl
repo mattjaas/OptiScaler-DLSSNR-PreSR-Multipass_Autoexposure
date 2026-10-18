@@ -75,6 +75,12 @@ cbuffer Params : register(b0)
 #define gCompareMode 0u
 #define gApplyModel 1u
 #define gDirectResolveFlags 65536u
+#if defined(DLSSNR_SUPERIOR_SDR)
+#define gPassthrough 1u
+#elif defined(DLSSNR_SUPERIOR_HDR)
+#define gPassthrough 0u
+#define gReversibleMode DLSSNR_SUPERIOR_HDR
+#endif
 #endif
 
 float3 InterPassGuideBlend(float3 bilinear, float3 guided, float strength)

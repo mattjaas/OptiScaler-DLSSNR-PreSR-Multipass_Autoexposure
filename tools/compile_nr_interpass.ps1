@@ -42,12 +42,15 @@ try {
         } # Standard shader keeps its existing exposure-meter LDS, without inter-pass cache.
         Write-Host "$stem SHA256=$((Get-FileHash ${stem}_Shader.cso).Hash)"
     }
-    foreach ($variant in @("carrier", "resolve", "cross5", "normal")) {
+    foreach ($variant in @("carrier", "resolve", "cross5", "normal", "sdr", "hdr2", "hdr4")) {
         $stem = "dlssnr_superior_$variant"
         $entry = if ($variant -eq "carrier") { "SuperiorCarrierMain" } else { "CSMain" }
         $defines = @("-D", "DLSSNR_SUPERIOR_SCALING=1")
-        if ($variant -in @("resolve", "normal")) { $defines += @("-D", "DLSSNR_SUPERIOR_RESOLVE=1") }
-        if ($variant -eq "normal") { $defines += @("-D", "DLSSNR_SUPERIOR_NORMAL=1") }
+        $normal = $variant -in @("normal", "sdr", "hdr2", "hdr4")
+        if ($variant -eq "resolve" -or $normal) { $defines += @("-D", "DLSSNR_SUPERIOR_RESOLVE=1") }
+        if ($normal) { $defines += @("-D", "DLSSNR_SUPERIOR_NORMAL=1") }
+        if ($variant -eq "sdr") { $defines += @("-D", "DLSSNR_SUPERIOR_SDR=1") }
+        if ($variant -like "hdr*") { $defines += @("-D", "DLSSNR_SUPERIOR_HDR=$($variant.Substring(3))") }
         if ($variant -eq "cross5") { $defines += @("-D", "DLSSNR_INTERPASS_CROSS5=1") }
         & ../../shader_tools/dxc.exe -T cs_6_0 -E $entry -O3 -Qstrip_debug -Qstrip_reflect @defines dlssnr.hlsl -Fo "${stem}_Shader.cso" -Fc "${stem}.asm"
         if ($LASTEXITCODE -ne 0) { throw "DXC failed: $stem" }
@@ -55,7 +58,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Header failed: $stem" }
         $header = Join-Path (Get-Location) "${stem}_Shader.h"
         [IO.File]::WriteAllLines($header, @([IO.File]::ReadAllLines($header) | ForEach-Object { $_.TrimEnd() }), [Text.UTF8Encoding]::new($false))
-        if ($variant -in @("carrier", "resolve", "normal") -and (Select-String "${stem}.asm" -Pattern 'addrspace\(3\) global')) { throw "Superior $variant unexpectedly uses LDS" }
+        if (($variant -in @("carrier", "resolve") -or $normal) -and (Select-String "${stem}.asm" -Pattern 'addrspace\(3\) global')) { throw "Superior $variant unexpectedly uses LDS" }
         Write-Host "$stem SHA256=$((Get-FileHash ${stem}_Shader.cso).Hash)"
     }
 

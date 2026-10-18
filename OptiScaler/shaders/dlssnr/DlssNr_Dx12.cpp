@@ -15,6 +15,9 @@
 #include "precompile/dlssnr_superior_resolve_Shader.h"
 #include "precompile/dlssnr_superior_cross5_Shader.h"
 #include "precompile/dlssnr_superior_normal_Shader.h"
+#include "precompile/dlssnr_superior_sdr_Shader.h"
+#include "precompile/dlssnr_superior_hdr2_Shader.h"
+#include "precompile/dlssnr_superior_hdr4_Shader.h"
 
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -185,18 +188,27 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& consta
         (constants.Mode != DlssNrMode_Resolve || constants.ResidualHistoryValid != 1u)) return nullptr;
     const auto d = constants.Mode == DlssNrMode_Resolve && source ? source->GetDesc() : D3D12_RESOURCE_DESC {};
     const bool normalResolve = DlssNr::SuperiorScaling::NormalResolve(constants, d.Width, d.Height);
-    const unsigned index = carrier ? 0u : normalResolve ? 3u : constants.Mode == DlssNrMode_InterPassFastCross5 ? 2u : 1u;
+    const unsigned index = carrier ? 0u : normalResolve ? 3u + DlssNr::SuperiorScaling::NormalColorProfile(constants)
+                                                       : constants.Mode == DlssNrMode_InterPassFastCross5 ? 2u : 1u;
     const void* const blobs[] { dlssnr_superior_carrier_cso, dlssnr_superior_resolve_cso,
-                              dlssnr_superior_cross5_cso, dlssnr_superior_normal_cso };
+                              dlssnr_superior_cross5_cso, dlssnr_superior_normal_cso,
+                              dlssnr_superior_sdr_cso, dlssnr_superior_hdr2_cso, dlssnr_superior_hdr4_cso };
     const size_t sizes[] { sizeof(dlssnr_superior_carrier_cso), sizeof(dlssnr_superior_resolve_cso),
-                          sizeof(dlssnr_superior_cross5_cso), sizeof(dlssnr_superior_normal_cso) };
-    if (!_superiorAttempted[index])
+                          sizeof(dlssnr_superior_cross5_cso), sizeof(dlssnr_superior_normal_cso),
+                          sizeof(dlssnr_superior_sdr_cso), sizeof(dlssnr_superior_hdr2_cso),
+                          sizeof(dlssnr_superior_hdr4_cso) };
+    const auto get = [&](unsigned selected) -> ID3D12PipelineState*
     {
-        _superiorAttempted[index] = true;
-        if (!CreateComputePipeline(_device, &_superiorPipeline[index], blobs[index], sizes[index], nullptr))
-            LOG_WARN("Superior Scaling PSO {} creation failed", index);
-    }
-    return _superiorPipeline[index];
+        if (!_superiorAttempted[selected])
+        {
+            _superiorAttempted[selected] = true;
+            if (!CreateComputePipeline(_device, &_superiorPipeline[selected], blobs[selected], sizes[selected], nullptr))
+                LOG_WARN("Superior Scaling PSO {} creation failed", selected);
+        }
+        return _superiorPipeline[selected];
+    };
+    if (auto* pipeline = get(index)) return pipeline;
+    return index > 3u ? get(3u) : nullptr; // Exact v50 normal fallback if a colour PSO is unavailable.
 }
 
 bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,

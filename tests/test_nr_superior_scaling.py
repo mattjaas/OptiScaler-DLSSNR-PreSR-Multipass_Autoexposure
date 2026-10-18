@@ -87,6 +87,8 @@ def test_superior():
     select = block(pipelines, "ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline")
     assert "constants.Mode != DlssNrMode_Resolve || constants.ResidualHistoryValid != 1u" in select
     assert "SuperiorScaling::NormalResolve(constants, d.Width, d.Height)" in select
+    assert "3u + DlssNr::SuperiorScaling::NormalColorProfile(constants)" in select
+    assert "index > 3u ? get(3u) : nullptr" in select
     normal = block(policy, "inline bool NormalResolve")
     for guard in ("c.DebugView == 0u", "c.CompareMode == 0u", "c.ShowSkinMask == 0u", "c.ApplyModel != 0u",
                   "c.DirectResolveFlags == ShaderFlag", "sourceWidth <= c.Width",
@@ -109,8 +111,14 @@ def test_superior():
     assert 'ini.SetValue("DlssNr", "SuperiorScalingPreset"' in config
     compile_script = read("tools/compile_nr_interpass.ps1")
     assert '"SuperiorCarrierMain"' in compile_script and '"carrier", "resolve", "cross5"' in compile_script
-    assert 'if ($variant -in @("resolve", "normal"))' in compile_script and '"DLSSNR_SUPERIOR_RESOLVE=1"' in compile_script
+    assert 'if ($variant -eq "resolve" -or $normal)' in compile_script and '"DLSSNR_SUPERIOR_RESOLVE=1"' in compile_script
     assert '"DLSSNR_SUPERIOR_NORMAL=1"' in compile_script
+    assert '"DLSSNR_SUPERIOR_SDR=1"' in compile_script and '"DLSSNR_SUPERIOR_HDR=$($variant.Substring(3))"' in compile_script
+    colors = block(policy, "inline uint32_t NormalColorProfile")
+    assert "c.Passthrough == 1u" in colors and "c.Passthrough != 0u" in colors and "c.ReversibleMode > 4u" in colors
+    assert "c.ReversibleMode == 2u ? 2u : c.ReversibleMode == 4u ? 3u : 0u" in colors
+    assert "c.ModelWorkScale < .999f && c.ReplaceDetailStrength > 0.0f" in colors
+    assert "#define gPassthrough 1u" in shader and "#define gReversibleMode DLSSNR_SUPERIOR_HDR" in shader
     print("Superior integration PASS: fixed settings, A/K-only UI, no analysis dispatch/resources/readbacks, shadow-free PSOs, history and legacy isolation")
 
 
