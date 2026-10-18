@@ -177,7 +177,8 @@ ID3D12PipelineState* DlssNr_Dx12::InterPassExperimentPipeline(uint32_t mode, uin
 ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& constants, ID3D12Resource* source)
 {
     const bool carrier = constants.Mode == DlssNrMode_SuperiorCarrierEncode ||
-                         constants.Mode == DlssNrMode_SuperiorCarrierDecode;
+                         constants.Mode == DlssNrMode_SuperiorCarrierDecode ||
+                         constants.Mode == DlssNrMode_SuperiorCarrierMotion;
     if (!carrier && (constants.DirectResolveFlags & DlssNr::SuperiorScaling::ShaderFlag) == 0u) return nullptr;
     // The final PSO has a fixed stage and radius; other stages retain their exact general fallback.
     if (!carrier && constants.Mode != DlssNrMode_InterPassFastCross5 &&
@@ -206,7 +207,9 @@ bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssN
     std::lock_guard ownersLock(nrOwnersMutex);
     std::lock_guard stateLock(_state->mutex);
     ID3D12PipelineState* pipeline = SuperiorPipeline(InConstants, InSource);
-    if (!pipeline && (InConstants.Mode == DlssNrMode_SuperiorCarrierEncode || InConstants.Mode == DlssNrMode_SuperiorCarrierDecode)) return false;
+    if (!pipeline && (InConstants.Mode == DlssNrMode_SuperiorCarrierEncode ||
+                      InConstants.Mode == DlssNrMode_SuperiorCarrierDecode ||
+                      InConstants.Mode == DlssNrMode_SuperiorCarrierMotion)) return false;
     if (!pipeline) pipeline = InterPassExperimentPipeline(InConstants.Mode, InConstants.DirectResolveFlags);
     return DispatchCompute(InCmdList, InConstants, pipeline, InSource, InModel, InOriginal, InMotion, InPrevEdit,
                            nullptr, OutTarget, OutKeep, immutableSlot);
@@ -224,7 +227,9 @@ bool DlssNr_Dx12::DispatchPassAux2(ID3D12GraphicsCommandList* InCmdList, const D
     // fixed carrier modes require their dedicated entry point.
     ID3D12PipelineState* pipeline = SuperiorPipeline(InConstants, InSource);
     const bool usingSuperior = pipeline != nullptr;
-    if (!pipeline && (InConstants.Mode == DlssNrMode_SuperiorCarrierEncode || InConstants.Mode == DlssNrMode_SuperiorCarrierDecode)) return false;
+    if (!pipeline && (InConstants.Mode == DlssNrMode_SuperiorCarrierEncode ||
+                      InConstants.Mode == DlssNrMode_SuperiorCarrierDecode ||
+                      InConstants.Mode == DlssNrMode_SuperiorCarrierMotion)) return false;
     if (!pipeline) pipeline = _pipelineState;
     const auto flags = InConstants.DirectResolveFlags;
     if (!usingSuperior && InConstants.Mode == DlssNrMode_InterPassFastCross5)

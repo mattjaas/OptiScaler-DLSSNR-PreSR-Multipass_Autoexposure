@@ -117,12 +117,19 @@ struct DlssNr_Dx12::State
     float temporalCarrierProxyAboveOnePixels = 0.0f;
     void ReleaseEnlarger();
     void CollectEnlargers();
+    struct ReusableDepth
+    {
+        ID3D12Resource* source = nullptr;
+        ID3D12Resource* texture = nullptr;
+        DlssNr::GuideRegion region {};
+    };
     ID3D12Resource* EnlargeMatchedResidual(ID3D12GraphicsCommandList* cmd, ID3D12Device* device, ID3D12Resource* proxy,
                                            ID3D12Resource* referenceProxy, ID3D12Resource* answer,
                                            ID3D12Resource* depth, ID3D12Resource* motion,
                                            const DlssNrFrameInfo& frame, const DlssNrConstants& resolve,
                                            uint32_t transfer, bool reset, ID3D12CommandQueue* queue,
-                                           bool externalDetailReference = false);
+                                           bool externalDetailReference = false,
+                                           const ReusableDepth* reusableDepth = nullptr);
 
     // What the pass costs on the GPU, for the breakdown in the overlay.
     std::unique_ptr<DlssNrGpuTime> gpuTime;

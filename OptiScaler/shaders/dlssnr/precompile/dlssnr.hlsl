@@ -2305,7 +2305,7 @@ void SuperiorCarrierMain(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= gWidth || id.y >= gHeight) return;
     const int3 p = int3(id.xy, 0);
-    if (gMode == 37u)
+    if (gMode == 37u || gMode == 39u)
     {
         const float3 proxy = SanitizeFinite3(gSource.Load(p).rgb, 0.0);
         const float3 model = SanitizeFinite3(gModel.Load(p).rgb, proxy);
@@ -2313,6 +2313,16 @@ void SuperiorCarrierMain(uint3 id : SV_DispatchThreadID)
         precise float3 residual = model - proxy;
         precise float3 encoded = 0.5 + residual;
         gTarget[id.xy] = float4(clamp(encoded, -1.0, 2.0), 1.0);
+        if (gMode == 39u)
+        {
+            // Identical point coordinates, multiplication and finite-pair handling to Mode 10.
+            // Read original motion, not NR's sanitized motion: non-finite pairs and signed zero matter.
+            const float2 uv = (float2(id.xy) + 0.5) / float2(gWidth, gHeight);
+            const uint2 size = uint2(gTransferStrength, gColourStrength);
+            const uint2 mp = min(uint2(uv * size), size - 1) + uint2(gCompareSwap, gTransfer);
+            const float2 mv = gOriginal.Load(int3(mp, 0)).xy * float2(gMvScaleX, gMvScaleY);
+            gKeep[id.xy] = float4(all(isfinite(mv)) ? mv : float2(0, 0), 0, 1);
+        }
     }
     else
     {

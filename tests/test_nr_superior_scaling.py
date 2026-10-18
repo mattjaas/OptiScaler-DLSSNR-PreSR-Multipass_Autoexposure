@@ -62,7 +62,19 @@ def test_superior():
     assert "precise float3 encoded = 0.5 + residual" in carrier
     assert "clamp(encoded, -1.0, 2.0)" in carrier
     assert "filtered - 0.5" in carrier
-    assert not any(word in carrier for word in ("gAux2", "TemporalCarrierRange", "gKeep", "headroom"))
+    assert not any(word in carrier for word in ("gAux2", "TemporalCarrierRange", "headroom"))
+    motion = block(carrier, "if (gMode == 39u)")
+    assert carrier.count("gKeep[") == motion.count("gKeep[") == 1
+    assert "gOriginal.Load(int3(mp, 0)).xy * float2(gMvScaleX, gMvScaleY)" in motion
+    assert "all(isfinite(mv)) ? mv : float2(0, 0)" in motion
+    assert "gMode == 37u || gMode == 39u" in carrier
+    assert "superior && reusableDepth && reusableDepth->texture && depth && motion" in enlarge
+    assert "reusableDepth->source == depth, rd.Format == DXGI_FORMAT_R32_FLOAT" in enlarge
+    assert "regions.motion.valid() && DlssNr::SuperiorScaling::ReuseDepth" in enlarge
+    assert "if (needsPrivateGuides && !reuseDepth)" in enlarge
+    assert "reuseDepth ? reusableDepth->texture : g.depth.Get()" in enlarge
+    assert "reuseDepth ? motion : nullptr" in encode and "reuseDepth ? g.motion.Get() : nullptr" in encode
+    assert enlarge.count("if (!reuseDepth)") == 3  # allocation and both depth transitions
     assert shader.count("#if !defined(DLSSNR_SUPERIOR_SCALING)") == 2
     assert "#if defined(DLSSNR_SUPERIOR_RESOLVE)" in shader
     guided = block(shader, "float3 P100GuidedResidualAt(float2 uvq")
@@ -86,6 +98,7 @@ def test_superior():
         assert f"#define {define}" in normal_defines
     run = read("OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp")
     assert "nr.interPassSuperior != interPassSuperior" in run
+    assert "matchedGuides ? nr.depthSmall : nullptr" in run and "&matchedDepth" in run
     assert "if (DlssNr::SuperiorScaling::Enabled(cfg)) spatialSettings.enabled = false;" in run
     assert "transfer >= 7u && transfer <= 11u" in run
     final = read("OptiScaler/shaders/dlssnr/DlssNr_Dx12_Encode.cpp")

@@ -28,6 +28,30 @@ bool DirectAnswerCanFeedUpscaler(ID3D12Resource* answer)
 {
     return answer && answer->GetDesc().Format == DXGI_FORMAT_R16G16B16A16_FLOAT;
 }
+
+DlssNrConstants PrivateGuideConstants(unsigned w, unsigned h, const DlssNr::GuideRegions& regions,
+                                     const DlssNrFrameInfo& frame, bool hold)
+{
+    DlssNrConstants guides {};
+    guides.Mode = DlssNrMode_ResizePrivateGuides;
+    guides.Width = w;
+    guides.Height = h;
+    guides.GuideWidth = regions.depth.width;
+    guides.GuideHeight = regions.depth.height;
+    guides.DebugView = regions.depth.x;
+    guides.CompareMode = regions.depth.y;
+    guides.TransferStrength = float(regions.motion.width);
+    guides.ColourStrength = float(regions.motion.height);
+    guides.CompareSwap = regions.motion.x;
+    guides.Transfer = regions.motion.y;
+    const auto referenceW = frame.MotionVectorsLowResolution ? frame.RenderSubrectWidth : frame.OutputWidth;
+    const auto referenceH = frame.MotionVectorsLowResolution ? frame.RenderSubrectHeight : frame.OutputHeight;
+    guides.MvScaleX = frame.MvScaleX * float(w) / std::max(referenceW ? referenceW : regions.motion.width, 1u);
+    guides.MvScaleY = frame.MvScaleY * float(h) / std::max(referenceH ? referenceH : regions.motion.height, 1u);
+    if (hold)
+        guides.MvScaleX = guides.MvScaleY = 0;
+    return guides;
+}
 } // namespace
 
 void DlssNr_Dx12::State::ReleaseEnlarger()
@@ -60,7 +84,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
                                                            const DlssNrFrameInfo& frame, const DlssNrConstants& resolve,
                                                            uint32_t transfer, bool reset,
                                                            ID3D12CommandQueue* timingQueue,
-                                                           bool externalDetailReference)
+                                                           bool externalDetailReference,
+                                                           const ReusableDepth* reusableDepth)
 {
     auto say = [&](const std::string& message) -> ID3D12Resource*
     {
@@ -182,6 +207,25 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
 
     const auto desc = proxy->GetDesc();
     const unsigned w = unsigned(desc.Width), h = desc.Height;
+    bool reuseDepth = false;
+    DlssNrConstants fusedGuides {};
+    if (superior && reusableDepth && reusableDepth->texture && depth && motion)
+    {
+        const auto dd = depth->GetDesc(), md = motion->GetDesc(), rd = reusableDepth->texture->GetDesc();
+        const auto regions = DlssNr::ResolveGuideRegions(
+            { unsigned(dd.Width), dd.Height }, { unsigned(md.Width), md.Height },
+            { frame.RenderSubrectWidth, frame.RenderSubrectHeight }, { frame.OutputWidth, frame.OutputHeight },
+            frame.MotionVectorsLowResolution, frame.DepthSubrectBaseX, frame.DepthSubrectBaseY,
+            frame.MotionSubrectBaseX, frame.MotionSubrectBaseY);
+        reuseDepth = regions.motion.valid() && DlssNr::SuperiorScaling::ReuseDepth(
+            reusableDepth->source == depth, rd.Format == DXGI_FORMAT_R32_FLOAT, rd.Width, rd.Height,
+            w, h, reusableDepth->region, regions.depth);
+        if (reuseDepth)
+        {
+            fusedGuides = PrivateGuideConstants(w, h, regions, frame, cfg.DlssNrHoldFrame.value_or_default());
+            fusedGuides.Mode = DlssNrMode_SuperiorCarrierMotion;
+        }
+    }
     const unsigned desiredOutW = temporalDlaa ? w : resolve.Width;
     const unsigned desiredOutH = temporalDlaa ? h : resolve.Height;
     if (enlarger && (enlarger->w != w || enlarger->h != h || enlarger->outW != desiredOutW ||
@@ -240,7 +284,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
 
         g.input.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, w, h));
         g.output.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, g.outW, g.outH));
-        g.depth.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, w, h));
+        if (!reuseDepth)
+            g.depth.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, w, h));
         g.motion.Attach(CreateScratch(device, DXGI_FORMAT_R32G32_FLOAT, w, h));
         g.exposure.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, 1, 1));
         if (residualDlaa && !superior)
@@ -268,7 +313,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
             g.baselineOutput.Attach(CreateScratch(device, DXGI_FORMAT_R16G16B16A16_FLOAT, w, h));
         }
         g.failed = true;
-        if (!g.input || !g.output || !g.depth || !g.motion || !g.exposure ||
+        if (!g.input || !g.output || (!reuseDepth && !g.depth) || !g.motion || !g.exposure ||
             (residualDlaa && !superior && (!g.carrierReduceA || !g.carrierReduceB || !g.carrierDiagA ||
                               !g.carrierDiagB || !g.carrierApplied)) ||
             (pairedAnchorBaseline && (!g.baselineInput || !g.baselineOutput)))
@@ -493,12 +538,12 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
 
             if (superior)
             {
-                DlssNrConstants encode {};
-                encode.Mode = DlssNrMode_SuperiorCarrierEncode;
+                DlssNrConstants encode = reuseDepth ? fusedGuides : DlssNrConstants {};
+                encode.Mode = reuseDepth ? DlssNrMode_SuperiorCarrierMotion : DlssNrMode_SuperiorCarrierEncode;
                 encode.Width = w;
                 encode.Height = h;
-                ok = shader.DispatchPass(cmd, encode, proxy, answer, nullptr, nullptr, nullptr,
-                                         g.input.Get(), nullptr);
+                ok = shader.DispatchPass(cmd, encode, proxy, answer, reuseDepth ? motion : nullptr, nullptr, nullptr,
+                                         g.input.Get(), reuseDepth ? g.motion.Get() : nullptr);
             }
             else
             {
@@ -713,8 +758,13 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     const bool needsPrivateGuides =
         outputUpscaler == 10 ||
         (referenceRequired && !useExternalReference && detailReferenceUpscaler == 10);
-    if (needsPrivateGuides)
+    if (needsPrivateGuides && !reuseDepth)
     {
+        // Matching may be disabled or guide metadata may change without recreating DLAA.
+        if (!g.depth)
+            g.depth.Attach(CreateScratch(device, DXGI_FORMAT_R32_FLOAT, w, h));
+        if (!g.depth)
+            return say("enlargement depth allocation failed; use Retry.");
         const auto dd = depth->GetDesc(), md = motion->GetDesc();
         const auto regions = DlssNr::ResolveGuideRegions(
             { unsigned(dd.Width), dd.Height }, { unsigned(md.Width), md.Height },
@@ -724,24 +774,7 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
         if (!regions.depth.valid() || !regions.motion.valid())
             return say("enlargement needs valid depth and motion.");
 
-        DlssNrConstants guides {};
-        guides.Mode = DlssNrMode_ResizePrivateGuides;
-        guides.Width = w;
-        guides.Height = h;
-        guides.GuideWidth = regions.depth.width;
-        guides.GuideHeight = regions.depth.height;
-        guides.DebugView = regions.depth.x;
-        guides.CompareMode = regions.depth.y;
-        guides.TransferStrength = float(regions.motion.width);
-        guides.ColourStrength = float(regions.motion.height);
-        guides.CompareSwap = regions.motion.x;
-        guides.Transfer = regions.motion.y;
-        const auto referenceW = frame.MotionVectorsLowResolution ? frame.RenderSubrectWidth : frame.OutputWidth;
-        const auto referenceH = frame.MotionVectorsLowResolution ? frame.RenderSubrectHeight : frame.OutputHeight;
-        guides.MvScaleX = frame.MvScaleX * float(w) / std::max(referenceW ? referenceW : regions.motion.width, 1u);
-        guides.MvScaleY = frame.MvScaleY * float(h) / std::max(referenceH ? referenceH : regions.motion.height, 1u);
-        if (cfg.DlssNrHoldFrame.value_or_default())
-            guides.MvScaleX = guides.MvScaleY = 0;
+        const auto guides = PrivateGuideConstants(w, h, regions, frame, cfg.DlssNrHoldFrame.value_or_default());
         ok &= shader.DispatchPass(cmd, guides, depth, motion, nullptr, nullptr, nullptr, g.depth.Get(), g.motion.Get());
     }
 
@@ -761,9 +794,11 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     }
     if (needsPrivateGuides)
     {
-        for (auto* r : { g.depth.Get(), g.motion.Get() })
-            Barrier(cmd, r, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+        if (!reuseDepth)
+            Barrier(cmd, g.depth.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
                     D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+        Barrier(cmd, g.motion.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     }
     if (detailMaskRequired)
     {
@@ -783,7 +818,8 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     }
 
     DlssNr::PrivateUpscalerFrameDx12 baseFrame;
-    baseFrame.depth.resource = g.depth.Get();
+    // The NR state owns this current-frame SRV through command-list completion and restores it later.
+    baseFrame.depth.resource = reuseDepth ? reusableDepth->texture : g.depth.Get();
     baseFrame.motion.resource = g.motion.Get();
     baseFrame.exposure.resource = g.exposure.Get();
     baseFrame.width = w;
@@ -994,9 +1030,11 @@ ID3D12Resource* DlssNr_Dx12::State::EnlargeMatchedResidual(ID3D12GraphicsCommand
     }
     if (needsPrivateGuides)
     {
-        for (auto* r : { g.depth.Get(), g.motion.Get() })
-            Barrier(cmd, r, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+        if (!reuseDepth)
+            Barrier(cmd, g.depth.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        Barrier(cmd, g.motion.Get(), D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,
+                D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     }
 
     g.lastFrame = frames;

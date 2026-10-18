@@ -1,4 +1,4 @@
-name: Build NR v49 Superior Scaling normal resolve
+name: Build NR v50 Superior Scaling fused preparation
 
 on:
   push:
@@ -23,7 +23,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v49-${{ github.ref }}
+  group: nr-interpass-v50-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -119,20 +119,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & ./artifacts/nr-v20/superior_policy.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing")) {
+          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing", "superior_prepare_quality", "superior_prepare_timing")) {
             cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/${fixture}.cpp /Fe:artifacts/nr-v20/${fixture}.exe /Fo:artifacts/nr-v20/${fixture}.obj /link d3d12.lib dxgi.lib"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-superior-scaling-v49-20261018"
+        run: ./package_release.ps1 -Version "nr-superior-scaling-v50-20261018"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-superior-scaling-v49-20261018
-          path: release/OptiScaler-NR-nr-superior-scaling-v49-20261018.zip
+          name: OptiScaler-NR-superior-scaling-v50-20261018
+          path: release/OptiScaler-NR-nr-superior-scaling-v50-20261018.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -141,19 +141,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-superior-scaling-v49-20261018"
-          $archive = "release/OptiScaler-NR-nr-superior-scaling-v49-20261018.zip"
+          $tag = "nr-superior-scaling-v50-20261018"
+          $archive = "release/OptiScaler-NR-nr-superior-scaling-v50-20261018.zip"
           $notes = @"
-          Adds an exact normal-gameplay resolve PSO to Superior Scaling, from $env:GITHUB_SHA.
-          Removes unused transfer/debug/compare branches and fetches; keeps the same radius-one arithmetic, taps and gains.
-          Shared production eligibility checks actual reduced dimensions, signed Transfer 9, Apply on, inspect/compare off and exact flags.
-          Debug, compare, skin-mask, native/rounded-native and Apply-off use the unchanged v48 general resolve.
-          RTX 4090: 1008 GPU comparisons pass bit-exactly, including both single-axis reductions, FP16/FP32 and all HDR mappings.
-          Resident low + resolve ABBA, native 4K: P50 .488448 to .362752 ms; P59 .527360 to .388864; P65 .539136 to .416384.
-          These compare v48 Superior versus v49 Superior and exclude inference, inter-pass, carrier and DLAA.
-          A separate Low64 specialization was rejected after measured regressions; the 64-tap low filter is unchanged.
-          No new dispatch, texture, copy or barrier; one additional lazily created PSO. Full-game NR time remains unmeasured.
-          Details, variability, samples and reproduction: docs/NR-v49-superior-normal-resolve.md.
+          Reuses exact matched NR depth and fuses private motion resize with Superior carrier encode, from $env:GITHUB_SHA.
+          One fewer dispatch, redundant depth write and two depth transitions; no additional PSO or UI controls.
+          Requires matching current-frame source, R32 format, work dimensions and depth region; otherwise retains separate preparation.
+          Motion still uses the original source, identical point coordinates, scale order and non-finite handling.
+          RTX 4090: 240 GPU preparation comparisons pass bit-exactly (FP16/FP32 carrier, R32 depth, RG32 motion, crops and exceptional data).
+          Existing 52 carrier/decode/shaping cases and shared production depth-reuse policy tests pass.
+          Repeated 4K preparation ABBA with low-resolution motion: P50 .196608 to .193664 ms; P59 .275968 to .251648; P65 .359552 to .292736.
+          These measure common matched-guide resize plus carrier/private-guide preparation, excluding NR inference, inter-pass and DLAA.
+          GPU clocks were dynamic with substantial spread; full-game NR time and temporal behavior remain unmeasured.
+          Details, variability, both raw runs and reproduction: docs/NR-v50-superior-fused-preparation.md.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -164,8 +164,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v49 - Superior Scaling normal resolve" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v50 - Superior Scaling fused preparation" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v49 - Superior Scaling normal resolve" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v50 - Superior Scaling fused preparation" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

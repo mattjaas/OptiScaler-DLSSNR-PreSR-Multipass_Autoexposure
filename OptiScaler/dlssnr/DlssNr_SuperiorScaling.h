@@ -13,6 +13,15 @@ inline int Preset(int preset) { return preset == 11 ? 11 : 1; } // K or A; no de
 inline float High(unsigned style) { constexpr float v[] { .8f, .75f, .95f }; return v[std::min(style,2u)]; }
 inline float Low(unsigned style) { constexpr float v[] { .661f, .787f, .784f }; return v[std::min(style,2u)]; }
 
+// Reuse only the identical current-frame R32 point-sampled depth, already in SRV state.
+template<class R> inline bool ReuseDepth(bool sameSource, bool r32, uint64_t width, uint32_t height,
+                                        uint32_t workWidth, uint32_t workHeight, const R& nr, const R& dlaa)
+{
+    return sameSource && r32 && workWidth != 0u && workHeight != 0u &&
+           width == workWidth && height == workHeight && nr.valid() && dlaa.valid() &&
+           nr.x == dlaa.x && nr.y == dlaa.y && nr.width == dlaa.width && nr.height == dlaa.height;
+}
+
 // Mode 1 / signed Transfer 9 only. The optimized PSO fixes inspector switches and actual reduction.
 template<class C> inline bool NormalResolve(const C& c, uint64_t sourceWidth, uint32_t sourceHeight)
 {

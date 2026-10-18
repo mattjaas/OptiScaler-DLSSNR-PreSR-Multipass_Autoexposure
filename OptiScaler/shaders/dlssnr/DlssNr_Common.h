@@ -76,7 +76,8 @@ enum DlssNrMode : uint32_t
     DlssNrMode_InterPassLow36 = 34,
     DlssNrMode_InterPassFastCross5 = 36,
     DlssNrMode_SuperiorCarrierEncode = 37, // fixed clamp(0.5 + N-P, -1, 2), no gain analysis
-    DlssNrMode_SuperiorCarrierDecode = 38  // fixed DLAA(carrier)-0.5, no gain texture
+    DlssNrMode_SuperiorCarrierDecode = 38, // fixed DLAA(carrier)-0.5, no gain texture
+    DlssNrMode_SuperiorCarrierMotion = 39  // fixed carrier plus exact private motion resize
 };
 
 inline bool DlssNrUsesDlssEnlargement(uint32_t transfer)

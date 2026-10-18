@@ -2051,10 +2051,12 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
 
                 if (transfer == 8u || transfer == 9u || transfer == 10u || transfer == 11u)
                 {
+                    const ReusableDepth matchedDepth { originalDepthIn, matchedGuides ? nr.depthSmall : nullptr,
+                                                       guides.depth };
                     auto* temporal =
                         EnlargeMatchedResidual(cmdList, device, ordinaryProxy, ordinaryReference, ordinaryAnswer,
                                                originalDepthIn, originalMotionIn, frame, resolveParams, transfer,
-                                               enlargementReset, timingQueue, false);
+                                               enlargementReset, timingQueue, false, &matchedDepth);
                     enlargementReady = temporal != nullptr;
                     if (temporal)
                     {
@@ -2475,7 +2477,7 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
     }
 
-    // The matched guides were written this frame and read by the model; back to UAV for the next.
+    // Matched guides stay readable through the models and Superior DLAA; back to UAV for the next frame.
     if (matchedGuides)
     {
         Barrier(cmdList, nr.depthSmall, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,

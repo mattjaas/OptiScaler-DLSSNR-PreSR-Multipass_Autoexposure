@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "../../OptiScaler/dlssnr/DlssNr_SuperiorScaling.h"
 #include "../../OptiScaler/shaders/dlssnr/DlssNr_Common.h"
+#include "../../OptiScaler/shaders/dlssnr/DlssNr_Guides.h"
 
 template<class T> struct Setting { T value; T value_or_default() const { return value; } };
 struct SavedSettings {
@@ -21,6 +22,22 @@ int main() {
         require(High(2)==.95f && Low(2)==.784f && High(99)==High(2));
         for(int i=-5;i<30;++i)require(Preset(i)==(i==11?11:1));
         require(DlssNrSpatialTransfer(11)==0); // native-scale fallback is ordinary composition
+        DlssNr::GuideRegion region {3,5,2560,1440};
+        require(ReuseDepth(true,true,1920,1080,1920,1080,region,region));
+        require(!ReuseDepth(false,true,1920,1080,1920,1080,region,region));
+        require(!ReuseDepth(true,false,1920,1080,1920,1080,region,region));
+        require(!ReuseDepth(true,true,1921,1080,1920,1080,region,region));
+        require(!ReuseDepth(true,true,1920,1081,1920,1080,region,region));
+        require(!ReuseDepth(true,true,0,1080,0,1080,region,region));
+        require(!ReuseDepth(true,true,1920,0,1920,0,region,region));
+        for(auto field : {&DlssNr::GuideRegion::x,&DlssNr::GuideRegion::y,
+                          &DlssNr::GuideRegion::width,&DlssNr::GuideRegion::height}) {
+            auto changed=region;++(changed.*field);
+            require(!ReuseDepth(true,true,1920,1080,1920,1080,changed,region));
+        }
+        region.width=0;require(!ReuseDepth(true,true,1920,1080,1920,1080,region,region));
+        region.width=2560;region.height=0;
+        require(!ReuseDepth(true,true,1920,1080,1920,1080,region,region));
         DlssNrConstants resolve{};resolve.Mode=1;resolve.Transfer=9;resolve.Width=3840;resolve.Height=2160;
         resolve.ResidualHistoryValid=1;resolve.ApplyModel=1;resolve.DirectResolveFlags=ShaderFlag;
         require(NormalResolve(resolve,1920,1080) && NormalResolve(resolve,3840,1080) && NormalResolve(resolve,1920,2160));
@@ -42,6 +59,6 @@ int main() {
             require(ShapingMode(cfg)==0);
         }
         require(cfg.DlssNrInterPassReconstruction.value==0 && cfg.DlssNrProxyDownscaleFilter.value==11);
-        std::cout<<"Superior policy PASS: fixed settings, A/K, all styles, normal PSO guards, native fallback and legacy preservation\n";
+        std::cout<<"Superior policy PASS: fixed settings, A/K, all styles, depth reuse/normal PSO guards, native fallback and legacy preservation\n";
     }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}
 }
