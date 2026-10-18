@@ -17,8 +17,8 @@ int main() {
         require(Enabled(cfg) && InterPassMode(cfg)==8 && DownscaleFilter(cfg)==0);
         require(Radius(cfg)==1 && RangeSigma(cfg)==.015f && SpatialSigma(cfg)==3 && GuideStrength(cfg)==1);
         require(ShapingMode(cfg)==2);
-        require(High(0)==.8f && Low(0)==.609f && High(1)==.75f && Low(1)==.741f);
-        require(High(2)==.95f && Low(2)==.78f && High(99)==High(2));
+        require(High(0)==.8f && Low(0)==.661f && High(1)==.75f && Low(1)==.787f);
+        require(High(2)==.95f && Low(2)==.784f && High(99)==High(2));
         for(int i=-5;i<30;++i)require(Preset(i)==(i==11?11:1));
         require(DlssNrSpatialTransfer(11)==0); // native-scale fallback is ordinary composition
         for(uint32_t mode=0;mode<=10;++mode) {

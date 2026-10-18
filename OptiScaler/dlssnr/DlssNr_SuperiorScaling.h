@@ -11,7 +11,7 @@ inline bool Enabled(uint32_t transfer) { return transfer == Transfer; }
 template<class C> inline bool Enabled(const C& cfg) { return Enabled(cfg.DlssNrTransfer.value_or_default()); }
 inline int Preset(int preset) { return preset == 11 ? 11 : 1; } // K or A; no default/latest ambiguity.
 inline float High(unsigned style) { constexpr float v[] { .8f, .75f, .95f }; return v[std::min(style,2u)]; }
-inline float Low(unsigned style) { constexpr float v[] { .609f, .741f, .78f }; return v[std::min(style,2u)]; }
+inline float Low(unsigned style) { constexpr float v[] { .661f, .787f, .784f }; return v[std::min(style,2u)]; }
 template<class C> inline uint32_t InterPassMode(const C& cfg)
 { return Enabled(cfg) ? 8u : std::min(cfg.DlssNrInterPassReconstruction.value_or_default(),8u); }
 template<class C> inline uint32_t DownscaleFilter(const C& cfg)

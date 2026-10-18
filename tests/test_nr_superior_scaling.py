@@ -21,7 +21,7 @@ def block(text, start):
 def test_superior():
     policy = read("OptiScaler/dlssnr/DlssNr_SuperiorScaling.h")
     assert "Transfer = 11u" in policy and "preset == 11 ? 11 : 1" in policy
-    assert ".8f, .75f, .95f" in policy and ".609f, .741f, .78f" in policy
+    assert ".8f, .75f, .95f" in policy and ".661f, .787f, .784f" in policy
     menu = read("OptiScaler/dlssnr/DlssNr_MenuControls.cpp")
     assert '"Temporal image-anchored residual + P100-guided", "Superior Scaling"' in menu
     panel = block(menu, "if (SuperiorScaling::Enabled(config->DlssNrTransfer.value_or_default()))")

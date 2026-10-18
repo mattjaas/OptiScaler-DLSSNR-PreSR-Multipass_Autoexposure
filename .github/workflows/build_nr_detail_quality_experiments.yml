@@ -1,4 +1,4 @@
-name: Build NR v45 Superior Scaling
+name: Build NR v46 Superior Scaling gains
 
 on:
   push:
@@ -23,7 +23,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v45-${{ github.ref }}
+  group: nr-interpass-v46-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -126,13 +126,13 @@ jobs:
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-superior-scaling-v45-20261016"
+        run: ./package_release.ps1 -Version "nr-superior-scaling-v46-20261018"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-superior-scaling-v45-20261016
-          path: release/OptiScaler-NR-nr-superior-scaling-v45-20261016.zip
+          name: OptiScaler-NR-superior-scaling-v46-20261018
+          path: release/OptiScaler-NR-nr-superior-scaling-v46-20261018.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -141,21 +141,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-superior-scaling-v45-20261016"
-          $archive = "release/OptiScaler-NR-nr-superior-scaling-v45-20261016.zip"
+          $tag = "nr-superior-scaling-v46-20261018"
+          $archive = "release/OptiScaler-NR-nr-superior-scaling-v46-20261018.zip"
           $notes = @"
-          Adds Superior Scaling beside all legacy Enlargement modes, from $env:GITHUB_SHA.
-          Choose resolution, NR passes/models and DLSS A (faster) or K (steadier NR in motion).
-          Fixed Area, HDR+AutoExposure, linear 0.5+E carrier with K=1 and range [-1,2].
-          Dedicated carrier shaders skip all K/headroom/proxy analysis, reductions and telemetry readbacks.
-          Guided radius 1, range sigma .015, spatial sigma 3, strength 1, shadow confidence removed from dedicated PSOs.
-          Fixed Standard .8/.609, Natural .75/.741, Cinematic .95/.78 high-mid/low gains, with resolution and Structure*Intensity scaling.
-          Fast cached Low36, high-mid block products and low block means; growing-gap scheduling above .15.
-          Legacy modes, saved settings and their Off/reference/ABBA benchmark profiles remain available.
-          RTX 4090: 52 GPU parity cases pass bit-exactly (signed HDR, NaN, FP16/FP32, edges and shaping).
-          Resident carrier-only ABBA at 4K: P50 .650368 to .095488 ms, P59 .814848 to .141568 ms, P65 .886016 to .169472 ms.
-          These are isolated GPU timings; whole-game NR time, visual motion quality and preset comparison remain unverified.
-          Details and matched-settings comparison: docs/NR-v45-superior-scaling.md.
+          Updates fixed Superior Scaling gains to the user-provided screenshot, from $env:GITHUB_SHA.
+          Standard high-mid/low: .800/.661; Natural: .750/.787; Cinematic: .950/.784.
+          Resolution and Structure*Intensity adjustment, high-mid block products and low means remain in place.
+          Both lookahead scheduling and actual inter-pass/final shaping use the updated shared values.
+          Growing-gap threshold remains .15; the changed low gains can change correction counts.
+          All other Superior Scaling settings and legacy modes remain unchanged; no HLSL/bytecode changes.
+          Policy/integration tests updated. GPU time and in-game quality of these new gains are not measured.
+          Details: docs/NR-v46-superior-gains.md.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -166,8 +162,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v45 - Superior Scaling" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v46 - Superior Scaling gains" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v45 - Superior Scaling" --notes-file $notesPath --prerelease
+            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v46 - Superior Scaling gains" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }
