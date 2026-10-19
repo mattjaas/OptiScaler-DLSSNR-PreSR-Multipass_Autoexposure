@@ -170,6 +170,8 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
     encodeParams.ReversibleMode = cfg.DlssNrReversibleMode.value_or_default();
     encodeParams.Width = width;
     encodeParams.Height = height;
+    if (DlssNr::SuperiorScaling::Enabled(cfg))
+        encodeParams.DirectResolveFlags = DlssNr::SuperiorScaling::ShaderFlag;
 
     TransitionTarget(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
     context.encodeSucceeded = shader.DispatchPass(cmdList, encodeParams, target, nullptr, nullptr, context.exposure,

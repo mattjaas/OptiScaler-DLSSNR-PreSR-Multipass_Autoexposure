@@ -18,6 +18,7 @@
 #include "precompile/dlssnr_superior_sdr_Shader.h"
 #include "precompile/dlssnr_superior_hdr2_Shader.h"
 #include "precompile/dlssnr_superior_hdr4_Shader.h"
+#include "precompile/dlssnr_superior_encode_Shader.h"
 
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -183,20 +184,23 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& consta
                          constants.Mode == DlssNrMode_SuperiorCarrierDecode ||
                          constants.Mode == DlssNrMode_SuperiorCarrierMotion;
     if (!carrier && (constants.DirectResolveFlags & DlssNr::SuperiorScaling::ShaderFlag) == 0u) return nullptr;
-    // The final PSO has a fixed stage and radius; other stages retain their exact general fallback.
-    if (!carrier && constants.Mode != DlssNrMode_InterPassFastCross5 &&
+    const auto d = (constants.Mode == DlssNrMode_Resolve || constants.Mode == DlssNrMode_Encode) && source
+                       ? source->GetDesc() : D3D12_RESOURCE_DESC {};
+    const bool inputEncode = DlssNr::SuperiorScaling::InputEncode(constants, d.Width, d.Height);
+    // Fixed input stage and final radius-one stage; other uses retain the general fallback.
+    if (!carrier && !inputEncode && constants.Mode != DlssNrMode_InterPassFastCross5 &&
         (constants.Mode != DlssNrMode_Resolve || constants.ResidualHistoryValid != 1u)) return nullptr;
-    const auto d = constants.Mode == DlssNrMode_Resolve && source ? source->GetDesc() : D3D12_RESOURCE_DESC {};
     const bool normalResolve = DlssNr::SuperiorScaling::NormalResolve(constants, d.Width, d.Height);
-    const unsigned index = carrier ? 0u : normalResolve ? 3u + DlssNr::SuperiorScaling::NormalColorProfile(constants)
+    const unsigned index = inputEncode ? 7u : carrier ? 0u : normalResolve ? 3u + DlssNr::SuperiorScaling::NormalColorProfile(constants)
                                                        : constants.Mode == DlssNrMode_InterPassFastCross5 ? 2u : 1u;
     const void* const blobs[] { dlssnr_superior_carrier_cso, dlssnr_superior_resolve_cso,
                               dlssnr_superior_cross5_cso, dlssnr_superior_normal_cso,
-                              dlssnr_superior_sdr_cso, dlssnr_superior_hdr2_cso, dlssnr_superior_hdr4_cso };
+                              dlssnr_superior_sdr_cso, dlssnr_superior_hdr2_cso, dlssnr_superior_hdr4_cso,
+                              dlssnr_superior_encode_cso };
     const size_t sizes[] { sizeof(dlssnr_superior_carrier_cso), sizeof(dlssnr_superior_resolve_cso),
                           sizeof(dlssnr_superior_cross5_cso), sizeof(dlssnr_superior_normal_cso),
                           sizeof(dlssnr_superior_sdr_cso), sizeof(dlssnr_superior_hdr2_cso),
-                          sizeof(dlssnr_superior_hdr4_cso) };
+                          sizeof(dlssnr_superior_hdr4_cso), sizeof(dlssnr_superior_encode_cso) };
     const auto get = [&](unsigned selected) -> ID3D12PipelineState*
     {
         if (!_superiorAttempted[selected])
@@ -208,7 +212,8 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& consta
         return _superiorPipeline[selected];
     };
     if (auto* pipeline = get(index)) return pipeline;
-    return index > 3u ? get(3u) : nullptr; // Exact v50 normal fallback if a colour PSO is unavailable.
+    // A failed input PSO must use Mode 0 in the main shader, never the Mode 1 normal fallback.
+    return normalResolve && index > 3u ? get(3u) : nullptr;
 }
 
 bool DlssNr_Dx12::DispatchPass(ID3D12GraphicsCommandList* InCmdList, const DlssNrConstants& InConstants,

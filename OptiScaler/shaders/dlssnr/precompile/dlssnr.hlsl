@@ -68,6 +68,9 @@ cbuffer Params : register(b0)
 // This PSO is selected only for final Resolve. Keep the cbuffer ABI, eliminate unrelated stages.
 #define gMode 1u
 #endif
+#if defined(DLSSNR_SUPERIOR_ENCODE)
+#define gMode 0u
+#endif
 #if defined(DLSSNR_SUPERIOR_NORMAL)
 // Selected only for the reduced signed-residual gameplay path. Inspector uses the general PSO.
 #define gTransfer 9u

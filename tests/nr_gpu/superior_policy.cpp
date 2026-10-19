@@ -22,6 +22,19 @@ int main() {
         require(High(2)==.95f && Low(2)==.784f && High(99)==High(2));
         for(int i=-5;i<30;++i)require(Preset(i)==(i==11?11:1));
         require(DlssNrSpatialTransfer(11)==0); // native-scale fallback is ordinary composition
+        DlssNrConstants input{};input.Mode=0;input.Width=1920;input.Height=1080;input.DirectResolveFlags=ShaderFlag;
+        for(uint32_t pass : {0u,1u})for(uint32_t mode=0;mode<5;++mode) {
+            input.Passthrough=pass;input.ReversibleMode=mode;require(InputEncode(input,1920,1080));
+        }
+        input.Mode=1;require(!InputEncode(input,1920,1080));input.Mode=2;require(!InputEncode(input,1920,1080));input.Mode=0;
+        input.ReversibleMode=5;require(!InputEncode(input,1920,1080));input.ReversibleMode=0;
+        input.Passthrough=2;require(!InputEncode(input,1920,1080));input.Passthrough=0;
+        input.DirectResolveFlags=0;require(!InputEncode(input,1920,1080));input.DirectResolveFlags=ShaderFlag|4;
+        require(!InputEncode(input,1920,1080));input.DirectResolveFlags=ShaderFlag;
+        require(!InputEncode(input,1921,1080) && !InputEncode(input,1920,1081));
+        require(!InputEncode(input,1919,1080) && !InputEncode(input,1920,1079));
+        input.Width=0;require(!InputEncode(input,0,1080));input.Width=1920;
+        input.Height=0;require(!InputEncode(input,1920,0));input.Width=input.Height=1;require(InputEncode(input,1,1));
         DlssNr::GuideRegion region {3,5,2560,1440};
         require(ReuseDepth(true,true,1920,1080,1920,1080,region,region));
         require(!ReuseDepth(false,true,1920,1080,1920,1080,region,region));

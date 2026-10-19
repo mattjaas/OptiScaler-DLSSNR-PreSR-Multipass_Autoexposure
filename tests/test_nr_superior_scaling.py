@@ -88,7 +88,9 @@ def test_superior():
     assert "constants.Mode != DlssNrMode_Resolve || constants.ResidualHistoryValid != 1u" in select
     assert "SuperiorScaling::NormalResolve(constants, d.Width, d.Height)" in select
     assert "3u + DlssNr::SuperiorScaling::NormalColorProfile(constants)" in select
-    assert "index > 3u ? get(3u) : nullptr" in select
+    assert "normalResolve && index > 3u ? get(3u) : nullptr" in select
+    assert "SuperiorScaling::InputEncode(constants, d.Width, d.Height)" in select
+    assert "const unsigned index = inputEncode ? 7u" in select
     normal = block(policy, "inline bool NormalResolve")
     for guard in ("c.DebugView == 0u", "c.CompareMode == 0u", "c.ShowSkinMask == 0u", "c.ApplyModel != 0u",
                   "c.DirectResolveFlags == ShaderFlag", "sourceWidth <= c.Width",
@@ -104,6 +106,12 @@ def test_superior():
     assert "if (DlssNr::SuperiorScaling::Enabled(cfg)) spatialSettings.enabled = false;" in run
     assert "transfer >= 7u && transfer <= 11u" in run
     final = read("OptiScaler/shaders/dlssnr/DlssNr_Dx12_Encode.cpp")
+    assert "if (DlssNr::SuperiorScaling::Enabled(cfg))\n        encodeParams.DirectResolveFlags = DlssNr::SuperiorScaling::ShaderFlag;" in final
+    input_encode = block(policy, "inline bool InputEncode")
+    for guard in ("c.Mode == 0u", "c.DirectResolveFlags == ShaderFlag", "c.Passthrough <= 1u",
+                  "c.ReversibleMode <= 4u", "c.Width != 0u", "c.Height != 0u",
+                  "sourceWidth == c.Width", "sourceHeight == c.Height"):
+        assert guard in input_encode
     assert "configuredTransfer <= 11u" in final and "DlssNr::SuperiorScaling::ShaderFlag" in final
     assert "shaping.high == 1.0f && shaping.low == 1.0f" in final
     config = read("OptiScaler/Config.cpp")
@@ -113,6 +121,8 @@ def test_superior():
     assert '"SuperiorCarrierMain"' in compile_script and '"carrier", "resolve", "cross5"' in compile_script
     assert 'if ($variant -eq "resolve" -or $normal)' in compile_script and '"DLSSNR_SUPERIOR_RESOLVE=1"' in compile_script
     assert '"DLSSNR_SUPERIOR_NORMAL=1"' in compile_script
+    assert '"DLSSNR_SUPERIOR_ENCODE=1"' in compile_script
+    assert "#if defined(DLSSNR_SUPERIOR_ENCODE)\n#define gMode 0u" in shader
     assert '"DLSSNR_SUPERIOR_SDR=1"' in compile_script and '"DLSSNR_SUPERIOR_HDR=$($variant.Substring(3))"' in compile_script
     colors = block(policy, "inline uint32_t NormalColorProfile")
     assert "c.Passthrough == 1u" in colors and "c.Passthrough != 0u" in colors and "c.ReversibleMode > 4u" in colors

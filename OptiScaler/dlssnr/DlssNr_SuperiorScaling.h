@@ -13,6 +13,13 @@ inline int Preset(int preset) { return preset == 11 ? 11 : 1; } // K or A; no de
 inline float High(unsigned style) { constexpr float v[] { .8f, .75f, .95f }; return v[std::min(style,2u)]; }
 inline float Low(unsigned style) { constexpr float v[] { .661f, .787f, .784f }; return v[std::min(style,2u)]; }
 
+template<class C> inline bool InputEncode(const C& c, uint64_t sourceWidth, uint32_t sourceHeight)
+{
+    return c.Mode == 0u && c.DirectResolveFlags == ShaderFlag && c.Passthrough <= 1u &&
+           c.ReversibleMode <= 4u && c.Width != 0u && c.Height != 0u &&
+           sourceWidth == c.Width && sourceHeight == c.Height;
+}
+
 // Reuse only the identical current-frame R32 point-sampled depth, already in SRV state.
 template<class R> inline bool ReuseDepth(bool sameSource, bool r32, uint64_t width, uint32_t height,
                                         uint32_t workWidth, uint32_t workHeight, const R& nr, const R& dlaa)
