@@ -128,6 +128,29 @@ struct Runner
                                   : .4f+float((x*13+y*7+c*3)%11)*.0001f;
                     v[3]=.7f;
                 }
+                if (pattern == 3) // Translating edges/texture; CPU encoding builds test guides only.
+                {
+                    const float u=(x+.5f)/w,yy=(y+.5f)/h,phase=float(fixture%8)/32;
+                    float linear[3];
+                    for(int c=0;c<3;++c)linear[c]=.04f+.45f*float(u+yy*.2f>.35f+phase)+
+                        .025f*std::sin((u-phase)*145+yy*93+c)+.07f*c;
+                    if(n==1)for(int c=0;c<3;++c)v[c]=.018f*std::sin((u-phase)*97+yy*53+c)+
+                        .01f*float(u>.37f+phase);
+                    else if(n==2)for(int c=0;c<3;++c)v[c]=linear[c]*(constants.Passthrough?1.0f:constants.WhitePoint);
+                    else {
+                        float multiplier=1;
+                        const float peak=std::max(linear[0],std::max(linear[1],linear[2]));
+                        if(!constants.Passthrough && (constants.ReversibleMode==1 || constants.ReversibleMode==2))
+                            multiplier=1/std::sqrt(peak*peak+1);
+                        // These motion fixtures stay below the knee for soft/hybrid modes.
+                        for(int c=0;c<3;++c) {
+                            const float vLinear=linear[c]*multiplier;
+                            v[c]=constants.Passthrough?vLinear:vLinear<=.0031308f?12.92f*vLinear:
+                                1.055f*std::pow(vLinear,1/2.4f)-.055f;
+                        }
+                    }
+                    v[3]=.7f;
+                }
                 std::memcpy(mapped+y*fp.Footprint.RowPitch+x*16,v,16);
             }
             upload->Unmap(0,nullptr); keep.push_back(upload);

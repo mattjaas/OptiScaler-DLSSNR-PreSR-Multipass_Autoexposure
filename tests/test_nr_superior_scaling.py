@@ -81,8 +81,9 @@ def test_superior():
     assert "const int radius = 1;" in guided
     assert "[loop] for (int oy = -1; oy <= 1; ++oy)" in guided
     assert "[loop] for (int ox = -1; ox <= 1; ++ox)" in guided
-    assert "[unroll]" not in guided
-    assert "wRange * wSpatial" in guided  # No exp2-of-sum approximation or changed weights.
+    assert guided.count("[unroll]") == 2
+    assert "defined(DLSSNR_SUPERIOR_NORMAL) && !defined(DLSSNR_SUPERIOR_SDR)" in guided
+    assert "wRange * wSpatial" in guided  # Nine taps and original two-exponential weight formula.
     pipelines = read("OptiScaler/shaders/dlssnr/DlssNr_Dx12.cpp")
     select = block(pipelines, "ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline")
     assert "constants.Mode != DlssNrMode_Resolve || constants.ResidualHistoryValid != 1u" in select
@@ -93,6 +94,12 @@ def test_superior():
     assert "const unsigned index = inputEncode ? 7u" in select
     assert "SuperiorScaling::LowResidual(constants, d.Width, d.Height)" in select
     assert "lowResidual ? 8u" in select
+    assert "SuperiorScaling::AreaDownsample(constants, d.Width, d.Height)" in select
+    assert "areaDownsample ? 9u" in select
+    area = block(policy, "inline bool AreaDownsample")
+    for guard in ("c.Mode == 2u", "c.Transfer == 0u", "c.DirectResolveFlags == ShaderFlag",
+                  "c.Width != 0u", "c.Height != 0u", "sourceWidth >= c.Width", "sourceHeight >= c.Height"):
+        assert guard in area
     # Failed low PSO takes the generic 8x8 dispatch, never the 8x4 specialization geometry.
     assert "pipeline == _superiorPipeline[8] ? DlssNr::SuperiorScaling::LowGroupHeight : _numThreadsY" in pipelines
     assert "(InConstants.Height + threadsY - 1) / threadsY" in pipelines
@@ -125,6 +132,7 @@ def test_superior():
                   "sourceWidth == c.Width", "sourceHeight == c.Height"):
         assert guard in input_encode
     assert "configuredTransfer <= 11u" in final and "DlssNr::SuperiorScaling::ShaderFlag" in final
+    assert "down.DirectResolveFlags = DlssNr::SuperiorScaling::ShaderFlag;" in final
     assert "shaping.high == 1.0f && shaping.low == 1.0f" in final
     config = read("OptiScaler/Config.cpp")
     assert 'readInt("DlssNr", "SuperiorScalingPreset")' in config
@@ -136,6 +144,8 @@ def test_superior():
     assert '"DLSSNR_SUPERIOR_ENCODE=1"' in compile_script
     assert "#if defined(DLSSNR_SUPERIOR_ENCODE)\n#define gMode 0u" in shader
     assert '"DLSSNR_SUPERIOR_LOW=1"' in compile_script
+    assert '"DLSSNR_SUPERIOR_AREA=1"' in compile_script
+    assert "#define DLSSNR_AREA_COORD precise" in shader and "DLSSNR_AREA_ACC float3 acc" in shader
     low_defines = shader.split("#if defined(DLSSNR_SUPERIOR_LOW)", 1)[1].split("#endif", 1)[0]
     assert "#define gMode 18u" in low_defines and "#define gTransfer 1u" in low_defines
     assert "#if defined(DLSSNR_SUPERIOR_LOW)\n[numthreads(8, 4, 1)]\n#else\n[numthreads(8, 8, 1)]" in shader

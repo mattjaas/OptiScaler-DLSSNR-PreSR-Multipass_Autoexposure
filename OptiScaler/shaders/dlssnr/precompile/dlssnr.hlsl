@@ -71,6 +71,15 @@ cbuffer Params : register(b0)
 #if defined(DLSSNR_SUPERIOR_ENCODE)
 #define gMode 0u
 #endif
+#if defined(DLSSNR_SUPERIOR_AREA)
+#define gMode 2u
+#define gTransfer 0u
+#define DLSSNR_AREA_COORD precise
+#define DLSSNR_AREA_ACC precise
+#else
+#define DLSSNR_AREA_COORD const
+#define DLSSNR_AREA_ACC
+#endif
 #if defined(DLSSNR_SUPERIOR_LOW)
 // Final decoded residual only; keep the original 64 taps, accumulation and FP16 store.
 #define gMode 18u
@@ -852,8 +861,12 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
     float3 weighted = 0.0;
     float weightSum = 0.0;
 #if defined(DLSSNR_SUPERIOR_RESOLVE)
-    // Preserve loop-carried FP accumulation. Unrolling can reassociate weighted sums.
+    // The normal HDR PSO accepts FP reassociation; retain all nine samples and exact weight formula.
+#if defined(DLSSNR_SUPERIOR_NORMAL) && !defined(DLSSNR_SUPERIOR_SDR)
+    [unroll] for (int oy = -1; oy <= 1; ++oy)
+#else
     [loop] for (int oy = -1; oy <= 1; ++oy)
+#endif
 #else
     [loop] for (int oy = -3; oy <= 3; ++oy)
 #endif
@@ -861,7 +874,11 @@ float3 P100GuidedResidualAt(float2 uvq, float3 nativeGuide)
         if (abs(oy) > radius)
             continue;
 #if defined(DLSSNR_SUPERIOR_RESOLVE)
+#if defined(DLSSNR_SUPERIOR_NORMAL) && !defined(DLSSNR_SUPERIOR_SDR)
+        [unroll] for (int ox = -1; ox <= 1; ++ox)
+#else
         [loop] for (int ox = -1; ox <= 1; ++ox)
+#endif
 #else
         [loop] for (int ox = -3; ox <= 3; ++ox)
 #endif
@@ -3337,18 +3354,18 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
 
         // Exact area-weighted downsampling avoids the aliasing of a single bilinear tap.
         // Adapted from hhkbble's multi-pass contribution.
-        const float x0 = ((float) id.x * (float) srcW) / (float) gWidth;
-        const float x1 = ((float) (id.x + 1) * (float) srcW) / (float) gWidth;
-        const float y0 = ((float) id.y * (float) srcH) / (float) gHeight;
-        const float y1 = ((float) (id.y + 1) * (float) srcH) / (float) gHeight;
-        const float area = (x1 - x0) * (y1 - y0);
+        DLSSNR_AREA_COORD float x0 = ((float) id.x * (float) srcW) / (float) gWidth;
+        DLSSNR_AREA_COORD float x1 = ((float) (id.x + 1) * (float) srcW) / (float) gWidth;
+        DLSSNR_AREA_COORD float y0 = ((float) id.y * (float) srcH) / (float) gHeight;
+        DLSSNR_AREA_COORD float y1 = ((float) (id.y + 1) * (float) srcH) / (float) gHeight;
+        DLSSNR_AREA_COORD float area = (x1 - x0) * (y1 - y0);
 
         const int i0 = (int) floor(x0);
         const int i1 = (int) ceil(x1) - 1;
         const int j0 = (int) floor(y0);
         const int j1 = (int) ceil(y1) - 1;
 
-        float3 acc = 0.0;
+        DLSSNR_AREA_ACC float3 acc = 0.0;
 
         for (int j = j0; j <= j1; ++j)
         {

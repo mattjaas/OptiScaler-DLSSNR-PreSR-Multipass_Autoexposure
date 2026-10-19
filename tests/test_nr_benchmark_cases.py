@@ -48,7 +48,7 @@ def test_benchmark():
         'dlssnr_interpass_low36', 'dlssnr_interpass_low36_cached', 'dlssnr_interpass_cross5',
         'dlssnr_superior_carrier', 'dlssnr_superior_resolve', 'dlssnr_superior_cross5', 'dlssnr_superior_normal',
         'dlssnr_superior_sdr', 'dlssnr_superior_hdr2', 'dlssnr_superior_hdr4', 'dlssnr_superior_encode',
-        'dlssnr_superior_low', 'dlssnr_residual',
+        'dlssnr_superior_low', 'dlssnr_superior_area', 'dlssnr_residual',
         'dlssnr_finished_color', 'dlssnr_spatial', 'dlssnr_spatial_guides']
     low = status[status.index('void AddLowBenchmarkScale'):status.index('void UpdateBenchmarkProgress')]
     assert 'kInterPassMeasuredLowScales' in low and 'measured->expected' in low

@@ -21,6 +21,14 @@ template<class C> inline bool InputEncode(const C& c, uint64_t sourceWidth, uint
            sourceWidth == c.Width && sourceHeight == c.Height;
 }
 
+// Area at the model input only, with the materialized native proxy retained.
+template<class C> inline bool AreaDownsample(const C& c, uint64_t sourceWidth, uint32_t sourceHeight)
+{
+    return c.Mode == 2u && c.Transfer == 0u && c.DirectResolveFlags == ShaderFlag &&
+           c.Width != 0u && c.Height != 0u && sourceWidth >= c.Width && sourceHeight >= c.Height &&
+           (sourceWidth != c.Width || sourceHeight != c.Height);
+}
+
 // Final low field of a decoded signed residual, at the existing ceil(work/8) dimensions.
 template<class C> inline bool LowResidual(const C& c, uint64_t sourceWidth, uint32_t sourceHeight)
 {

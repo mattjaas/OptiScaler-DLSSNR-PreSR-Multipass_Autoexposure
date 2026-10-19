@@ -285,6 +285,8 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
                 down.Width = workWidth;
                 down.Height = workHeight;
                 down.Transfer = exactScaler == Scaler::Count ? proxyFilter : 0u;
+                if (DlssNr::SuperiorScaling::Enabled(cfg))
+                    down.DirectResolveFlags = DlssNr::SuperiorScaling::ShaderFlag;
                 shader.DispatchPass(cmdList, down, modelInput, nullptr, nullptr, nullptr, nullptr, nr.colorSmall,
                                     nullptr);
                 Barrier(cmdList, nr.colorSmall, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,

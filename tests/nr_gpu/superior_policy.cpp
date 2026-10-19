@@ -35,6 +35,16 @@ int main() {
         require(!InputEncode(input,1919,1080) && !InputEncode(input,1920,1079));
         input.Width=0;require(!InputEncode(input,0,1080));input.Width=1920;
         input.Height=0;require(!InputEncode(input,1920,0));input.Width=input.Height=1;require(InputEncode(input,1,1));
+        DlssNrConstants area{};area.Mode=2;area.Width=2496;area.Height=1404;area.DirectResolveFlags=ShaderFlag;
+        require(AreaDownsample(area,3840,2160) && AreaDownsample(area,2496,2160) && AreaDownsample(area,3840,1404));
+        require(!AreaDownsample(area,2496,1404) && !AreaDownsample(area,1920,1080));
+        require(!AreaDownsample(area,0,2160) && !AreaDownsample(area,3840,0));
+        area.Transfer=1;require(!AreaDownsample(area,3840,2160));area.Transfer=0;
+        area.Mode=32;require(!AreaDownsample(area,3840,2160));area.Mode=2;
+        area.DirectResolveFlags=0;require(!AreaDownsample(area,3840,2160));area.DirectResolveFlags=ShaderFlag|4;
+        require(!AreaDownsample(area,3840,2160));area.DirectResolveFlags=ShaderFlag;
+        area.Width=0;require(!AreaDownsample(area,3840,2160));area.Width=1;area.Height=0;
+        require(!AreaDownsample(area,3840,2160));area.Height=1;require(AreaDownsample(area,1,2));
         DlssNrConstants low{};low.Mode=18;low.Transfer=1;low.Width=312;low.Height=176;low.DirectResolveFlags=ShaderFlag;
         require(LowResidual(low,2496,1404));
         low.Mode=34;require(!LowResidual(low,2496,1404));low.Mode=18;
