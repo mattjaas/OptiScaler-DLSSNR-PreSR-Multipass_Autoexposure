@@ -91,6 +91,17 @@ def test_superior():
     assert "normalResolve && index > 3u ? get(3u) : nullptr" in select
     assert "SuperiorScaling::InputEncode(constants, d.Width, d.Height)" in select
     assert "const unsigned index = inputEncode ? 7u" in select
+    assert "SuperiorScaling::LowResidual(constants, d.Width, d.Height)" in select
+    assert "lowResidual ? 8u" in select
+    # Failed low PSO takes the generic 8x8 dispatch, never the 8x4 specialization geometry.
+    assert "pipeline == _superiorPipeline[8] ? DlssNr::SuperiorScaling::LowGroupHeight : _numThreadsY" in pipelines
+    assert "(InConstants.Height + threadsY - 1) / threadsY" in pipelines
+    assert "LowGroupHeight = 4u" in policy
+    low = block(policy, "inline bool LowResidual")
+    for guard in ("c.Mode == 18u", "c.Transfer == 1u", "c.DirectResolveFlags == ShaderFlag",
+                  "sourceWidth != 0u", "sourceHeight != 0u",
+                  "(sourceWidth - 1u) / 8u + 1u", "(sourceHeight - 1u) / 8u + 1u"):
+        assert guard in low
     normal = block(policy, "inline bool NormalResolve")
     for guard in ("c.DebugView == 0u", "c.CompareMode == 0u", "c.ShowSkinMask == 0u", "c.ApplyModel != 0u",
                   "c.DirectResolveFlags == ShaderFlag", "sourceWidth <= c.Width",
@@ -102,6 +113,7 @@ def test_superior():
         assert f"#define {define}" in normal_defines
     run = read("OptiScaler/shaders/dlssnr/DlssNr_Dx12_Run.cpp")
     assert "nr.interPassSuperior != interPassSuperior" in run
+    assert "low.DirectResolveFlags = DlssNr::SuperiorScaling::ShaderFlag;" in run
     assert "matchedGuides ? nr.depthSmall : nullptr" in run and "&matchedDepth" in run
     assert "if (DlssNr::SuperiorScaling::Enabled(cfg)) spatialSettings.enabled = false;" in run
     assert "transfer >= 7u && transfer <= 11u" in run
@@ -123,6 +135,10 @@ def test_superior():
     assert '"DLSSNR_SUPERIOR_NORMAL=1"' in compile_script
     assert '"DLSSNR_SUPERIOR_ENCODE=1"' in compile_script
     assert "#if defined(DLSSNR_SUPERIOR_ENCODE)\n#define gMode 0u" in shader
+    assert '"DLSSNR_SUPERIOR_LOW=1"' in compile_script
+    low_defines = shader.split("#if defined(DLSSNR_SUPERIOR_LOW)", 1)[1].split("#endif", 1)[0]
+    assert "#define gMode 18u" in low_defines and "#define gTransfer 1u" in low_defines
+    assert "#if defined(DLSSNR_SUPERIOR_LOW)\n[numthreads(8, 4, 1)]\n#else\n[numthreads(8, 8, 1)]" in shader
     assert '"DLSSNR_SUPERIOR_SDR=1"' in compile_script and '"DLSSNR_SUPERIOR_HDR=$($variant.Substring(3))"' in compile_script
     colors = block(policy, "inline uint32_t NormalColorProfile")
     assert "c.Passthrough == 1u" in colors and "c.Passthrough != 0u" in colors and "c.ReversibleMode > 4u" in colors

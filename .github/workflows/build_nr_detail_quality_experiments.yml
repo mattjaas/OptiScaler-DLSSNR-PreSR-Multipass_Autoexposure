@@ -1,4 +1,4 @@
-name: Build NR v52 Superior Scaling input encode
+name: Build NR v53 Superior Scaling final low filter
 
 on:
   push:
@@ -23,7 +23,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v52-${{ github.ref }}
+  group: nr-interpass-v53-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -119,20 +119,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & ./artifacts/nr-v20/superior_policy.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing", "superior_prepare_quality", "superior_prepare_timing", "superior_input_quality", "superior_input_timing")) {
+          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing", "superior_prepare_quality", "superior_prepare_timing", "superior_input_quality", "superior_input_timing", "superior_low_quality", "superior_low_timing")) {
             cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/${fixture}.cpp /Fe:artifacts/nr-v20/${fixture}.exe /Fo:artifacts/nr-v20/${fixture}.obj /link d3d12.lib dxgi.lib"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-superior-scaling-v52-20261019"
+        run: ./package_release.ps1 -Version "nr-superior-scaling-v53-20261019"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-superior-scaling-v52-20261019
-          path: release/OptiScaler-NR-nr-superior-scaling-v52-20261019.zip
+          name: OptiScaler-NR-superior-scaling-v53-20261019
+          path: release/OptiScaler-NR-nr-superior-scaling-v53-20261019.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -141,20 +141,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-superior-scaling-v52-20261019"
-          $archive = "release/OptiScaler-NR-nr-superior-scaling-v52-20261019.zip"
+          $tag = "nr-superior-scaling-v53-20261019"
+          $archive = "release/OptiScaler-NR-nr-superior-scaling-v53-20261019.zip"
           $notes = @"
-          Isolates the native Superior input encode as a fixed Mode 0 PSO, from $env:GITHUB_SHA.
-          Keeps both proxy and signed HDR copy, exposure, trim anchors, all mapping selectors, alpha and FP16 materialization unchanged.
-          Uses the shared production selector for exact source/dispatch dimensions, flags and valid SDR/HDR mapping metadata.
-          Legacy, metadata mismatch and PSO creation failure retain the main shader; no input failure can fall back to the Mode 1 resolve.
-          RTX 4090: 3840 GPU comparisons pass bit-exactly, 66528000 words, FP16/FP32 source and outputs, all five HDR mappings, SDR and exposure/anchor cases.
-          Measures input encode, unchanged Area control and their complete preparation chain with short ABBA/BAAB, buffer-swap repetition and A/A control.
-          Native 4K / FP16 / HDR soft knee, encode+Area medians: P50 .276224 to .196864 ms; P59 .312832 to .232192; P65 .333952 to .249344.
-          One new lazily cached PSO, no additional dispatch, texture, copy, barrier, timestamp or per-frame allocation.
-          The Area specialization changed FP32 rounding and was rejected; the materialized proxy and original Area shader remain unchanged.
-          NR inference, interpass, DLAA and final resolve are outside the timing; full-game NR remains unmeasured.
-          Details, variability, exact scope and raw samples: docs/NR-v52-superior-input-encode.md.
+          Isolates the final signed-residual Mode 18 low field and uses 8x4 groups, from $env:GITHUB_SHA.
+          Preserves all 64 bilinear taps, weights, coordinates, accumulation order, sanitization and FP16/FP32 materialization.
+          One lazy cached PSO; no extra dispatch, texture, copy, barrier, timestamp or per-frame allocation.
+          Only Superior final ceil(work/8) low with decoded residual Transfer 1 selects the new pipeline.
+          Other enlargement modes, interpass Low36/cache, gains, pass scheduling and previous v50/v51/v52 optimizations remain unchanged.
+          Creation failure falls back to the generic Mode 18 shader with its original 8x8 dispatch geometry.
+          GPU quality checks compare FP16/FP32 sources and targets, edges, signed HDR and nonfinite inputs.
+          GPU performance uses timestamped short ABBA/BAAB on resident low plus final resolve, repetition and A/A control.
+          This measures the changed preparation/resolve portion, excluding NR inference, DLAA and interpass; full-game gains need validation.
+          Detailed measurements, variability and raw samples: docs/NR-v53-superior-final-low.md.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -163,10 +162,10 @@ jobs:
           $exists = $LASTEXITCODE -eq 0
           $ErrorActionPreference = "Stop"
           if ($exists) {
-            gh release upload $tag $archive --clobber
+            gh release upload $tag $archive "x64/Release/OptiScaler.dll" --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v52 - Superior Scaling input encode" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v53 - Superior Scaling final low filter" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive --target $env:GITHUB_SHA --title "OptiScaler NR v52 - Superior Scaling input encode" --notes-file $notesPath --prerelease
+            gh release create $tag $archive "x64/Release/OptiScaler.dll" --target $env:GITHUB_SHA --title "OptiScaler NR v53 - Superior Scaling final low filter" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

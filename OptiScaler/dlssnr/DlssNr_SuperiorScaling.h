@@ -7,6 +7,7 @@ namespace DlssNr::SuperiorScaling
 {
 constexpr uint32_t Transfer = 11u;
 constexpr uint32_t ShaderFlag = 65536u;
+constexpr uint32_t LowGroupHeight = 4u;
 inline bool Enabled(uint32_t transfer) { return transfer == Transfer; }
 template<class C> inline bool Enabled(const C& cfg) { return Enabled(cfg.DlssNrTransfer.value_or_default()); }
 inline int Preset(int preset) { return preset == 11 ? 11 : 1; } // K or A; no default/latest ambiguity.
@@ -18,6 +19,14 @@ template<class C> inline bool InputEncode(const C& c, uint64_t sourceWidth, uint
     return c.Mode == 0u && c.DirectResolveFlags == ShaderFlag && c.Passthrough <= 1u &&
            c.ReversibleMode <= 4u && c.Width != 0u && c.Height != 0u &&
            sourceWidth == c.Width && sourceHeight == c.Height;
+}
+
+// Final low field of a decoded signed residual, at the existing ceil(work/8) dimensions.
+template<class C> inline bool LowResidual(const C& c, uint64_t sourceWidth, uint32_t sourceHeight)
+{
+    return c.Mode == 18u && c.Transfer == 1u && c.DirectResolveFlags == ShaderFlag &&
+           sourceWidth != 0u && sourceHeight != 0u &&
+           c.Width == (sourceWidth - 1u) / 8u + 1u && c.Height == (sourceHeight - 1u) / 8u + 1u;
 }
 
 // Reuse only the identical current-frame R32 point-sampled depth, already in SRV state.

@@ -71,6 +71,11 @@ cbuffer Params : register(b0)
 #if defined(DLSSNR_SUPERIOR_ENCODE)
 #define gMode 0u
 #endif
+#if defined(DLSSNR_SUPERIOR_LOW)
+// Final decoded residual only; keep the original 64 taps, accumulation and FP16 store.
+#define gMode 18u
+#define gTransfer 1u
+#endif
 #if defined(DLSSNR_SUPERIOR_NORMAL)
 // Selected only for the reduced signed-residual gameplay path. Inspector uses the general PSO.
 #define gTransfer 9u
@@ -2340,7 +2345,11 @@ void SuperiorCarrierMain(uint3 id : SV_DispatchThreadID)
     }
 }
 
+#if defined(DLSSNR_SUPERIOR_LOW)
+[numthreads(8, 4, 1)]
+#else
 [numthreads(8, 8, 1)]
+#endif
 void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 groupThreadId : SV_GroupThreadID)
 {
     const uint lane = groupThreadId.y * 8u + groupThreadId.x;

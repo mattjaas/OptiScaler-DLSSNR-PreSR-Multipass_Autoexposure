@@ -19,6 +19,7 @@
 #include "precompile/dlssnr_superior_hdr2_Shader.h"
 #include "precompile/dlssnr_superior_hdr4_Shader.h"
 #include "precompile/dlssnr_superior_encode_Shader.h"
+#include "precompile/dlssnr_superior_low_Shader.h"
 
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -184,23 +185,26 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& consta
                          constants.Mode == DlssNrMode_SuperiorCarrierDecode ||
                          constants.Mode == DlssNrMode_SuperiorCarrierMotion;
     if (!carrier && (constants.DirectResolveFlags & DlssNr::SuperiorScaling::ShaderFlag) == 0u) return nullptr;
-    const auto d = (constants.Mode == DlssNrMode_Resolve || constants.Mode == DlssNrMode_Encode) && source
+    const auto d = (constants.Mode == DlssNrMode_Resolve || constants.Mode == DlssNrMode_Encode ||
+                    constants.Mode == DlssNrMode_GuidedResidualLow) && source
                        ? source->GetDesc() : D3D12_RESOURCE_DESC {};
     const bool inputEncode = DlssNr::SuperiorScaling::InputEncode(constants, d.Width, d.Height);
-    // Fixed input stage and final radius-one stage; other uses retain the general fallback.
-    if (!carrier && !inputEncode && constants.Mode != DlssNrMode_InterPassFastCross5 &&
+    const bool lowResidual = DlssNr::SuperiorScaling::LowResidual(constants, d.Width, d.Height);
+    // Fixed input, final low and radius-one stages; other uses retain the general fallback.
+    if (!carrier && !inputEncode && !lowResidual && constants.Mode != DlssNrMode_InterPassFastCross5 &&
         (constants.Mode != DlssNrMode_Resolve || constants.ResidualHistoryValid != 1u)) return nullptr;
     const bool normalResolve = DlssNr::SuperiorScaling::NormalResolve(constants, d.Width, d.Height);
-    const unsigned index = inputEncode ? 7u : carrier ? 0u : normalResolve ? 3u + DlssNr::SuperiorScaling::NormalColorProfile(constants)
+    const unsigned index = inputEncode ? 7u : lowResidual ? 8u : carrier ? 0u : normalResolve ? 3u + DlssNr::SuperiorScaling::NormalColorProfile(constants)
                                                        : constants.Mode == DlssNrMode_InterPassFastCross5 ? 2u : 1u;
     const void* const blobs[] { dlssnr_superior_carrier_cso, dlssnr_superior_resolve_cso,
                               dlssnr_superior_cross5_cso, dlssnr_superior_normal_cso,
                               dlssnr_superior_sdr_cso, dlssnr_superior_hdr2_cso, dlssnr_superior_hdr4_cso,
-                              dlssnr_superior_encode_cso };
+                              dlssnr_superior_encode_cso, dlssnr_superior_low_cso };
     const size_t sizes[] { sizeof(dlssnr_superior_carrier_cso), sizeof(dlssnr_superior_resolve_cso),
                           sizeof(dlssnr_superior_cross5_cso), sizeof(dlssnr_superior_normal_cso),
                           sizeof(dlssnr_superior_sdr_cso), sizeof(dlssnr_superior_hdr2_cso),
-                          sizeof(dlssnr_superior_hdr4_cso), sizeof(dlssnr_superior_encode_cso) };
+                          sizeof(dlssnr_superior_hdr4_cso), sizeof(dlssnr_superior_encode_cso),
+                          sizeof(dlssnr_superior_low_cso) };
     const auto get = [&](unsigned selected) -> ID3D12PipelineState*
     {
         if (!_superiorAttempted[selected])
@@ -212,7 +216,7 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& consta
         return _superiorPipeline[selected];
     };
     if (auto* pipeline = get(index)) return pipeline;
-    // A failed input PSO must use Mode 0 in the main shader, never the Mode 1 normal fallback.
+    // Input/low failures must retain their own mode in the main shader, never Mode 1.
     return normalResolve && index > 3u ? get(3u) : nullptr;
 }
 
@@ -356,9 +360,11 @@ bool DlssNr_Dx12::DispatchCompute(ID3D12GraphicsCommandList* InCmdList, const Dl
     const UINT dispatchWidth = InConstants.Mode == DlssNrMode_Meter
                                    ? InConstants.Width
                                    : (InConstants.Width + _numThreadsX - 1) / _numThreadsX;
+    // Only the successfully created final-low PSO uses 8x4. Its generic fallback remains 8x8.
+    const UINT threadsY = pipeline == _superiorPipeline[8] ? DlssNr::SuperiorScaling::LowGroupHeight : _numThreadsY;
     const UINT dispatchHeight = InConstants.Mode == DlssNrMode_Meter
                                     ? InConstants.Height
-                                    : (InConstants.Height + _numThreadsY - 1) / _numThreadsY;
+                                    : (InConstants.Height + threadsY - 1) / threadsY;
     InCmdList->Dispatch(dispatchWidth, dispatchHeight, 1);
 
     return true;

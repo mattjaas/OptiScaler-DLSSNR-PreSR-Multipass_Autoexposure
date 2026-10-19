@@ -88,9 +88,9 @@ struct InputFixture {
         check(out->Map(0,nullptr,&p));std::memcpy(p,&c,sizeof(c));out->Unmap(0,nullptr);return out;
     }
     void roots() { r.list->SetComputeRootSignature(r.root.Get());ID3D12DescriptorHeap* heaps[]={r.heap.Get()};r.list->SetDescriptorHeaps(1,heaps); }
-    void dispatch(ID3D12PipelineState* pso,ID3D12Resource* c,UINT table,UINT w,UINT h) {
+    void dispatch(ID3D12PipelineState* pso,ID3D12Resource* c,UINT table,UINT w,UINT h,UINT groupY=8) {
         auto gpu=r.heap->GetGPUDescriptorHandleForHeapStart();gpu.ptr+=UINT64(table)*r.stride;r.list->SetPipelineState(pso);
-        r.list->SetComputeRootDescriptorTable(0,gpu);r.list->SetComputeRootConstantBufferView(1,c->GetGPUVirtualAddress());r.list->Dispatch((w+7)/8,(h+7)/8,1);
+        r.list->SetComputeRootDescriptorTable(0,gpu);r.list->SetComputeRootConstantBufferView(1,c->GetGPUVirtualAddress());r.list->Dispatch((w+7)/8,(h+groupY-1)/groupY,1);
     }
     void prepare(UINT i,ID3D12PipelineState* encode,ID3D12PipelineState* area,UINT kind) {
         auto& o=outputs[i];

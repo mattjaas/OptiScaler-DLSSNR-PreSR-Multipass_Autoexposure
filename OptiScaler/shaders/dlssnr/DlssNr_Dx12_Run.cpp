@@ -2127,6 +2127,8 @@ auto DlssNr_Dx12::State::Run(ID3D12GraphicsCommandList* cmdList, ID3D12Resource*
                         low.Passthrough = resolveParams.Passthrough;
                         // Modes 9/10 already provide a decoded signed residual texture.
                         low.Transfer = transfer >= 9u ? 1u : 0u;
+                        if (DlssNr::SuperiorScaling::Enabled(cfg))
+                            low.DirectResolveFlags = DlssNr::SuperiorScaling::ShaderFlag;
                         lowReady = shader.DispatchPass(cmdList, low, resolveProxy, resolveAnswer,
                                                        nullptr, nullptr, nullptr,
                                                        nr.guidedResidualLow, nullptr);

@@ -35,6 +35,19 @@ int main() {
         require(!InputEncode(input,1919,1080) && !InputEncode(input,1920,1079));
         input.Width=0;require(!InputEncode(input,0,1080));input.Width=1920;
         input.Height=0;require(!InputEncode(input,1920,0));input.Width=input.Height=1;require(InputEncode(input,1,1));
+        DlssNrConstants low{};low.Mode=18;low.Transfer=1;low.Width=312;low.Height=176;low.DirectResolveFlags=ShaderFlag;
+        require(LowResidual(low,2496,1404));
+        low.Mode=34;require(!LowResidual(low,2496,1404));low.Mode=18;
+        low.Transfer=0;require(!LowResidual(low,2496,1404));low.Transfer=1;
+        low.Transfer=9;require(!LowResidual(low,2496,1404));low.Transfer=1;
+        low.DirectResolveFlags=0;require(!LowResidual(low,2496,1404));low.DirectResolveFlags=ShaderFlag|4;
+        require(!LowResidual(low,2496,1404));low.DirectResolveFlags=ShaderFlag;
+        require(!LowResidual(low,0,1404) && !LowResidual(low,2496,0));
+        low.Width=313;require(LowResidual(low,2497,1404) && !LowResidual(low,2496,1404));
+        low.Width=312;require(LowResidual(low,2496,1404)); // 2496 is exactly divisible by eight.
+        low.Height=175;require(!LowResidual(low,2496,1404));low.Height=176;
+        low.Width=311;require(!LowResidual(low,2496,1404));low.Width=0;require(!LowResidual(low,2496,1404));
+        low.Width=low.Height=1;require(LowResidual(low,1,1) && LowResidual(low,8,8) && !LowResidual(low,9,8));
         DlssNr::GuideRegion region {3,5,2560,1440};
         require(ReuseDepth(true,true,1920,1080,1920,1080,region,region));
         require(!ReuseDepth(false,true,1920,1080,1920,1080,region,region));
