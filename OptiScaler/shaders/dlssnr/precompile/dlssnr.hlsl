@@ -2336,6 +2336,32 @@ void CacheLow36(uint2 groupId, uint2 localId)
 }
 #endif
 
+#if defined(DLSSNR_SUPERIOR_LOW)
+// Same 64 taps as final low; borrow Low36 cooperative quarter-footprint sampling.
+// An 8x4 output group shares 36x20 samples instead of fetching 32x64 taps.
+groupshared float3 gLow64Tile[36 * 20];
+void CacheLow64(uint2 groupId, uint2 localId)
+{
+    uint w, h, mw, mh;
+    gSource.GetDimensions(w, h);
+    gModel.GetDimensions(mw, mh);
+    if (w > 0u && h > 0u && w == mw && h == mh)
+    {
+        const float2 size = float2(w, h), footprint = size / float2(gWidth, gHeight);
+        const float2 center = (float2(groupId * uint2(8u, 4u)) + 0.5) * footprint;
+        const float2 step = 0.25 * footprint;
+        const uint lane = localId.y * 8u + localId.x;
+        [loop] for (uint i = lane; i < 36u * 20u; i += 32u)
+        {
+            const float2 uv = clamp(center + (float2(i % 36u, i / 36u) - 3.5) * step,
+                                   0.5, size - 0.5) / size;
+            gLow64Tile[i] = SanitizeFinite3(gModel.SampleLevel(gLinear, uv, 0).rgb, 0.0);
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+}
+#endif
+
 // Fixed Superior Scaling carrier: no K texture, analysis, headroom or telemetry.
 [numthreads(8, 8, 1)]
 void SuperiorCarrierMain(uint3 id : SV_DispatchThreadID)
@@ -2590,6 +2616,11 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
 #if defined(DLSSNR_LOW36_CACHE)
     // All lanes must participate, including lanes outside the final partial tile.
     CacheLow36(groupId.xy, groupThreadId.xy);
+#endif
+
+#if defined(DLSSNR_SUPERIOR_LOW)
+    // All lanes participate, including those outside the partial output group.
+    CacheLow64(groupId.xy, groupThreadId.xy);
 #endif
 
     if (id.x >= gWidth || id.y >= gHeight)
@@ -2930,7 +2961,12 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
                 const float sx = clamp(srcCenter.x + ((float) x - 3.5) * tapStep.x,
                                        0.5, srcSize.x - 0.5) / srcSize.x;
                 const float2 uv = float2(sx, sy);
+#if defined(DLSSNR_SUPERIOR_LOW)
+                const uint2 tileP = groupThreadId.xy * 4u + uint2(x, y);
+                const float3 modelTap = gLow64Tile[tileP.y * 36u + tileP.x];
+#else
                 const float3 modelTap = gModel.SampleLevel(gLinear, uv, 0).rgb;
+#endif
                 // Temporal modes 9/10 already contain the signed residual; other
                 // modes still compute N-P in exactly the original texture domain.
                 const float3 residualTap = gTransfer != 0u

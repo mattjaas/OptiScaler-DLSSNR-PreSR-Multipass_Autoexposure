@@ -164,6 +164,11 @@ def test_superior():
     low_defines = shader.split("#if defined(DLSSNR_SUPERIOR_LOW)", 1)[1].split("#endif", 1)[0]
     assert "#define gMode 18u" in low_defines and "#define gTransfer 1u" in low_defines
     assert "#if defined(DLSSNR_SUPERIOR_LOW)\n[numthreads(8, 4, 1)]\n#else\n[numthreads(8, 8, 1)]" in shader
+    low_cache = block(shader, "void CacheLow64")
+    for term in ("36u * 20u", "i += 32u", "GroupMemoryBarrierWithGroupSync", "gModel.SampleLevel", "SanitizeFinite3"):
+        assert term in low_cache
+    assert shader.index("CacheLow64(groupId.xy, groupThreadId.xy)") < shader.index("// Normalised, so the source")
+    assert "gLow64Tile[tileP.y * 36u + tileP.x]" in shader
     assert '"DLSSNR_SUPERIOR_SDR=1"' in compile_script and '"DLSSNR_SUPERIOR_HDR=$($variant.Substring(3))"' in compile_script
     colors = block(policy, "inline uint32_t NormalColorProfile")
     assert "c.Passthrough == 1u" in colors and "c.Passthrough != 0u" in colors and "c.ReversibleMode > 4u" in colors
