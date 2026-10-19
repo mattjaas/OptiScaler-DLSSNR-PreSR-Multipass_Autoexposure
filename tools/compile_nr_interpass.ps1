@@ -42,7 +42,7 @@ try {
         } # Standard shader keeps its existing exposure-meter LDS, without inter-pass cache.
         Write-Host "$stem SHA256=$((Get-FileHash ${stem}_Shader.cso).Hash)"
     }
-    foreach ($variant in @("carrier", "resolve", "cross5", "normal", "sdr", "hdr2", "hdr4", "encode", "low", "area")) {
+    foreach ($variant in @("carrier", "resolve", "cross5", "normal", "sdr", "hdr2", "hdr4", "encode", "low", "area", "meter", "exposure")) {
         $stem = "dlssnr_superior_$variant"
         $entry = if ($variant -eq "carrier") { "SuperiorCarrierMain" } else { "CSMain" }
         $defines = @("-D", "DLSSNR_SUPERIOR_SCALING=1")
@@ -55,6 +55,8 @@ try {
         if ($variant -eq "encode") { $defines += @("-D", "DLSSNR_SUPERIOR_ENCODE=1") }
         if ($variant -eq "low") { $defines += @("-D", "DLSSNR_SUPERIOR_LOW=1") }
         if ($variant -eq "area") { $defines += @("-D", "DLSSNR_SUPERIOR_AREA=1") }
+        if ($variant -eq "meter") { $defines += @("-D", "DLSSNR_SUPERIOR_METER=1") }
+        if ($variant -eq "exposure") { $defines += @("-D", "DLSSNR_SUPERIOR_EXPOSURE=1") }
         & ../../shader_tools/dxc.exe -T cs_6_0 -E $entry -O3 -Qstrip_debug -Qstrip_reflect @defines dlssnr.hlsl -Fo "${stem}_Shader.cso" -Fc "${stem}.asm"
         if ($LASTEXITCODE -ne 0) { throw "DXC failed: $stem" }
         & $Python ../../shader_tools/create_header.py "${stem}_Shader.cso" "${stem}_Shader.h" "${stem}_cso"
@@ -62,6 +64,11 @@ try {
         $header = Join-Path (Get-Location) "${stem}_Shader.h"
         [IO.File]::WriteAllLines($header, @([IO.File]::ReadAllLines($header) | ForEach-Object { $_.TrimEnd() }), [Text.UTF8Encoding]::new($false))
         if (($variant -in @("carrier", "resolve", "encode", "low", "area") -or $normal) -and (Select-String "${stem}.asm" -Pattern 'addrspace\(3\) global')) { throw "Superior $variant unexpectedly uses LDS" }
+        if ($variant -in @("meter", "exposure")) {
+            if (-not (Select-String -LiteralPath "${stem}.asm" -SimpleMatch -Pattern "; NumThreads=(8,8,1)")) { throw "Unexpected exposure group geometry: $stem" }
+            $lds = @(Select-String "${stem}.asm" -Pattern 'addrspace\(3\) global')
+            if ($lds.Count -ne 1 -or $lds[0].Line -notmatch '\[256 x float\]') { throw "Unexpected exposure LDS: $stem" }
+        }
         Write-Host "$stem SHA256=$((Get-FileHash ${stem}_Shader.cso).Hash)"
     }
 

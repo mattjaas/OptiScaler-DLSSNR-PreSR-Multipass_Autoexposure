@@ -21,6 +21,18 @@ template<class C> inline bool InputEncode(const C& c, uint64_t sourceWidth, uint
            sourceWidth == c.Width && sourceHeight == c.Height;
 }
 
+// Fixed 64x64 meter and 1x1 white reduction, only for Superior's automatic HDR exposure.
+template<class C> inline uint32_t ExposureStage(const C& c, uint64_t sourceWidth, uint32_t sourceHeight)
+{
+    if (c.DirectResolveFlags != ShaderFlag || c.ExposureSourceWidth == 0u || c.ExposureSourceHeight == 0u)
+        return 0u;
+    if (c.Mode == 3u && c.Width == 64u && c.Height == 64u &&
+        sourceWidth == c.ExposureSourceWidth && sourceHeight == c.ExposureSourceHeight) return 1u;
+    if (c.Mode == 11u && c.Width == 1u && c.Height == 1u && sourceWidth == 64u && sourceHeight == 64u)
+        return 2u;
+    return 0u;
+}
+
 // Area at the model input only, with the materialized native proxy retained.
 template<class C> inline bool AreaDownsample(const C& c, uint64_t sourceWidth, uint32_t sourceHeight)
 {

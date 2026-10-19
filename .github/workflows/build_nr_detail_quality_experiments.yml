@@ -1,4 +1,4 @@
-name: Build NR v54 Superior Scaling small-error optimizations
+name: Build NR v55 Superior Scaling auto HDR exposure
 
 on:
   push:
@@ -23,7 +23,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v54-${{ github.ref }}
+  group: nr-interpass-v55-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -119,20 +119,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & ./artifacts/nr-v20/superior_policy.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing", "superior_prepare_quality", "superior_prepare_timing", "superior_input_quality", "superior_input_timing", "superior_low_quality", "superior_low_timing", "superior_numeric_quality", "superior_numeric_timing", "superior_area_quality", "superior_area_timing")) {
+          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing", "superior_prepare_quality", "superior_prepare_timing", "superior_input_quality", "superior_input_timing", "superior_low_quality", "superior_low_timing", "superior_numeric_quality", "superior_numeric_timing", "superior_area_quality", "superior_area_timing", "superior_exposure_quality", "superior_exposure_timing")) {
             cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/${fixture}.cpp /Fe:artifacts/nr-v20/${fixture}.exe /Fo:artifacts/nr-v20/${fixture}.obj /link d3d12.lib dxgi.lib"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-superior-scaling-v54-20261019"
+        run: ./package_release.ps1 -Version "nr-superior-scaling-v55-20261019"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-superior-scaling-v54-20261019
-          path: release/OptiScaler-NR-nr-superior-scaling-v54-20261019.zip
+          name: OptiScaler-NR-superior-scaling-v55-20261019
+          path: release/OptiScaler-NR-nr-superior-scaling-v55-20261019.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -141,20 +141,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-superior-scaling-v54-20261019"
-          $archive = "release/OptiScaler-NR-nr-superior-scaling-v54-20261019.zip"
+          $tag = "nr-superior-scaling-v55-20261019"
+          $archive = "release/OptiScaler-NR-nr-superior-scaling-v55-20261019.zip"
           $notes = @"
-          Allows small floating-point differences in Superior Scaling, from $env:GITHUB_SHA.
-          Unrolls the nine-tap normal HDR guide without dropping samples or changing its two-exponential weight formula.
-          Keeps the existing SDR specialization after mixed timing results there.
-          Adds a fixed Area Mode 2/Transfer 0 PSO with precise coordinates and accumulation, retaining materialized proxy and alpha.
-          Area uses exact flags and reduction guards; creation failure retains the main Mode 2 shader and 8x8 geometry.
-          No new dispatch, texture, copy, barrier, timestamp or per-frame allocation; one cached PSO added.
-          Numerical audits cover HDR/SDR, FP16/FP32, translating edges, styles, exposure/anchors, nonfinite stress and 4K Area outputs.
-          This release is intentionally not bit-exact with v53; actual game motion and NR inference still need visual validation.
-          GPU timestamps compare both changed portions together (input encode+Area and resident low+resolve) with repeated ABBA/BAAB and A/A.
-          The timing excludes NR inference, DLAA and interpass and must not be called a whole-game gain.
-          Full settings, numerical errors, variability and raw samples: docs/NR-v54-superior-small-error.md.
+          Optimizes Superior Scaling automatic HDR exposure, from $env:GITHUB_SHA.
+          Uses an isolated 8x8-thread full-pixel meter and fixed white-point reduction PSO for RGBA16F input.
+          Preserves every source pixel, tile weighting, pre-exposure and highlight protection.
+          Preserves summation order; numerical audits cover 2904 cases, independent FP16/FP32 formats, HDR mappings and nonfinite stress.
+          Numerical audits compare meter, white, proxy, HDR copy and Area; actual NR inference and game motion are not simulated.
+          Interpass and all 19 previously tracked shader binaries remain unchanged from v54.
+          Two lazy cached PSOs; no additional dispatch, texture, copy, barrier or per-frame allocation.
+          Unsupported/failed specialization falls back to the original mode with correct meter group counts.
+          Manual/game exposure, SDR and other source formats retain their original path.
+          Repeated GPU ABBA/BAAB and A/A compare meter+white+unchanged encode+Area, excluding NR inference, DLAA and interpass.
+          Full settings, errors, variability and raw samples: docs/NR-v55-superior-auto-exposure.md.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -165,8 +165,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive "x64/Release/OptiScaler.dll" --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v54 - Superior Scaling small-error optimizations" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v55 - Superior Scaling auto HDR exposure" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive "x64/Release/OptiScaler.dll" --target $env:GITHUB_SHA --title "OptiScaler NR v54 - Superior Scaling small-error optimizations" --notes-file $notesPath --prerelease
+            gh release create $tag $archive "x64/Release/OptiScaler.dll" --target $env:GITHUB_SHA --title "OptiScaler NR v55 - Superior Scaling auto HDR exposure" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

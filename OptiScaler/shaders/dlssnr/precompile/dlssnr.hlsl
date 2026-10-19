@@ -71,6 +71,12 @@ cbuffer Params : register(b0)
 #if defined(DLSSNR_SUPERIOR_ENCODE)
 #define gMode 0u
 #endif
+#if defined(DLSSNR_SUPERIOR_METER)
+#define gMode 3u
+#endif
+#if defined(DLSSNR_SUPERIOR_EXPOSURE)
+#define gMode 11u
+#endif
 #if defined(DLSSNR_SUPERIOR_AREA)
 #define gMode 2u
 #define gTransfer 0u

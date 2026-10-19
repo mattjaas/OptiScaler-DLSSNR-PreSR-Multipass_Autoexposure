@@ -123,6 +123,10 @@ void DlssNr_Dx12::State::EncodeInput(EncodeContext& context)
             bool ready = false;
             if (source == 3)
             {
+                // The isolated meter was faster for RGBA16F; other formats retain the general path.
+                meter.DirectResolveFlags = DlssNr::SuperiorScaling::Enabled(cfg) &&
+                                                  target->GetDesc().Format == DXGI_FORMAT_R16G16B16A16_FLOAT
+                                               ? DlssNr::SuperiorScaling::ShaderFlag : 0u;
                 const auto previous = targetState;
                 TransitionTarget(D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
                 meter.Mode = DlssNrMode_Meter;
