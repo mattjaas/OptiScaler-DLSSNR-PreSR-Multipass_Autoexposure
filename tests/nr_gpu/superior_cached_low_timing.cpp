@@ -2,6 +2,7 @@
 #include "superior_resolve_fixture.h"
 #include "../../OptiScaler/dlssnr/DlssNr_SuperiorScaling.h"
 
+// Historical v55/v56 comparison: both PSOs use 8x4. Use superior_precision_timing for v57.
 // Compare final low with the unchanged resolve on resident resources; exclude NR/DLAA inference.
 std::vector<std::array<double,4>> pairCachedLow(ResolveFixture& f,ID3D12PipelineState* resolve,
     ID3D12PipelineState* before,ID3D12PipelineState* after,bool reverse,UINT count) {
@@ -12,7 +13,7 @@ std::vector<std::array<double,4>> pairCachedLow(ResolveFixture& f,ID3D12Pipeline
         const UINT query=(sample*4+position)*2;
         r.list->EndQuery(f.images.queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,query);
         for(UINT repeat=0;repeat<4;++repeat) {
-            f.dispatch(candidate?after:before,f.lowCb.Get(),48,(f.images.ww+7)/8,(f.images.wh+7)/8,DlssNr::SuperiorScaling::LowGroupHeight);
+            f.dispatch(candidate?after:before,f.lowCb.Get(),48,(f.images.ww+7)/8,(f.images.wh+7)/8,4u);
             r.barrier(f.images.low.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             f.dispatch(resolve,f.resolveCb.Get(),56,f.images.nw,f.images.nh);
             r.barrier(f.images.low.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

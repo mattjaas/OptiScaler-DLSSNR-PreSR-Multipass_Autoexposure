@@ -371,7 +371,7 @@ bool DlssNr_Dx12::DispatchCompute(ID3D12GraphicsCommandList* InCmdList, const Dl
     const UINT dispatchWidth = InConstants.Mode == DlssNrMode_Meter
                                    ? InConstants.Width
                                    : (InConstants.Width + _numThreadsX - 1) / _numThreadsX;
-    // Only the successfully created final-low PSO uses 8x4. Its generic fallback remains 8x8.
+    // Final-low PSO and generic fallback both use 8x8; keep geometry tied to the selected PSO.
     const UINT threadsY = pipeline == _superiorPipeline[8] ? DlssNr::SuperiorScaling::LowGroupHeight : _numThreadsY;
     const UINT dispatchHeight = InConstants.Mode == DlssNrMode_Meter
                                     ? InConstants.Height

@@ -3,6 +3,7 @@
 #include "superior_numeric_metrics.h"
 #include "../../OptiScaler/dlssnr/DlssNr_SuperiorScaling.h"
 
+// Historical v55/v56 cache comparison; both PSOs use 8x4.
 int main(int argc,char** argv) {
     try {
         if(argc!=3 && argc!=4)throw std::runtime_error("Usage: superior_cached_low_quality baseline candidate [--4k]");
@@ -23,7 +24,7 @@ int main(int argc,char** argv) {
             for(UINT i=0;i<2;++i)f.table(i*16+8,f.source.Get(),f.outputs[i].reduced.Get(),f.outputs[i].reduced.Get());
             r.begin();f.roots();std::array<InputFixture::Read,2> reads;
             for(UINT i=0;i<2;++i) {
-                f.dispatch(i?after.Get():before.Get(),cb.Get(),i*16+8,lw,lh,DlssNr::SuperiorScaling::LowGroupHeight);
+                f.dispatch(i?after.Get():before.Get(),cb.Get(),i*16+8,lw,lh,4u);
                 r.barrier(f.outputs[i].reduced.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
                 reads[i]=f.read(f.outputs[i].reduced.Get());
             }r.finish();

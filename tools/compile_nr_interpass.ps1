@@ -65,9 +65,9 @@ try {
         [IO.File]::WriteAllLines($header, @([IO.File]::ReadAllLines($header) | ForEach-Object { $_.TrimEnd() }), [Text.UTF8Encoding]::new($false))
         if (($variant -in @("carrier", "resolve", "encode", "area") -or $normal) -and (Select-String "${stem}.asm" -Pattern 'addrspace\(3\) global')) { throw "Superior $variant unexpectedly uses LDS" }
         if ($variant -eq "low") {
-            if (-not (Select-String -LiteralPath "${stem}.asm" -SimpleMatch -Pattern "; NumThreads=(8,4,1)")) { throw "Unexpected low group geometry" }
+            if (-not (Select-String -LiteralPath "${stem}.asm" -SimpleMatch -Pattern "; NumThreads=(8,8,1)")) { throw "Unexpected low group geometry" }
             $lds = @(Select-String "${stem}.asm" -Pattern 'addrspace\(3\) global')
-            if ($lds.Count -ne 1 -or $lds[0].Line -notmatch '\[2160 x float\]') { throw "Unexpected Superior low cache LDS" }
+            if ($lds.Count -ne 1 -or $lds[0].Line -notmatch '\[3888 x float\]') { throw "Unexpected Superior low cache LDS" }
         }
         if ($variant -in @("meter", "exposure")) {
             if (-not (Select-String -LiteralPath "${stem}.asm" -SimpleMatch -Pattern "; NumThreads=(8,8,1)")) { throw "Unexpected exposure group geometry: $stem" }
