@@ -2338,8 +2338,8 @@ void CacheLow36(uint2 groupId, uint2 localId)
 
 #if defined(DLSSNR_SUPERIOR_LOW)
 // Same 64 taps as final low; borrow Low36 cooperative quarter-footprint sampling.
-// An 8x8 output group shares 36x36 samples instead of fetching 64x64 taps.
-groupshared float3 gLow64Tile[36 * 36];
+// An 8x16 output group shares 36x68 samples instead of fetching 128x64 taps.
+groupshared float3 gLow64Tile[36 * 68];
 void CacheLow64(uint2 groupId, uint2 localId)
 {
     uint w, h, mw, mh;
@@ -2348,10 +2348,10 @@ void CacheLow64(uint2 groupId, uint2 localId)
     if (w > 0u && h > 0u && w == mw && h == mh)
     {
         const float2 size = float2(w, h), footprint = size / float2(gWidth, gHeight);
-        const float2 center = (float2(groupId * uint2(8u, 8u)) + 0.5) * footprint;
+        const float2 center = (float2(groupId * uint2(8u, 16u)) + 0.5) * footprint;
         const float2 step = 0.25 * footprint;
         const uint lane = localId.y * 8u + localId.x;
-        [loop] for (uint i = lane; i < 36u * 36u; i += 64u)
+        [loop] for (uint i = lane; i < 36u * 68u; i += 128u)
         {
             const float2 uv = clamp(center + (float2(i % 36u, i / 36u) - 3.5) * step,
                                    0.5, size - 0.5) / size;
@@ -2395,7 +2395,7 @@ void SuperiorCarrierMain(uint3 id : SV_DispatchThreadID)
 }
 
 #if defined(DLSSNR_SUPERIOR_LOW)
-[numthreads(8, 8, 1)]
+[numthreads(8, 16, 1)]
 #else
 [numthreads(8, 8, 1)]
 #endif

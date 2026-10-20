@@ -1,0 +1,20 @@
+--- a/wave_timing.cpp
++++ b/wave_timing.cpp
+@@ -10,2 +10,3 @@
+-        auto first=control?standard:r.pipeline(argv[2],"dlssnr_superior_meter");
+-        auto second=control?standard:r.pipeline(argv[2],"dlssnr_superior_exposure");
++        auto baseMeter=r.pipeline(argv[1],"dlssnr_superior_meter"),baseWhite=r.pipeline(argv[1],"dlssnr_superior_exposure");
++        auto first=control?baseMeter:r.pipeline(argv[2],"dlssnr_superior_meter");
++        auto second=control?baseWhite:r.pipeline(argv[2],"dlssnr_superior_exposure");
+@@ -20,4 +21,4 @@
+-            for(UINT block=0;block<8;++block) {
+-                for(UINT warm=0;warm<4;++warm)f.batch(standard.Get(),standard.Get(),selectedMeter,selectedExposure,encode.Get(),area.Get(),block%2!=0,4);
+-                for(UINT sample=0;sample<40;sample+=4) {
+-                    auto values=f.batch(standard.Get(),standard.Get(),selectedMeter,selectedExposure,encode.Get(),area.Get(),block%2!=0,4);
++            for(UINT block=0;block<2;++block) {
++                for(UINT warm=0;warm<4;++warm)f.batch(halfSource?baseMeter.Get():standard.Get(),halfSource?baseWhite.Get():standard.Get(),selectedMeter,selectedExposure,encode.Get(),area.Get(),block%2!=0,4);
++                for(UINT sample=0;sample<20;sample+=4) {
++                    auto values=f.batch(halfSource?baseMeter.Get():standard.Get(),halfSource?baseWhite.Get():standard.Get(),selectedMeter,selectedExposure,encode.Get(),area.Get(),block%2!=0,4);
+@@ -26 +27 @@
+-                        out<<(halfSource?"fp16":"fp32")<<','<<protection<<','<<scale<<','<<(candidate?"v55":"v54")<<','<<block*4+pos<<','<<sample+i<<','<<values[i][pos]<<'\n';
++                        out<<(halfSource?"fp16":"fp32")<<','<<protection<<','<<scale<<','<<(candidate?"candidate":"base")<<','<<block*4+pos<<','<<sample+i<<','<<values[i][pos]<<'\n';

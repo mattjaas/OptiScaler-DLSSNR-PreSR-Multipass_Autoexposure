@@ -1,4 +1,4 @@
-name: Build NR v58 Superior Scaling HDR soft knee specialization
+name: Build NR v59 Superior Scaling taller final low cache
 
 on:
   push:
@@ -23,7 +23,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v58-${{ github.ref }}
+  group: nr-interpass-v59-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -119,20 +119,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & ./artifacts/nr-v20/superior_policy.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing", "superior_prepare_quality", "superior_prepare_timing", "superior_input_quality", "superior_input_timing", "superior_low_quality", "superior_low_timing", "superior_numeric_quality", "superior_numeric_timing", "superior_area_quality", "superior_area_timing", "superior_exposure_quality", "superior_exposure_timing", "superior_cached_low_quality", "superior_cached_low_timing", "superior_precision_quality", "superior_precision_timing", "superior_softknee_quality", "superior_softknee_timing")) {
+          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing", "superior_prepare_quality", "superior_prepare_timing", "superior_input_quality", "superior_input_timing", "superior_low_quality", "superior_low_timing", "superior_numeric_quality", "superior_numeric_timing", "superior_area_quality", "superior_area_timing", "superior_exposure_quality", "superior_exposure_timing", "superior_cached_low_quality", "superior_cached_low_timing", "superior_precision_quality", "superior_precision_timing", "superior_softknee_quality", "superior_softknee_timing", "superior_tall_low_quality", "superior_tall_low_timing")) {
             cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/${fixture}.cpp /Fe:artifacts/nr-v20/${fixture}.exe /Fo:artifacts/nr-v20/${fixture}.obj /link d3d12.lib dxgi.lib"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-superior-scaling-v58-20261020"
+        run: ./package_release.ps1 -Version "nr-superior-scaling-v59-20261020"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-superior-scaling-v58-20261020
-          path: release/OptiScaler-NR-nr-superior-scaling-v58-20261020.zip
+          name: OptiScaler-NR-superior-scaling-v59-20261020
+          path: release/OptiScaler-NR-nr-superior-scaling-v59-20261020.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -141,17 +141,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-superior-scaling-v58-20261020"
-          $archive = "release/OptiScaler-NR-nr-superior-scaling-v58-20261020.zip"
+          $tag = "nr-superior-scaling-v59-20261020"
+          $archive = "release/OptiScaler-NR-nr-superior-scaling-v59-20261020.zip"
           $notes = @"
-          Superior Scaling HDR soft knee specialization, from $env:GITHUB_SHA.
-          A literal HDR mapping 0 resolve PSO is selected only for normal Superior rendering with HDR soft knee.
-          All existing 21 shader binaries and shader source are unchanged; no FP16 arithmetic or guide approximation is introduced.
-          Failed specialization creation falls back to the existing normal shader, then the main shader.
-          No new menu option, dispatch, texture, barrier, copy, per-frame allocation or diagnostic.
-          Adds one lazily created PSO; initial PSO compilation is excluded from warmed GPU measurements.
-          Strict parity and repeated ABBA/BAAB final-low-plus-resolve timings are documented in docs/NR-v58-superior-softknee.md.
-          Small synthetic GPU gains do not establish a whole-game gain or a universal visual guarantee.
+          Superior Scaling taller final-low cache, from $env:GITHUB_SHA.
+          Final low uses an 8x16 output group with a shared 36x68 FP32 sample tile.
+          All 64 taps, weights, accumulation order, finite handling and HDR are retained.
+          One existing PSO changes; the other 21 shader binaries remain byte-identical to v58.
+          No new PSO, dispatch, texture, copy, resource barrier, menu option or per-frame diagnostic.
+          LDS rises from 15552 to 29376 bytes; warmed RTX 4090 timings show only a small gain.
+          Two ABBA/BAAB series, A/A and 264 strict GPU image cases are documented in docs/NR-v59-superior-tall-low.md.
+          Rejected row-sum, Area, wave-reduction and polynomial probes remain offline for reproducibility.
+          No whole-game gain or universal cross-GPU performance/visual guarantee is claimed.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -162,8 +163,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive "x64/Release/OptiScaler.dll" --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v58 - Superior Scaling HDR soft knee specialization" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v59 - Superior Scaling taller final low cache" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive "x64/Release/OptiScaler.dll" --target $env:GITHUB_SHA --title "OptiScaler NR v58 - Superior Scaling HDR soft knee specialization" --notes-file $notesPath --prerelease
+            gh release create $tag $archive "x64/Release/OptiScaler.dll" --target $env:GITHUB_SHA --title "OptiScaler NR v59 - Superior Scaling taller final low cache" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

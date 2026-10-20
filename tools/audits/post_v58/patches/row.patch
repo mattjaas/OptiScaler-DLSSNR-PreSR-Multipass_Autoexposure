@@ -1,0 +1,25 @@
+--- a/test.hlsl
++++ b/test.hlsl
+@@ -2342,0 +2343 @@
++groupshared float3 gLow64Horizontal[8 * 36];
+@@ -2358,0 +2360,13 @@
++        }
++    }
++    GroupMemoryBarrierWithGroupSync();
++    if (w > 0u && h > 0u && w == mw && h == mh)
++    {
++        static const float weights[8] = { 7.0, 11.0, 15.0, 17.0, 17.0, 15.0, 11.0, 7.0 };
++        const uint lane = localId.y * 8u + localId.x;
++        [loop] for (uint i = lane; i < 8u * 36u; i += 64u)
++        {
++            float3 row = 0.0;
++            [unroll] for (uint x = 0u; x < 8u; ++x)
++                row += gLow64Tile[(i / 8u) * 36u + (i % 8u) * 4u + x] * weights[x];
++            gLow64Horizontal[i] = row;
+@@ -2954,0 +2969,4 @@
++#if defined(DLSSNR_SUPERIOR_LOW)
++        [unroll] for (uint y = 0u; y < 8u; ++y)
++            sum += gLow64Horizontal[(groupThreadId.y * 4u + y) * 8u + groupThreadId.x] * weights[y];
++#else
+@@ -2976,0 +2995 @@
++#endif

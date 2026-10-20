@@ -115,7 +115,7 @@ def test_superior():
     # Failed low PSO takes the generic 8x8 dispatch, never the 8x4 specialization geometry.
     assert "pipeline == _superiorPipeline[8] ? DlssNr::SuperiorScaling::LowGroupHeight : _numThreadsY" in pipelines
     assert "(InConstants.Height + threadsY - 1) / threadsY" in pipelines
-    assert "LowGroupHeight = 8u" in policy
+    assert "LowGroupHeight = 16u" in policy
     low = block(policy, "inline bool LowResidual")
     for guard in ("c.Mode == 18u", "c.Transfer == 1u", "c.DirectResolveFlags == ShaderFlag",
                   "sourceWidth != 0u", "sourceHeight != 0u",
@@ -168,9 +168,9 @@ def test_superior():
     assert "#define DLSSNR_AREA_COORD precise" in shader and "DLSSNR_AREA_ACC float3 acc" in shader
     low_defines = shader.split("#if defined(DLSSNR_SUPERIOR_LOW)", 1)[1].split("#endif", 1)[0]
     assert "#define gMode 18u" in low_defines and "#define gTransfer 1u" in low_defines
-    assert "#if defined(DLSSNR_SUPERIOR_LOW)\n[numthreads(8, 8, 1)]\n#else\n[numthreads(8, 8, 1)]" in shader
+    assert "#if defined(DLSSNR_SUPERIOR_LOW)\n[numthreads(8, 16, 1)]\n#else\n[numthreads(8, 8, 1)]" in shader
     low_cache = block(shader, "void CacheLow64")
-    for term in ("36u * 36u", "i += 64u", "GroupMemoryBarrierWithGroupSync", "gModel.SampleLevel", "SanitizeFinite3"):
+    for term in ("36u * 68u", "i += 128u", "GroupMemoryBarrierWithGroupSync", "gModel.SampleLevel", "SanitizeFinite3"):
         assert term in low_cache
     assert shader.index("CacheLow64(groupId.xy, groupThreadId.xy)") < shader.index("// Normalised, so the source")
     assert "gLow64Tile[tileP.y * 36u + tileP.x]" in shader

@@ -16,7 +16,7 @@ std::vector<std::array<double,4>> pairResolve(ResolveFixture& f,ID3D12PipelineSt
         r.list->EndQuery(f.images.queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,query);
         for(UINT repeat=0;repeat<4;++repeat) {
             if(input)input->prepare(0,encode,candidate?areaB:areaA,2);
-            f.dispatch(low,f.lowCb.Get(),48,(f.images.ww+7)/8,(f.images.wh+7)/8,DlssNr::SuperiorScaling::LowGroupHeight);
+            f.dispatch(low,f.lowCb.Get(),48,(f.images.ww+7)/8,(f.images.wh+7)/8,4u); // Historical v53/v54 comparison uses the reference low PSO (8x4).
             r.barrier(f.images.low.Get(),D3D12_RESOURCE_STATE_UNORDERED_ACCESS,D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
             f.dispatch(candidate?after:before,f.resolveCb.Get(),56,f.images.nw,f.images.nh);
             r.barrier(f.images.low.Get(),D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE,D3D12_RESOURCE_STATE_UNORDERED_ACCESS);

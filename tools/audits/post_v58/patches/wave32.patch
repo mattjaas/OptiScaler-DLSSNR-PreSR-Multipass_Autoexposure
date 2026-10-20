@@ -1,0 +1,24 @@
+--- a/test.hlsl
++++ b/test.hlsl
+@@ -2397 +2397,3 @@
+-#if defined(DLSSNR_SUPERIOR_LOW)
++#if defined(DLSSNR_SUPERIOR_METER)
++[numthreads(8, 4, 1)]
++#elif defined(DLSSNR_SUPERIOR_LOW)
+@@ -2422 +2424 @@
+-        [loop] for (uint ty = ty0 + groupThreadId.y; ty < endY; ty += 8u)
++        [loop] for (uint ty = ty0 + groupThreadId.y; ty < endY; ty += 4u)
+@@ -2431,0 +2434,10 @@
++        if (WaveActiveCountBits(true) == 32u)
++        {
++            const float total = WaveActiveSum(localSum);
++            if (WaveIsFirstLane())
++            {
++                const uint taken = (endX - tx0) * (endY - ty0);
++                gTarget[groupId.xy] = float4(taken > 0u ? total / (float) taken : 0.0, 0.0, 0.0, 1.0);
++            }
++            return;
++        }
+@@ -2434 +2446 @@
+-        [unroll] for (uint stride = 32u; stride > 0u; stride >>= 1u)
++        [unroll] for (uint stride = 16u; stride > 0u; stride >>= 1u)

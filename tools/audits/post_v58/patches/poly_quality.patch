@@ -1,0 +1,9 @@
+--- a/poly_quality.cpp
++++ b/poly_quality.cpp
+@@ -15,2 +15,2 @@
+-        auto before=r.pipeline(argv[1],paired?"dlssnr_superior_normal":"dlssnr_superior_resolve");
+-        auto after=r.pipeline(argv[2],normal?"dlssnr_superior_normal":"dlssnr_superior_resolve");
++        auto before=r.pipeline(argv[1],"dlssnr_superior_hdr0");
++        auto after=r.pipeline(argv[2],"dlssnr_superior_hdr0");
+@@ -51,0 +52 @@
++            c.Passthrough=0;c.ReversibleMode=0;

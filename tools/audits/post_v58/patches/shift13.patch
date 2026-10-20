@@ -1,0 +1,24 @@
+--- a/test.hlsl
++++ b/test.hlsl
+@@ -478,0 +479,19 @@
++#if defined(DLSSNR_SUPERIOR_NORMAL) && defined(DLSSNR_SUPERIOR_HDR) && DLSSNR_SUPERIOR_HDR == 0
++    float3 z = mad(v, 2.08431035381, -1.08431035381);
++    float3 poly = 3.39575236283e-05;
++    poly = mad(poly, z, -4.37043285031e-05);
++    poly = mad(poly, z, -4.78102740329e-05);
++    poly = mad(poly, z, 4.48520635711e-05);
++    poly = mad(poly, z, 9.18660734289e-05);
++    poly = mad(poly, z, -0.000126408172876);
++    poly = mad(poly, z, 0.000133801955602);
++    poly = mad(poly, z, -0.000346921558532);
++    poly = mad(poly, z, 0.00101726938859);
++    poly = mad(poly, z, -0.00379587385249);
++    poly = mad(poly, z, 0.0303141665914);
++    poly = mad(poly, z, 0.272592577698);
++    poly = mad(poly, z, 0.466891339344);
++    poly = mad(poly, z, 0.233240895312);
++    poly = select(v >= 1.0, float3(1.0, 1.0, 1.0), poly);
++    return lerp(v / 12.92, poly, step(0.04045, v));
++#else
+@@ -479,0 +499 @@
++#endif

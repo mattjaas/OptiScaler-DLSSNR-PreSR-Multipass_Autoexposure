@@ -1,0 +1,16 @@
+--- a/area_timing.cpp
++++ b/area_timing.cpp
+@@ -11 +11 @@
+-        Runner r(true,32);auto standard=r.pipeline(argv[1],"DlssNr"),encode=r.pipeline(argv[1],"dlssnr_superior_encode"),area=profile=="aa"?standard:r.pipeline(argv[2],"dlssnr_superior_area");
++        Runner r(true,32);auto standard=r.pipeline(argv[1],"DlssNr"),encode=r.pipeline(argv[1],"dlssnr_superior_encode"),reference=r.pipeline(argv[1],"dlssnr_superior_area"),area=profile=="aa"?reference:r.pipeline(argv[2],"dlssnr_superior_area");
+@@ -21 +21 @@
+-            for(UINT block=0;block<8;++block)for(UINT position=0;position<4;++position) {
++            for(UINT block=0;block<2;++block)for(UINT position=0;position<4;++position) {
+@@ -23,2 +23,2 @@
+-                auto batch=[&](UINT n) { return f.batch(index,encode.Get(),candidate?area.Get():standard.Get(),kind,n); };
+-                for(UINT warm=0;warm<32;warm+=16)batch(16);
++                auto batch=[&](UINT n) { return f.batch(index,encode.Get(),candidate?area.Get():reference.Get(),kind,n); };
++                for(UINT warm=0;warm<16;warm+=16)batch(16);
+@@ -27 +27 @@
+-                    for(UINT i=0;i<values.size();++i)out<<(halfSource?"fp16":"fp32")<<','<<(pass?"sdr":"hdr0")<<','<<scale<<','<<kind<<','<<(candidate?"v54":"v53")<<','<<window<<','<<sample+i<<','<<values[i]<<'\n';
++                    for(UINT i=0;i<values.size();++i)out<<(halfSource?"fp16":"fp32")<<','<<(pass?"sdr":"hdr0")<<','<<scale<<','<<kind<<','<<(candidate?"candidate":"base")<<','<<window<<','<<sample+i<<','<<values[i]<<'\n';

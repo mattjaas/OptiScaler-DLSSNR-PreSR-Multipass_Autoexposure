@@ -1,0 +1,5 @@
+--- a/poly_timing.cpp
++++ b/poly_timing.cpp
+@@ -48 +48 @@
+-            auto before=r.pipeline(argv[1],"dlssnr_superior_normal");
++            auto before=r.pipeline(argv[1],"dlssnr_superior_hdr0");

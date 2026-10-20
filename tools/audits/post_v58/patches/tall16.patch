@@ -1,0 +1,14 @@
+--- a/test.hlsl
++++ b/test.hlsl
+@@ -2342 +2342 @@
+-groupshared float3 gLow64Tile[36 * 36];
++groupshared float3 gLow64Tile[36 * 68];
+@@ -2351 +2351 @@
+-        const float2 center = (float2(groupId * uint2(8u, 8u)) + 0.5) * footprint;
++        const float2 center = (float2(groupId * uint2(8u, 16u)) + 0.5) * footprint;
+@@ -2354 +2354 @@
+-        [loop] for (uint i = lane; i < 36u * 36u; i += 64u)
++        [loop] for (uint i = lane; i < 36u * 68u; i += 128u)
+@@ -2398 +2398 @@
+-[numthreads(8, 8, 1)]
++[numthreads(8, 16, 1)]

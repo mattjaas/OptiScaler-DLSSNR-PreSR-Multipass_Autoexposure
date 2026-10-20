@@ -1,0 +1,16 @@
+--- a/test.hlsl
++++ b/test.hlsl
+@@ -2431,0 +2432,11 @@
++#if defined(DLSSNR_SUPERIOR_METER)
++        const float waveSum = WaveActiveSum(localSum);
++        gExposureReduce[lane] = float4(WaveIsFirstLane() ? waveSum : 0.0, 0.0, 0.0, 0.0);
++        GroupMemoryBarrierWithGroupSync();
++        if (lane == 0u)
++        {
++            float total = 0.0;
++            [unroll] for (uint i = 0u; i < 64u; ++i) total += gExposureReduce[i].x;
++            gExposureReduce[0].x = total;
++        }
++#else
+@@ -2440,0 +2452 @@
++#endif

@@ -7,7 +7,7 @@ namespace DlssNr::SuperiorScaling
 {
 constexpr uint32_t Transfer = 11u;
 constexpr uint32_t ShaderFlag = 65536u;
-constexpr uint32_t LowGroupHeight = 8u;
+constexpr uint32_t LowGroupHeight = 16u;
 inline bool Enabled(uint32_t transfer) { return transfer == Transfer; }
 template<class C> inline bool Enabled(const C& cfg) { return Enabled(cfg.DlssNrTransfer.value_or_default()); }
 inline int Preset(int preset) { return preset == 11 ? 11 : 1; } // K or A; no default/latest ambiguity.

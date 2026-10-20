@@ -1,0 +1,21 @@
+--- a/test.hlsl
++++ b/test.hlsl
+@@ -3409,0 +3410,18 @@
++#if defined(DLSSNR_SUPERIOR_AREA)
++        if (srcW == gWidth * 2u && srcH == gHeight * 2u &&
++            x0 == float(id.x * 2u) && x1 == float(id.x * 2u + 2u) &&
++            y0 == float(id.y * 2u) && y1 == float(id.y * 2u + 2u))
++        {
++            const int2 p = int2(id.xy * 2u);
++            precise float3 sum = 0.0;
++            sum += gSource.Load(int3(p, 0)).rgb;
++            sum += gSource.Load(int3(p + int2(1, 0), 0)).rgb;
++            sum += gSource.Load(int3(p + int2(0, 1), 0)).rgb;
++            sum += gSource.Load(int3(p + int2(1, 1), 0)).rgb;
++            const int acx = clamp((int) floor(((float) id.x + 0.5) * (float) srcW / (float) gWidth), 0, (int) srcW - 1);
++            const int acy = clamp((int) floor(((float) id.y + 0.5) * (float) srcH / (float) gHeight), 0, (int) srcH - 1);
++            gTarget[id.xy] = float4(sum * 0.25, gSource.Load(int3(acx, acy, 0)).a);
++            return;
++        }
++#endif
++

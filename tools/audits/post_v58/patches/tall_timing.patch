@@ -1,0 +1,8 @@
+--- a/tall_timing.cpp
++++ b/tall_timing.cpp
+@@ -42 +42 @@
+-        const UINT candidateGroupY=profile=="aa"?baselineGroupY:kind=="half4"?4u:8u;
++        const UINT candidateGroupY=profile=="aa"?baselineGroupY:kind=="half4"?4u:16u;
+@@ -54 +54 @@
+-            const std::string name=hdr==0?"dlssnr_superior_normal":hdr<0?"dlssnr_superior_sdr":hdr==2?"dlssnr_superior_hdr2":"dlssnr_superior_hdr4";
++            const std::string name=hdr==0?"dlssnr_superior_hdr0":hdr<0?"dlssnr_superior_sdr":hdr==2?"dlssnr_superior_hdr2":"dlssnr_superior_hdr4";

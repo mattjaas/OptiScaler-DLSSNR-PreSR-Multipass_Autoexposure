@@ -1,0 +1,7 @@
+--- a/wave_quality.cpp
++++ b/wave_quality.cpp
+@@ -9,0 +10 @@
++        auto baseMeter=r.pipeline(argv[1],"dlssnr_superior_meter"),baseWhite=r.pipeline(argv[1],"dlssnr_superior_exposure");
+@@ -26 +27 @@
+-                r.begin();f.input.roots();f.prepare(variant && halfSource?meter.Get():standard.Get(),variant && halfSource?exposure.Get():standard.Get(),encode.Get(),area.Get());
++                r.begin();f.input.roots();f.prepare(halfSource?(variant?meter.Get():baseMeter.Get()):standard.Get(),halfSource?(variant?exposure.Get():baseWhite.Get()):standard.Get(),encode.Get(),area.Get());

@@ -1,0 +1,11 @@
+--- a/area_quality.cpp
++++ b/area_quality.cpp
+@@ -10 +10 @@
+-        Runner r(true,32);auto standard=r.pipeline(argv[1],"DlssNr"),encode=r.pipeline(argv[1],"dlssnr_superior_encode"),area=r.pipeline(argv[2],"dlssnr_superior_area");
++        Runner r(true,32);auto standard=r.pipeline(argv[1],"dlssnr_superior_area"),encode=r.pipeline(argv[1],"dlssnr_superior_encode"),area=r.pipeline(argv[2],"dlssnr_superior_area");
+@@ -14 +14 @@
+-            std::vector<Geometry>{{1,1,1,1},{3,5,1,2},{17,9,9,5},{65,37,33,19},{129,73,84,47},{65,37,65,19}};
++            std::vector<Geometry>{{8,8,4,4},{66,34,33,17},{1,1,1,1},{3,5,1,2},{17,9,9,5},{65,37,33,19},{129,73,84,47},{65,37,65,19}};
+@@ -32 +32 @@
+-                metrics[half].compare(a,b,half);words+=a.size();
++                if(a!=b)throw std::runtime_error("Area not bit exact");metrics[half].compare(a,b,half);words+=a.size();
