@@ -101,6 +101,10 @@ int main() {
         resolve.ResidualHistoryValid=2;require(!NormalResolve(resolve,1920,1080));resolve.ResidualHistoryValid=1;
         resolve.DirectResolveFlags|=4;require(!NormalResolve(resolve,1920,1080));resolve.DirectResolveFlags=ShaderFlag;
         for(uint32_t mode=0;mode<12;++mode) {
+            resolve.ReversibleMode=mode;
+            for(uint32_t pass : {0u,1u,2u}) {
+                resolve.Passthrough=pass;require(SoftKneeResolve(resolve)==(pass==0 && mode==0));
+            }
             resolve.ReversibleMode=mode;resolve.Passthrough=1;require(NormalColorProfile(resolve)==(mode<=4?1:0));
             resolve.Passthrough=0;require(NormalColorProfile(resolve)==(mode==2?2:mode==4?3:0));
             resolve.Passthrough=2;require(NormalColorProfile(resolve)==0);

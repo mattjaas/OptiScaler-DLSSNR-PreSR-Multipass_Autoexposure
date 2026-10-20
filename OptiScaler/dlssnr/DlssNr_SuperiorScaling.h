@@ -68,6 +68,12 @@ template<class C> inline bool NormalResolve(const C& c, uint64_t sourceWidth, ui
            (sourceWidth != c.Width || sourceHeight != c.Height);
 }
 
+// Called after NormalResolve eligibility; only HDR soft knee has this literal PSO.
+template<class C> inline bool SoftKneeResolve(const C& c)
+{
+    return c.Passthrough == 0u && c.ReversibleMode == 0u;
+}
+
 // Called after NormalResolve eligibility. Zero retains the general normal PSO.
 template<class C> inline uint32_t NormalColorProfile(const C& c)
 {
@@ -77,7 +83,7 @@ template<class C> inline uint32_t NormalColorProfile(const C& c)
     if (c.ReversibleMode > 4u) return 0u;
     if (c.Passthrough == 1u) return 1u; // SDR; its mapping selector remains dynamic.
     if (c.Passthrough != 0u) return 0u;
-    // Composed HDR candidates did not show a sufficiently repeatable gain.
+    // HDR soft knee is tried separately, with this general PSO retained as fallback.
     return c.ReversibleMode == 2u ? 2u : c.ReversibleMode == 4u ? 3u : 0u;
 }
 template<class C> inline uint32_t InterPassMode(const C& cfg)

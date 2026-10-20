@@ -1,4 +1,4 @@
-name: Build NR v57 Superior Scaling final low cache geometry
+name: Build NR v58 Superior Scaling HDR soft knee specialization
 
 on:
   push:
@@ -23,7 +23,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nr-interpass-v57-${{ github.ref }}
+  group: nr-interpass-v58-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -119,20 +119,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & ./artifacts/nr-v20/superior_policy.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing", "superior_prepare_quality", "superior_prepare_timing", "superior_input_quality", "superior_input_timing", "superior_low_quality", "superior_low_timing", "superior_numeric_quality", "superior_numeric_timing", "superior_area_quality", "superior_area_timing", "superior_exposure_quality", "superior_exposure_timing", "superior_cached_low_quality", "superior_cached_low_timing", "superior_precision_quality", "superior_precision_timing")) {
+          foreach ($fixture in @("superior_carrier", "superior_timing", "superior_resolve_quality", "superior_resolve_timing", "superior_prepare_quality", "superior_prepare_timing", "superior_input_quality", "superior_input_timing", "superior_low_quality", "superior_low_timing", "superior_numeric_quality", "superior_numeric_timing", "superior_area_quality", "superior_area_timing", "superior_exposure_quality", "superior_exposure_timing", "superior_cached_low_quality", "superior_cached_low_timing", "superior_precision_quality", "superior_precision_timing", "superior_softknee_quality", "superior_softknee_timing")) {
             cmd /c "`"$vcvars`" && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/${fixture}.cpp /Fe:artifacts/nr-v20/${fixture}.exe /Fo:artifacts/nr-v20/${fixture}.obj /link d3d12.lib dxgi.lib"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
 
       - name: Build and package
         shell: powershell
-        run: ./package_release.ps1 -Version "nr-superior-scaling-v57-20261020"
+        run: ./package_release.ps1 -Version "nr-superior-scaling-v58-20261020"
 
       - name: Upload compiled package
         uses: actions/upload-artifact@v4
         with:
-          name: OptiScaler-NR-superior-scaling-v57-20261020
-          path: release/OptiScaler-NR-nr-superior-scaling-v57-20261020.zip
+          name: OptiScaler-NR-superior-scaling-v58-20261020
+          path: release/OptiScaler-NR-nr-superior-scaling-v58-20261020.zip
           if-no-files-found: error
 
       - name: Publish experimental GitHub Release
@@ -141,21 +141,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "nr-superior-scaling-v57-20261020"
-          $archive = "release/OptiScaler-NR-nr-superior-scaling-v57-20261020.zip"
+          $tag = "nr-superior-scaling-v58-20261020"
+          $archive = "release/OptiScaler-NR-nr-superior-scaling-v58-20261020.zip"
           $notes = @"
-          Superior Scaling final-low cache geometry, from $env:GITHUB_SHA.
-          FP16 experiments isolated the benefit of a larger output group; FP16 storage did not convincingly beat FP32 at equal geometry.
-          Production keeps FP32 and changes the final-low group from 8x4 to 8x8, sharing a 36x36 tile.
-          Keeps all 64 taps, weights, normalization, HDR, finite handling and API requirements.
-          Strict GPU bit parity: 264 cases / 8816280 words including FP16/FP32, raw half patterns, signed HDR stress and native 4K.
-          No observed differences on RTX 4090; no universal visual or game-motion guarantee is claimed.
-          Two ABBA/BAAB series compare low plus unchanged resolve; A/A and equal-geometry FP16 controls are recorded.
-          FP16 arithmetic candidates exceeded the image error budget and are not enabled.
-          No new menu option, PSO, dispatch, texture, barrier, copy, per-frame allocation or diagnostic.
-          Only the existing final-low shader changes; the other 20 existing binaries, including interpasses and HDR resolve, are unchanged.
-          Reproducible FP16 prototypes remain offline in tools/audits/fp16/prepare.py.
-          Full measurements and limitations: docs/NR-v57-superior-low-precision.md.
+          Superior Scaling HDR soft knee specialization, from $env:GITHUB_SHA.
+          A literal HDR mapping 0 resolve PSO is selected only for normal Superior rendering with HDR soft knee.
+          All existing 21 shader binaries and shader source are unchanged; no FP16 arithmetic or guide approximation is introduced.
+          Failed specialization creation falls back to the existing normal shader, then the main shader.
+          No new menu option, dispatch, texture, barrier, copy, per-frame allocation or diagnostic.
+          Adds one lazily created PSO; initial PSO compilation is excluded from warmed GPU measurements.
+          Strict parity and repeated ABBA/BAAB final-low-plus-resolve timings are documented in docs/NR-v58-superior-softknee.md.
+          Small synthetic GPU gains do not establish a whole-game gain or a universal visual guarantee.
           "@
           $notesPath = "artifacts/nr-v20/release-notes.md"
           Set-Content -LiteralPath $notesPath -Value $notes -Encoding UTF8
@@ -166,8 +162,8 @@ jobs:
           if ($exists) {
             gh release upload $tag $archive "x64/Release/OptiScaler.dll" --clobber
             if ($LASTEXITCODE -ne 0) { throw "Release upload failed" }
-            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v57 - Superior Scaling final low cache geometry" --notes-file $notesPath --prerelease
+            gh release edit $tag --target $env:GITHUB_SHA --title "OptiScaler NR v58 - Superior Scaling HDR soft knee specialization" --notes-file $notesPath --prerelease
           } else {
-            gh release create $tag $archive "x64/Release/OptiScaler.dll" --target $env:GITHUB_SHA --title "OptiScaler NR v57 - Superior Scaling final low cache geometry" --notes-file $notesPath --prerelease
+            gh release create $tag $archive "x64/Release/OptiScaler.dll" --target $env:GITHUB_SHA --title "OptiScaler NR v58 - Superior Scaling HDR soft knee specialization" --notes-file $notesPath --prerelease
           }
           if ($LASTEXITCODE -ne 0) { throw "Release publication failed" }

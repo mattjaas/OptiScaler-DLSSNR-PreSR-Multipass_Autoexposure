@@ -42,11 +42,11 @@ try {
         } # Standard shader keeps its existing exposure-meter LDS, without inter-pass cache.
         Write-Host "$stem SHA256=$((Get-FileHash ${stem}_Shader.cso).Hash)"
     }
-    foreach ($variant in @("carrier", "resolve", "cross5", "normal", "sdr", "hdr2", "hdr4", "encode", "low", "area", "meter", "exposure")) {
+    foreach ($variant in @("carrier", "resolve", "cross5", "normal", "sdr", "hdr2", "hdr4", "encode", "low", "area", "meter", "exposure", "hdr0")) {
         $stem = "dlssnr_superior_$variant"
         $entry = if ($variant -eq "carrier") { "SuperiorCarrierMain" } else { "CSMain" }
         $defines = @("-D", "DLSSNR_SUPERIOR_SCALING=1")
-        $normal = $variant -in @("normal", "sdr", "hdr2", "hdr4")
+        $normal = $variant -in @("normal", "sdr", "hdr2", "hdr4", "hdr0")
         if ($variant -eq "resolve" -or $normal) { $defines += @("-D", "DLSSNR_SUPERIOR_RESOLVE=1") }
         if ($normal) { $defines += @("-D", "DLSSNR_SUPERIOR_NORMAL=1") }
         if ($variant -eq "sdr") { $defines += @("-D", "DLSSNR_SUPERIOR_SDR=1") }

@@ -23,6 +23,7 @@
 #include "precompile/dlssnr_superior_area_Shader.h"
 #include "precompile/dlssnr_superior_meter_Shader.h"
 #include "precompile/dlssnr_superior_exposure_Shader.h"
+#include "precompile/dlssnr_superior_hdr0_Shader.h"
 
 #include "precompile/dlssnr_residual_Shader.h"
 #include "precompile/dlssnr_finished_color_Shader.h"
@@ -209,13 +210,15 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& consta
                               dlssnr_superior_cross5_cso, dlssnr_superior_normal_cso,
                               dlssnr_superior_sdr_cso, dlssnr_superior_hdr2_cso, dlssnr_superior_hdr4_cso,
                               dlssnr_superior_encode_cso, dlssnr_superior_low_cso, dlssnr_superior_area_cso,
-                              dlssnr_superior_meter_cso, dlssnr_superior_exposure_cso };
+                              dlssnr_superior_meter_cso, dlssnr_superior_exposure_cso,
+                              dlssnr_superior_hdr0_cso };
     const size_t sizes[] { sizeof(dlssnr_superior_carrier_cso), sizeof(dlssnr_superior_resolve_cso),
                           sizeof(dlssnr_superior_cross5_cso), sizeof(dlssnr_superior_normal_cso),
                           sizeof(dlssnr_superior_sdr_cso), sizeof(dlssnr_superior_hdr2_cso),
                           sizeof(dlssnr_superior_hdr4_cso), sizeof(dlssnr_superior_encode_cso),
                           sizeof(dlssnr_superior_low_cso), sizeof(dlssnr_superior_area_cso),
-                          sizeof(dlssnr_superior_meter_cso), sizeof(dlssnr_superior_exposure_cso) };
+                          sizeof(dlssnr_superior_meter_cso), sizeof(dlssnr_superior_exposure_cso),
+                          sizeof(dlssnr_superior_hdr0_cso) };
     const auto get = [&](unsigned selected) -> ID3D12PipelineState*
     {
         if (!_superiorAttempted[selected])
@@ -226,6 +229,10 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNrConstants& consta
         }
         return _superiorPipeline[selected];
     };
+    // Try literal HDR soft knee only for the normal signed-residual path. A failed
+    // specialization still tries the unchanged normal PSO before the main shader.
+    if (normalResolve && DlssNr::SuperiorScaling::SoftKneeResolve(constants))
+        if (auto* pipeline = get(12u)) return pipeline;
     if (auto* pipeline = get(index)) return pipeline;
     // Input, exposure, Area and low failures retain their own mode in the main shader, never Mode 1.
     return normalResolve && index > 3u ? get(3u) : nullptr;

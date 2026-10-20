@@ -90,6 +90,11 @@ def test_superior():
     assert "SuperiorScaling::NormalResolve(constants, d.Width, d.Height)" in select
     assert "3u + DlssNr::SuperiorScaling::NormalColorProfile(constants)" in select
     assert "normalResolve && index > 3u ? get(3u) : nullptr" in select
+    assert "normalResolve && DlssNr::SuperiorScaling::SoftKneeResolve(constants)" in select
+    assert select.index("get(12u)") < select.index("get(index)")
+    assert "dlssnr_superior_hdr0_cso" in select
+    softknee = block(policy, "inline bool SoftKneeResolve")
+    assert "c.Passthrough == 0u && c.ReversibleMode == 0u" in softknee
     assert "SuperiorScaling::InputEncode(constants, d.Width, d.Height)" in select
     assert "const unsigned index = inputEncode ? 7u" in select
     assert "SuperiorScaling::LowResidual(constants, d.Width, d.Height)" in select
