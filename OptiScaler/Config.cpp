@@ -1110,6 +1110,10 @@ void Config::ReadDlssNr()
     DlssNrTransfer.set_from_config(readUInt("DlssNr", "Transfer"));
     DlssNrSuperiorScalingPreset.set_from_config(readUInt("DlssNr", "SuperiorScalingPreset"));
     DlssNrSuperiorScalingDisableIsHDR.set_from_config(readBool("DlssNr", "SuperiorScalingDisableIsHDR"));
+    DlssNrSuperiorScalingDisableAutoExposure.set_from_config(readBool("DlssNr", "SuperiorScalingDisableAutoExposure"));
+    DlssNrSuperiorPositiveEditGain.set_from_config(readFloat("DlssNr", "SuperiorPositiveEditGain"));
+    DlssNrSuperiorPrivateExposureMode.set_from_config(readUInt("DlssNr", "SuperiorPrivateExposureMode"));
+    DlssNrSuperiorPrivateExposureValue.set_from_config(readFloat("DlssNr", "SuperiorPrivateExposureValue"));
 
     DlssNrWhitePointFromExposure.set_from_config(readBool("DlssNr", "WhitePointFromExposure"));
     DlssNrProbeD3D11.set_from_config(readBool("DlssNr", "ProbeD3D11"));
@@ -1342,6 +1346,14 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetIntValue(c.DlssNrSuperiorScalingPreset.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorScalingDisableIsHDR",
                  GetBoolValue(c.DlssNrSuperiorScalingDisableIsHDR.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorScalingDisableAutoExposure",
+                 GetBoolValue(c.DlssNrSuperiorScalingDisableAutoExposure.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorPositiveEditGain",
+                 GetFloatValue(c.DlssNrSuperiorPositiveEditGain.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorPrivateExposureMode",
+                 GetIntValue(c.DlssNrSuperiorPrivateExposureMode.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorPrivateExposureValue",
+                 GetFloatValue(c.DlssNrSuperiorPrivateExposureValue.value_for_config()).c_str());
 
     out.SetValue("DlssNr", "ProbeD3D11",
                  GetBoolValue(c.DlssNrProbeD3D11.value_for_config()).c_str());
@@ -1703,6 +1715,10 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("Transfer", DlssNrTransfer),
         NR_PROFILE_FIELD("SuperiorScalingPreset", DlssNrSuperiorScalingPreset),
         NR_PROFILE_FIELD("SuperiorScalingDisableIsHDR", DlssNrSuperiorScalingDisableIsHDR),
+        NR_PROFILE_FIELD("SuperiorScalingDisableAutoExposure", DlssNrSuperiorScalingDisableAutoExposure),
+        NR_PROFILE_FIELD("SuperiorPositiveEditGain", DlssNrSuperiorPositiveEditGain),
+        NR_PROFILE_FIELD("SuperiorPrivateExposureMode", DlssNrSuperiorPrivateExposureMode),
+        NR_PROFILE_FIELD("SuperiorPrivateExposureValue", DlssNrSuperiorPrivateExposureValue),
         NR_PROFILE_FIELD("ScalingDownscaler", DlssNrScalingDownscaler),
         NR_PROFILE_FIELD("VitEvery", DlssNrVitEvery),
         NR_PROFILE_FIELD("VitEveryPlain", DlssNrVitEveryPlain),

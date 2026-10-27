@@ -31,6 +31,25 @@ template <class C> inline void SetResolveFlags(C& c, bool lowField, bool rawAnsw
 inline void SetInterPassLowField(DlssNrConstants& c, bool lowField) { c.GuideWidth = lowField ? 1u : 0u; }
 inline bool InterPassLowField(const DlssNrConstants& c) { return c.GuideWidth != 0u; }
 
+// Private carrier only: WhitePoint is unused by its encode/decode modes.
+inline void SetPositiveCarrierGain(DlssNrConstants& c, float gain) { c.WhitePoint = gain; }
+static_assert(offsetof(DlssNrConstants, WhitePoint) == 4);
+
+// Experimental exposure modes 40..42 reuse the frozen cbuffer, without changing v59's ABI.
+inline void SetPrivateExposure(DlssNrConstants& c, uint32_t method, uint32_t sourceW, uint32_t sourceH, bool measure,
+                               bool reset, bool initialized)
+{
+    c.ExposureMode = method;
+    c.ExposureSourceWidth = sourceW;
+    c.ExposureSourceHeight = sourceH;
+    c.PreExposure = 1.f; // the private carrier has no scene pre-exposure
+    c.DebugView = measure ? 1u : 0u;
+    c.ApplyModel = reset ? 1u : 0u;
+    c.ResidualHistoryValid = initialized ? 1u : 0u;
+}
+static_assert(offsetof(DlssNrConstants, ExposureMode) == 144 && offsetof(DlssNrConstants, PreExposure) == 148 &&
+              offsetof(DlssNrConstants, ExposureSourceWidth) == 164);
+
 // v59 guide resize / carrier modes (10, 39): the depth and motion regions travel in the comparison fields.
 //   depth:  size GuideWidth/GuideHeight, origin DebugView/CompareMode
 //   motion: size TransferStrength/ColourStrength (as floats), origin CompareSwap/Transfer

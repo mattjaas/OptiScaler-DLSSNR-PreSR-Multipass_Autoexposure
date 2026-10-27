@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "DlssNr_PrivateExposure.h"
 #include "DlssNrFeature_Vk.h"
 
 #include "DlssNr.h"
@@ -4009,6 +4010,51 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
 
             HelpMarker("Experimental: try only if experiencing severe ghosting. Disabling IsHDR may help, but "
                        "could reduce NR stability.");
+
+            ImGui::BeginDisabled(nr.vulkan || !unavailable.empty());
+            float gain =
+                DlssNr::PrivateExposure::PositiveGain(config->DlssNrSuperiorPositiveEditGain.value_or_default());
+            if (ImGui::SliderFloat("Positive NR edit transport multiplier", &gain, 1.f, 64.f, "%.3fx",
+                                   ImGuiSliderFlags_Logarithmic))
+                config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
+            if (ImGui::InputFloat("Exact transport multiplier", &gain, 1.f, 10.f, "%.4f"))
+                config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
+            HelpMarker("Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
+                       "then divide positive changes by the same multiplier. Zero edit always enters as 0.5; "
+                       "darkening is not multiplied. Input is limited to nonnegative FP16 values, not to 2.0. "
+                       "Large multipliers can change temporal behaviour. Exact entry supports 1..1024.");
+
+            bool disableAuto = config->DlssNrSuperiorScalingDisableAutoExposure.value_or_default();
+            if (ImGui::Checkbox("Disable private DLSS AutoExposure", &disableAuto))
+                config->DlssNrSuperiorScalingDisableAutoExposure = disableAuto;
+            HelpMarker("Independent of Disable DLSS IsHDR flag. When disabled, select a constant or an experimental "
+                       "measurement of the actual image passed to private DLSS. Some L/M runtimes may ignore external "
+                       "exposure even with this flag disabled.");
+            ImGui::BeginDisabled(!disableAuto);
+            static const char* exposureNames[] = { "Off (constant 1.0)", "Manual", "Legacy CNN E/F",
+                                                   "Legacy Transformer K", "Transformer 2 L/M" };
+            int method = int(std::max(1u, DlssNr::PrivateExposure::SanitizeMode(
+                                              config->DlssNrSuperiorPrivateExposureMode.value_or_default()))) -
+                         1;
+            if (ImGui::Combo("Private DLSS exposure method", &method, exposureNames, IM_ARRAYSIZE(exposureNames)))
+                config->DlssNrSuperiorPrivateExposureMode = uint32_t(method + 1);
+            HelpMarker("Every method is selectable with every private DLSS preset and with IsHDR on or off. "
+                       "Legacy uses logarithmic luminance and measures every second evaluation; Transformer 2 uses "
+                       "arithmetic luminance and measures every evaluation. No extra temporal smoothing. "
+                       "Both use the report's sample grid and truncate the result to FP16.");
+            ImGui::BeginDisabled(method != 1);
+            float exposure =
+                DlssNr::PrivateExposure::ManualValue(config->DlssNrSuperiorPrivateExposureValue.value_or_default());
+            if (ImGui::SliderFloat("Private DLSS manual exposure", &exposure, 0.001f, 64.f, "%.6f",
+                                   ImGuiSliderFlags_Logarithmic))
+                config->DlssNrSuperiorPrivateExposureValue = DlssNr::PrivateExposure::ManualValue(exposure);
+            if (ImGui::InputFloat("Exact private exposure", &exposure, 0.01f, 1.f, "%.6f"))
+                config->DlssNrSuperiorPrivateExposureValue = DlssNr::PrivateExposure::ManualValue(exposure);
+            HelpMarker("Direct exposure value, not EV. Exact entry supports 0.000001..65504. "
+                       "The game's exposure and NR proxy exposure are independent.");
+            ImGui::EndDisabled();
+            ImGui::EndDisabled();
+            ImGui::EndDisabled();
 
             if (nr.vulkan)
                 ImGui::TextWrapped("Superior Scaling needs DirectX 12 or a DirectX 12 bridge; Matched residual is "

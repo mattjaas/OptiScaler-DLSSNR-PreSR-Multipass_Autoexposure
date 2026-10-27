@@ -42,6 +42,10 @@ inline constexpr std::string_view kKeptKeys[] = {
     "Transfer",
     "SuperiorScalingPreset",
     "SuperiorScalingDisableIsHDR",
+    "SuperiorScalingDisableAutoExposure",
+    "SuperiorPositiveEditGain",
+    "SuperiorPrivateExposureMode",
+    "SuperiorPrivateExposureValue",
     "ScalingDownscaler",
     // reuse
     "VitEvery",

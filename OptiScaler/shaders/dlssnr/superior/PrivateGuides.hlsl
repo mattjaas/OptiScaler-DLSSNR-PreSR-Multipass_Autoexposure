@@ -1,6 +1,7 @@
 // Private DLAA only: identical uniform joint reconstruction and fixed carrier,
 // with no materialized raw-motion texture between the two stages.
 #include "JointGuides.hlsl"
+#include "PositiveCarrier.hlsli"
 Texture2D<float4> gPrivateAnswer : register(t3);
 RWTexture2D<float4> gPrivateCarrier : register(u2);
 
@@ -43,7 +44,5 @@ float3 PrivateFinite(float3 value, float3 fallback)
     gTarget1[id.xy] = all(isfinite(mv)) ? mv : 0.0;
     const float3 proxy = PrivateFinite(gSource0.Load(int3(id.xy, 0)).rgb, 0.0);
     const float3 model = PrivateFinite(gPrivateAnswer.Load(int3(id.xy, 0)).rgb, proxy);
-    precise float3 residual = model - proxy;
-    precise float3 encoded = 0.5 + residual;
-    gPrivateCarrier[id.xy] = float4(clamp(encoded, -1.0, 2.0), 1.0);
+    gPrivateCarrier[id.xy] = float4(EncodePositiveCarrier(proxy, model, gPadding1.y), 1.0);
 }

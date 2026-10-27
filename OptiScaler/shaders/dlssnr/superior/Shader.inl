@@ -19,6 +19,8 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/dlssnr_superior_normal_Shader.h"
 #include "precompile/dlssnr_superior_resolve_Shader.h"
 #include "precompile/dlssnr_superior_sdr_Shader.h"
+#include "precompile/private_carrier_Shader.h"
+#include "precompile/private_exposure_Shader.h"
 } // namespace DlssNr::Superior::Bytecode
 
 bool DlssNr_Dx12::EnsureSuperiorRing()
@@ -80,12 +82,12 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNr::Superior::DlssN
                            : normalResolve       ? 3u + DlssNr::SuperiorScaling::NormalColorProfile(constants)
                            : constants.Mode == DlssNr::Superior::DlssNrMode_InterPassFastCross5 ? 2u
                                                                                                 : 1u;
-    const void* const blobs[] { dlssnr_superior_carrier_cso, dlssnr_superior_resolve_cso, dlssnr_superior_cross5_cso,
+    const void* const blobs[] { private_carrier_cso, dlssnr_superior_resolve_cso, dlssnr_superior_cross5_cso,
                                 dlssnr_superior_normal_cso,  dlssnr_superior_sdr_cso,     dlssnr_superior_hdr2_cso,
                                 dlssnr_superior_hdr4_cso,    dlssnr_superior_encode_cso,  dlssnr_superior_low_cso,
                                 dlssnr_superior_area_cso,    dlssnr_superior_meter_cso,   dlssnr_superior_exposure_cso,
                                 dlssnr_superior_hdr0_cso };
-    const size_t sizes[] { sizeof(dlssnr_superior_carrier_cso), sizeof(dlssnr_superior_resolve_cso),
+    const size_t sizes[] { sizeof(private_carrier_cso), sizeof(dlssnr_superior_resolve_cso),
                            sizeof(dlssnr_superior_cross5_cso),  sizeof(dlssnr_superior_normal_cso),
                            sizeof(dlssnr_superior_sdr_cso),     sizeof(dlssnr_superior_hdr2_cso),
                            sizeof(dlssnr_superior_hdr4_cso),    sizeof(dlssnr_superior_encode_cso),
@@ -133,6 +135,12 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
     };
     if (!pipeline && (InConstants.Mode == 37u || InConstants.Mode == 38u || InConstants.Mode == 39u))
         return false;
+    const bool privateExposure = InConstants.Mode >= 40u && InConstants.Mode <= 42u;
+    if (privateExposure)
+    {
+        pipeline = get(16u, private_exposure_cso, sizeof(private_exposure_cso));
+        if (!pipeline) return false; // never silently use a different algorithm
+    }
     if (!pipeline && InConstants.Mode == 34u)
     {
         if (InConstants.DirectResolveFlags & 32768u)
@@ -199,14 +207,16 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
 
     // Sized from the constants rather than from a resource, because the pass that shrinks the proxy
     // writes fewer pixels than its source has.
-    const UINT dispatchWidth = InConstants.Mode == DlssNr::Superior::DlssNrMode_Meter
+    const UINT dispatchWidth = privateExposure ? (InConstants.Mode == 40u ? (InConstants.Width + 31u) / 32u : 1u)
+                               : InConstants.Mode == DlssNr::Superior::DlssNrMode_Meter
                                    ? InConstants.Width
                                    : (InConstants.Width + _numThreadsX - 1) / _numThreadsX;
     // Final-low PSO uses 8x16, the generic fallback 8x8; dispatch for the selected PSO.
     const UINT threadsY = pipeline == _superiorPipeline[8] || pipeline == _superiorRawLow
                               ? DlssNr::SuperiorScaling::LowGroupHeight
                               : _numThreadsY;
-    const UINT dispatchHeight = InConstants.Mode == DlssNr::Superior::DlssNrMode_Meter
+    const UINT dispatchHeight = privateExposure ? (InConstants.Mode == 40u ? (InConstants.Height + 31u) / 32u : 1u)
+                                : InConstants.Mode == DlssNr::Superior::DlssNrMode_Meter
                                     ? InConstants.Height
                                     : (InConstants.Height + threadsY - 1) / threadsY;
     InCmdList->Dispatch(dispatchWidth, dispatchHeight, 1);

@@ -12,7 +12,7 @@ int main()
         Runner r(true, 64, 3);
         const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
         auto joint = r.pipeline(dir, "host_uniform_joint_guides"), fused = r.pipeline(dir, "host_private_guides"),
-             carrier = r.pipeline(dir, "dlssnr_superior_carrier");
+             carrier = r.pipeline(dir, "private_carrier");
         auto texture = [&](DXGI_FORMAT fmt, UINT w, UINT h)
         {
             D3D12_RESOURCE_DESC d {};
@@ -157,6 +157,8 @@ int main()
                                 auto gc = cb(g);
                                 g.padding[1] = hold ? 0.f : float(W) / sw;
                                 g.padding[2] = hold ? 0.f : float(H) / sh;
+                                const float gain = pattern % 3 == 0 ? 1.f : pattern % 3 == 1 ? 16.f : 1024.f;
+                                DlssNr::Spatial::SetPrivateCarrierGain(g, gain);
                                 auto fc = cb(g);
                                 DlssNrConstants c {};
                                 c.Mode = 39;
@@ -166,6 +168,7 @@ int main()
                                 c.ColourStrength = float(H);
                                 c.MvScaleX = g.padding[1];
                                 c.MvScaleY = g.padding[2];
+                                c.WhitePoint = gain;
                                 auto cc = cb(c);
                                 table(0, { d.Get(), d.Get(), m.Get(), d.Get(), d.Get(), d.Get() },
                                       { od.Get(), raw.Get(), od.Get() });

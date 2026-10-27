@@ -2,6 +2,7 @@
 #include <dlssnr/PassProfiles.h>
 #include <dlssnr/DlssNr_SuperiorScaling.h>
 #include <dlssnr/DlssNr_SuperiorGains.h>
+#include <dlssnr/DlssNr_PrivateExposure.h>
 #include <dlssnr/DlssNr_GpuLifetime.h>
 #include <output/SdrToHdr_ProxyDx12.h>
 #include <native/DriverInitGate.h>

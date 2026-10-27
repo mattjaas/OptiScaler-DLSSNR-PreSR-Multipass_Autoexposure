@@ -90,8 +90,9 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     ID3D12PipelineState* _superiorRawLow = nullptr;
     bool _superiorRawLowAttempted = false;
     ID3D12PipelineState* SuperiorRawLowPipeline();
-    ID3D12PipelineState* _superiorPipeline[16] {};
-    bool _superiorAttempted[16] {};
+    static constexpr size_t kSuperiorPipelineCount = 17;
+    ID3D12PipelineState* _superiorPipeline[kSuperiorPipelineCount] {};
+    bool _superiorAttempted[kSuperiorPipelineCount] {};
     ID3D12PipelineState* SuperiorPipeline(const DlssNr::Superior::DlssNrConstants&, ID3D12Resource*);
 
     // The shader reads five inputs and writes two, and not every mode uses all of them. Unused slots

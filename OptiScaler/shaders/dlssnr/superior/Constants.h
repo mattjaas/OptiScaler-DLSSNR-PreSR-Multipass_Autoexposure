@@ -9,20 +9,23 @@ namespace DlssNr::Superior
 // not listed here.
 enum DlssNrMode : uint32_t
 {
-    DlssNrMode_Encode = 0,              // the frame -> a tone-mapped proxy, plus an untouched copy
-    DlssNrMode_Resolve = 1,             // proxy + the model's answer + the untouched copy -> the edited frame
-    DlssNrMode_Downsample = 2,          // Area downsample of the proxy to the working raster
-    DlssNrMode_Meter = 3,               // automatic exposure, 64x64 meter
-    DlssNrMode_UnitExposure = 7,        // constant exposure for the private DLSS feature (reads no SRV)
-    DlssNrMode_ClampProxy = 8,          // restore the encoded RGB range between model passes
-    DlssNrMode_ResizePrivateGuides = 10, // match depth/motion to the working raster for the private DLSS
-    DlssNrMode_AutoExposure = 11,       // automatic exposure, 1x1 white reduction
-    DlssNrMode_GuidedResidualLow = 18,  // 1/8-size low-frequency field of the residual (final shaping)
-    DlssNrMode_InterPassLow36 = 34,     // between passes: 1/8-size low field
-    DlssNrMode_InterPassFastCross5 = 36, // between passes: guided working-raster reconstruction
-    DlssNrMode_SuperiorCarrierEncode = 37, // fixed clamp(0.5 + N-P, -1, 2), no gain analysis
-    DlssNrMode_SuperiorCarrierDecode = 38, // fixed DLAA(carrier)-0.5, no gain texture
-    DlssNrMode_SuperiorCarrierMotion = 39  // fixed carrier plus exact private motion resize
+    DlssNrMode_Encode = 0,                 // the frame -> a tone-mapped proxy, plus an untouched copy
+    DlssNrMode_Resolve = 1,                // proxy + the model's answer + the untouched copy -> the edited frame
+    DlssNrMode_Downsample = 2,             // Area downsample of the proxy to the working raster
+    DlssNrMode_Meter = 3,                  // automatic exposure, 64x64 meter
+    DlssNrMode_UnitExposure = 7,           // constant exposure for the private DLSS feature (reads no SRV)
+    DlssNrMode_ClampProxy = 8,             // restore the encoded RGB range between model passes
+    DlssNrMode_ResizePrivateGuides = 10,   // match depth/motion to the working raster for the private DLSS
+    DlssNrMode_AutoExposure = 11,          // automatic exposure, 1x1 white reduction
+    DlssNrMode_GuidedResidualLow = 18,     // 1/8-size low-frequency field of the residual (final shaping)
+    DlssNrMode_InterPassLow36 = 34,        // between passes: 1/8-size low field
+    DlssNrMode_InterPassFastCross5 = 36,   // between passes: guided working-raster reconstruction
+    DlssNrMode_SuperiorCarrierEncode = 37, // positive-only gain around 0.5, nonnegative FP16 carrier
+    DlssNrMode_SuperiorCarrierDecode = 38, // undo positive gain after DLAA, no gain texture
+    DlssNrMode_SuperiorCarrierMotion = 39, // carrier plus exact private motion resize
+    DlssNrMode_PrivateExposureMeter = 40,
+    DlssNrMode_PrivateExposureReduce = 41,
+    DlssNrMode_PrivateExposureManual = 42
 };
 
 struct alignas(256) DlssNrConstants

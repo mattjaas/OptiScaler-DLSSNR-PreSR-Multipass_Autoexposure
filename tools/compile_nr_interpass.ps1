@@ -107,6 +107,8 @@ try {
         }
     }
     Build (Join-Path $shaders "superior/RawLow.hlsl") "RawLowMain" @() "host_low_raw"
+    Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @() 'private_carrier'
+    Build (Join-Path $shaders 'superior/PrivateExposure.hlsl') 'PrivateExposureMain' @() 'private_exposure'
 
     Build (Join-Path $shaders "superior/SpatialGuides.hlsl") "SuperiorSurfaceGuidesMain" @() "host_surface_guides"
     Build (Join-Path $shaders "superior/SpatialGuides.hlsl") "SuperiorUniformSurfaceGuidesMain" @() "host_uniform_surface_guides"

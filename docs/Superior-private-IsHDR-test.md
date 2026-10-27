@@ -1,5 +1,7 @@
 # Private residual DLSS IsHDR test
 
+The later [private exposure experiments](Private-DLSS-exposure-experiments.md) add an independent AutoExposure switch. The original flag-mask statements below assume that new switch is unchecked; IsHDR itself still changes only its own bit.
+
 Originally prepared from PR #249 head `34a1504e` on personal test branch `codex/superior-private-dlss-ishdr-test`; published to PR #249 at the author's request on 2026-10-27. The update excludes the later Finished Picture/native-FG experiments. The Release DLL at runtime commit `9fccd6f7` built successfully; later edits change only the checkbox wording and publication documentation.
 
 Below the CNN/Transformer private DLSS choice, the unchecked-by-default checkbox reads **Disable DLSS IsHDR flag**. Its (?) tooltip says:

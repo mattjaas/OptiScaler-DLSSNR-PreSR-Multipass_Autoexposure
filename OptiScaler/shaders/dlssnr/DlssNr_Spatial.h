@@ -403,6 +403,9 @@ struct alignas(16) Constants {
 };
 static_assert(sizeof(Constants) == 256);
 static_assert(offsetof(Constants, warp) == 16);
+// PrivateGuides.hlsl only: padding[3] = gain for the same carrier as the separate encode pass.
+inline void SetPrivateCarrierGain(Constants& c, float gain) { c.padding[3] = gain; }
+static_assert(offsetof(Constants, padding) + 3 * sizeof(float) == 244);
 inline void SetDepthPrecision(Constants& c, float floor)
 {
     floor = std::isfinite(floor) && floor > 0.f ? floor : 0.f;

@@ -39,6 +39,18 @@ struct Generation
     bool inverted = false, beforeSr = false, reset = true;
     bool temporal = false, packed = false;
     bool disableIsHDR = false; // creation identity, independent of the game's HDR and AutoExposure
+    uint32_t exposureMode = DlssNr::PrivateExposure::Native;
+    float positiveGain = 1.f, manualExposure = 1.f;
+    bool unitInitialized = false;
+    struct ExposureHistory
+    {
+        Texture state[2]; // independent current/previous pair per algorithm, ping-ponged without SRV/UAV aliasing
+        uint64_t evaluations = 0;
+        unsigned index = 0;
+        bool initialized = false;
+    };
+    ExposureHistory exposure[3];
+    Texture exposureSums;
     bool guidesMatched = false;
     DlssNr::Spatial::Layout layout {};
     Texture warp, warpCache;
@@ -357,12 +369,13 @@ Created CreateTemporal(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommand
     p->Set(NVSDK_NGX_Parameter_CreationNodeMask, 1u);
     p->Set(NVSDK_NGX_Parameter_VisibilityNodeMask, 1u);
     p->Set(NVSDK_NGX_Parameter_PerfQualityValue, (int) NVSDK_NGX_PerfQuality_Value_DLAA);
-    const unsigned flags = NVSDK_NGX_DLSS_Feature_Flags_MVLowRes | NVSDK_NGX_DLSS_Feature_Flags_AutoExposure |
+    const unsigned flags = NVSDK_NGX_DLSS_Feature_Flags_MVLowRes |
+                           (g.exposureMode == DlssNr::PrivateExposure::Native ? NVSDK_NGX_DLSS_Feature_Flags_AutoExposure : 0u) |
                            (g.disableIsHDR ? 0u : NVSDK_NGX_DLSS_Feature_Flags_IsHDR) |
                            (g.inverted ? NVSDK_NGX_DLSS_Feature_Flags_DepthInverted : 0u);
     p->Set(NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags, flags);
-    LOG_INFO("Superior Scaling: creating private DLSS preset {}, IsHDR {}, AutoExposure enabled", g.preset,
-             !g.disableIsHDR);
+    LOG_INFO("Superior Scaling: creating private DLSS preset {}, IsHDR {}, exposure mode {}", g.preset,
+             !g.disableIsHDR, g.exposureMode);
     Record(cmd);
     auto result = CreateFeature(g, cmd, g.preset);
     if (result != NVSDK_NGX_Result_Success || !g.feature)
@@ -460,6 +473,63 @@ bool MatchGuides(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* 
                  ID3D12Resource* motion, const DlssNr::GuideRegions& regions, const DlssNrFrameInfo& frame,
                  float depthPrecision = 0.f);
 
+// Called only after the carrier is complete: meter exactly the texture and rectangle NGX will read.
+// Native / unit: no additional per-frame GPU work. Manual: update only when the value changes.
+ID3D12Resource* PrivateExposureTexture(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, bool reset)
+{
+    namespace PE = DlssNr::PrivateExposure;
+    if (g.exposureMode == PE::Native || g.exposureMode == PE::Unit)
+        return g.unit.Get();
+    if (g.exposureMode == PE::Manual)
+    {
+        const float value = PE::ManualValue(Config::Instance()->DlssNrSuperiorPrivateExposureValue.value_or_default());
+        if (!g.unitInitialized || value != g.manualExposure)
+        {
+            Constants c {};
+            c.Mode = 42u;
+            c.Width = c.Height = 1u;
+            c.WhitePoint = value;
+            if (!Dispatch(shader, cmd, c, g.carrier.Get(), nullptr, nullptr, nullptr, nullptr, nullptr, g.unit))
+                return nullptr;
+            g.manualExposure = value;
+            g.unitInitialized = true;
+        }
+        return g.unit.Get();
+    }
+    auto& h = g.exposure[g.exposureMode - PE::LegacyCNN];
+    reset = reset || !h.initialized;
+    const bool measure = PE::Measure(g.exposureMode, h.evaluations, reset);
+    const auto sw = PE::SampleExtent(g.workWidth, g.workWidth, g.exposureMode);
+    const auto sh = PE::SampleExtent(g.workHeight, g.workHeight, g.exposureMode);
+    const auto bx = (sw + 31u) / 32u, by = (sh + 31u) / 32u;
+    if (!Ensure(g.exposureSums, g.device.Get(), DXGI_FORMAT_R32_FLOAT, bx, by) ||
+        !Ensure(h.state[0], g.device.Get(), DXGI_FORMAT_R32G32_FLOAT, 1, 1) ||
+        !Ensure(h.state[1], g.device.Get(), DXGI_FORMAT_R32G32_FLOAT, 1, 1))
+        return nullptr;
+    Constants c {};
+    Fields::SetPrivateExposure(c, g.exposureMode, g.workWidth, g.workHeight, measure, reset, h.initialized);
+    if (measure)
+    {
+        c.Mode = 40u;
+        c.Width = sw;
+        c.Height = sh;
+        if (!Dispatch(shader, cmd, c, g.carrier.Get(), nullptr, nullptr, nullptr, nullptr, nullptr, g.exposureSums))
+            return nullptr;
+    }
+    c.Mode = 41u;
+    c.Width = bx;
+    c.Height = by;
+    const unsigned next = h.index ^ 1u;
+    // No sample reads on an uninitialized history; bind the already readable carrier as a stand-in.
+    auto* previous = h.initialized ? h.state[h.index].Get() : g.carrier.Get();
+    auto* sums = measure ? g.exposureSums.Get() : g.carrier.Get();
+    if (!Dispatch(shader, cmd, c, sums, previous, nullptr, nullptr, nullptr, nullptr, h.state[next]))
+        return nullptr;
+    h.index = next;
+    h.initialized = true;
+    return h.state[next].Get();
+}
+
 ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Resource* proxy,
                           ID3D12Resource* answer, ID3D12Resource* originalMotion, const DlssNr::GuideRegions& regions,
                           const DlssNrFrameInfo& frame, bool reset, bool hold, ID3D12Resource* packedDepth,
@@ -468,7 +538,15 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
 {
     if (!g.feature || !g.parameters || !NgxAlive(g.ngxEpoch))
         return nullptr;
+    const float gain = DlssNr::PrivateExposure::PositiveGain(Config::Instance()->DlssNrSuperiorPositiveEditGain.value_or_default());
+    if (gain != g.positiveGain)
+    {
+        g.positiveGain = gain;
+        g.reset = true; // never mix histories encoded with different gains
+        for (auto& h : g.exposure) h.initialized = false;
+    }
     auto encode = GuideConstants(g.workWidth, g.workHeight, regions, frame, true, hold);
+    Fields::SetPositiveCarrierGain(encode, gain);
     encode.Mode = 39u; // v50: fixed carrier + motion; reuse this frame's exact NR depth.
     auto* motion = originalMotion;
     auto* temporalDepth = g.packed ? packedDepth : g.depth.Get();
@@ -503,6 +581,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
             DlssNr::Spatial::SetDepthPrecision(fused, packedDepthPrecision);
             fused.padding[1] = encode.MvScaleX;
             fused.padding[2] = encode.MvScaleY;
+            DlssNr::Spatial::SetPrivateCarrierGain(fused, gain);
             Record(cmd);
             g.depth.To(cmd, Uav);
             g.carrier.To(cmd, Uav);
@@ -536,13 +615,20 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     if (!prepared &&
         !Dispatch(shader, cmd, encode, proxy, answer, motion, nullptr, nullptr, nullptr, g.carrier, &g.temporalMotion))
         return nullptr;
+    auto* exposure = PrivateExposureTexture(g, shader, cmd, reset || g.reset);
+    if (!exposure)
+    {
+        g.reset = true;
+        Say("Private exposure calculation failed; keeping the game frame.");
+        return nullptr;
+    }
     g.temporalOutput.To(cmd, Uav);
     auto* p = g.parameters;
     p->Set(NVSDK_NGX_Parameter_Color, g.carrier.Get());
     p->Set(NVSDK_NGX_Parameter_Output, g.temporalOutput.Get());
     p->Set(NVSDK_NGX_Parameter_Depth, temporalDepth);
     p->Set(NVSDK_NGX_Parameter_MotionVectors, g.temporalMotion.Get());
-    p->Set(NVSDK_NGX_Parameter_ExposureTexture, g.unit.Get());
+    p->Set(NVSDK_NGX_Parameter_ExposureTexture, exposure);
     p->Set(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Width, g.workWidth);
     p->Set(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Height, g.workHeight);
     p->Set(NVSDK_NGX_Parameter_Reset, (unsigned) (reset || g.reset));
@@ -562,10 +648,13 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         return nullptr;
     }
     g.temporalOutput.To(cmd, Srv);
+    if (g.exposureMode >= DlssNr::PrivateExposure::LegacyCNN)
+        ++g.exposure[g.exposureMode - DlssNr::PrivateExposure::LegacyCNN].evaluations;
     Constants decode {};
     decode.Mode = 38u;
     decode.Width = g.workWidth;
     decode.Height = g.workHeight;
+    Fields::SetPositiveCarrierGain(decode, gain);
     if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), nullptr, nullptr, nullptr, nullptr, nullptr, g.carrier))
         return nullptr;
     g.reset = false;
@@ -611,6 +700,10 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
     }
     const auto& cfg = *Config::Instance();
     const bool disableIsHDR = cfg.DlssNrSuperiorScalingDisableIsHDR.value_or_default();
+    const auto selectedExposure = DlssNr::PrivateExposure::SanitizeMode(cfg.DlssNrSuperiorPrivateExposureMode.value_or_default());
+    const auto exposureMode = cfg.DlssNrSuperiorScalingDisableAutoExposure.value_or_default()
+                                  ? std::max(uint32_t(DlssNr::PrivateExposure::Unit), selectedExposure)
+                                  : uint32_t(DlssNr::PrivateExposure::Native);
     const unsigned preset = PresetChoice().Select(cfg.DlssNrSuperiorScalingPreset.value_or_default(),
                                                   cfg.DlssNrModelResolutionAuto.value_or_default(),
                                                   cfg.DlssNrWorkingScale.value_or_default(), modelScale);
@@ -626,7 +719,8 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
             previous->workWidth != workWidth || previous->workHeight != workHeight || previous->format != format ||
             previous->inverted != frame.DepthInverted || previous->beforeSr != frame.BeforeUpscale ||
             previous->temporal != temporal || previous->packed != (layout != nullptr) ||
-            (temporal && previous->disableIsHDR != disableIsHDR) || (layout && previous->layout != *layout) ||
+            (temporal && (previous->disableIsHDR != disableIsHDR || previous->exposureMode != exposureMode)) ||
+            (layout && previous->layout != *layout) ||
             DlssNr::SuperiorScaling::PrivatePresetChanged(previous->preset, preset))
         {
             Drop();
@@ -647,6 +741,7 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         g.beforeSr = frame.BeforeUpscale;
         g.temporal = temporal;
         g.disableIsHDR = disableIsHDR;
+        g.exposureMode = exposureMode;
         g.packed = layout != nullptr;
         if (layout)
             g.layout = *layout;
