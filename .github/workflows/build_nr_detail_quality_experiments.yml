@@ -1,0 +1,63 @@
+name: Build private DLSS exposure experiments
+
+on:
+  push:
+    branches: [codex/private-dlss-exposure-experiments]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-exposure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: false
+          fetch-depth: 0
+      - name: Fetch dependencies with Windows long paths enabled
+        shell: powershell
+        run: |
+          git config --global core.longpaths true
+          git submodule sync --recursive
+          git submodule update --init --recursive
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: microsoft/setup-msbuild@v2
+      - name: Rebuild shader blobs and verify ABI
+        shell: powershell
+        run: |
+          ./tools/compile_nr_interpass.ps1 -Check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/test_nr_superior_scaling.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify policies, profiles and numeric GPU reference using WARP
+        shell: powershell
+        run: |
+          ./tools/test_superior_port.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $vs = & "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $vcvars = Join-Path $vs 'VC/Auxiliary/Build/vcvars64.bat'
+          New-Item -ItemType Directory -Force artifacts/validation | Out-Null
+          foreach ($test in @('nr_profiles_smoke', 'nr_private_exposure_smoke')) {
+            cmd /c "`"$vcvars`" >nul && cl /nologo /std:c++20 /EHsc /O2 tests/$test.cpp /Fe:artifacts/validation/$test.exe /Fo:artifacts/validation/$test.obj"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            & "./artifacts/validation/$test.exe" OptiScaler/Config.cpp
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          cmd /c "`"$vcvars`" >nul && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/private_exposure_quality.cpp /Fe:artifacts/validation/private_exposure_quality.exe /Fo:artifacts/validation/private_exposure_quality.obj /link d3d12.lib dxgi.lib"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./artifacts/validation/private_exposure_quality.exe --warp
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build Release package
+        shell: powershell
+        run: ./package_release.ps1 -Version 'private-exposure-experiments'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OptiScaler-private-exposure-experiments
+          path: release/OptiScaler-DLSSNR-F5-private-exposure-experiments.zip
+          if-no-files-found: error
