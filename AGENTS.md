@@ -89,6 +89,78 @@ Nie wymagają ponownego potwierdzania przez użytkownika. Odpowiadaj po polsku.
   Dla zmian HLSL sprawdzaj także kompilację shaderów i aktualizację wymaganych
   nagłówków/binariów zgodnie z workflow. Test arytmetyki nie zastępuje pomiaru GPU.
 
+## Regresje integracyjne NR / Superior — wnioski z recenzji janblade
+
+Źródła: [PR #249 — recenzje i scalenie](https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass/pull/249),
+[poprawka cyklu życia i dokumentacji #260](https://github.com/janblade/OptiScaler-F5-DLSSNR-Multipass/pull/260).
+Zasady poniżej wynikają z błędów znalezionych do 2026-10-27; dotyczą także
+kolejnych portów i nowych opcji, nie tylko checkboxa IsHDR.
+
+- Nowa opcja konfiguracji wymaga sprawdzenia całego obiegu: deklaracja i default,
+  odczyt/zapis INI, reset/ładowanie profilu oraz filtrowanie zapisywanych kluczy.
+  W gałęziach z `OptiScaler/dlssnr/DlssNr_Profiles.h` każdy klucz `[DlssNr]`
+  zapisywany przez `SaveIni` musi należeć do dokładnie jednej z list
+  `kKeptKeys` / `kLeftOutKeys`. Sam wpis `NR_PROFILE_FIELD` nie wystarcza.
+  Przy takiej zmianie uruchom `tests/nr_profiles_smoke.cpp` z aktualnym
+  `OptiScaler/Config.cpp` jako argumentem; testy Superior nie zastępują testu profili.
+- Stosuj konwencje istniejącego menu: zwykły `ImGui::Checkbox("label", &value)`
+  i opis w `HelpMarker`, zamiast własnego checkboxa `##` z osobnym `TextWrapped`
+  i ręcznym `IsItemClicked`. Kontrolkę bez wpływu na daną ścieżkę wyszarzaj
+  zgodnie z rzeczywistą dostępnością API/funkcji (np. Vulkan lub niedziałające
+  Superior). Eksperyment i kompromis jakości opisz użytkowo; szczegóły tworzenia
+  instancji i resetów historii zapisuj w dokumentacji technicznej, bez obowiązku
+  umieszczania ich w tooltipie. Użytkownik i janblade zaakceptowali ich pominięcie.
+- Przy zmianie struktury stanu, klucza cache lub wymiaru tablicy wyszukaj wszystkie
+  kopie, snapshoty i operacje save/restore/swap, również `ViewState` i ścieżki
+  kilku widoków. W #249 `EdgeCompression::madeFor` urósł z 6 do 8 elementów,
+  a kopia per-view została przy 6: Git scalił to bez konfliktu, ale Release
+  nie kompilował się przy `std::swap`. Preferuj wspólny typ/stałą rozmiaru lub
+  kontrolę zgodności typów zamiast niezależnych magicznych rozmiarów.
+- Przed publikacją odczytaj aktualny base PR i pobierz tę konkretną gałąź
+  docelową, także staging/release. Sprawdź wynik integracji z jej aktualnym
+  stanem i wykonaj adekwatny build/testy na wyniku integracji; zielony build
+  samej starej gałęzi źródłowej ani czysty merge Git nie dowodzą kompatybilności.
+  Zmiany polityki CI/formatowania wydzielaj z poprawek renderowania, chyba że
+  użytkownik wyraźnie zleci ich wspólne wprowadzenie.
+- Rozróżniaj czas życia preferencji, wyboru presetu, instancji NGX i zasobów GPU.
+  CNN A/E ma pozostać wybrane podczas zmian DRS/Auto i zwykłego odtwarzania
+  zasobów, ale wybór nie może bezwarunkowo przetrwać shutdown NR/NGX oraz nowej
+  sesji urządzenia/runtime. Zapewnij jawny reset takiego latcha w odpowiednich
+  ścieżkach teardown; nie ukrywaj go w lokalnym `static` bez dostępu do resetu.
+  Testuj zarówno zachowanie wyboru podczas DRS, jak i ponowny wybór po shutdown.
+  Przy multi-view świadomie ustal, który stan należy do widoku, a który do sesji.
+- Flagi tworzenia prywatnego DLSS uwzględniaj w tożsamości instancji. Ich zmiana
+  wymaga prawidłowego odtworzenia i historii z bezpiecznym odroczeniem zwolnień
+  GPU; samo ustawienie parametrów evaluate nie zmienia starej instancji.
+  Checkbox IsHDR ma usuwać wyłącznie IsHDR: AutoExposure, MVLowRes, DepthInverted
+  i ustawienia DLSS/HDR gry muszą pozostać zgodne z uzgodnionym zakresem.
+- Klucz resetu historii nie może zawierać każdej zmiany aktywnego render subrect,
+  gdy siatka koloru NR pozostaje taka sama. Rozdziel rozmiar alokacji, aktywny
+  subrect oraz siatki koloru i depth/MV; przy zmianie samych guides nie odtwarzaj
+  całego packed color. Sprawdzaj rozmiary nadnatywne, niezależne osie/origins,
+  jednostki MV i rzeczywiste warunki użycia render-resolution guides.
+- Testy shaderów muszą trafiać w warianty rzeczywiście wybierane przez kod hosta.
+  Prześledź warunki dispatchu i usuń martwe entry pointy/bloby albo podłącz je
+  do realnego ustawienia. Nie zastępuj brakującej referencji wariantem bieżącym
+  i nie nazywaj porównania shadera z nim samym walidacją. Wymagaj niezależnej
+  referencji oraz liczbowych granic błędu sprawdzanych asercją, nie tylko wydrukiem;
+  samo fused-vs-separate nie wykrywa błędu wspólnej funkcji.
+- Waliduj prawdziwe formaty głębi (w tym D16/D24), kwantyzację, reversed Z,
+  brakujące dane oraz NaN/Inf. Nie zakładaj, że idealne płaszczyzny R32F
+  dowodzą poprawności tolerancji dla UNORM. Niepoprawną głębię zastępuj daleką
+  płaszczyzną właściwą dla konwencji Z. Granice work-list sprawdzaj przed
+  odejmowaniem/dzieleniem unsigned i przed odczytami/zapisami tekstur.
+- Nowe parametry HLSL muszą mieć bezpieczny fallback również po stronie shadera
+  (np. `1/(sigma*sigma)` musi być skończone i dodatnie, inaczej użyj wartości dla 0.015).
+  Pola stałych używane pod innym znaczeniem dokumentuj nazwanymi setterami
+  i kontrolami ABI. Generator referencji musi potwierdzać trafienie każdej
+  oczekiwanej podmiany, zamiast kontynuować po nietrafionym `replace`.
+- Po zmianie UI aktualizuj zgodnie wszystkie cytaty etykiet, tooltipów i stanów
+  wyszarzenia w dokumentacji oraz opisie PR. Przed publikacją sprawdź finalny
+  diff i wymagane dla zakresu testy, również poza zestawem testów Superior.
+  Rozdzielaj wynik buildu/testu syntetycznego, obserwację z gry i hipotezę
+  jakościową; nie dopisuj potwierdzenia działania w grze bez takiego wyniku.
+
 ## Oczekiwanie na działania zewnętrzne
 
 - Gdy dalsza praca zależy od zakończenia buildu, GitHub Actions lub innego
