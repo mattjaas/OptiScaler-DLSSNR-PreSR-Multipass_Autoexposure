@@ -1113,6 +1113,7 @@ void Config::ReadDlssNr()
     DlssNrSuperiorScalingDisableAutoExposure.set_from_config(readBool("DlssNr", "SuperiorScalingDisableAutoExposure"));
     DlssNrSuperiorPositiveEditGain.set_from_config(readFloat("DlssNr", "SuperiorPositiveEditGain"));
     DlssNrSuperiorEditSaturation.set_from_config(readFloat("DlssNr", "SuperiorEditSaturation"));
+    DlssNrSuperiorFilterNrAnswer.set_from_config(readBool("DlssNr", "SuperiorFilterNrAnswer"));
     DlssNrSuperiorDepthColour.set_from_config(readBool("DlssNr", "SuperiorDepthColour"));
     DlssNrSuperiorDepthColourStrength.set_from_config(readFloat("DlssNr", "SuperiorDepthColourStrength"));
     DlssNrSuperiorDepthColourCurve.set_from_config(readFloat("DlssNr", "SuperiorDepthColourCurve"));
@@ -1357,6 +1358,8 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetFloatValue(c.DlssNrSuperiorPositiveEditGain.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorEditSaturation",
                  GetFloatValue(c.DlssNrSuperiorEditSaturation.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorFilterNrAnswer",
+                 GetBoolValue(c.DlssNrSuperiorFilterNrAnswer.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorDepthColour", GetBoolValue(c.DlssNrSuperiorDepthColour.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorDepthColourStrength",
                  GetFloatValue(c.DlssNrSuperiorDepthColourStrength.value_for_config()).c_str());
@@ -1732,6 +1735,7 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorScalingDisableAutoExposure", DlssNrSuperiorScalingDisableAutoExposure),
         NR_PROFILE_FIELD("SuperiorPositiveEditGain", DlssNrSuperiorPositiveEditGain),
         NR_PROFILE_FIELD("SuperiorEditSaturation", DlssNrSuperiorEditSaturation),
+        NR_PROFILE_FIELD("SuperiorFilterNrAnswer", DlssNrSuperiorFilterNrAnswer),
         NR_PROFILE_FIELD("SuperiorDepthColour", DlssNrSuperiorDepthColour),
         NR_PROFILE_FIELD("SuperiorDepthColourStrength", DlssNrSuperiorDepthColourStrength),
         NR_PROFILE_FIELD("SuperiorDepthColourCurve", DlssNrSuperiorDepthColourCurve),

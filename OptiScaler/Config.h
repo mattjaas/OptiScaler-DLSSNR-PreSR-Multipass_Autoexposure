@@ -448,6 +448,7 @@ class Config
     CustomOptional<bool> DlssNrSuperiorScalingDisableAutoExposure { false };
     CustomOptional<float> DlssNrSuperiorPositiveEditGain { 1.0f };
     CustomOptional<float> DlssNrSuperiorEditSaturation { 1.0f };
+    CustomOptional<bool> DlssNrSuperiorFilterNrAnswer { false };
     CustomOptional<bool> DlssNrSuperiorDepthColour { false };
     CustomOptional<float> DlssNrSuperiorDepthColourStrength { 1.0f };
     CustomOptional<float> DlssNrSuperiorDepthColourCurve { 1.0f };

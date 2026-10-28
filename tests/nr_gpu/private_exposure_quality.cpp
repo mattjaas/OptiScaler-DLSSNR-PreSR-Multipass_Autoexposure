@@ -157,7 +157,8 @@ struct Fixture
     }
 };
 
-void Timing(Fixture& f, const std::string& saturationBaseline = "", float saturation = 1.f, float depthStrength = 0.f)
+void Timing(Fixture& f, const std::string& saturationBaseline = "", float saturation = 1.f, float depthStrength = 0.f,
+            bool fullAnswer = false, float gain = 16.f)
 {
     // Synthetic changed stages only: no NR model, NGX evaluate, game scene or final composition.
     // Resident FP16 carrier and GPU timestamps, warmup and ABBA. No allocation/upload/fence in a window.
@@ -166,7 +167,8 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
         ? r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", "dlssnr_superior_carrier")
         : r.pipeline(saturationBaseline, "private_carrier");
     const std::string csvPath = saturationBaseline.empty() ? "artifacts/private-exposure-timing.csv"
-        : "artifacts/private-transport-s" + std::to_string(int(saturation)) + "-d" + std::to_string(int(depthStrength)) + "-timing.csv";
+        : "artifacts/private-" + std::string(fullAnswer ? "answer-" : "transport-") + "g" + std::to_string(int(gain)) +
+            "-s" + std::to_string(int(saturation)) + "-d" + std::to_string(int(depthStrength)) + "-timing.csv";
     std::ofstream csv(csvPath);
     csv << "width,height,method,block,position,variant,ms\n";
     for (auto size : { std::pair<UINT, UINT>{1920, 1080}, {3840, 2160} })
@@ -204,7 +206,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
             for (UINT i = 6; i < 8; ++i) r.device->CreateUnorderedAccessView(target, nullptr, &d, { cpu.ptr + SIZE_T(offset + i) * r.stride });
         };
         table(0, proxy.Get(), answer.Get(), encoded.Get()); table(8, encoded.Get(), previous.Get(), sums.Get());
-        table(16, sums.Get(), previous.Get(), output.Get()); table(24, encoded.Get(), previous.Get(), decoded.Get());
+        table(16, sums.Get(), previous.Get(), output.Get()); table(24, encoded.Get(), fullAnswer ? proxy.Get() : previous.Get(), decoded.Get());
         auto constants = [&](const DlssNrConstants& c)
         {
             auto cb = r.buffer(256, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -212,7 +214,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
         };
         for (UINT method : { PE::Native, PE::LegacyCNN, PE::Transformer2 })
         {
-            DlssNrConstants c = seed; c.WhitePoint = 16; c.MaxRatio = saturation;
+            DlssNrConstants c = seed; c.WhitePoint = gain; c.MaxRatio = saturation; c.DirectDetailMode = fullAnswer ? 1u : 0u;
             c.ResidualScale = depthStrength; c.ResidualBlend = 1.f;
             auto encodeCb = constants(c); c.Mode = 38; auto decodeCb = constants(c);
             c = {}; c.Mode = 40; c.Width = sw; c.Height = sh; c.ExposureMode = method; c.PreExposure = 1;
@@ -289,6 +291,10 @@ int main(int argc, char** argv)
         if (argc == 5 && std::string(argv[1]) == "--transport-timing")
         {
             Timing(f, argv[2], std::stof(argv[3]), std::stof(argv[4])); return 0;
+        }
+        if (argc == 6 && std::string(argv[1]) == "--nr-answer-timing")
+        {
+            Timing(f, argv[2], std::stof(argv[3]), std::stof(argv[4]), true, std::stof(argv[5])); return 0;
         }
         if (argc == 3 && std::string(argv[1]) == "--transport-parity")
         {
@@ -567,6 +573,87 @@ int main(int argc, char** argv)
                                 }
                             ++checks;
                         }
+        // Full-answer path: independent forward/inverse matrix references, varying current proxy,
+        // raw-answer bypass, clipping, invalid RGB, both real FP16 and FP32 carrier writes, and a
+        // synthetic DLSS change. Decode must use this proxy, never the original NR answer or 0.5.
+        for (float gain : {1.f, 16.f}) for (float saturation : {1.f, 4.f})
+        for (float strength : {0.f, 1.f}) for (bool inverted : {false, true})
+        for (UINT pair = 0; pair < 3; ++pair) for (bool halfCarrier : {false, true})
+        for (bool filteredChange : {false, true})
+        {
+            constexpr UINT w = 17, h = 9;
+            std::vector<float> proxy(w * h * 4), answer(proxy.size()), depth(proxy.size());
+            for (size_t i = 0; i < proxy.size(); i += 4)
+            {
+                const unsigned pattern = unsigned(i / 4 % 7);
+                for (unsigned channel = 0; channel < 3; ++channel)
+                {
+                    proxy[i + channel] = pattern == 5 ? 32.f + channel : .125f + float((i / 4 + channel) % 4) * .125f;
+                    answer[i + channel] = pattern == 0 ? proxy[i + channel] :
+                        pattern == 1 ? proxy[i + channel] + .0078125f * float(int(channel) - 1) :
+                        pattern == 2 ? -1.f : pattern == 3 ? 8.f + channel : pattern == 4 ? NAN :
+                        pattern == 5 ? proxy[i + channel] - .03125f : INFINITY;
+                }
+                proxy[i + 3] = answer[i + 3] = 1;
+                depth[i] = float(i / 4 % 9) / 8.f;
+            }
+            f.r.begin(); auto p = f.texture(w, h, &proxy), a = f.texture(w, h, &answer),
+                d = f.texture(w, h, &depth, DXGI_FORMAT_R32_FLOAT),
+                out = f.texture(w, h, nullptr, halfCarrier ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R32G32B32A32_FLOAT);
+            DlssNrConstants c {}; c.Mode = 37; c.Width = w; c.Height = h; c.WhitePoint = gain; c.MaxRatio = saturation;
+            c.DirectDetailMode = 1; c.ResidualScale = strength; c.ResidualBlend = 1; c.SkinProtection = pair; c.Passthrough = inverted;
+            f.dispatch(f.carrier.Get(), c, p.Get(), a.Get(), out.Get(), 3, 2, d.Get());
+            auto encoded = f.read(out.Get());
+            std::vector<std::array<double,3>> colours(w * h);
+            for (size_t i = 0; i < encoded.size(); i += 4)
+            {
+                double t = inverted ? 1. - depth[i] : depth[i]; t = t * t * (3. - 2. * t);
+                std::array<double,3> edit {};
+                for (unsigned channel = 0; channel < 3; ++channel)
+                {
+                    const double n = std::isfinite(answer[i + channel]) ? answer[i + channel] : proxy[i + channel];
+                    const double delta = n - proxy[i + channel];
+                    edit[channel] = delta > 0 ? delta * gain : delta;
+                    colours[i / 4][channel] = strength * (channel == pair ? 1. - t : t);
+                }
+                const auto chroma = matrix(edit, saturation);
+                for (unsigned channel = 0; channel < 3; ++channel)
+                {
+                    const double expected = std::min(65504., std::clamp(double(proxy[i + channel]) + chroma[channel], 0., 65504.) + colours[i / 4][channel]);
+                    Near(encoded[i + channel], float(expected), "full NR answer encode");
+                    if (!halfCarrier && gain == 1.f && saturation == 1.f && strength == 0.f && std::isfinite(answer[i + channel]))
+                        if (encoded[i + channel] != std::clamp(answer[i + channel], 0.f, 65504.f))
+                            throw std::runtime_error("Full NR answer did not bypass edit encoding");
+                    if (filteredChange) encoded[i + channel] += .00390625f * float(int(channel) - 1);
+                    if (filteredChange && i / 4 % 7 == 4 && channel != 0)
+                        encoded[i + channel] = channel == 1 ? NAN : INFINITY;
+                }
+            }
+            f.r.begin(); auto e = f.texture(w, h, &encoded), decoded = f.texture(w, h);
+            c.Mode = 38; f.dispatch(f.carrier.Get(), c, e.Get(), p.Get(), decoded.Get(), 3, 2, d.Get());
+            const auto values = f.read(decoded.Get());
+            for (size_t i = 0; i < encoded.size(); i += 4)
+            {
+                std::array<double,3> delta {};
+                for (unsigned channel = 0; channel < 3; ++channel)
+                    delta[channel] = std::isfinite(encoded[i + channel])
+                        ? encoded[i + channel] - colours[i / 4][channel] - proxy[i + channel] : 0.;
+                const auto restored = matrix(delta, 1. / saturation);
+                for (unsigned channel = 0; channel < 3; ++channel)
+                {
+                    const float expected = float(restored[channel] > 0 ? restored[channel] / gain : restored[channel]);
+                    Near(values[i + channel], expected, "post-DLSS answer minus current proxy");
+                    if (!filteredChange && i / 4 % 7 == 0)
+                    {
+                        const float peak = std::max({.5f, encoded[i], encoded[i + 1], encoded[i + 2]});
+                        const float tolerance = halfCarrier ? std::ldexp(1.f, std::ilogb(peak) - 10) + .000004f : .000002f;
+                        if (std::abs(values[i + channel]) > tolerance)
+                            throw std::runtime_error("Full-answer zero edit exceeded storage precision bound");
+                    }
+                }
+            }
+            ++checks;
+        }
         std::cout << "Private exposure/carrier GPU PASS: " << checks << " cases against independent numeric reference\n";
     }
     catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }

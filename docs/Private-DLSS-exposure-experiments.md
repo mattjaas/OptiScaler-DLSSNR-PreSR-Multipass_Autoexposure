@@ -6,6 +6,7 @@ Experimental branch based on janblade `release/0.1.35`, `789f882072254776c80c0ba
 
 Select **Superior Scaling** under **Upscale Mode**. Below **DLSS to temporally stabilize NR**:
 
+- **Private DLSS on full NR answer**: unchecked by default. When checked, private DLSS filters the complete NR response at working resolution; its output is then compared with the current immutable proxy to extract the edit. With transport controls at identity, the sanitized NR answer goes directly to DLSS, subject only to nonnegative FP16 range limits. Available on the same D3D12 Superior route as the other controls.
 - **Positive NR edit transport multiplier**: logarithmic slider 1..64. **Exact transport multiplier** accepts 1..1024. Default 1.
 - **NR edit transport saturation**: logarithmic slider 1..16. **Exact edit saturation** accepts 1..64. Default 1 disables the transform.
 - **Depth colour transport**: off by default. **Near / far depth colours** selects Red / Cyan, Green / Magenta or Blue / Yellow. **Depth colour strength** spans 0..4; **Exact depth colour strength** accepts 0..16. **Depth colour curve** spans 0.03125..64, default 1. Depth controls are disabled when the checkbox is off.
@@ -24,6 +25,7 @@ All transport and exposure settings participate in INI read/write, NR profile sa
 [DlssNr]
 SuperiorPositiveEditGain=1.0
 SuperiorEditSaturation=1.0
+SuperiorFilterNrAnswer=false
 SuperiorDepthColour=false
 SuperiorDepthColourStrength=1.0
 SuperiorDepthColourPair=0
@@ -36,7 +38,7 @@ SuperiorPrivateExposureValue=1.0
 
 ## Positive transport
 
-With saturation at 1 and depth colour disabled, for each RGB channel, with `d = NR - proxy` and multiplier `m`:
+With full-answer mode off, saturation at 1 and depth colour disabled, for each RGB channel, with `d = NR - proxy` and multiplier `m`:
 
 ```text
 carrier = clamp(0.5 + min(d, 0) + m * max(d, 0), 0, 65504)
@@ -48,9 +50,37 @@ The neutral offset is added after subtraction and multiplication: unchanged inpu
 
 The frozen v59 source/blobs remain an independent reference, and their hashes remain unchanged. Production carrier modes 37/38/39 select `private_carrier`; the fused route uses the same `PositiveCarrier.hlsli` equations. No extra image pass or gain texture is added for multiplication. Changing the gain resets private history and invalidates measured exposure history without releasing in-flight resources.
 
+## DLSS on the full NR answer
+
+`SuperiorFilterNrAnswer=true` switches the private DLSS input from the encoded edit to NR's complete working-resolution response. Without optional transport modifications:
+
+```text
+input = clamp(NRanswer, 0, 65504)
+filteredAnswer = privateDLSS(input)
+edit = filteredAnswer - currentProxy
+```
+
+There is no artificial neutral 0.5 offset in this mode. Where NR made no edit, DLSS sees the proxy picture itself. Subtraction happens point-for-point on the same working/packed raster after DLSS, before the existing residual enlargement, band shaping and final composition. It uses the same immutable proxy that the original residual route compares against, not an unfiltered NR answer, a reconstructed native proxy or a previous frame. The default multiplier/saturation identity path feeds sanitized NR directly without a subtract/add round trip.
+
+All transport options remain usable independently and together. With `d=NRanswer-proxy` and `e=min(d,0)+multiplier*max(d,0)`:
+
+```text
+base = clamp(proxy + S(e,saturation), 0, 65504)
+input = min(base + depthColour, 65504)
+filteredAnswer = privateDLSS(input)
+restored = S(filteredAnswer - depthColour - proxy, 1/saturation)
+edit = min(restored,0) + max(restored,0)/multiplier
+```
+
+The exposure providers always measure the final input actually submitted to private DLSS, so they automatically meter the full answer in this mode. Preset, IsHDR and AutoExposure choices remain independent. Final composition still receives a signed edit from the decode dispatch. With an identity filter and no clipping, zero edit reconstructs zero within storage precision; real DLSS may also change proxy-picture detail and introduce a difference where NR made none. This is the intended full-picture experiment, not a promise that its edit matches the residual-filtered route.
+
+Changing the switch resets private temporal history and invalidates external exposure history, without changing creation flags or destroying/recreating the NGX feature. Its state is kept in the existing retired generation and cleared on teardown. Both separate and fused preparation implement the same input mode. No texture allocation, copy or extra dispatch is introduced; full-answer decode additionally reads the already existing proxy SRV. The switch is read/saved in INI, included in the NR profile field/reset logic and classified in the kept-key list.
+
+The normal carrier cbuffer's otherwise unused `DirectDetailMode` selects the input mode. In `PrivateGuidesMain` only, the otherwise unused warp colour-filter selector (`gOptions.y`) carries it. Named setters and ABI offset assertions pin both usages; general joint/spatial guide entry points keep their original meaning.
+
 ## Independent saturation and depth colour experiments
 
-The three transport controls can run individually or in any combination. Positive gain 1, saturation 1 and depth colour off preserve the preceding branch's carrier output bit for bit. Colour controls do not gate the exposure methods or private preset choice.
+The three transport controls can run individually or in any combination in either input mode. With full-answer mode off, positive gain 1, saturation 1 and depth colour off preserve the preceding branch's carrier output bit for bit. Colour controls do not gate the exposure methods or private preset choice.
 
 Saturation acts on the signed transported edit, not on the original game image. For `e = min(d,0) + m*max(d,0)`, define `Y(e) = .25*e.r + .5*e.g + .25*e.b` and `S(e,s) = Y(e) + s*(e-Y(e))`. Its inverse is `S(e,1/s)`. This keeps grey edits unchanged and increases chroma without changing the weighted signed luminance. A zero edit remains zero under this transform.
 
@@ -91,9 +121,9 @@ Native/unit add no per-frame exposure dispatches. Manual updates the existing 1�
 
 ## Validation
 
-Local RTX 4090 and WARP numeric tests: 697 cases against an independent CPU reference (double natural-log/exp arithmetic, binary search over binary16 values and an independent RGB matrix), including the report's uniform values, black, very low light, >10000 HDR, 90/10 dark/bright mixtures, negative/NaN/Inf samples, independent origins, grids smaller/larger than input, changing PreExposure, dark/bright transitions, odd-evaluation reset, held exposure, FP16 interval boundaries, manual entry, positive-only carrier inversion, signed saturation and all combinations of the three transport controls. Depth tests cover all three palettes, normal/reversed Z, endpoints, curves, invalid depth, D16/D24-quantized values and FP32/real FP16 carrier storage. Exposure assertions allow one half interval for FP32 reduction/transcendental differences; dedicated truncation cases require exact values. FP32 colour round trips use a strict numeric bound; FP16 round trips allow one half interval at carrier magnitude plus FP32 arithmetic error, accounting for truncating typed UAV stores.
+Local RTX 4090 and WARP numeric tests: 889 cases against an independent CPU reference (double natural-log/exp arithmetic, binary search over binary16 values and an independent RGB matrix), including the report's uniform values, black, very low light, >10000 HDR, 90/10 dark/bright mixtures, negative/NaN/Inf samples, independent origins, grids smaller/larger than input, changing PreExposure, dark/bright transitions, odd-evaluation reset, held exposure, FP16 interval boundaries, manual entry, positive-only carrier inversion, signed saturation and all combinations of the three transport controls. Depth tests cover all three palettes, normal/reversed Z, endpoints, curves, invalid depth, D16/D24-quantized values and FP32/real FP16 carrier storage. Exposure assertions allow one half interval for FP32 reduction/transcendental differences; dedicated truncation cases require exact values. FP32 colour round trips use a strict numeric bound; FP16 round trips allow one half interval at carrier magnitude plus FP32 arithmetic error, accounting for truncating typed UAV stores.
 
-`private_guides_quality`: 384 cases, 129377760 compared words, separate vs fused preparation at gains 1/16/1024, saturation 1/4/16, depth colour off/on with all palettes and curves 1/8; independent origins, odd/partial groups, reversed/quantized depth, invalid colour/guides and Hold. This is route parity, supplemented by the independent carrier/exposure numeric test. A separate 48-case comparison against the published `95f2e7c5` private carrier confirms bitwise FP16/FP32 output preservation with saturation 1 and depth colour off. The upstream Superior policy/guide/surface tests and `nr_profiles_smoke OptiScaler/Config.cpp` pass. All 54 Superior blobs rebuild; the frozen v59 identity/constant ABI and embedded-bytecode checks pass.
+`private_guides_quality`: 768 cases, 258755520 compared words, separate vs fused preparation at gains 1/16/1024, saturation 1/4/16, depth colour off/on with all palettes and curves 1/8; independent origins, odd/partial groups, reversed/quantized depth, invalid colour/guides and Hold. Both input modes are covered. This is route parity, supplemented by the independent carrier/exposure numeric test. A separate 48-case comparison against the published `95f2e7c5` private carrier confirms bitwise FP16/FP32 output preservation with saturation 1 and depth colour off. The upstream Superior policy/guide/surface tests and `nr_profiles_smoke OptiScaler/Config.cpp` pass. All 54 Superior blobs rebuild; the frozen v59 identity/constant ABI and embedded-bytecode checks pass.
 
 Reproduce:
 
@@ -139,3 +169,21 @@ RTX 4090, resident procedural FP16 carrier, positive multiplier 16 in both A and
 | 3840×2160 | 4 / 1 | 0.181248 (0.174080–0.199680) | 0.262144 (0.253952–0.289792) | +0.080896 |
 
 Raw windows, including comparisons with the same Legacy/T2 metering enabled on both A and B: [private-colour-transport-timing.csv](validation/private-colour-transport-timing.csv). Small differences overlap clock/measurement spread; this does not establish an in-game quality or performance improvement. No additional dispatch is introduced by either colour option.
+
+
+Full-answer numeric coverage adds 192 cases: varying current proxies, direct NR bypass, neutral/nonneutral edits, clipping/HDR, invalid RGB, all palettes and reversed Z, multiplier/saturation/depth combinations, real FP16 and FP32 storage, and a synthetic post-DLSS picture change. Decode is checked against an independent inverse matrix applied to the filtered answer minus the current proxy. Quantized neutral errors are bounded by one FP16 interval at carrier magnitude. The 48-case disabled-mode comparison also passes against published `0cc84770` bytecode. Proprietary DLSS temporal behaviour still requires in-game validation.
+
+### Full NR answer stage timing
+
+RTX 4090, same procedural resident FP16 fixture, separate 64-iteration warmups and 4 blocks of 16 ABBA quartets (128 samples per variant). A is published `0cc84770` edit transport; B is the full-answer path. Both use the same positive multiplier, saturation, depth colouring and exposure selection. The table shows native private exposure (no external meter); raw windows also include equal Legacy/T2 metering on both variants. Timed scope is carrier encode/decode plus transitions, without NGX, NR or final composition. Input/output carrier sizes match; depth is a procedural R32 guide. No upload/allocation/fence is inside a sample.
+
+| Carrier size | Multiplier / saturation / depth strength | A edit median ms (P10–P90) | B full answer median ms (P10–P90) | B−A ms |
+|---|---|---|---|---|
+| 1920×1080 | 1 / 1 / 0 | 0.034816 (0.034816–0.035840) | 0.034816 (0.034816–0.035840) | +0.000000 |
+| 3840×2160 | 1 / 1 / 0 | 0.167936 (0.159744–0.176128) | 0.174080 (0.164864–0.201728) | +0.006144 |
+| 1920×1080 | 16 / 1 / 0 | 0.031744 (0.031744–0.032768) | 0.032768 (0.031744–0.032768) | +0.001024 |
+| 3840×2160 | 16 / 1 / 0 | 0.185344 (0.175104–0.203776) | 0.209920 (0.197632–0.235520) | +0.024576 |
+| 1920×1080 | 16 / 4 / 1 | 0.032768 (0.031744–0.032768) | 0.032768 (0.031744–0.032768) | +0.000000 |
+| 3840×2160 | 16 / 4 / 1 | 0.256000 (0.243712–0.283648) | 0.275456 (0.263168–0.302080) | +0.019456 |
+
+Raw windows: [private-nr-answer-timing.csv](validation/private-nr-answer-timing.csv). These synthetic stage measurements do not predict the full DLSS/NR GPU cost or image quality in games; no winner is claimed.

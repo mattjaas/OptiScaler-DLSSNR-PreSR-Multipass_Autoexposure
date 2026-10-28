@@ -44,6 +44,7 @@ struct Generation
     float depthStrength = 0.f, depthCurve = 1.f;
     uint32_t depthPair = 0;
     bool unitInitialized = false;
+    bool filterNrAnswer = false;
     struct ExposureHistory
     {
         Texture state[2]; // independent current/previous pair per algorithm, ping-ponged without SRV/UAV aliasing
@@ -547,14 +548,16 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
                                     ? DlssNr::PrivateExposure::DepthStrength(cfg.DlssNrSuperiorDepthColourStrength.value_or_default()) : 0.f;
     const float depthCurve = depthStrength > 0 ? DlssNr::PrivateExposure::DepthCurve(cfg.DlssNrSuperiorDepthColourCurve.value_or_default()) : 1.f;
     const uint32_t depthPair = depthStrength > 0 ? DlssNr::PrivateExposure::DepthPair(cfg.DlssNrSuperiorDepthColourPair.value_or_default()) : 0u;
+    const bool filterNrAnswer = cfg.DlssNrSuperiorFilterNrAnswer.value_or_default();
     if (gain != g.positiveGain || saturation != g.editSaturation || depthStrength != g.depthStrength ||
-        depthCurve != g.depthCurve || depthPair != g.depthPair)
+        depthCurve != g.depthCurve || depthPair != g.depthPair || filterNrAnswer != g.filterNrAnswer)
     {
         g.positiveGain = gain;
         g.editSaturation = saturation;
         g.depthStrength = depthStrength;
         g.depthCurve = depthCurve;
         g.depthPair = depthPair;
+        g.filterNrAnswer = filterNrAnswer;
         g.reset = true; // never mix histories encoded with different transport transforms
         for (auto& h : g.exposure) h.initialized = false;
     }
@@ -562,6 +565,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     Fields::SetPositiveCarrierGain(encode, gain);
     Fields::SetCarrierSaturation(encode, saturation);
     Fields::SetCarrierDepthColour(encode, depthStrength, depthCurve, depthPair, g.inverted);
+    Fields::SetCarrierNrAnswer(encode, filterNrAnswer);
     encode.Mode = 39u; // v50: fixed carrier + motion; reuse this frame's exact NR depth.
     auto* motion = originalMotion;
     auto* temporalDepth = g.packed ? packedDepth : g.depth.Get();
@@ -599,6 +603,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
             DlssNr::Spatial::SetPrivateCarrierGain(fused, gain);
             DlssNr::Spatial::SetPrivateCarrierSaturation(fused, saturation);
             DlssNr::Spatial::SetPrivateCarrierDepthColour(fused, depthStrength, depthCurve, depthPair);
+            DlssNr::Spatial::SetPrivateCarrierNrAnswer(fused, filterNrAnswer);
             Record(cmd);
             g.depth.To(cmd, Uav);
             g.carrier.To(cmd, Uav);
@@ -675,7 +680,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     Fields::SetPositiveCarrierGain(decode, gain);
     Fields::SetCarrierSaturation(decode, saturation);
     Fields::SetCarrierDepthColour(decode, depthStrength, depthCurve, depthPair, g.inverted);
-    if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), nullptr, nullptr,
+    Fields::SetCarrierNrAnswer(decode, filterNrAnswer);
+    if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), filterNrAnswer ? proxy : nullptr, nullptr,
                   depthStrength > 0 ? temporalDepth : nullptr, nullptr, nullptr, g.carrier))
         return nullptr;
     g.reset = false;

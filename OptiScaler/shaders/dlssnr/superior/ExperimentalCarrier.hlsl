@@ -17,7 +17,8 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
         const float3 proxy = SanitizeFinite3(gSource.Load(p).rgb, 0.0);
         const float3 model = SanitizeFinite3(gModel.Load(p).rgb, proxy);
         // Add after the edit transforms. A zero strength takes the exact saturation-only path.
-        precise float3 encoded = EncodePositiveCarrier(proxy, model, gWhitePoint, gMaxRatio);
+        precise float3 encoded = gDirectDetailMode != 0u ? EncodeNrAnswer(proxy, model, gWhitePoint, gMaxRatio)
+                                                         : EncodePositiveCarrier(proxy, model, gWhitePoint, gMaxRatio);
         gTarget[id.xy] = float4(min(encoded + depthColour, 65504.0), 1.0);
         if (gMode == 39u)
         {
@@ -27,6 +28,12 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
             const float2 mv = gOriginal.Load(int3(mp, 0)).xy * float2(gMvScaleX, gMvScaleY);
             gKeep[id.xy] = float4(all(isfinite(mv)) ? mv : float2(0, 0), 0, 1);
         }
+    }
+    else if (gDirectDetailMode != 0u)
+    {
+        const float3 proxy = SanitizeFinite3(gModel.Load(p).rgb, 0.0);
+        const float3 filtered = SanitizeFinite3(gSource.Load(p).rgb, proxy + depthColour) - depthColour;
+        gTarget[id.xy] = float4(DecodeNrAnswer(filtered, proxy, gWhitePoint, gMaxRatio), 1.0);
     }
     else
         gTarget[id.xy] = float4(DecodePositiveCarrier(SanitizeFinite3(gSource.Load(p).rgb, 0.5) - depthColour,

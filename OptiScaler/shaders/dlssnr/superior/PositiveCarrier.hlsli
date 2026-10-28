@@ -34,3 +34,23 @@ float3 DecodePositiveCarrier(float3 filtered, float gain, float saturation)
     precise float3 restored = ScaleCarrierChroma(edit, 1.0 / CarrierSaturation(saturation));
     return min(restored, 0.0) + max(restored, 0.0) / PositiveCarrierGain(gain);
 }
+
+// Full picture as the base, rather than a residual around 0.5. Bypass subtract/add
+// cancellation when transport controls are off: feed the sanitized NR answer directly.
+float3 EncodeNrAnswer(float3 proxy, float3 model, float gain, float saturation)
+{
+    gain = PositiveCarrierGain(gain);
+    saturation = CarrierSaturation(saturation);
+    [branch] if (gain == 1.0 && saturation == 1.0) return clamp(model, 0.0, 65504.0);
+    precise float3 edit = model - proxy;
+    precise float3 scaled = min(edit, 0.0) + max(edit, 0.0) * gain;
+    precise float3 encoded = proxy + ScaleCarrierChroma(scaled, saturation);
+    return clamp(encoded, 0.0, 65504.0);
+}
+float3 DecodeNrAnswer(float3 filtered, float3 proxy, float gain, float saturation)
+{
+    // Extract the edit AFTER private DLSS, against the immutable current NR-input proxy.
+    precise float3 edit = filtered - proxy;
+    precise float3 restored = ScaleCarrierChroma(edit, 1.0 / CarrierSaturation(saturation));
+    return min(restored, 0.0) + max(restored, 0.0) / PositiveCarrierGain(gain);
+}

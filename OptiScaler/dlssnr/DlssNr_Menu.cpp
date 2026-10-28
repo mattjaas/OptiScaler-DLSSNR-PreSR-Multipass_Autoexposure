@@ -4014,16 +4014,24 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             ImGui::BeginDisabled(nr.vulkan || !unavailable.empty());
             float gain =
                 DlssNr::PrivateExposure::PositiveGain(config->DlssNrSuperiorPositiveEditGain.value_or_default());
+            bool filterNrAnswer = config->DlssNrSuperiorFilterNrAnswer.value_or_default();
+            if (ImGui::Checkbox("Private DLSS on full NR answer", &filterNrAnswer))
+                config->DlssNrSuperiorFilterNrAnswer = filterNrAnswer;
+            HelpMarker("Experimental: private DLSS processes NR's full working-resolution picture. The edit is then "
+                       "extracted by subtracting the current NR input proxy. Off: DLSS processes the edit encoded "
+                       "around 0.5. With multiplier 1x, saturation 1x and depth colour off, the full NR answer is "
+                       "fed directly to DLSS. Other transport controls can also be combined with this mode. "
+                       "DLSS may alter picture detail as well as NR's edit; temporal behaviour can change.");
             if (ImGui::SliderFloat("Positive NR edit transport multiplier", &gain, 1.f, 64.f, "%.3fx",
                                    ImGuiSliderFlags_Logarithmic))
                 config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
             if (ImGui::InputFloat("Exact transport multiplier", &gain, 1.f, 10.f, "%.4f"))
                 config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
-            HelpMarker(
-                "Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
-                "then divide positive changes by the same multiplier. Without depth colour, zero edit enters as 0.5; "
-                "darkening is not multiplied. Input is limited to nonnegative FP16 values, not to 2.0. "
-                "Large multipliers can change temporal behaviour. Exact entry supports 1..1024.");
+            HelpMarker("Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
+                       "then divide positive changes by the same multiplier. In edit mode without depth colour, zero "
+                       "edit enters as 0.5; "
+                       "darkening is not multiplied. Input is limited to nonnegative FP16 values, not to 2.0. "
+                       "Large multipliers can change temporal behaviour. Exact entry supports 1..1024.");
 
             float saturation =
                 DlssNr::PrivateExposure::EditSaturation(config->DlssNrSuperiorEditSaturation.value_or_default());
@@ -4032,12 +4040,12 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 config->DlssNrSuperiorEditSaturation = DlssNr::PrivateExposure::EditSaturation(saturation);
             if (ImGui::InputFloat("Exact edit saturation", &saturation, 0.1f, 1.f, "%.4f"))
                 config->DlssNrSuperiorEditSaturation = DlssNr::PrivateExposure::EditSaturation(saturation);
-            HelpMarker(
-                "Experimental: increase the colour saturation of the transported NR edit before private DLSS, "
-                "then undo it after DLSS. 1x disables the transform. Without depth colour, neutral input remains 0.5. "
-                "Applies after the positive multiplier; the inverse runs before undoing that multiplier. "
-                "High saturation can clip carrier channels at zero or the FP16 limit; clipped values cannot "
-                "be recovered exactly and temporal stability may change. Exact entry supports 1..64.");
+            HelpMarker("Experimental: increase the colour saturation of the transported NR edit before private DLSS, "
+                       "then undo it after DLSS. 1x disables the transform. In edit mode without depth colour, neutral "
+                       "input remains 0.5. "
+                       "Applies after the positive multiplier; the inverse runs before undoing that multiplier. "
+                       "High saturation can clip carrier channels at zero or the FP16 limit; clipped values cannot "
+                       "be recovered exactly and temporal stability may change. Exact entry supports 1..64.");
 
             bool depthColour = config->DlssNrSuperiorDepthColour.value_or_default();
             if (ImGui::Checkbox("Depth colour transport", &depthColour))

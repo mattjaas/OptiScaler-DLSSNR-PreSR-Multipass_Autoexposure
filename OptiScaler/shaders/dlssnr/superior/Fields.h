@@ -37,6 +37,9 @@ static_assert(offsetof(DlssNrConstants, WhitePoint) == 4);
 // Private carrier modes do not use composition's MaxRatio; HLSL reads it as edit saturation.
 inline void SetCarrierSaturation(DlssNrConstants& c, float saturation) { c.MaxRatio = saturation; }
 static_assert(offsetof(DlssNrConstants, MaxRatio) == 28);
+// Carrier only: full NR answer instead of the 0.5 residual; t1 supplies proxy during decode.
+inline void SetCarrierNrAnswer(DlssNrConstants& c, bool enabled) { c.DirectDetailMode = enabled ? 1u : 0u; }
+static_assert(offsetof(DlssNrConstants, DirectDetailMode) == 240);
 // Carrier only: t3 is private depth. These composition/history fields are otherwise unused.
 inline void SetCarrierDepthColour(DlssNrConstants& c, float strength, float curve, uint32_t pair, bool inverted)
 {

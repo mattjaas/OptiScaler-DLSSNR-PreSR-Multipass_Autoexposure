@@ -409,6 +409,10 @@ static_assert(offsetof(Constants, padding) + 3 * sizeof(float) == 244);
 // PrivateGuides.hlsl only: padding[4] = edit saturation (gPadding1.z), unused by joint guides.
 inline void SetPrivateCarrierSaturation(Constants& c, float saturation) { c.padding[4] = saturation; }
 static_assert(offsetof(Constants, padding) + 4 * sizeof(float) == 248);
+// PrivateGuidesMain reconstructs uniform guides, ignoring the warp's colour-filter selector.
+// Reuse gOptions.y ONLY in that entry point to select full NR answer transport.
+inline void SetPrivateCarrierNrAnswer(Constants& c, bool enabled) { c.warp.colorFilter = enabled ? 1u : 0u; }
+static_assert(offsetof(Constants, warp) + offsetof(pw::ShaderConstants, colorFilter) == 68);
 // PrivateGuidesMain uses padding[1..2] for MV conversion, never gMotionScale.
 // Reuse that otherwise dead pair for depth-colour curve/palette, padding[5] for strength.
 inline void SetPrivateCarrierDepthColour(Constants& c, float strength, float curve, uint32_t pair)

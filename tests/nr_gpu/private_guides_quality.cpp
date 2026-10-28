@@ -88,6 +88,7 @@ int main()
         auto quantJoint = r.pipeline(dir, "host_uniform_joint_guides_quantized");
         auto quantFused = r.pipeline(dir, "host_private_guides_quantized");
         for (bool quantized : { false, true })
+        for (bool fullAnswer : { false, true })
             for (auto dim : { std::pair<UINT, UINT> { 64, 48 }, { 129, 97 }, { 3840, 32 }, { 16384, 8 } })
                 for (float scale : { .5f, .75f })
                     for (bool inverted : { false, true })
@@ -165,6 +166,7 @@ int main()
                                 const float depthCurve = pattern < 3 ? 1.f : 8.f;
                                 const unsigned depthPair = pattern % 3;
                                 DlssNr::Spatial::SetPrivateCarrierDepthColour(g, depthStrength, depthCurve, depthPair);
+                                DlssNr::Spatial::SetPrivateCarrierNrAnswer(g, fullAnswer);
                                 auto fc = cb(g);
                                 DlssNrConstants c {};
                                 c.Mode = 39;
@@ -180,6 +182,7 @@ int main()
                                 c.ResidualBlend = depthCurve;
                                 c.SkinProtection = depthPair;
                                 c.Passthrough = inverted;
+                                c.DirectDetailMode = fullAnswer ? 1u : 0u;
                                 auto cc = cb(c);
                                 table(0, { d.Get(), d.Get(), m.Get(), d.Get(), d.Get(), d.Get() },
                                       { od.Get(), raw.Get(), od.Get() });
