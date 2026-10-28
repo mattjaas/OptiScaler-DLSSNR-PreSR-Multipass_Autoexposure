@@ -13,6 +13,14 @@ constexpr auto Srv = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
 
 // Frames to wait for the private DLSS creation's submission before giving up on it for this session.
 constexpr unsigned kCreationWaitFrames = 240;
+// The destruction watch must never take NR's owner lock on a driver/engine destruction thread.
+// This identity alone lets it close a capture without dereferencing state or retaining a list.
+std::atomic<const void*> g_editDumpCommands { nullptr };
+void EditDumpListDestroyed(const void* identity)
+{
+    auto expected = identity;
+    g_editDumpCommands.compare_exchange_strong(expected, nullptr);
+}
 
 struct Texture
 {
@@ -129,7 +137,21 @@ void Destroyed(const void* identity)
 {
     DlssNrWatchedLists::Remove(1, &identity);
     Forget(identity);
+    EditDumpListDestroyed(identity);
 }
+
+struct EditDumpJob
+{
+    ComPtr<ID3D12Device> device;
+    Texture image;
+    ComPtr<ID3D12Resource> readback;
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint {};
+    UINT64 bytes = 0;
+    unsigned width = 0, height = 0;
+    const void* commands = nullptr; // identity only, never dereferenced
+    bool open = true, submitted = false, ready = false;
+    std::filesystem::path path;
+};
 
 struct State
 {
@@ -139,12 +161,60 @@ struct State
     std::string status;
     std::string unavailable;   // why Superior is not running this session; empty while it runs
     bool srUnavailable = false; // the NGX DLSS SR runtime itself failed: the menu greys Superior out
+    std::string pendingEditDump, editDumpStatus;
+    std::shared_ptr<EditDumpJob> editDump;
 };
 // Same process-local ownership as janblade's g_nr. Keep unresolved GPU ownership at teardown.
 State& GetState()
 {
     static auto* value = new State;
     return *value;
+}
+// The lifetime callback merely marks readiness. All mapping/writing happens here on an owner call,
+// after every recorded use is closed and its queue fences have completed, never inside a hook.
+void CollectEditDump()
+{
+    auto& s = GetState();
+    if (!s.editDump) return;
+    s.lifetime.Collect();
+    if (!s.editDump->ready) return;
+    auto job = std::move(s.editDump);
+    auto identity = job->commands;
+    g_editDumpCommands.compare_exchange_strong(identity, nullptr);
+    if (!job->submitted || FAILED(job->device->GetDeviceRemovedReason()))
+    {
+        s.editDumpStatus = "Edit not saved: command recording was discarded or the device was removed.";
+        return;
+    }
+    void* mapped = nullptr;
+    const D3D12_RANGE range { 0, size_t(job->bytes) };
+    if (FAILED(job->readback->Map(0, &range, &mapped)) || !mapped)
+    {
+        s.editDumpStatus = "Edit not saved: readback mapping failed.";
+        return;
+    }
+    std::error_code ec;
+    std::filesystem::create_directories(job->path.parent_path(), ec);
+    HANDLE file = ec ? INVALID_HANDLE_VALUE : CreateFileW(job->path.c_str(), GENERIC_WRITE, 0, nullptr,
+                                                         CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+    const bool written = file != INVALID_HANDLE_VALUE && DlssNr::EditDump::WriteRows(
+        job->width, job->height, static_cast<const char*>(mapped) + job->footprint.Offset,
+        job->footprint.Footprint.RowPitch,
+        [file](const void* data, size_t bytes)
+        {
+            DWORD count = 0;
+            return WriteFile(file, data, DWORD(bytes), &count, nullptr) && count == bytes;
+        });
+    if (file != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(file);
+        if (!written) DeleteFileW(job->path.c_str()); // only the new partial file we created
+    }
+    const D3D12_RANGE none { 0, 0 };
+    job->readback->Unmap(0, &none);
+    const auto utf8 = job->path.u8string();
+    s.editDumpStatus = written ? "Saved: " + std::string(utf8.begin(), utf8.end())
+                               : "Edit not saved: file exists or the capture folder is not writable. Choose another name.";
 }
 // Set by the first Superior frame. Until then the NGX shutdown path does not touch the NR lock at all.
 std::atomic_bool g_used = false;
@@ -192,6 +262,9 @@ void Submitted(ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* 
 {
     auto& s = GetState();
     s.lifetime.Submitted(queue, count, lists);
+    if (s.editDump && s.editDump->open && g_editDumpCommands == s.editDump->commands)
+        for (UINT i = 0; i < count; ++i)
+            if (lists[i] == s.editDump->commands) s.editDump->submitted = true;
     // The hook stopped watching these lists after this submission. A list whose recording is still open can be
     // submitted again (replayed) and is still to be Reset, so it stays watched until then; others are forgotten.
     if (s.current && s.current->creation)
@@ -209,6 +282,11 @@ void ResetRecording(ID3D12CommandList* cmd)
 {
     auto& s = GetState();
     s.lifetime.ResetRecording(cmd);
+    if (s.editDump && s.editDump->commands == Util::RealObjectIdentity(cmd))
+    {
+        s.editDump->open = false;
+        EditDumpListDestroyed(s.editDump->commands);
+    }
     Forget(cmd);
     // The private DLSS creation was recorded on a list that is being reset without ever being submitted:
     // those creation commands never run, so the feature must be built again.
@@ -248,6 +326,63 @@ bool Dispatch(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, const Constan
     if (keep)
         keep->To(cmd, Srv);
     return true;
+}
+
+void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd,
+                   ID3D12Resource* proxy, ID3D12Resource* answer, float gain)
+{
+    auto& s = GetState();
+    if (s.pendingEditDump.empty() || s.editDump) return;
+    auto name = std::move(s.pendingEditDump);
+    s.pendingEditDump.clear();
+    auto job = std::make_shared<EditDumpJob>();
+    job->device = g.device;
+    job->width = g.workWidth;
+    job->height = g.workHeight;
+    job->commands = Util::RealObjectIdentity(cmd);
+    job->path = Util::DllPath().remove_filename() / "dlssnr-edit" / std::filesystem::u8path(name);
+    // Bound a diagnostic's transient allocation to 512 MiB for the texture + readback together.
+    if (uint64_t(job->width) * job->height * 32u > (512ull << 20) ||
+        !Ensure(job->image, g.device.Get(), DXGI_FORMAT_R32G32B32A32_FLOAT, job->width, job->height))
+    {
+        s.editDumpStatus = "Edit not saved: image allocation failed or the 512 MiB capture limit was exceeded.";
+        return;
+    }
+    const auto desc = job->image.Get()->GetDesc();
+    g.device->GetCopyableFootprints(&desc, 0, 1, 0, &job->footprint, nullptr, nullptr, &job->bytes);
+    const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+    const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(job->bytes);
+    if (FAILED(g.device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &buffer,
+                                                 D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+                                                 IID_PPV_ARGS(&job->readback))))
+    {
+        s.editDumpStatus = "Edit not saved: readback allocation failed.";
+        return;
+    }
+    Constants c {};
+    c.Mode = 43u;
+    c.Width = job->width;
+    c.Height = job->height;
+    Fields::SetPositiveCarrierGain(c, gain);
+    Record(cmd);
+    if (!Dispatch(shader, cmd, c, proxy, answer, nullptr, nullptr, nullptr, nullptr, job->image))
+    {
+        s.editDumpStatus = "Edit not saved: snapshot dispatch failed.";
+        return;
+    }
+    job->image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    D3D12_TEXTURE_COPY_LOCATION source {}, destination {};
+    source.pResource = job->image.Get();
+    source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    destination.pResource = job->readback.Get();
+    destination.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    destination.PlacedFootprint = job->footprint;
+    cmd->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+    s.editDump = job;
+    g_editDumpCommands = job->commands;
+    // Keep snapshot/readback ownership across DRS, option changes and shutdown, even if the list is replayed.
+    s.lifetime.Retire([job] { job->ready = true; });
+    s.editDumpStatus = "Snapshot recorded; waiting for command recording completion and GPU fences.";
 }
 
 Constants GuideConstants(unsigned w, unsigned h, const DlssNr::GuideRegions& regions, const DlssNrFrameInfo& frame,
@@ -638,6 +773,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         !Dispatch(shader, cmd, encode, proxy, answer, motion, depthStrength > 0 ? temporalDepth : nullptr,
                   nullptr, nullptr, g.carrier, &g.temporalMotion))
         return nullptr;
+    RecordEditDump(g, shader, cmd, proxy, answer, gain);
     auto* exposure = PrivateExposureTexture(g, shader, cmd, reset || g.reset);
     if (!exposure)
     {
@@ -819,6 +955,9 @@ void NgxShutdown()
     if (s.current)
         s.current->DropNgx();
     Drop();
+    if (!s.pendingEditDump.empty()) s.editDumpStatus = "Edit capture cancelled: NGX shutdown.";
+    s.pendingEditDump.clear();
+    CollectEditDump();
     PresetChoice() = {};
 }
 
@@ -829,6 +968,9 @@ void Shutdown()
     auto& s = GetState();
     Drop();
     s.lifetime.Collect();
+    if (!s.pendingEditDump.empty()) s.editDumpStatus = "Edit capture cancelled: NR shutdown.";
+    s.pendingEditDump.clear();
+    CollectEditDump();
     PresetChoice() = {};
 }
 

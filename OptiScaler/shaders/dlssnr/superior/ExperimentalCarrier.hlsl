@@ -8,6 +8,15 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= gWidth || id.y >= gHeight) return;
     const int3 p = int3(id.xy, 0);
+    if (gMode == 43u)
+    {
+        const float3 proxy = SanitizeFinite3(gSource.Load(p).rgb, 0.0);
+        const float3 model = SanitizeFinite3(gModel.Load(p).rgb, proxy);
+        precise float3 edit = model - proxy;
+        // One-shot diagnostic: signed edit after positive gain, before colour transforms/clipping.
+        gTarget[id.xy] = float4(min(edit, 0.0) + max(edit, 0.0) * PositiveCarrierGain(gWhitePoint), 1.0);
+        return;
+    }
     float3 depthColour = 0.0;
     [branch] if (isfinite(gResidualScale) && gResidualScale > 0.0)
         depthColour = CarrierDepthColour(gMotion.Load(p).x, gResidualScale, gResidualBlendUnused,

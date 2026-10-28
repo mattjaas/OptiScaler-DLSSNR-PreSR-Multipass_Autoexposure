@@ -25,7 +25,8 @@ enum DlssNrMode : uint32_t
     DlssNrMode_SuperiorCarrierMotion = 39, // carrier plus exact private motion resize
     DlssNrMode_PrivateExposureMeter = 40,
     DlssNrMode_PrivateExposureReduce = 41,
-    DlssNrMode_PrivateExposureManual = 42
+    DlssNrMode_PrivateExposureManual = 42,
+    DlssNrMode_PrivateEditDump = 43
 };
 
 struct alignas(256) DlssNrConstants

@@ -15,6 +15,10 @@ std::string Status();
 // Selecting Superior again retries. SrUnavailable: the NGX DLSS SR runtime itself could not be used here.
 std::string Unavailable();
 bool SrUnavailable();
+// One-shot signed FP32 edit dump, recorded before private DLSS; filename only, .dds is appended.
+bool RequestEditDump(const std::string& filename);
+bool EditDumpBusy();
+std::string EditDumpStatus();
 // The game's NGX D3D12 runtime is shutting down: every NGX handle is about to be destroyed by NGX itself.
 void NgxDx12Shutdown();
 constexpr uint32_t Transfer = 11u;

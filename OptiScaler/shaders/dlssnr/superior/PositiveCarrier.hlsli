@@ -1,7 +1,7 @@
 // Shared by the ordinary and fused private-carrier preparation paths.
 float PositiveCarrierGain(float gain)
 {
-    return isfinite(gain) && gain >= 1.0 && gain <= 1024.0 ? gain : 1.0;
+    return isfinite(gain) && gain >= 0.01 && gain <= 1024.0 ? gain : 1.0;
 }
 float CarrierSaturation(float saturation)
 {

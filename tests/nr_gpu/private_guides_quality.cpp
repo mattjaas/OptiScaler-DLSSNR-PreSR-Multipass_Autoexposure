@@ -158,7 +158,7 @@ int main()
                                 auto gc = cb(g);
                                 g.padding[1] = hold ? 0.f : float(W) / sw;
                                 g.padding[2] = hold ? 0.f : float(H) / sh;
-                                const float gain = pattern % 3 == 0 ? 1.f : pattern % 3 == 1 ? 16.f : 1024.f;
+                                const float gain = pattern == 0 ? .01f : pattern == 1 ? .5f : pattern % 3 == 0 ? 1.f : pattern % 3 == 1 ? 16.f : 1024.f;
                                 DlssNr::Spatial::SetPrivateCarrierGain(g, gain);
                                 const float saturation = pattern % 3 == 0 ? 1.f : pattern % 3 == 1 ? 4.f : 16.f;
                                 DlssNr::Spatial::SetPrivateCarrierSaturation(g, saturation);

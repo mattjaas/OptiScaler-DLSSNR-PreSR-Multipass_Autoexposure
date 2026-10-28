@@ -20,7 +20,8 @@ int main()
             assert(Measure(mode, i, true));
         }
     }
-    assert(PositiveGain(0) == 1 && PositiveGain(9999) == 1024);
+    assert(PositiveGain(0) == .01f && PositiveGain(-1) == .01f && PositiveGain(9999) == 1024);
+    assert(PositiveGain(.01f) == .01f && PositiveGain(.125f) == .125f && PositiveGain(.5f) == .5f);
     assert(PositiveGain(std::numeric_limits<float>::quiet_NaN()) == 1);
     assert(EditSaturation(0) == 1 && EditSaturation(9999) == 64);
     assert(EditSaturation(INFINITY) == 1 && EditSaturation(NAN) == 1 && EditSaturation(4.f) == 4.f);

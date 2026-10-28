@@ -7,7 +7,7 @@ Experimental branch based on janblade `release/0.1.35`, `789f882072254776c80c0ba
 Select **Superior Scaling** under **Upscale Mode**. Below **DLSS to temporally stabilize NR**:
 
 - **Private DLSS on full NR answer**: unchecked by default. When checked, private DLSS filters the complete NR response at working resolution; its output is then compared with the current immutable proxy to extract the edit. With transport controls at identity, the sanitized NR answer goes directly to DLSS, subject only to nonnegative FP16 range limits. Available on the same D3D12 Superior route as the other controls.
-- **Positive NR edit transport multiplier**: logarithmic slider 1..64. **Exact transport multiplier** accepts 1..1024. Default 1.
+- **Positive NR edit transport multiplier**: logarithmic slider 0.01..64. **Exact transport multiplier** accepts 0.01..1024. Default 1. Values below 1 attenuate the positive edit before DLSS and divide it back afterwards; 0 is disallowed because the inverse would be undefined.
 - **NR edit transport saturation**: logarithmic slider 1..16. **Exact edit saturation** accepts 1..64. Default 1 disables the transform.
 - **Depth colour transport**: off by default. **Near / far depth colours** selects Red / Cyan, Green / Magenta or Blue / Yellow. **Depth colour strength** spans 0..4; **Exact depth colour strength** accepts 0..16. **Depth colour curve** spans 0.03125..64, default 1. Depth controls are disabled when the checkbox is off.
 - **Disable DLSS IsHDR flag**: the existing independent IsHDR experiment.
@@ -49,6 +49,31 @@ decodedEdit = min(filteredEdit, 0) + max(filteredEdit, 0) / m
 The neutral offset is added after subtraction and multiplication: unchanged input stays exactly 0.5 for every multiplier. Negative changes are independent of the multiplier. The old -1..2 clip is removed from both live preparation routes (separate carrier+motion and fused guides+carrier). The remaining limits are zero, because DLSS cannot represent negative carrier values, and 65504, the maximum finite value of the existing FP16 carrier. Darkening beyond -0.5 cannot be transported through a nonnegative carrier. As requested, positive gain is undone after DLSS; temporal filtering can still change signs and detail. Large gains may change ghosting and stability; no in-game improvement is claimed.
 
 The frozen v59 source/blobs remain an independent reference, and their hashes remain unchanged. Production carrier modes 37/38/39 select `private_carrier`; the fused route uses the same `PositiveCarrier.hlsli` equations. No extra image pass or gain texture is added for multiplication. Changing the gain resets private history and invalidates measured exposure history without releasing in-flight resources.
+
+## One-shot pre-DLSS edit file
+
+Enter a filename in **Pre-DLSS edit filename**, then click **Save pre-DLSS edit**. This queues one snapshot at the next Superior private DLSS evaluation. The menu displays waiting, success (including the full path), cancellation or failure. The button is disabled while a capture is pending/in flight. Capture requires the active temporal Superior path; native Vulkan and unavailable Superior remain disabled by the existing menu gate.
+
+The output is `<OptiScaler.dll folder>/dlssnr-edit/<name>.dds`. The `.dds` extension is added if omitted. Plain ASCII names (letters/digits/spaces/dash/underscore/dot, subject to the existing profile-name length rule) are accepted; paths, traversal, Windows reserved characters and device names are rejected. Existing files are never overwritten: `CREATE_NEW` fails and the UI asks for another name. The last typed name is kept in the running menu only, not in NR look profiles or INI.
+
+The file contains the **signed edit after the positive multiplier**, before saturation, depth colouring, carrier offset/clipping and private DLSS:
+
+```text
+edit = sanitizedNRanswer - sanitizedCurrentProxy
+savedRGB = min(edit,0) + positiveMultiplier * max(edit,0)
+```
+
+A zero edit is saved as **0**, not the carrier encoding's 0.5. Negative values and values above 1 are preserved; alpha is 1. This deliberate diagnostic is the same in edit and full-NR-answer modes. It is not a screenshot of the game, the final coloured DLSS input, or a post-DLSS edit. With screen-edge compression, it is the packed working raster actually used by this private path.
+
+DDS uses a DX10 header with `DXGI_FORMAT_R32G32B32A32_FLOAT`, one uncompressed top-down 2D image, no mipmaps or gamma conversion. Row padding from D3D12 readback is removed; FP32 pixels are written without quantization, tonemapping or clamping. A plain PNG would lose signed/HDR values and is not used.
+
+Mode 43 of the existing private-carrier PSO computes the requested snapshot in a temporary FP32 texture, then copies it to a readback buffer. This adds **one dispatch and one copy only when the button is pressed**. No new PSO, image allocation, copy, GPU wait or per-frame diagnostic is introduced while idle; only the request/pending checks execute on the CPU. One capture at a time, with a 512 MiB bound on the snapshot/readback pixel storage. File writing can briefly stall a frame when the one-shot result is consumed.
+
+The existing Superior GPU lifetime tracker retains snapshot/readback ownership across DRS, settings changes, replay and shutdown. Readback is mapped only after the recording is closed and the tracker's actual queue fences complete; no frame-count guess or `Map` before completion is used. The submit hook records whether this particular command recording really ran. A reset/destruction without submission cancels it rather than writing uninitialized data. A lock-free identity marker prevents a later reuse of the command-list pointer being mistaken for that submission; the destruction hook never takes the NR owner lock. Removed devices fail the capture. Unresolved GPU ownership is preserved by the existing retirement mechanism. Collection is polled from the NR owner path even if Superior is deselected after recording. A queued request is cancelled when Superior is deselected or NR/NGX shuts down. If rendering stops before collection or an engine keeps a recording open for replay, saving may remain pending until that recording is closed and the owner path ticks again.
+
+### Lower positive multipliers
+
+The host and shader both accept finite 0.01..1024 transport gains; nonfinite values fall back to 1. The CPU clamps typed/INI values to range. Negative edits remain unscaled. Encoding and decoding use the same effective gain in both input modes and both preparation paths, with a history reset on changes. As gain falls below 1, the inverse amplifies FP16 storage error and DLSS changes as well as the signal. Small edits can disappear from the carrier's representable range; this is an experimental tradeoff, not a claim of improved stability.
 
 ## DLSS on the full NR answer
 
@@ -121,7 +146,7 @@ Native/unit add no per-frame exposure dispatches. Manual updates the existing 1�
 
 ## Validation
 
-Local RTX 4090 and WARP numeric tests: 889 cases against an independent CPU reference (double natural-log/exp arithmetic, binary search over binary16 values and an independent RGB matrix), including the report's uniform values, black, very low light, >10000 HDR, 90/10 dark/bright mixtures, negative/NaN/Inf samples, independent origins, grids smaller/larger than input, changing PreExposure, dark/bright transitions, odd-evaluation reset, held exposure, FP16 interval boundaries, manual entry, positive-only carrier inversion, signed saturation and all combinations of the three transport controls. Depth tests cover all three palettes, normal/reversed Z, endpoints, curves, invalid depth, D16/D24-quantized values and FP32/real FP16 carrier storage. Exposure assertions allow one half interval for FP32 reduction/transcendental differences; dedicated truncation cases require exact values. FP32 colour round trips use a strict numeric bound; FP16 round trips allow one half interval at carrier magnitude plus FP32 arithmetic error, accounting for truncating typed UAV stores.
+Local RTX 4090 and WARP numeric tests: 1402 cases against an independent CPU reference (double natural-log/exp arithmetic, binary search over binary16 values and an independent RGB matrix), including the report's uniform values, black, very low light, >10000 HDR, 90/10 dark/bright mixtures, negative/NaN/Inf samples, independent origins, grids smaller/larger than input, changing PreExposure, dark/bright transitions, odd-evaluation reset, held exposure, FP16 interval boundaries, manual entry, positive-only carrier inversion, signed saturation and all combinations of the three transport controls. Depth tests cover all three palettes, normal/reversed Z, endpoints, curves, invalid depth, D16/D24-quantized values and FP32/real FP16 carrier storage. Exposure assertions allow one half interval for FP32 reduction/transcendental differences; dedicated truncation cases require exact values. FP32 colour round trips use a strict numeric bound; FP16 round trips allow one half interval at carrier magnitude plus FP32 arithmetic error, accounting for truncating typed UAV stores.
 
 `private_guides_quality`: 768 cases, 258755520 compared words, separate vs fused preparation at gains 1/16/1024, saturation 1/4/16, depth colour off/on with all palettes and curves 1/8; independent origins, odd/partial groups, reversed/quantized depth, invalid colour/guides and Hold. Both input modes are covered. This is route parity, supplemented by the independent carrier/exposure numeric test. A separate 48-case comparison against the published `95f2e7c5` private carrier confirms bitwise FP16/FP32 output preservation with saturation 1 and depth colour off. The upstream Superior policy/guide/surface tests and `nr_profiles_smoke OptiScaler/Config.cpp` pass. All 54 Superior blobs rebuild; the frozen v59 identity/constant ABI and embedded-bytecode checks pass.
 
@@ -187,3 +212,21 @@ RTX 4090, same procedural resident FP16 fixture, separate 64-iteration warmups a
 | 3840×2160 | 16 / 4 / 1 | 0.256000 (0.243712–0.283648) | 0.275456 (0.263168–0.302080) | +0.019456 |
 
 Raw windows: [private-nr-answer-timing.csv](validation/private-nr-answer-timing.csv). These synthetic stage measurements do not predict the full DLSS/NR GPU cost or image quality in games; no winner is claimed.
+
+
+### Edit-dump and lower-gain validation
+
+The 1402-case GPU suite passes on RTX 4090 and WARP, including gains 0.01/0.125/0.5 in the transport, signed-colour and full-answer cases. Fourteen additional mode-43 cases compare signed FP32 snapshots against an independent scalar reference at low/identity/high/invalid gains, in both input modes with saturation/depth flags deliberately set (they must not affect the saved edit). The GPU readback is serialized through the production DDS writer and the payload compared byte for byte. `nr_edit_dump_smoke` checks an independently indexed DDS/DX10 header, signed/HDR payloads, padded odd-width rows, write failure and filename rejection. The 768 fused-guide cases include low gains; normal gains preserve the preceding shader bit for bit in the 48-case comparison. Profile, shader/ABI and policy tests also pass. These fixtures validate shader/math/serialization; actual menu-triggered capture and private DLSS image quality still require game testing.
+
+### Idle capture stage timing
+
+RTX 4090, resident procedural FP16 carrier, capture idle. A uses published `86aaa412` private-carrier bytecode and B uses this revision; gain 16 in edit mode, gain 1 in full-answer mode, saturation 1/depth colour off on both. Same separate 64-iteration warmups, four blocks of sixteen ABBA quartets and 128 GPU windows per variant. Table scope is encode/decode and transitions, no NGX/NR/final composition, upload, allocation or fence in the windows. Equal Legacy/T2 metering variants are included in the raw data. This measures the effect on the ordinary path; the one-shot capture dispatch/copy/disk latency is not included or claimed to be measured.
+
+| Carrier size | Input mode | A median ms (P10–P90) | B median ms (P10–P90) | B−A ms |
+|---|---|---|---|---|
+| 1920×1080 | Edit | 0.034816 (0.034816–0.035840) | 0.034816 (0.034816–0.035840) | +0.000000 |
+| 3840×2160 | Edit | 0.191488 (0.185344–0.199680) | 0.191488 (0.186368–0.202752) | +0.000000 |
+| 1920×1080 | Full NR answer | 0.032768 (0.031744–0.046080) | 0.032768 (0.031744–0.047104) | +0.000000 |
+| 3840×2160 | Full NR answer | 0.163840 (0.160768–0.185344) | 0.167936 (0.164864–0.182272) | +0.004096 |
+
+Raw GPU windows: [private-edit-dump-idle-timing.csv](validation/private-edit-dump-idle-timing.csv). No in-game performance or ghosting improvement is inferred.

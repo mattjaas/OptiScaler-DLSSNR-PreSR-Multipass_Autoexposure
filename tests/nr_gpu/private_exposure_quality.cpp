@@ -3,6 +3,7 @@
 #include "../../OptiScaler/dlssnr/DlssNr_PrivateExposure.h"
 #include <cmath>
 #include <limits>
+#include "../../OptiScaler/dlssnr/DlssNr_EditDump.h"
 
 namespace PE = DlssNr::PrivateExposure;
 constexpr auto SRV = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
@@ -33,6 +34,13 @@ void Near(float got, float expected, const char* label)
     // Up to one binary16 interval from FP32 log/reduction approximation at a boundary.
     if (!std::isfinite(got) || std::abs(got - expected) > std::max(2e-6f, std::abs(expected) * .0011f))
         throw std::runtime_error(std::string(label) + ": got " + std::to_string(got) + " expected " + std::to_string(expected));
+}
+void InverseNear(float got, float expected, float gain, const char* label)
+{
+    // The reciprocal transport multiplies storage/arithmetic error as well as the signal.
+    // Compare in the transported units; exposure tests keep their original independent bounds.
+    const float scale = std::min(gain, 1.f);
+    Near(got * scale, expected * scale, label);
 }
 struct Fixture
 {
@@ -400,7 +408,7 @@ int main(int argc, char** argv)
         }
         // Positive-only transport and its inverse: neutral, darkened, mixed channels,
         // >2 HDR carrier, lower clamp, invalid multiplier and finite colour fallback.
-        for (float gain : { 1.f, 16.f, 1024.f, NAN })
+        for (float gain : { .01f, .125f, .5f, 1.f, 16.f, 1024.f, NAN })
         {
             const float safe = std::isfinite(gain) ? gain : 1.f;
             std::vector<float> proxy(17 * 9 * 4, .25f), answer(proxy.size());
@@ -421,7 +429,7 @@ int main(int argc, char** argv)
             for (size_t i = 0; i < values.size(); i += 4)
             {
                 Near(values[i], 0.f, "neutral decode"); Near(values[i + 1], -.125f, "dark decode");
-                Near(values[i + 2], .25f, "bright decode");
+                InverseNear(values[i + 2], .25f, safe, "bright decode");
             }
             ++checks;
         }
@@ -441,7 +449,7 @@ int main(int argc, char** argv)
                     out[row] += ((row == col ? s : 0.) + (1. - s) * w[col]) * v[col];
             return out;
         };
-        for (float gain : { 1.f, 16.f, 1024.f })
+        for (float gain : { .01f, .5f, 1.f, 16.f, 1024.f })
             for (float saturation : { 1.f, 2.f, 4.f, 16.f, 64.f, 0.f, NAN, INFINITY })
             {
                 const double sat = std::isfinite(saturation) && saturation >= 1.f && saturation <= 64.f ? saturation : 1.;
@@ -489,17 +497,17 @@ int main(int argc, char** argv)
                         const auto restored = references[i / 4][channel];
                         const float expected = float(restored > 0 ? restored / gain : restored);
                         // Absolute error scales with carrier magnitude for FP32 cancellation after clipping.
-                        const float tolerance = 3e-6f + 3e-7f * std::max({std::abs(encoded[i]), std::abs(encoded[i + 1]), std::abs(encoded[i + 2])});
+                        const float tolerance = (3e-6f + 3e-7f * std::max({std::abs(encoded[i]), std::abs(encoded[i + 1]), std::abs(encoded[i + 2])})) / std::min(gain, 1.f);
                         if (!std::isfinite(values[i + channel]) || std::abs(values[i + channel] - expected) > tolerance)
                             throw std::runtime_error("Saturation decode differs from independent inverse matrix");
                         if (!clipped[i / 4])
-                            Near(values[i + channel], answer[i + channel] - proxy[i + channel], "saturation round trip");
+                            InverseNear(values[i + channel], answer[i + channel] - proxy[i + channel], gain, "saturation round trip");
                     }
                 ++checks;
             }
         // Every combination of positive gain/saturation with depth colour on/off;
         // the zero-edit half-neutral is restored by subtraction before signed decode.
-        for (const auto transport : { std::pair<float, float>{1.f, 1.f}, {16.f, 1.f}, {1.f, 4.f}, {16.f, 4.f} })
+        for (const auto transport : { std::pair<float, float>{.01f, 1.f}, {.5f, 4.f}, {1.f, 1.f}, {16.f, 1.f}, {1.f, 4.f}, {16.f, 4.f} })
             for (UINT pair = 0; pair < 3; ++pair)
                 for (bool inverted : { false, true })
                     for (float curve : { .03125f, 1.f, 64.f, NAN })
@@ -553,7 +561,7 @@ int main(int argc, char** argv)
                                 for (unsigned channel = 0; channel < 3; ++channel)
                                 {
                                     if (!halfCarrier)
-                                        Near(values[i + channel], answer[i + channel] - proxy[i + channel], "depth colour round trip / neutral");
+                                        InverseNear(values[i + channel], answer[i + channel] - proxy[i + channel], gain, "depth colour round trip / neutral");
                                     else
                                     {
                                         // Bound real FP16 storage error; don't claim an exact inverse after quantization.
@@ -561,7 +569,7 @@ int main(int argc, char** argv)
                                         // not just the half-interval error of round-to-nearest. Both
                                         // inverse transforms have infinity-norm Lipschitz bound <= 1.
                                         const float peak = std::max({.5f, encoded[i], encoded[i + 1], encoded[i + 2]});
-                                        const float tolerance = std::ldexp(1.f, std::ilogb(peak) - 10) + .000004f;
+                                        const float tolerance = (std::ldexp(1.f, std::ilogb(peak) - 10) + .000004f) / std::min(gain, 1.f);
                                         const float expected = answer[i + channel] - proxy[i + channel];
                                         if (!std::isfinite(values[i + channel]) || std::abs(values[i + channel] - expected) > tolerance)
                                             throw std::runtime_error("FP16 colour transport exceeded round-trip error bound: gain=" +
@@ -576,7 +584,7 @@ int main(int argc, char** argv)
         // Full-answer path: independent forward/inverse matrix references, varying current proxy,
         // raw-answer bypass, clipping, invalid RGB, both real FP16 and FP32 carrier writes, and a
         // synthetic DLSS change. Decode must use this proxy, never the original NR answer or 0.5.
-        for (float gain : {1.f, 16.f}) for (float saturation : {1.f, 4.f})
+        for (float gain : {.01f, .5f, 1.f, 16.f}) for (float saturation : {1.f, 4.f})
         for (float strength : {0.f, 1.f}) for (bool inverted : {false, true})
         for (UINT pair = 0; pair < 3; ++pair) for (bool halfCarrier : {false, true})
         for (bool filteredChange : {false, true})
@@ -642,16 +650,47 @@ int main(int argc, char** argv)
                 for (unsigned channel = 0; channel < 3; ++channel)
                 {
                     const float expected = float(restored[channel] > 0 ? restored[channel] / gain : restored[channel]);
-                    Near(values[i + channel], expected, "post-DLSS answer minus current proxy");
+                    InverseNear(values[i + channel], expected, gain, "post-DLSS answer minus current proxy");
                     if (!filteredChange && i / 4 % 7 == 0)
                     {
                         const float peak = std::max({.5f, encoded[i], encoded[i + 1], encoded[i + 2]});
-                        const float tolerance = halfCarrier ? std::ldexp(1.f, std::ilogb(peak) - 10) + .000004f : .000002f;
+                        const float tolerance = halfCarrier ? (std::ldexp(1.f, std::ilogb(peak) - 10) + .000004f) / std::min(gain, 1.f) : .000002f;
                         if (std::abs(values[i + channel]) > tolerance)
                             throw std::runtime_error("Full-answer zero edit exceeded storage precision bound");
                     }
                 }
             }
+            ++checks;
+        }
+        for (float gain : {.01f, .125f, .5f, 1.f, 16.f, 1024.f, NAN})
+        for (bool fullAnswer : {false, true})
+        {
+            constexpr UINT w = 17, h = 9;
+            std::vector<float> proxy(w * h * 4, .25f), answer(proxy.size());
+            for (size_t i = 0; i < answer.size(); ++i)
+                answer[i] = i % 7 == 0 ? .25f : i % 7 == 1 ? -.5f : i % 7 == 2 ? 8.f :
+                            i % 7 == 3 ? NAN : i % 7 == 4 ? INFINITY : i % 7 == 5 ? .5f : .125f;
+            f.r.begin(); auto p = f.texture(w, h, &proxy), a = f.texture(w, h, &answer), out = f.texture(w, h);
+            DlssNrConstants c {}; c.Mode = 43; c.Width = w; c.Height = h; c.WhitePoint = gain;
+            c.DirectDetailMode = fullAnswer; c.MaxRatio = 64; c.ResidualScale = 16; // must not affect the snapshot
+            f.dispatch(f.carrier.Get(), c, p.Get(), a.Get(), out.Get(), 3, 2);
+            const auto values = f.read(out.Get());
+            const float safeGain = std::isfinite(gain) ? gain : 1.f;
+            for (size_t i = 0; i < values.size(); ++i)
+            {
+                const float edit = std::isfinite(answer[i]) ? answer[i] - proxy[i] : 0.f;
+                const float expected = i % 4 == 3 ? 1.f : edit <= 0 ? edit : edit * safeGain;
+                Near(values[i], expected, "snapshot signed edit after positive gain");
+                if (i % 4 != 3 && edit == 0 && values[i] != 0)
+                    throw std::runtime_error("Snapshot neutral edit must be exactly zero");
+            }
+            // End-to-end GPU -> readback -> DDS writer contract, preserving negative/HDR words exactly.
+            std::vector<char> dds;
+            if (!DlssNr::EditDump::WriteRows(w, h, values.data(), size_t(w) * 16, [&](const void* data, size_t bytes)
+                { dds.insert(dds.end(), static_cast<const char*>(data), static_cast<const char*>(data) + bytes); return true; }))
+                throw std::runtime_error("GPU snapshot DDS serialization failed");
+            if (dds.size() != 148 + values.size() * 4 || std::memcmp(dds.data() + 148, values.data(), values.size() * 4))
+                throw std::runtime_error("GPU snapshot DDS did not preserve signed FP32 data");
             ++checks;
         }
         std::cout << "Private exposure/carrier GPU PASS: " << checks << " cases against independent numeric reference\n";

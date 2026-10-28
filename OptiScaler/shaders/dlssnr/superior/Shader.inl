@@ -49,7 +49,7 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorPipeline(const DlssNr::Superior::DlssN
     using namespace DlssNr::Superior::Bytecode;
     const bool carrier = constants.Mode == DlssNr::Superior::DlssNrMode_SuperiorCarrierEncode ||
                          constants.Mode == DlssNr::Superior::DlssNrMode_SuperiorCarrierDecode ||
-                         constants.Mode == DlssNr::Superior::DlssNrMode_SuperiorCarrierMotion;
+                         constants.Mode == DlssNr::Superior::DlssNrMode_SuperiorCarrierMotion || constants.Mode == 43u;
     if (!carrier && (constants.DirectResolveFlags & DlssNr::SuperiorScaling::ShaderFlag) == 0u)
         return nullptr;
     const auto d = (constants.Mode == DlssNr::Superior::DlssNrMode_Resolve ||
@@ -133,7 +133,7 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
         }
         return _superiorPipeline[index];
     };
-    if (!pipeline && (InConstants.Mode == 37u || InConstants.Mode == 38u || InConstants.Mode == 39u))
+    if (!pipeline && (InConstants.Mode == 37u || InConstants.Mode == 38u || InConstants.Mode == 39u || InConstants.Mode == 43u))
         return false;
     const bool privateExposure = InConstants.Mode >= 40u && InConstants.Mode <= 42u;
     if (privateExposure)

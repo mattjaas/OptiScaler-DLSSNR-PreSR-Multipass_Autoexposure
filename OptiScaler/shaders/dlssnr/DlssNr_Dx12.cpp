@@ -3,6 +3,7 @@
 #include <dlssnr/DlssNr_SuperiorScaling.h>
 #include <dlssnr/DlssNr_SuperiorGains.h>
 #include <dlssnr/DlssNr_PrivateExposure.h>
+#include <dlssnr/DlssNr_EditDump.h>
 #include <dlssnr/DlssNr_GpuLifetime.h>
 #include <output/SdrToHdr_ProxyDx12.h>
 #include <native/DriverInitGate.h>
@@ -3409,6 +3410,13 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
     // ordinary path runs, with Matched residual in its place. Selecting it again retries.
     const bool superiorSelected = DlssNr::SuperiorScaling::Enabled(cfg);
     auto& superiorState = SuperiorRun::GetState();
+    if (superiorState.editDump)
+        SuperiorRun::CollectEditDump();
+    if ((!superiorSelected || !superiorState.unavailable.empty()) && !superiorState.pendingEditDump.empty())
+    {
+        superiorState.pendingEditDump.clear();
+        superiorState.editDumpStatus = "Edit capture cancelled: Superior Scaling is inactive or unavailable.";
+    }
     if (superiorState.wasSelected != superiorSelected)
     {
         superiorState.wasSelected = superiorSelected;
@@ -7499,6 +7507,39 @@ bool DlssNr::SuperiorScaling::SrUnavailable()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     return SuperiorRun::GetState().srUnavailable;
+}
+
+bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename)
+{
+    std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    auto& s = SuperiorRun::GetState();
+    if (!s.pendingEditDump.empty() || s.editDump)
+        return false;
+    const auto name = DlssNr::EditDump::Filename(filename);
+    if (!name)
+    {
+        s.editDumpStatus = "Invalid filename. Use a plain name without paths or reserved characters.";
+        return false;
+    }
+    if (!s.current || !s.current->temporal || !s.wasActive || !s.unavailable.empty())
+    {
+        s.editDumpStatus = "Edit capture requires a running Superior private DLSS path.";
+        return false;
+    }
+    s.pendingEditDump = *name;
+    s.editDumpStatus = "Waiting for the next private DLSS evaluation.";
+    return true;
+}
+bool DlssNr::SuperiorScaling::EditDumpBusy()
+{
+    std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    const auto& s = SuperiorRun::GetState();
+    return !s.pendingEditDump.empty() || bool(s.editDump);
+}
+std::string DlssNr::SuperiorScaling::EditDumpStatus()
+{
+    std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    return SuperiorRun::GetState().editDumpStatus;
 }
 
 void DlssNr::SuperiorScaling::NgxDx12Shutdown()

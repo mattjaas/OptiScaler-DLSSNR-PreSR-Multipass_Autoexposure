@@ -4022,16 +4022,34 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "around 0.5. With multiplier 1x, saturation 1x and depth colour off, the full NR answer is "
                        "fed directly to DLSS. Other transport controls can also be combined with this mode. "
                        "DLSS may alter picture detail as well as NR's edit; temporal behaviour can change.");
-            if (ImGui::SliderFloat("Positive NR edit transport multiplier", &gain, 1.f, 64.f, "%.3fx",
+            if (ImGui::SliderFloat("Positive NR edit transport multiplier", &gain, .01f, 64.f, "%.3fx",
                                    ImGuiSliderFlags_Logarithmic))
                 config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
-            if (ImGui::InputFloat("Exact transport multiplier", &gain, 1.f, 10.f, "%.4f"))
+            if (ImGui::InputFloat("Exact transport multiplier", &gain, .01f, 1.f, "%.4f"))
                 config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
-            HelpMarker("Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
-                       "then divide positive changes by the same multiplier. In edit mode without depth colour, zero "
-                       "edit enters as 0.5; "
-                       "darkening is not multiplied. Input is limited to nonnegative FP16 values, not to 2.0. "
-                       "Large multipliers can change temporal behaviour. Exact entry supports 1..1024.");
+            HelpMarker(
+                "Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
+                "then divide positive changes by the same multiplier. In edit mode without depth colour, zero "
+                "edit enters as 0.5; "
+                "darkening is not multiplied. Input is limited to nonnegative FP16 values, not to 2.0. "
+                "Below 1x attenuates positive changes before DLSS and restores their scale afterwards. "
+                "Small multipliers can lose detail to FP16 precision; large values can change temporal behaviour. "
+                "Exact entry supports 0.01..1024.");
+
+            static char editFilename[128] = "nr-edit";
+            ImGui::InputText("Pre-DLSS edit filename", editFilename, IM_ARRAYSIZE(editFilename));
+            ImGui::BeginDisabled(DlssNr::SuperiorScaling::EditDumpBusy());
+            if (ImGui::Button("Save pre-DLSS edit"))
+                DlssNr::SuperiorScaling::RequestEditDump(editFilename);
+            ImGui::EndDisabled();
+            HelpMarker(
+                "Save one working-resolution signed RGB edit after the positive multiplier, before private "
+                "DLSS, saturation, depth colour and carrier clipping. Zero edit is 0. Values below 0 and above 1 "
+                "are preserved in FP32 DDS. Works in edit and full NR answer modes. Enter a filename only; "
+                ".dds is added automatically. Saved under dlssnr-edit next to OptiScaler.dll. Existing files "
+                "are not overwritten. Snapshot/readback run only when requested; saving may briefly pause a frame.");
+            if (const auto status = DlssNr::SuperiorScaling::EditDumpStatus(); !status.empty())
+                ImGui::TextWrapped("%s", status.c_str());
 
             float saturation =
                 DlssNr::PrivateExposure::EditSaturation(config->DlssNrSuperiorEditSaturation.value_or_default());
