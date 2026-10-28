@@ -4019,10 +4019,55 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
             if (ImGui::InputFloat("Exact transport multiplier", &gain, 1.f, 10.f, "%.4f"))
                 config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
-            HelpMarker("Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
-                       "then divide positive changes by the same multiplier. Zero edit always enters as 0.5; "
-                       "darkening is not multiplied. Input is limited to nonnegative FP16 values, not to 2.0. "
-                       "Large multipliers can change temporal behaviour. Exact entry supports 1..1024.");
+            HelpMarker(
+                "Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
+                "then divide positive changes by the same multiplier. Without depth colour, zero edit enters as 0.5; "
+                "darkening is not multiplied. Input is limited to nonnegative FP16 values, not to 2.0. "
+                "Large multipliers can change temporal behaviour. Exact entry supports 1..1024.");
+
+            float saturation =
+                DlssNr::PrivateExposure::EditSaturation(config->DlssNrSuperiorEditSaturation.value_or_default());
+            if (ImGui::SliderFloat("NR edit transport saturation", &saturation, 1.f, 16.f, "%.3fx",
+                                   ImGuiSliderFlags_Logarithmic))
+                config->DlssNrSuperiorEditSaturation = DlssNr::PrivateExposure::EditSaturation(saturation);
+            if (ImGui::InputFloat("Exact edit saturation", &saturation, 0.1f, 1.f, "%.4f"))
+                config->DlssNrSuperiorEditSaturation = DlssNr::PrivateExposure::EditSaturation(saturation);
+            HelpMarker(
+                "Experimental: increase the colour saturation of the transported NR edit before private DLSS, "
+                "then undo it after DLSS. 1x disables the transform. Without depth colour, neutral input remains 0.5. "
+                "Applies after the positive multiplier; the inverse runs before undoing that multiplier. "
+                "High saturation can clip carrier channels at zero or the FP16 limit; clipped values cannot "
+                "be recovered exactly and temporal stability may change. Exact entry supports 1..64.");
+
+            bool depthColour = config->DlssNrSuperiorDepthColour.value_or_default();
+            if (ImGui::Checkbox("Depth colour transport", &depthColour))
+                config->DlssNrSuperiorDepthColour = depthColour;
+            HelpMarker("Experimental: add a saturated near colour, smoothly changing to its complementary far colour, "
+                       "to the entire private DLSS input. Subtract the same current-depth colour after DLSS. "
+                       "This also colours pixels with no NR edit while enabled. Depth is the private DLSS guide, "
+                       "including reversed Z. Temporal filtering can leave colour errors at moving depth edges.");
+            ImGui::BeginDisabled(!depthColour);
+            static const char* depthColours[] = { "Red / Cyan", "Green / Magenta", "Blue / Yellow" };
+            int depthPair =
+                int(DlssNr::PrivateExposure::DepthPair(config->DlssNrSuperiorDepthColourPair.value_or_default()));
+            if (ImGui::Combo("Near / far depth colours", &depthPair, depthColours, IM_ARRAYSIZE(depthColours)))
+                config->DlssNrSuperiorDepthColourPair = uint32_t(depthPair);
+            float depthStrength =
+                DlssNr::PrivateExposure::DepthStrength(config->DlssNrSuperiorDepthColourStrength.value_or_default());
+            if (ImGui::SliderFloat("Depth colour strength", &depthStrength, 0.f, 4.f, "%.3f"))
+                config->DlssNrSuperiorDepthColourStrength = depthStrength;
+            if (ImGui::InputFloat("Exact depth colour strength", &depthStrength, 0.1f, 1.f, "%.4f"))
+                config->DlssNrSuperiorDepthColourStrength = DlssNr::PrivateExposure::DepthStrength(depthStrength);
+            float depthCurve =
+                DlssNr::PrivateExposure::DepthCurve(config->DlssNrSuperiorDepthColourCurve.value_or_default());
+            if (ImGui::SliderFloat("Depth colour curve", &depthCurve, 0.03125f, 64.f, "%.3f",
+                                   ImGuiSliderFlags_Logarithmic))
+                config->DlssNrSuperiorDepthColourCurve = depthCurve;
+            HelpMarker("Smooth transition in normalized device depth, not linear distance in metres. "
+                       "Curve 1 uses raw depth; higher curves spread colours where perspective depth approaches "
+                       "the far plane. Strength 0 disables the effect; exact strength supports 0..16. "
+                       "Clipping and FP16 precision limit exact subtraction, especially at high strengths.");
+            ImGui::EndDisabled();
 
             bool disableAuto = config->DlssNrSuperiorScalingDisableAutoExposure.value_or_default();
             if (ImGui::Checkbox("Disable private DLSS AutoExposure", &disableAuto))

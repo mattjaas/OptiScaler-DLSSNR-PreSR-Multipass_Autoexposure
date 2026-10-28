@@ -2,6 +2,7 @@
 // with no materialized raw-motion texture between the two stages.
 #include "JointGuides.hlsl"
 #include "PositiveCarrier.hlsli"
+#include "DepthCarrier.hlsli"
 Texture2D<float4> gPrivateAnswer : register(t3);
 RWTexture2D<float4> gPrivateCarrier : register(u2);
 
@@ -44,5 +45,8 @@ float3 PrivateFinite(float3 value, float3 fallback)
     gTarget1[id.xy] = all(isfinite(mv)) ? mv : 0.0;
     const float3 proxy = PrivateFinite(gSource0.Load(int3(id.xy, 0)).rgb, 0.0);
     const float3 model = PrivateFinite(gPrivateAnswer.Load(int3(id.xy, 0)).rgb, proxy);
-    gPrivateCarrier[id.xy] = float4(EncodePositiveCarrier(proxy, model, gPadding1.y), 1.0);
+    const float3 encoded = EncodePositiveCarrier(proxy, model, gPadding1.y, gPadding1.z);
+    const float3 depthColour = CarrierDepthColour(depth, gPadding1.w, gMotionScale.x,
+                                                 uint(gMotionScale.y), gUnused > 0.5);
+    gPrivateCarrier[id.xy] = float4(min(encoded + depthColour, 65504.0), 1.0);
 }

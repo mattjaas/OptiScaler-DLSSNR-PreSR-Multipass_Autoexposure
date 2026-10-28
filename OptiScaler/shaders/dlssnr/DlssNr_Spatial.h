@@ -406,6 +406,18 @@ static_assert(offsetof(Constants, warp) == 16);
 // PrivateGuides.hlsl only: padding[3] = gain for the same carrier as the separate encode pass.
 inline void SetPrivateCarrierGain(Constants& c, float gain) { c.padding[3] = gain; }
 static_assert(offsetof(Constants, padding) + 3 * sizeof(float) == 244);
+// PrivateGuides.hlsl only: padding[4] = edit saturation (gPadding1.z), unused by joint guides.
+inline void SetPrivateCarrierSaturation(Constants& c, float saturation) { c.padding[4] = saturation; }
+static_assert(offsetof(Constants, padding) + 4 * sizeof(float) == 248);
+// PrivateGuidesMain uses padding[1..2] for MV conversion, never gMotionScale.
+// Reuse that otherwise dead pair for depth-colour curve/palette, padding[5] for strength.
+inline void SetPrivateCarrierDepthColour(Constants& c, float strength, float curve, uint32_t pair)
+{
+    c.padding[5] = strength;
+    c.motionScale[0] = curve;
+    c.motionScale[1] = float(pair);
+}
+static_assert(offsetof(Constants, motionScale) == 224 && offsetof(Constants, padding) + 5 * sizeof(float) == 252);
 inline void SetDepthPrecision(Constants& c, float floor)
 {
     floor = std::isfinite(floor) && floor > 0.f ? floor : 0.f;

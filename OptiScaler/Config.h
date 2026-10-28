@@ -447,6 +447,11 @@ class Config
     CustomOptional<bool> DlssNrSuperiorScalingDisableIsHDR { false };
     CustomOptional<bool> DlssNrSuperiorScalingDisableAutoExposure { false };
     CustomOptional<float> DlssNrSuperiorPositiveEditGain { 1.0f };
+    CustomOptional<float> DlssNrSuperiorEditSaturation { 1.0f };
+    CustomOptional<bool> DlssNrSuperiorDepthColour { false };
+    CustomOptional<float> DlssNrSuperiorDepthColourStrength { 1.0f };
+    CustomOptional<float> DlssNrSuperiorDepthColourCurve { 1.0f };
+    CustomOptional<uint32_t> DlssNrSuperiorDepthColourPair { 0 };
     CustomOptional<uint32_t> DlssNrSuperiorPrivateExposureMode { 1 };
     CustomOptional<float> DlssNrSuperiorPrivateExposureValue { 1.0f };
 

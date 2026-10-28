@@ -159,6 +159,12 @@ int main()
                                 g.padding[2] = hold ? 0.f : float(H) / sh;
                                 const float gain = pattern % 3 == 0 ? 1.f : pattern % 3 == 1 ? 16.f : 1024.f;
                                 DlssNr::Spatial::SetPrivateCarrierGain(g, gain);
+                                const float saturation = pattern % 3 == 0 ? 1.f : pattern % 3 == 1 ? 4.f : 16.f;
+                                DlssNr::Spatial::SetPrivateCarrierSaturation(g, saturation);
+                                const float depthStrength = pattern % 2 ? 1.f : 0.f;
+                                const float depthCurve = pattern < 3 ? 1.f : 8.f;
+                                const unsigned depthPair = pattern % 3;
+                                DlssNr::Spatial::SetPrivateCarrierDepthColour(g, depthStrength, depthCurve, depthPair);
                                 auto fc = cb(g);
                                 DlssNrConstants c {};
                                 c.Mode = 39;
@@ -169,10 +175,15 @@ int main()
                                 c.MvScaleX = g.padding[1];
                                 c.MvScaleY = g.padding[2];
                                 c.WhitePoint = gain;
+                                c.MaxRatio = saturation;
+                                c.ResidualScale = depthStrength;
+                                c.ResidualBlend = depthCurve;
+                                c.SkinProtection = depthPair;
+                                c.Passthrough = inverted;
                                 auto cc = cb(c);
                                 table(0, { d.Get(), d.Get(), m.Get(), d.Get(), d.Get(), d.Get() },
                                       { od.Get(), raw.Get(), od.Get() });
-                                table(16, { p.Get(), a.Get(), raw.Get(), p.Get(), p.Get(), p.Get() },
+                                table(16, { p.Get(), a.Get(), raw.Get(), od.Get(), p.Get(), p.Get() },
                                       { oc.Get(), om.Get(), oc.Get() });
                                 table(32, { p.Get(), d.Get(), m.Get(), a.Get(), p.Get(), p.Get() },
                                       { nd.Get(), nm.Get(), nc.Get() });

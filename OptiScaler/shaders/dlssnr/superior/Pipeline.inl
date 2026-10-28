@@ -40,7 +40,9 @@ struct Generation
     bool temporal = false, packed = false;
     bool disableIsHDR = false; // creation identity, independent of the game's HDR and AutoExposure
     uint32_t exposureMode = DlssNr::PrivateExposure::Native;
-    float positiveGain = 1.f, manualExposure = 1.f;
+    float positiveGain = 1.f, editSaturation = 1.f, manualExposure = 1.f;
+    float depthStrength = 0.f, depthCurve = 1.f;
+    uint32_t depthPair = 0;
     bool unitInitialized = false;
     struct ExposureHistory
     {
@@ -539,14 +541,27 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     if (!g.feature || !g.parameters || !NgxAlive(g.ngxEpoch))
         return nullptr;
     const float gain = DlssNr::PrivateExposure::PositiveGain(Config::Instance()->DlssNrSuperiorPositiveEditGain.value_or_default());
-    if (gain != g.positiveGain)
+    const float saturation = DlssNr::PrivateExposure::EditSaturation(Config::Instance()->DlssNrSuperiorEditSaturation.value_or_default());
+    const auto& cfg = *Config::Instance();
+    const float depthStrength = cfg.DlssNrSuperiorDepthColour.value_or_default()
+                                    ? DlssNr::PrivateExposure::DepthStrength(cfg.DlssNrSuperiorDepthColourStrength.value_or_default()) : 0.f;
+    const float depthCurve = depthStrength > 0 ? DlssNr::PrivateExposure::DepthCurve(cfg.DlssNrSuperiorDepthColourCurve.value_or_default()) : 1.f;
+    const uint32_t depthPair = depthStrength > 0 ? DlssNr::PrivateExposure::DepthPair(cfg.DlssNrSuperiorDepthColourPair.value_or_default()) : 0u;
+    if (gain != g.positiveGain || saturation != g.editSaturation || depthStrength != g.depthStrength ||
+        depthCurve != g.depthCurve || depthPair != g.depthPair)
     {
         g.positiveGain = gain;
-        g.reset = true; // never mix histories encoded with different gains
+        g.editSaturation = saturation;
+        g.depthStrength = depthStrength;
+        g.depthCurve = depthCurve;
+        g.depthPair = depthPair;
+        g.reset = true; // never mix histories encoded with different transport transforms
         for (auto& h : g.exposure) h.initialized = false;
     }
     auto encode = GuideConstants(g.workWidth, g.workHeight, regions, frame, true, hold);
     Fields::SetPositiveCarrierGain(encode, gain);
+    Fields::SetCarrierSaturation(encode, saturation);
+    Fields::SetCarrierDepthColour(encode, depthStrength, depthCurve, depthPair, g.inverted);
     encode.Mode = 39u; // v50: fixed carrier + motion; reuse this frame's exact NR depth.
     auto* motion = originalMotion;
     auto* temporalDepth = g.packed ? packedDepth : g.depth.Get();
@@ -582,6 +597,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
             fused.padding[1] = encode.MvScaleX;
             fused.padding[2] = encode.MvScaleY;
             DlssNr::Spatial::SetPrivateCarrierGain(fused, gain);
+            DlssNr::Spatial::SetPrivateCarrierSaturation(fused, saturation);
+            DlssNr::Spatial::SetPrivateCarrierDepthColour(fused, depthStrength, depthCurve, depthPair);
             Record(cmd);
             g.depth.To(cmd, Uav);
             g.carrier.To(cmd, Uav);
@@ -613,7 +630,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         Fields::SetMotionRegion(encode, 0, 0, g.workWidth, g.workHeight);
     }
     if (!prepared &&
-        !Dispatch(shader, cmd, encode, proxy, answer, motion, nullptr, nullptr, nullptr, g.carrier, &g.temporalMotion))
+        !Dispatch(shader, cmd, encode, proxy, answer, motion, depthStrength > 0 ? temporalDepth : nullptr,
+                  nullptr, nullptr, g.carrier, &g.temporalMotion))
         return nullptr;
     auto* exposure = PrivateExposureTexture(g, shader, cmd, reset || g.reset);
     if (!exposure)
@@ -655,7 +673,10 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     decode.Width = g.workWidth;
     decode.Height = g.workHeight;
     Fields::SetPositiveCarrierGain(decode, gain);
-    if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), nullptr, nullptr, nullptr, nullptr, nullptr, g.carrier))
+    Fields::SetCarrierSaturation(decode, saturation);
+    Fields::SetCarrierDepthColour(decode, depthStrength, depthCurve, depthPair, g.inverted);
+    if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), nullptr, nullptr,
+                  depthStrength > 0 ? temporalDepth : nullptr, nullptr, nullptr, g.carrier))
         return nullptr;
     g.reset = false;
     return g.carrier.Get();

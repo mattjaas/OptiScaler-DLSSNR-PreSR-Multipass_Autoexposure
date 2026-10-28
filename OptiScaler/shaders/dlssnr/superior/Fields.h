@@ -34,6 +34,19 @@ inline bool InterPassLowField(const DlssNrConstants& c) { return c.GuideWidth !=
 // Private carrier only: WhitePoint is unused by its encode/decode modes.
 inline void SetPositiveCarrierGain(DlssNrConstants& c, float gain) { c.WhitePoint = gain; }
 static_assert(offsetof(DlssNrConstants, WhitePoint) == 4);
+// Private carrier modes do not use composition's MaxRatio; HLSL reads it as edit saturation.
+inline void SetCarrierSaturation(DlssNrConstants& c, float saturation) { c.MaxRatio = saturation; }
+static_assert(offsetof(DlssNrConstants, MaxRatio) == 28);
+// Carrier only: t3 is private depth. These composition/history fields are otherwise unused.
+inline void SetCarrierDepthColour(DlssNrConstants& c, float strength, float curve, uint32_t pair, bool inverted)
+{
+    c.ResidualScale = strength;
+    c.ResidualBlend = curve;
+    c.SkinProtection = pair;
+    c.Passthrough = inverted ? 1u : 0u;
+}
+static_assert(offsetof(DlssNrConstants, ResidualScale) == 88 && offsetof(DlssNrConstants, ResidualBlend) == 116 &&
+              offsetof(DlssNrConstants, SkinProtection) == 92);
 
 // Experimental exposure modes 40..42 reuse the frozen cbuffer, without changing v59's ABI.
 inline void SetPrivateExposure(DlssNrConstants& c, uint32_t method, uint32_t sourceW, uint32_t sourceH, bool measure,

@@ -22,6 +22,11 @@ int main()
     }
     assert(PositiveGain(0) == 1 && PositiveGain(9999) == 1024);
     assert(PositiveGain(std::numeric_limits<float>::quiet_NaN()) == 1);
+    assert(EditSaturation(0) == 1 && EditSaturation(9999) == 64);
+    assert(EditSaturation(INFINITY) == 1 && EditSaturation(NAN) == 1 && EditSaturation(4.f) == 4.f);
+    assert(DepthStrength(-1) == 0 && DepthStrength(99) == 16 && DepthStrength(NAN) == 1);
+    assert(DepthCurve(0) == .03125f && DepthCurve(999) == 64 && DepthCurve(INFINITY) == 1);
+    assert(DepthPair(0) == 0 && DepthPair(2) == 2 && DepthPair(3) == 0);
     assert(ManualValue(-1) == 1 && ManualValue(INFINITY) == 1 && ManualValue(0) == 1);
     assert(ManualValue(99999) == 65504 && ManualValue(.00000001f) == .000001f);
     assert(SanitizeMode(999) == Native);
