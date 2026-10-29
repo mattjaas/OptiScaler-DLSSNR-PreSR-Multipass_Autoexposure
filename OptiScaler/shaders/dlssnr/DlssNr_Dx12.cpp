@@ -4,6 +4,7 @@
 #include <dlssnr/DlssNr_SuperiorGains.h>
 #include <dlssnr/DlssNr_PrivateExposure.h>
 #include <dlssnr/DlssNr_EditDump.h>
+#include <dlssnr/DlssNr_EditDumpReadback.h>
 #include <dlssnr/DlssNr_GpuLifetime.h>
 #include <output/SdrToHdr_ProxyDx12.h>
 #include <native/DriverInitGate.h>
@@ -7533,12 +7534,14 @@ bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename)
 bool DlssNr::SuperiorScaling::EditDumpBusy()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    SuperiorRun::CollectEditDump();
     const auto& s = SuperiorRun::GetState();
     return !s.pendingEditDump.empty() || bool(s.editDump);
 }
 std::string DlssNr::SuperiorScaling::EditDumpStatus()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    SuperiorRun::CollectEditDump();
     return SuperiorRun::GetState().editDumpStatus;
 }
 

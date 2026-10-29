@@ -149,7 +149,7 @@ struct EditDumpJob
     UINT64 bytes = 0;
     unsigned width = 0, height = 0;
     const void* commands = nullptr; // identity only, never dereferenced
-    bool open = true, submitted = false, ready = false;
+    DlssNr::EditDump::ReadbackCopy copy;
     std::filesystem::path path;
 };
 
@@ -163,6 +163,7 @@ struct State
     bool srUnavailable = false; // the NGX DLSS SR runtime itself failed: the menu greys Superior out
     std::string pendingEditDump, editDumpStatus;
     std::shared_ptr<EditDumpJob> editDump;
+    std::shared_ptr<std::atomic_uint64_t> editDumpRetainedBytes = std::make_shared<std::atomic_uint64_t>(0);
 };
 // Same process-local ownership as janblade's g_nr. Keep unresolved GPU ownership at teardown.
 State& GetState()
@@ -170,20 +171,27 @@ State& GetState()
     static auto* value = new State;
     return *value;
 }
-// The lifetime callback merely marks readiness. All mapping/writing happens here on an owner call,
-// after every recorded use is closed and its queue fences have completed, never inside a hook.
+// File readiness belongs to the capture-owned copy fence, not the lifetime of replayable game lists.
+// Map/write on an owner/menu call only; original snapshot ownership is retired independently.
 void CollectEditDump()
 {
     auto& s = GetState();
     if (!s.editDump) return;
-    s.lifetime.Collect();
-    if (!s.editDump->ready) return;
+    const auto state = s.editDump->copy.Poll();
+    using CopyState = DlssNr::EditDump::ReadbackCopy::State;
+    if (state == CopyState::NotSubmitted && g_editDumpCommands == s.editDump->commands) return;
+    if (state == CopyState::Pending)
+    {
+        if (s.editDump->copy.SignalFailed())
+            s.editDumpStatus = "Edit not saved: capture fence signal failed; GPU resources retained for safety.";
+        return;
+    }
     auto job = std::move(s.editDump);
     auto identity = job->commands;
     g_editDumpCommands.compare_exchange_strong(identity, nullptr);
-    if (!job->submitted || FAILED(job->device->GetDeviceRemovedReason()))
+    if (state != CopyState::Complete || FAILED(job->device->GetDeviceRemovedReason()))
     {
-        s.editDumpStatus = "Edit not saved: command recording was discarded or the device was removed.";
+        s.editDumpStatus = "Edit not saved: snapshot was discarded, copy submission failed, or the device was removed.";
         return;
     }
     void* mapped = nullptr;
@@ -262,9 +270,18 @@ void Submitted(ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* 
 {
     auto& s = GetState();
     s.lifetime.Submitted(queue, count, lists);
-    if (s.editDump && s.editDump->open && g_editDumpCommands == s.editDump->commands)
+    if (s.editDump && s.editDump->copy.Poll() == DlssNr::EditDump::ReadbackCopy::State::NotSubmitted &&
+        g_editDumpCommands == s.editDump->commands)
         for (UINT i = 0; i < count; ++i)
-            if (lists[i] == s.editDump->commands) s.editDump->submitted = true;
+            if (Util::RealObjectIdentity(lists[i]) == s.editDump->commands)
+            {
+                // The real game Execute has already happened. Queue order captures the image once;
+                // replay never writes this private readback, even while the file is being mapped.
+                s.editDump->copy.Submit(queue, s.editDump->image.Get(), s.editDump->readback.Get(),
+                                       s.editDump->footprint);
+                s.editDumpStatus = "Snapshot submitted; waiting for capture GPU fence.";
+                break;
+            }
     // The hook stopped watching these lists after this submission. A list whose recording is still open can be
     // submitted again (replayed) and is still to be Reset, so it stays watched until then; others are forgotten.
     if (s.current && s.current->creation)
@@ -284,7 +301,6 @@ void ResetRecording(ID3D12CommandList* cmd)
     s.lifetime.ResetRecording(cmd);
     if (s.editDump && s.editDump->commands == Util::RealObjectIdentity(cmd))
     {
-        s.editDump->open = false;
         EditDumpListDestroyed(s.editDump->commands);
     }
     Forget(cmd);
@@ -342,7 +358,7 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
     job->commands = Util::RealObjectIdentity(cmd);
     job->path = Util::DllPath().remove_filename() / "dlssnr-edit" / std::filesystem::u8path(name);
     // Bound a diagnostic's transient allocation to 512 MiB for the texture + readback together.
-    if (uint64_t(job->width) * job->height * 32u > (512ull << 20) ||
+    if (s.editDumpRetainedBytes->load() + uint64_t(job->width) * job->height * 32u > (512ull << 20) ||
         !Ensure(job->image, g.device.Get(), DXGI_FORMAT_R32G32B32A32_FLOAT, job->width, job->height))
     {
         s.editDumpStatus = "Edit not saved: image allocation failed or the 512 MiB capture limit was exceeded.";
@@ -350,6 +366,13 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
     }
     const auto desc = job->image.Get()->GetDesc();
     g.device->GetCopyableFootprints(&desc, 0, 1, 0, &job->footprint, nullptr, nullptr, &job->bytes);
+    const auto snapshotBytes = g.device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
+    if (snapshotBytes == UINT64_MAX || snapshotBytes > (512ull << 20) ||
+        s.editDumpRetainedBytes->load() + snapshotBytes + job->bytes > (512ull << 20))
+    {
+        s.editDumpStatus = "Edit not saved: 512 MiB capture budget reached; older game recordings still retain snapshots.";
+        return;
+    }
     const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
     const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(job->bytes);
     if (FAILED(g.device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &buffer,
@@ -371,18 +394,15 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         return;
     }
     job->image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    D3D12_TEXTURE_COPY_LOCATION source {}, destination {};
-    source.pResource = job->image.Get();
-    source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-    destination.pResource = job->readback.Get();
-    destination.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-    destination.PlacedFootprint = job->footprint;
-    cmd->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
     s.editDump = job;
     g_editDumpCommands = job->commands;
-    // Keep snapshot/readback ownership across DRS, option changes and shutdown, even if the list is replayed.
-    s.lifetime.Retire([job] { job->ready = true; });
-    s.editDumpStatus = "Snapshot recorded; waiting for command recording completion and GPU fences.";
+    // Only the snapshot is referenced by the game list. Keep it until replay is impossible;
+    // private copy/readback ownership is separately held by the job until its fence completes.
+    auto snapshot = job->image.resource;
+    auto retainedBytes = s.editDumpRetainedBytes;
+    retainedBytes->fetch_add(snapshotBytes);
+    s.lifetime.Retire([snapshot, retainedBytes, snapshotBytes] { retainedBytes->fetch_sub(snapshotBytes); });
+    s.editDumpStatus = "Snapshot recorded; waiting for game submission.";
 }
 
 Constants GuideConstants(unsigned w, unsigned h, const DlssNr::GuideRegions& regions, const DlssNrFrameInfo& frame,
