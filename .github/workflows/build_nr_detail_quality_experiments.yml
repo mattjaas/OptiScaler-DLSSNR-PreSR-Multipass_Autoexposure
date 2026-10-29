@@ -53,6 +53,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./artifacts/validation/private_exposure_quality.exe --warp
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmd /c "`"$vcvars`" >nul && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/edit_dump_completion.cpp /Fe:artifacts/validation/edit_dump_completion.exe /Fo:artifacts/validation/edit_dump_completion.obj /link d3d12.lib dxgi.lib"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./artifacts/validation/edit_dump_completion.exe --warp
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build Release package
         shell: powershell
         run: ./package_release.ps1 -Version 'private-exposure-experiments'
