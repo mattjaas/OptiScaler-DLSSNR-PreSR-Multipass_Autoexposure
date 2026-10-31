@@ -165,7 +165,7 @@ int main() {
                 1274.f / 1440.f); // missing declared reference uses valid source, not allocation/depth
         require(MotionScale(1920, 2496, 0, 1920) == 2496);
         require(MotionScale(1,1274,0)==1); // unspecified game reference
-        for(unsigned i=0;i<30;++i)require(Preset(i)==(i==11u?11u:1u));
+        for(unsigned i=0;i<30;++i)require(Preset(i)==(i==12u || i==13u ? 13u : i==11u ? 11u : 1u));
         require(Preset(UINT32_MAX)==1u);
         require(std::abs(GuidedRange(.25f) - .015f) < 1e-9f);
         require(std::abs(GuidedRange(.5f) - .015f) < 1e-9f);
