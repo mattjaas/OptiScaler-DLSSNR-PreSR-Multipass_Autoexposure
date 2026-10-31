@@ -1,0 +1,1558 @@
+{
+  "warning": "Fixed transformer rule tested first on new CNN data; median candidate selected afterwards, not independently validated. No production changes.",
+  "fixed_transformer_rule": {
+    "format_version": 2,
+    "numpy": "2.4.6",
+    "warning": "Post-hoc exploratory fit: labelled still frames are not independent temporal validation.",
+    "amplitude_threshold": 0.14,
+    "coverage_threshold": 0.1,
+    "proposed_target_quantile": 0.9,
+    "proposed_target_amplitude": 0.15,
+    "files": [
+      {
+        "file": "game1-cnn-ghosting.dds",
+        "game": "game1",
+        "ghosting": true,
+        "sha256": "e3a9d17eb53e183ae9985d49ec9159ce4647c6085610f78b4669b0878a70dc4c",
+        "width": 2240,
+        "height": 1264,
+        "positive_mean": 0.013525831232450651,
+        "positive_rms": 0.026722409711650987,
+        "positive_amplitude_p90": 0.044139403849840164,
+        "positive_amplitude_p50": 0.01668456941843033,
+        "positive_coverage": 0.0017390935804701628,
+        "negative_mean": -0.023452813964037617,
+        "gradient_positive": 0.0014377317710272607,
+        "fp16_neutral_fraction": 0.0035913247814948765,
+        "negative_clip_fraction": 2.554720464135021e-05,
+        "fp16_lost_positive_fraction": 0.002934946024926141,
+        "controller_quantile": 0.9,
+        "controller_amplitude": 0.044139403849840164,
+        "proposed_relative_gain": 3.3983241031141196,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.038225095719099045,
+            "p90_max": 0.047563474625349045,
+            "p50_min": 0.015065917745232582,
+            "p50_max": 0.018303222954273224,
+            "coverage_min": 0.0,
+            "coverage_max": 0.010416666666666666,
+            "correct_phases": 64
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.040995482355356216,
+            "p90_max": 0.04594482481479645,
+            "p50_min": 0.015812987461686134,
+            "p50_max": 0.017307128757238388,
+            "coverage_min": 0.0,
+            "coverage_max": 0.006944444444444444,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.04276977479457855,
+            "p90_max": 0.04532226547598839,
+            "p50_min": 0.016435546800494194,
+            "p50_max": 0.017182616516947746,
+            "coverage_min": 0.0005425347222222222,
+            "coverage_max": 0.0037977430555555555,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game1-cnn-ghosting2.dds",
+        "game": "game1",
+        "ghosting": true,
+        "sha256": "c4b0c407dc258d6f9754f0de53853dc59f53229fbd0d9d9fa45c7b9c365b1f58",
+        "width": 2240,
+        "height": 1264,
+        "positive_mean": 0.016981629400517995,
+        "positive_rms": 0.040205132523037576,
+        "positive_amplitude_p90": 0.0433349609375,
+        "positive_amplitude_p50": 0.01806640625,
+        "positive_coverage": 0.003273338607594937,
+        "negative_mean": -0.011281222326152201,
+        "gradient_positive": 0.0018913688472086687,
+        "fp16_neutral_fraction": 0.006040206826401447,
+        "negative_clip_fraction": 0.0,
+        "fp16_lost_positive_fraction": 0.00443571935076015,
+        "controller_quantile": 0.9,
+        "controller_amplitude": 0.0433349609375,
+        "proposed_relative_gain": 3.461408450704225,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.0362548828125,
+            "p90_max": 0.0494384765625,
+            "p50_min": 0.0157470703125,
+            "p50_max": 0.02001953125,
+            "coverage_min": 0.0,
+            "coverage_max": 0.013888888888888888,
+            "correct_phases": 64
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.0399169921875,
+            "p90_max": 0.047119140625,
+            "p50_min": 0.01708984375,
+            "p50_max": 0.018798828125,
+            "coverage_min": 0.0,
+            "coverage_max": 0.009548611111111112,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.041015625,
+            "p90_max": 0.04547119140625,
+            "p50_min": 0.0174560546875,
+            "p50_max": 0.0185546875,
+            "coverage_min": 0.001193576388888889,
+            "coverage_max": 0.005425347222222222,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game1-cnn-noghosting.dds",
+        "game": "game1",
+        "ghosting": false,
+        "sha256": "7e190dbe5e949f67028b02f4ca93b67cd1bfd214bffa946d1098de38e823cd68",
+        "width": 2240,
+        "height": 1264,
+        "positive_mean": 0.034939323765992104,
+        "positive_rms": 0.06889397626258666,
+        "positive_amplitude_p90": 0.11298827826976776,
+        "positive_amplitude_p50": 0.04189452901482582,
+        "positive_coverage": 0.0516045292721519,
+        "negative_mean": -0.02393860924968495,
+        "gradient_positive": 0.0036327917476449883,
+        "fp16_neutral_fraction": 0.0020289425105485233,
+        "negative_clip_fraction": 2.6371308016877638e-05,
+        "fp16_lost_positive_fraction": 0.000345220935302874,
+        "controller_quantile": 0.9,
+        "controller_amplitude": 0.11298827826976776,
+        "proposed_relative_gain": 1.3275713401160432,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.10061034560203552,
+            "p90_max": 0.13536375761032104,
+            "p50_min": 0.034912109375,
+            "p50_max": 0.04665527120232582,
+            "coverage_min": 0.034722222222222224,
+            "coverage_max": 0.08854166666666667,
+            "correct_phases": 0
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.10584716498851776,
+            "p90_max": 0.12250976264476776,
+            "p50_min": 0.03840331733226776,
+            "p50_max": 0.0450286865234375,
+            "coverage_min": 0.04296875,
+            "coverage_max": 0.07378472222222222,
+            "correct_phases": 0
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.1087036058306694,
+            "p90_max": 0.11711425334215164,
+            "p50_min": 0.04062499850988388,
+            "p50_max": 0.04252929612994194,
+            "coverage_min": 0.04600694444444445,
+            "coverage_max": 0.05674913194444445,
+            "correct_phases": 0
+          }
+        }
+      },
+      {
+        "file": "game1-cnn-noghosting2.dds",
+        "game": "game1",
+        "ghosting": false,
+        "sha256": "96ab5a2f310810c48f2b6fb96fa10d7346c4a76174e09ba62a6d146420a3b18c",
+        "width": 2240,
+        "height": 1264,
+        "positive_mean": 0.030227084008212224,
+        "positive_rms": 0.04898300372279692,
+        "positive_amplitude_p90": 0.07470703125,
+        "positive_amplitude_p50": 0.03955078125,
+        "positive_coverage": 0.007552907436708861,
+        "negative_mean": -0.017623473139004833,
+        "gradient_positive": 0.0024543713139334976,
+        "fp16_neutral_fraction": 0.0024121505801687764,
+        "negative_clip_fraction": 3.214003164556962e-05,
+        "fp16_lost_positive_fraction": 0.00054155715341078,
+        "controller_quantile": 0.9,
+        "controller_amplitude": 0.07470703125,
+        "proposed_relative_gain": 2.007843137254902,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.070556640625,
+            "p90_max": 0.078369140625,
+            "p50_min": 0.037109375,
+            "p50_max": 0.0419921875,
+            "coverage_min": 0.001736111111111111,
+            "coverage_max": 0.017361111111111112,
+            "correct_phases": 0
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.072998046875,
+            "p90_max": 0.076171875,
+            "p50_min": 0.03759765625,
+            "p50_max": 0.04052734375,
+            "coverage_min": 0.00390625,
+            "coverage_max": 0.013888888888888888,
+            "correct_phases": 0
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.073974609375,
+            "p90_max": 0.075439453125,
+            "p50_min": 0.0390625,
+            "p50_max": 0.0400390625,
+            "coverage_min": 0.005642361111111111,
+            "coverage_max": 0.010199652777777778,
+            "correct_phases": 0
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-ghosting1.dds",
+        "game": "game2",
+        "ghosting": true,
+        "sha256": "f92960aa4cb3ef0be26642a9467f80e4e289cbfcee51a07725190fdf43a20cc0",
+        "width": 2496,
+        "height": 1404,
+        "positive_mean": 0.013815228004050354,
+        "positive_rms": 0.026644380405359436,
+        "positive_amplitude_p90": 0.04510711878538132,
+        "positive_amplitude_p50": 0.011743183247745037,
+        "positive_coverage": 0.0015098231244064578,
+        "negative_mean": -0.0357823083880004,
+        "gradient_positive": 0.0019926609326665033,
+        "fp16_neutral_fraction": 0.0036533287067475103,
+        "negative_clip_fraction": 0.0018160110307546204,
+        "fp16_lost_positive_fraction": 0.0045587807526619745,
+        "controller_quantile": 0.9,
+        "controller_amplitude": 0.04510711878538132,
+        "proposed_relative_gain": 3.3254174515933217,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.04060547053813934,
+            "p90_max": 0.049623873084783554,
+            "p50_min": 0.010226897895336151,
+            "p50_max": 0.013112182728946209,
+            "coverage_min": 0.0,
+            "coverage_max": 0.008680555555555556,
+            "correct_phases": 64
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.04320373758673668,
+            "p90_max": 0.04628540202975273,
+            "p50_min": 0.010876464657485485,
+            "p50_max": 0.012517375871539116,
+            "coverage_min": 0.0,
+            "coverage_max": 0.005208333333333333,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.04435180872678757,
+            "p90_max": 0.04592285305261612,
+            "p50_min": 0.011367416940629482,
+            "p50_max": 0.012115173041820526,
+            "coverage_min": 0.00010850694444444444,
+            "coverage_max": 0.003472222222222222,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-ghosting2.dds",
+        "game": "game2",
+        "ghosting": true,
+        "sha256": "3a3df30679ddf32874992fc039076f9c74fecaeaf802d46ea4ec25c62b7cb88f",
+        "width": 2496,
+        "height": 1404,
+        "positive_mean": 0.028133277367590658,
+        "positive_rms": 0.055494314971894255,
+        "positive_amplitude_p90": 0.09375,
+        "positive_amplitude_p50": 0.015625,
+        "positive_coverage": 0.03811654202279202,
+        "negative_mean": -0.03128747501735227,
+        "gradient_positive": 0.004542604836377322,
+        "fp16_neutral_fraction": 0.018559705024715708,
+        "negative_clip_fraction": 0.00033947953953295836,
+        "fp16_lost_positive_fraction": 3.535189538532444e-05,
+        "controller_quantile": 0.9,
+        "controller_amplitude": 0.09375,
+        "proposed_relative_gain": 1.5999999999999999,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.080078125,
+            "p90_max": 0.109375,
+            "p50_min": 0.009765625,
+            "p50_max": 0.0234375,
+            "coverage_min": 0.015625,
+            "coverage_max": 0.06076388888888889,
+            "correct_phases": 64
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.08984375,
+            "p90_max": 0.1015625,
+            "p50_min": 0.013671875,
+            "p50_max": 0.01611328125,
+            "coverage_min": 0.029079861111111112,
+            "coverage_max": 0.054253472222222224,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.08984375,
+            "p90_max": 0.09375,
+            "p50_min": 0.015625,
+            "p50_max": 0.015625,
+            "coverage_min": 0.03298611111111111,
+            "coverage_max": 0.04286024305555555,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-noghosting1.dds",
+        "game": "game2",
+        "ghosting": false,
+        "sha256": "b7e20a9334f0a74668a0397bb2842f36520e79090a3b655b31e7593105fe3184",
+        "width": 2496,
+        "height": 1404,
+        "positive_mean": 0.02695269102728134,
+        "positive_rms": 0.052611238674492446,
+        "positive_amplitude_p90": 0.08758139610290527,
+        "positive_amplitude_p50": 0.02370532415807247,
+        "positive_coverage": 0.0177865781832128,
+        "negative_mean": -0.03541015129875474,
+        "gradient_positive": 0.0038491304355157082,
+        "fp16_neutral_fraction": 0.00202803117466579,
+        "negative_clip_fraction": 0.0021768923344778045,
+        "fp16_lost_positive_fraction": 0.0014763666415628415,
+        "controller_quantile": 0.9,
+        "controller_amplitude": 0.08758139610290527,
+        "proposed_relative_gain": 1.7126924972028865,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.08287698775529861,
+            "p90_max": 0.09457691013813019,
+            "p50_min": 0.020092951133847237,
+            "p50_max": 0.028299948200583458,
+            "coverage_min": 0.005208333333333333,
+            "coverage_max": 0.034722222222222224,
+            "correct_phases": 0
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.08492370694875717,
+            "p90_max": 0.0926218330860138,
+            "p50_min": 0.022239014506340027,
+            "p50_max": 0.025935335084795952,
+            "coverage_min": 0.011284722222222222,
+            "coverage_max": 0.025607638888888888,
+            "correct_phases": 0
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.08614563196897507,
+            "p90_max": 0.08913934975862503,
+            "p50_min": 0.02277408353984356,
+            "p50_max": 0.02443847805261612,
+            "coverage_min": 0.013454861111111112,
+            "coverage_max": 0.021701388888888888,
+            "correct_phases": 0
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-noghosting2.dds",
+        "game": "game2",
+        "ghosting": false,
+        "sha256": "2fb112b859816df3b04792c5f75e318d67d726257e7b318fb7ca328751db8d4c",
+        "width": 2496,
+        "height": 1404,
+        "positive_mean": 0.03265237511125954,
+        "positive_rms": 0.06080829105600272,
+        "positive_amplitude_p90": 0.11328125,
+        "positive_amplitude_p50": 0.0234375,
+        "positive_coverage": 0.0601709173423917,
+        "negative_mean": -0.03821447480533532,
+        "gradient_positive": 0.005303991319692513,
+        "fp16_neutral_fraction": 0.02625083324201914,
+        "negative_clip_fraction": 0.00016151198042223684,
+        "fp16_lost_positive_fraction": 6.6461219213976455e-06,
+        "controller_quantile": 0.9,
+        "controller_amplitude": 0.11328125,
+        "proposed_relative_gain": 1.3241379310344827,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.1015625,
+            "p90_max": 0.1328125,
+            "p50_min": 0.015625,
+            "p50_max": 0.029296875,
+            "coverage_min": 0.034722222222222224,
+            "coverage_max": 0.0920138888888889,
+            "correct_phases": 0
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.109375,
+            "p90_max": 0.12109375,
+            "p50_min": 0.01953125,
+            "p50_max": 0.0234375,
+            "coverage_min": 0.05078125,
+            "coverage_max": 0.07335069444444445,
+            "correct_phases": 0
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.111328125,
+            "p90_max": 0.1171875,
+            "p50_min": 0.01953125,
+            "p50_max": 0.0234375,
+            "coverage_min": 0.057074652777777776,
+            "coverage_max": 0.0632595486111111,
+            "correct_phases": 0
+          }
+        }
+      }
+    ],
+    "separation": {
+      "positive_mean": {
+        "max_ghost": 0.028133277367590658,
+        "min_clear": 0.02695269102728134,
+        "gap": -0.0011805863403093163,
+        "separates_labels": false,
+        "threshold": 0.027542984197435998
+      },
+      "positive_rms": {
+        "max_ghost": 0.055494314971894255,
+        "min_clear": 0.04898300372279692,
+        "gap": -0.006511311249097339,
+        "separates_labels": false,
+        "threshold": 0.05223865934734559
+      },
+      "positive_amplitude_p90": {
+        "max_ghost": 0.09375,
+        "min_clear": 0.07470703125,
+        "gap": -0.01904296875,
+        "separates_labels": false,
+        "threshold": 0.084228515625
+      },
+      "positive_amplitude_p50": {
+        "max_ghost": 0.01806640625,
+        "min_clear": 0.0234375,
+        "gap": 0.00537109375,
+        "separates_labels": true,
+        "threshold": 0.020751953125
+      },
+      "positive_coverage": {
+        "max_ghost": 0.03811654202279202,
+        "min_clear": 0.007552907436708861,
+        "gap": -0.03056363458608316,
+        "separates_labels": false,
+        "threshold": 0.02283472472975044
+      },
+      "gradient_positive": {
+        "max_ghost": 0.004542604836377322,
+        "min_clear": 0.0024543713139334976,
+        "gap": -0.0020882335224438244,
+        "separates_labels": false,
+        "threshold": 0.00349848807515541
+      },
+      "fp16_neutral_fraction": {
+        "max_ghost": 0.018559705024715708,
+        "min_clear": 0.00202803117466579,
+        "gap": -0.016531673850049916,
+        "separates_labels": false,
+        "threshold": 0.01029386809969075
+      }
+    },
+    "game_holdout": {
+      "positive_mean": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.028133277367590658,
+          "min_clear": 0.02695269102728134,
+          "gap": -0.0011805863403093163,
+          "separates_labels": false,
+          "threshold": 0.027542984197435998,
+          "correct": 4,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.016981629400517995,
+          "min_clear": 0.030227084008212224,
+          "gap": 0.013245454607694229,
+          "separates_labels": true,
+          "threshold": 0.023604356704365108,
+          "correct": 3,
+          "count": 4
+        }
+      ],
+      "positive_rms": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.055494314971894255,
+          "min_clear": 0.052611238674492446,
+          "gap": -0.00288307629740181,
+          "separates_labels": false,
+          "threshold": 0.05405277682319335,
+          "correct": 3,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.040205132523037576,
+          "min_clear": 0.04898300372279692,
+          "gap": 0.00877787119975934,
+          "separates_labels": true,
+          "threshold": 0.044594068122917246,
+          "correct": 3,
+          "count": 4
+        }
+      ],
+      "positive_amplitude_p90": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.09375,
+          "min_clear": 0.08758139610290527,
+          "gap": -0.0061686038970947266,
+          "separates_labels": false,
+          "threshold": 0.09066569805145264,
+          "correct": 3,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.044139403849840164,
+          "min_clear": 0.07470703125,
+          "gap": 0.030567627400159836,
+          "separates_labels": true,
+          "threshold": 0.05942321754992008,
+          "correct": 3,
+          "count": 4
+        }
+      ],
+      "positive_amplitude_p50": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.015625,
+          "min_clear": 0.0234375,
+          "gap": 0.0078125,
+          "separates_labels": true,
+          "threshold": 0.01953125,
+          "correct": 4,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.01806640625,
+          "min_clear": 0.03955078125,
+          "gap": 0.021484375,
+          "separates_labels": true,
+          "threshold": 0.02880859375,
+          "correct": 2,
+          "count": 4
+        }
+      ],
+      "positive_coverage": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.03811654202279202,
+          "min_clear": 0.0177865781832128,
+          "gap": -0.02032996383957922,
+          "separates_labels": false,
+          "threshold": 0.027951560103002412,
+          "correct": 3,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.003273338607594937,
+          "min_clear": 0.007552907436708861,
+          "gap": 0.004279568829113924,
+          "separates_labels": true,
+          "threshold": 0.005413123022151899,
+          "correct": 3,
+          "count": 4
+        }
+      ],
+      "gradient_positive": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.004542604836377322,
+          "min_clear": 0.0038491304355157082,
+          "gap": -0.0006934744008616138,
+          "separates_labels": false,
+          "threshold": 0.004195867635946515,
+          "correct": 2,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.0018913688472086687,
+          "min_clear": 0.0024543713139334976,
+          "gap": 0.0005630024667248289,
+          "separates_labels": true,
+          "threshold": 0.002172870080571083,
+          "correct": 3,
+          "count": 4
+        }
+      ],
+      "fp16_neutral_fraction": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.018559705024715708,
+          "min_clear": 0.00202803117466579,
+          "gap": -0.016531673850049916,
+          "separates_labels": false,
+          "threshold": 0.01029386809969075,
+          "correct": 2,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.006040206826401447,
+          "min_clear": 0.0020289425105485233,
+          "gap": -0.004011264315852923,
+          "separates_labels": false,
+          "threshold": 0.0040345746684749845,
+          "correct": 2,
+          "count": 4
+        }
+      ]
+    },
+    "correct_frames": 4
+  },
+  "cnn_median_candidate": {
+    "format_version": 2,
+    "numpy": "2.4.6",
+    "warning": "Post-hoc exploratory fit: labelled still frames are not independent temporal validation.",
+    "amplitude_threshold": 0.021,
+    "coverage_threshold": 0.5,
+    "proposed_target_quantile": 0.5,
+    "proposed_target_amplitude": 0.025,
+    "files": [
+      {
+        "file": "game1-cnn-ghosting.dds",
+        "game": "game1",
+        "ghosting": true,
+        "sha256": "e3a9d17eb53e183ae9985d49ec9159ce4647c6085610f78b4669b0878a70dc4c",
+        "width": 2240,
+        "height": 1264,
+        "positive_mean": 0.013525831232450651,
+        "positive_rms": 0.026722409711650987,
+        "positive_amplitude_p90": 0.044139403849840164,
+        "positive_amplitude_p50": 0.01668456941843033,
+        "positive_coverage": 0.36757953774864377,
+        "negative_mean": -0.023452813964037617,
+        "gradient_positive": 0.0014377317710272607,
+        "fp16_neutral_fraction": 0.0035913247814948765,
+        "negative_clip_fraction": 2.554720464135021e-05,
+        "fp16_lost_positive_fraction": 0.002934946024926141,
+        "controller_quantile": 0.5,
+        "controller_amplitude": 0.01668456941843033,
+        "proposed_relative_gain": 1.4983904812301703,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.038225095719099045,
+            "p90_max": 0.047563474625349045,
+            "p50_min": 0.015065917745232582,
+            "p50_max": 0.018303222954273224,
+            "coverage_min": 0.3350694444444444,
+            "coverage_max": 0.4184027777777778,
+            "correct_phases": 64
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.040995482355356216,
+            "p90_max": 0.04594482481479645,
+            "p50_min": 0.015812987461686134,
+            "p50_max": 0.017307128757238388,
+            "coverage_min": 0.3511284722222222,
+            "coverage_max": 0.3858506944444444,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.04276977479457855,
+            "p90_max": 0.04532226547598839,
+            "p50_min": 0.016435546800494194,
+            "p50_max": 0.017182616516947746,
+            "coverage_min": 0.3578559027777778,
+            "coverage_max": 0.3805338541666667,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game1-cnn-ghosting2.dds",
+        "game": "game1",
+        "ghosting": true,
+        "sha256": "c4b0c407dc258d6f9754f0de53853dc59f53229fbd0d9d9fa45c7b9c365b1f58",
+        "width": 2240,
+        "height": 1264,
+        "positive_mean": 0.016981629400517995,
+        "positive_rms": 0.040205132523037576,
+        "positive_amplitude_p90": 0.0433349609375,
+        "positive_amplitude_p50": 0.01806640625,
+        "positive_coverage": 0.43380884098101263,
+        "negative_mean": -0.011281222326152201,
+        "gradient_positive": 0.0018913688472086687,
+        "fp16_neutral_fraction": 0.006040206826401447,
+        "negative_clip_fraction": 0.0,
+        "fp16_lost_positive_fraction": 0.00443571935076015,
+        "controller_quantile": 0.5,
+        "controller_amplitude": 0.01806640625,
+        "proposed_relative_gain": 1.3837837837837839,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.0362548828125,
+            "p90_max": 0.0494384765625,
+            "p50_min": 0.0157470703125,
+            "p50_max": 0.02001953125,
+            "coverage_min": 0.3923611111111111,
+            "coverage_max": 0.4756944444444444,
+            "correct_phases": 64
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.0399169921875,
+            "p90_max": 0.047119140625,
+            "p50_min": 0.01708984375,
+            "p50_max": 0.018798828125,
+            "coverage_min": 0.4010416666666667,
+            "coverage_max": 0.4500868055555556,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.041015625,
+            "p90_max": 0.04547119140625,
+            "p50_min": 0.0174560546875,
+            "p50_max": 0.0185546875,
+            "coverage_min": 0.4185112847222222,
+            "coverage_max": 0.4430338541666667,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game1-cnn-noghosting.dds",
+        "game": "game1",
+        "ghosting": false,
+        "sha256": "7e190dbe5e949f67028b02f4ca93b67cd1bfd214bffa946d1098de38e823cd68",
+        "width": 2240,
+        "height": 1264,
+        "positive_mean": 0.034939323765992104,
+        "positive_rms": 0.06889397626258666,
+        "positive_amplitude_p90": 0.11298827826976776,
+        "positive_amplitude_p50": 0.04189452901482582,
+        "positive_coverage": 0.6800512827757685,
+        "negative_mean": -0.02393860924968495,
+        "gradient_positive": 0.0036327917476449883,
+        "fp16_neutral_fraction": 0.0020289425105485233,
+        "negative_clip_fraction": 2.6371308016877638e-05,
+        "fp16_lost_positive_fraction": 0.000345220935302874,
+        "controller_quantile": 0.5,
+        "controller_amplitude": 0.04189452901482582,
+        "proposed_relative_gain": 0.5967366285739336,
+        "fixed_rule_predicts_ghosting": false,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.10061034560203552,
+            "p90_max": 0.13536375761032104,
+            "p50_min": 0.034912109375,
+            "p50_max": 0.04665527120232582,
+            "coverage_min": 0.625,
+            "coverage_max": 0.7291666666666666,
+            "correct_phases": 64
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.10584716498851776,
+            "p90_max": 0.12250976264476776,
+            "p50_min": 0.03840331733226776,
+            "p50_max": 0.0450286865234375,
+            "coverage_min": 0.6401909722222222,
+            "coverage_max": 0.7113715277777778,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.1087036058306694,
+            "p90_max": 0.11711425334215164,
+            "p50_min": 0.04062499850988388,
+            "p50_max": 0.04252929612994194,
+            "coverage_min": 0.6664496527777778,
+            "coverage_max": 0.6927083333333334,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game1-cnn-noghosting2.dds",
+        "game": "game1",
+        "ghosting": false,
+        "sha256": "96ab5a2f310810c48f2b6fb96fa10d7346c4a76174e09ba62a6d146420a3b18c",
+        "width": 2240,
+        "height": 1264,
+        "positive_mean": 0.030227084008212224,
+        "positive_rms": 0.04898300372279692,
+        "positive_amplitude_p90": 0.07470703125,
+        "positive_amplitude_p50": 0.03955078125,
+        "positive_coverage": 0.6827316201401447,
+        "negative_mean": -0.017623473139004833,
+        "gradient_positive": 0.0024543713139334976,
+        "fp16_neutral_fraction": 0.0024121505801687764,
+        "negative_clip_fraction": 3.214003164556962e-05,
+        "fp16_lost_positive_fraction": 0.00054155715341078,
+        "controller_quantile": 0.5,
+        "controller_amplitude": 0.03955078125,
+        "proposed_relative_gain": 0.6320987654320988,
+        "fixed_rule_predicts_ghosting": false,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.070556640625,
+            "p90_max": 0.078369140625,
+            "p50_min": 0.037109375,
+            "p50_max": 0.0419921875,
+            "coverage_min": 0.6597222222222222,
+            "coverage_max": 0.7170138888888888,
+            "correct_phases": 64
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.072998046875,
+            "p90_max": 0.076171875,
+            "p50_min": 0.03759765625,
+            "p50_max": 0.04052734375,
+            "coverage_min": 0.6710069444444444,
+            "coverage_max": 0.6979166666666666,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.073974609375,
+            "p90_max": 0.075439453125,
+            "p50_min": 0.0390625,
+            "p50_max": 0.0400390625,
+            "coverage_min": 0.677734375,
+            "coverage_max": 0.6886935763888888,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-ghosting1.dds",
+        "game": "game2",
+        "ghosting": true,
+        "sha256": "f92960aa4cb3ef0be26642a9467f80e4e289cbfcee51a07725190fdf43a20cc0",
+        "width": 2496,
+        "height": 1404,
+        "positive_mean": 0.013815228004050354,
+        "positive_rms": 0.026644380405359436,
+        "positive_amplitude_p90": 0.04510711878538132,
+        "positive_amplitude_p50": 0.011743183247745037,
+        "positive_coverage": 0.360982129812258,
+        "negative_mean": -0.0357823083880004,
+        "gradient_positive": 0.0019926609326665033,
+        "fp16_neutral_fraction": 0.0036533287067475103,
+        "negative_clip_fraction": 0.0018160110307546204,
+        "fp16_lost_positive_fraction": 0.0045587807526619745,
+        "controller_quantile": 0.5,
+        "controller_amplitude": 0.011743183247745037,
+        "proposed_relative_gain": 2.1288946508435505,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.04060547053813934,
+            "p90_max": 0.049623873084783554,
+            "p50_min": 0.010226897895336151,
+            "p50_max": 0.013112182728946209,
+            "coverage_min": 0.3298611111111111,
+            "coverage_max": 0.3854166666666667,
+            "correct_phases": 64
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.04320373758673668,
+            "p90_max": 0.04628540202975273,
+            "p50_min": 0.010876464657485485,
+            "p50_max": 0.012517375871539116,
+            "coverage_min": 0.3467881944444444,
+            "coverage_max": 0.3732638888888889,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.04435180872678757,
+            "p90_max": 0.04592285305261612,
+            "p50_min": 0.011367416940629482,
+            "p50_max": 0.012115173041820526,
+            "coverage_min": 0.3559027777777778,
+            "coverage_max": 0.3688151041666667,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-ghosting2.dds",
+        "game": "game2",
+        "ghosting": true,
+        "sha256": "3a3df30679ddf32874992fc039076f9c74fecaeaf802d46ea4ec25c62b7cb88f",
+        "width": 2496,
+        "height": 1404,
+        "positive_mean": 0.028133277367590658,
+        "positive_rms": 0.055494314971894255,
+        "positive_amplitude_p90": 0.09375,
+        "positive_amplitude_p50": 0.015625,
+        "positive_coverage": 0.4680534439148221,
+        "negative_mean": -0.03128747501735227,
+        "gradient_positive": 0.004542604836377322,
+        "fp16_neutral_fraction": 0.018559705024715708,
+        "negative_clip_fraction": 0.00033947953953295836,
+        "fp16_lost_positive_fraction": 3.535189538532444e-05,
+        "controller_quantile": 0.5,
+        "controller_amplitude": 0.015625,
+        "proposed_relative_gain": 1.6,
+        "fixed_rule_predicts_ghosting": true,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.080078125,
+            "p90_max": 0.109375,
+            "p50_min": 0.009765625,
+            "p50_max": 0.0234375,
+            "coverage_min": 0.4288194444444444,
+            "coverage_max": 0.5069444444444444,
+            "correct_phases": 61
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.08984375,
+            "p90_max": 0.1015625,
+            "p50_min": 0.013671875,
+            "p50_max": 0.01611328125,
+            "coverage_min": 0.4578993055555556,
+            "coverage_max": 0.4800347222222222,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.08984375,
+            "p90_max": 0.09375,
+            "p50_min": 0.015625,
+            "p50_max": 0.015625,
+            "coverage_min": 0.4629991319444444,
+            "coverage_max": 0.4736328125,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-noghosting1.dds",
+        "game": "game2",
+        "ghosting": false,
+        "sha256": "b7e20a9334f0a74668a0397bb2842f36520e79090a3b655b31e7593105fe3184",
+        "width": 2496,
+        "height": 1404,
+        "positive_mean": 0.02695269102728134,
+        "positive_rms": 0.052611238674492446,
+        "positive_amplitude_p90": 0.08758139610290527,
+        "positive_amplitude_p50": 0.02370532415807247,
+        "positive_coverage": 0.5252726299400979,
+        "negative_mean": -0.03541015129875474,
+        "gradient_positive": 0.0038491304355157082,
+        "fp16_neutral_fraction": 0.00202803117466579,
+        "negative_clip_fraction": 0.0021768923344778045,
+        "fp16_lost_positive_fraction": 0.0014763666415628415,
+        "controller_quantile": 0.5,
+        "controller_amplitude": 0.02370532415807247,
+        "proposed_relative_gain": 1.0546154034129354,
+        "fixed_rule_predicts_ghosting": false,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.08287698775529861,
+            "p90_max": 0.09457691013813019,
+            "p50_min": 0.020092951133847237,
+            "p50_max": 0.028299948200583458,
+            "coverage_min": 0.4982638888888889,
+            "coverage_max": 0.5607638888888888,
+            "correct_phases": 63
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.08492370694875717,
+            "p90_max": 0.0926218330860138,
+            "p50_min": 0.022239014506340027,
+            "p50_max": 0.025935335084795952,
+            "coverage_min": 0.5108506944444444,
+            "coverage_max": 0.5455729166666666,
+            "correct_phases": 64
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.08614563196897507,
+            "p90_max": 0.08913934975862503,
+            "p50_min": 0.02277408353984356,
+            "p50_max": 0.02443847805261612,
+            "coverage_min": 0.5176866319444444,
+            "coverage_max": 0.5311414930555556,
+            "correct_phases": 64
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-noghosting2.dds",
+        "game": "game2",
+        "ghosting": false,
+        "sha256": "2fb112b859816df3b04792c5f75e318d67d726257e7b318fb7ca328751db8d4c",
+        "width": 2496,
+        "height": 1404,
+        "positive_mean": 0.03265237511125954,
+        "positive_rms": 0.06080829105600272,
+        "positive_amplitude_p90": 0.11328125,
+        "positive_amplitude_p50": 0.0234375,
+        "positive_coverage": 0.5025533731463219,
+        "negative_mean": -0.03821447480533532,
+        "gradient_positive": 0.005303991319692513,
+        "fp16_neutral_fraction": 0.02625083324201914,
+        "negative_clip_fraction": 0.00016151198042223684,
+        "fp16_lost_positive_fraction": 6.6461219213976455e-06,
+        "controller_quantile": 0.5,
+        "controller_amplitude": 0.0234375,
+        "proposed_relative_gain": 1.0666666666666667,
+        "fixed_rule_predicts_ghosting": false,
+        "sampling": {
+          "32x18": {
+            "samples": 576,
+            "p90_min": 0.1015625,
+            "p90_max": 0.1328125,
+            "p50_min": 0.015625,
+            "p50_max": 0.029296875,
+            "coverage_min": 0.4722222222222222,
+            "coverage_max": 0.5329861111111112,
+            "correct_phases": 43
+          },
+          "64x36": {
+            "samples": 2304,
+            "p90_min": 0.109375,
+            "p90_max": 0.12109375,
+            "p50_min": 0.01953125,
+            "p50_max": 0.0234375,
+            "coverage_min": 0.4921875,
+            "coverage_max": 0.5173611111111112,
+            "correct_phases": 41
+          },
+          "128x72": {
+            "samples": 9216,
+            "p90_min": 0.111328125,
+            "p90_max": 0.1171875,
+            "p50_min": 0.01953125,
+            "p50_max": 0.0234375,
+            "coverage_min": 0.4949001736111111,
+            "coverage_max": 0.5081380208333334,
+            "correct_phases": 57
+          }
+        }
+      }
+    ],
+    "separation": {
+      "positive_mean": {
+        "max_ghost": 0.028133277367590658,
+        "min_clear": 0.02695269102728134,
+        "gap": -0.0011805863403093163,
+        "separates_labels": false,
+        "threshold": 0.027542984197435998
+      },
+      "positive_rms": {
+        "max_ghost": 0.055494314971894255,
+        "min_clear": 0.04898300372279692,
+        "gap": -0.006511311249097339,
+        "separates_labels": false,
+        "threshold": 0.05223865934734559
+      },
+      "positive_amplitude_p90": {
+        "max_ghost": 0.09375,
+        "min_clear": 0.07470703125,
+        "gap": -0.01904296875,
+        "separates_labels": false,
+        "threshold": 0.084228515625
+      },
+      "positive_amplitude_p50": {
+        "max_ghost": 0.01806640625,
+        "min_clear": 0.0234375,
+        "gap": 0.00537109375,
+        "separates_labels": true,
+        "threshold": 0.020751953125
+      },
+      "positive_coverage": {
+        "max_ghost": 0.4680534439148221,
+        "min_clear": 0.5025533731463219,
+        "gap": 0.03449992923149975,
+        "separates_labels": true,
+        "threshold": 0.48530340853057197
+      },
+      "gradient_positive": {
+        "max_ghost": 0.004542604836377322,
+        "min_clear": 0.0024543713139334976,
+        "gap": -0.0020882335224438244,
+        "separates_labels": false,
+        "threshold": 0.00349848807515541
+      },
+      "fp16_neutral_fraction": {
+        "max_ghost": 0.018559705024715708,
+        "min_clear": 0.00202803117466579,
+        "gap": -0.016531673850049916,
+        "separates_labels": false,
+        "threshold": 0.01029386809969075
+      }
+    },
+    "game_holdout": {
+      "positive_mean": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.028133277367590658,
+          "min_clear": 0.02695269102728134,
+          "gap": -0.0011805863403093163,
+          "separates_labels": false,
+          "threshold": 0.027542984197435998,
+          "correct": 4,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.016981629400517995,
+          "min_clear": 0.030227084008212224,
+          "gap": 0.013245454607694229,
+          "separates_labels": true,
+          "threshold": 0.023604356704365108,
+          "correct": 3,
+          "count": 4
+        }
+      ],
+      "positive_rms": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.055494314971894255,
+          "min_clear": 0.052611238674492446,
+          "gap": -0.00288307629740181,
+          "separates_labels": false,
+          "threshold": 0.05405277682319335,
+          "correct": 3,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.040205132523037576,
+          "min_clear": 0.04898300372279692,
+          "gap": 0.00877787119975934,
+          "separates_labels": true,
+          "threshold": 0.044594068122917246,
+          "correct": 3,
+          "count": 4
+        }
+      ],
+      "positive_amplitude_p90": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.09375,
+          "min_clear": 0.08758139610290527,
+          "gap": -0.0061686038970947266,
+          "separates_labels": false,
+          "threshold": 0.09066569805145264,
+          "correct": 3,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.044139403849840164,
+          "min_clear": 0.07470703125,
+          "gap": 0.030567627400159836,
+          "separates_labels": true,
+          "threshold": 0.05942321754992008,
+          "correct": 3,
+          "count": 4
+        }
+      ],
+      "positive_amplitude_p50": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.015625,
+          "min_clear": 0.0234375,
+          "gap": 0.0078125,
+          "separates_labels": true,
+          "threshold": 0.01953125,
+          "correct": 4,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.01806640625,
+          "min_clear": 0.03955078125,
+          "gap": 0.021484375,
+          "separates_labels": true,
+          "threshold": 0.02880859375,
+          "correct": 2,
+          "count": 4
+        }
+      ],
+      "positive_coverage": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.4680534439148221,
+          "min_clear": 0.5025533731463219,
+          "gap": 0.03449992923149975,
+          "separates_labels": true,
+          "threshold": 0.48530340853057197,
+          "correct": 4,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.43380884098101263,
+          "min_clear": 0.6800512827757685,
+          "gap": 0.2462424417947559,
+          "separates_labels": true,
+          "threshold": 0.5569300618783906,
+          "correct": 2,
+          "count": 4
+        }
+      ],
+      "gradient_positive": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.004542604836377322,
+          "min_clear": 0.0038491304355157082,
+          "gap": -0.0006934744008616138,
+          "separates_labels": false,
+          "threshold": 0.004195867635946515,
+          "correct": 2,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.0018913688472086687,
+          "min_clear": 0.0024543713139334976,
+          "gap": 0.0005630024667248289,
+          "separates_labels": true,
+          "threshold": 0.002172870080571083,
+          "correct": 3,
+          "count": 4
+        }
+      ],
+      "fp16_neutral_fraction": [
+        {
+          "test_game": "game1",
+          "max_ghost": 0.018559705024715708,
+          "min_clear": 0.00202803117466579,
+          "gap": -0.016531673850049916,
+          "separates_labels": false,
+          "threshold": 0.01029386809969075,
+          "correct": 2,
+          "count": 4
+        },
+        {
+          "test_game": "game2",
+          "max_ghost": 0.006040206826401447,
+          "min_clear": 0.0020289425105485233,
+          "gap": -0.004011264315852923,
+          "separates_labels": false,
+          "threshold": 0.0040345746684749845,
+          "correct": 2,
+          "count": 4
+        }
+      ]
+    },
+    "correct_frames": 8
+  },
+  "numeric_gpu_validation": {
+    "RTX 4090": 13455,
+    "WARP": 13455,
+    "coverage": "16 supplied DDS + 5 synthetic textures, 2 quantiles (P50/P90), 64 phases, 5 methods; independent CPU counts and quantile bounds",
+    "invalid_quantile_cases": 15
+  },
+  "gpu_timing": {
+    "gpu": "RTX 4090",
+    "driver": "616.56",
+    "scope": "Resident captured signed FP32 edit, no live NR/NGX, model/proxy reads, allocations, copies or CPU waits in GPU windows. ABBA; 128 samples/variant; 8 repetitions/window; separate 64-repetition warmups.",
+    "summary": [
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "quantile_permille": 500,
+        "method": "count256",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.003968,
+        "probe_p50_ms": 0.004144,
+        "probe_p90_ms": 0.004352,
+        "delta_ms": 0.004144
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "quantile_permille": 500,
+        "method": "count64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.005504,
+        "probe_p50_ms": 0.005722,
+        "probe_p90_ms": 0.006016,
+        "delta_ms": 0.005722
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "quantile_permille": 500,
+        "method": "hist256",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.005504,
+        "probe_p50_ms": 0.005596,
+        "probe_p90_ms": 0.005888,
+        "delta_ms": 0.005596
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "quantile_permille": 500,
+        "method": "tiled64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.002944,
+        "probe_p50_ms": 0.0031000000000000003,
+        "probe_p90_ms": 0.0032532,
+        "delta_ms": 0.0031000000000000003
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "quantile_permille": 500,
+        "method": "tiledhist64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.0064,
+        "probe_p50_ms": 0.006558,
+        "probe_p90_ms": 0.0066812,
+        "delta_ms": 0.006558
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "quantile_permille": 900,
+        "method": "count256",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.003968,
+        "probe_p50_ms": 0.004156,
+        "probe_p90_ms": 0.004352,
+        "delta_ms": 0.004156
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "quantile_permille": 900,
+        "method": "count64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.005504,
+        "probe_p50_ms": 0.005722,
+        "probe_p90_ms": 0.00592,
+        "delta_ms": 0.005722
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "quantile_permille": 900,
+        "method": "hist256",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.005632,
+        "probe_p50_ms": 0.005836,
+        "probe_p90_ms": 0.0060568,
+        "delta_ms": 0.005836
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "quantile_permille": 900,
+        "method": "tiled64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.002944,
+        "probe_p50_ms": 0.00311,
+        "probe_p90_ms": 0.00326,
+        "delta_ms": 0.00311
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "quantile_permille": 900,
+        "method": "tiledhist64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.006656,
+        "probe_p50_ms": 0.006804,
+        "probe_p90_ms": 0.006936,
+        "delta_ms": 0.006804
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "quantile_permille": 500,
+        "method": "count256",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.003712,
+        "probe_p50_ms": 0.003882,
+        "probe_p90_ms": 0.0040736,
+        "delta_ms": 0.003882
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "quantile_permille": 500,
+        "method": "count64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.00512,
+        "probe_p50_ms": 0.005301999999999999,
+        "probe_p90_ms": 0.005504,
+        "delta_ms": 0.005301999999999999
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "quantile_permille": 500,
+        "method": "hist256",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.004864,
+        "probe_p50_ms": 0.0050539999999999995,
+        "probe_p90_ms": 0.005248,
+        "delta_ms": 0.0050539999999999995
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "quantile_permille": 500,
+        "method": "tiled64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.002816,
+        "probe_p50_ms": 0.0028640000000000002,
+        "probe_p90_ms": 0.003072,
+        "delta_ms": 0.0028640000000000002
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "quantile_permille": 500,
+        "method": "tiledhist64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.00576,
+        "probe_p50_ms": 0.0059299999999999995,
+        "probe_p90_ms": 0.006144,
+        "delta_ms": 0.0059299999999999995
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "quantile_permille": 900,
+        "method": "count256",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.003712,
+        "probe_p50_ms": 0.0038840000000000003,
+        "probe_p90_ms": 0.004096,
+        "delta_ms": 0.0038840000000000003
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "quantile_permille": 900,
+        "method": "count64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.00512,
+        "probe_p50_ms": 0.0053,
+        "probe_p90_ms": 0.005504,
+        "delta_ms": 0.0053
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "quantile_permille": 900,
+        "method": "hist256",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.005248,
+        "probe_p50_ms": 0.005404,
+        "probe_p90_ms": 0.005632,
+        "delta_ms": 0.005404
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "quantile_permille": 900,
+        "method": "tiled64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.002816,
+        "probe_p50_ms": 0.0028599999999999997,
+        "probe_p90_ms": 0.003072,
+        "delta_ms": 0.0028599999999999997
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "quantile_permille": 900,
+        "method": "tiledhist64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.006144,
+        "probe_p50_ms": 0.006278,
+        "probe_p90_ms": 0.0064,
+        "delta_ms": 0.006278
+      }
+    ]
+  }
+}

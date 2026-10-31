@@ -31,8 +31,9 @@ struct Parameters
 {
     UINT width, height, phaseX = 0, phaseY = 0, gridX = 64, gridY = 36;
     float threshold = .14f;
-    UINT unused = 0;
+    UINT quantilePermille = 900;
 };
+static_assert(sizeof(Parameters) == 32, "Probe cbuffer ABI");
 struct ProbeFixture
 {
     Runner& r;
@@ -188,9 +189,9 @@ struct ProbeFixture
                 UINT64* data;
                 check(times->Map(0, nullptr, reinterpret_cast<void**>(&data)));
                 for (unsigned position = 0; position < 4; ++position)
-                    stream << scene << ',' << constants.width << ',' << constants.height << ',' << method << ','
-                           << block << ',' << quartet << ',' << position << ','
-                           << (position == 1 || position == 2 ? "probe" : "none") << ','
+                    stream << scene << ',' << constants.width << ',' << constants.height << ','
+                           << constants.quantilePermille << ',' << method << ',' << block << ',' << quartet << ','
+                           << position << ',' << (position == 1 || position == 2 ? "probe" : "none") << ','
                            << double(data[position * 2 + 1] - data[position * 2]) * 1000 / frequency / 8 << '\n';
                 times->Unmap(0, nullptr);
             }
@@ -215,7 +216,8 @@ std::pair<UINT, float> Reference(const EditImage& image, const Parameters& c)
             count += a > c.threshold;
             values.push_back(a);
         }
-    const size_t rank = (values.size() * 9 + 9) / 10 - 1;
+    const UINT quantile = c.quantilePermille >= 1 && c.quantilePermille <= 1000 ? c.quantilePermille : 900;
+    const size_t rank = (values.size() * quantile + 999) / 1000 - 1;
     std::nth_element(values.begin(), values.begin() + rank, values.end());
     return { count, values[rank] };
 }
@@ -268,7 +270,8 @@ int main(int argc, char** argv)
             timing.open(timingPath);
             if (!timing)
                 throw std::runtime_error("Cannot create timing CSV");
-            timing << std::setprecision(9) << "scene,width,height,method,block,quartet,position,variant,gpu_ms\n";
+            timing << std::setprecision(9)
+                   << "scene,width,height,quantile_permille,method,block,quartet,position,variant,gpu_ms\n";
         }
         unsigned cases = 0;
         std::set<std::pair<UINT, UINT>> timedSizes;
@@ -276,24 +279,51 @@ int main(int argc, char** argv)
         {
             auto image = n < 5 ? Synthetic(unsigned(n)) : Load(paths[n - 5]);
             ProbeFixture f(r, image);
-            for (UINT py = 0; py < 8; ++py)
-                for (UINT px = 0; px < 8; ++px)
+            for (UINT quantile : { 500u, 900u })
+            {
+                f.constants.quantilePermille = quantile;
+                f.constants.threshold = quantile == 500 ? .021f : .14f;
+                for (UINT py = 0; py < 8; ++py)
+                    for (UINT px = 0; px < 8; ++px)
+                    {
+                        f.update(px, py);
+                        const auto expected = Reference(image, f.constants);
+                        for (unsigned method = 0; method < 5; ++method)
+                        {
+                            auto got = f.run(pipelines[method].Get(), reduction(method));
+                            if (got[0] != expected.first || got[3] != 2304 ||
+                                ((method == 2 || method == 4) &&
+                                 !(got[1] <= expected.second && expected.second < got[2])))
+                                throw std::runtime_error("Count/quantile assertion: " + image.name + "/" +
+                                                         names[method]);
+                            ++cases;
+                        }
+                    }
+            }
+            std::cout << image.name << ": 2 quantiles x 64 phases x 5 probe methods PASS\n" << std::flush;
+            if (n == 1)
+                for (UINT invalid : { 0u, 1001u, 0xffffffffu })
                 {
-                    f.update(px, py);
+                    f.constants.quantilePermille = invalid;
+                    f.update(3, 3);
                     const auto expected = Reference(image, f.constants);
                     for (unsigned method = 0; method < 5; ++method)
                     {
                         auto got = f.run(pipelines[method].Get(), reduction(method));
                         if (got[0] != expected.first || got[3] != 2304 ||
                             ((method == 2 || method == 4) && !(got[1] <= expected.second && expected.second < got[2])))
-                            throw std::runtime_error("Count/quantile assertion: " + image.name + "/" + names[method]);
+                            throw std::runtime_error("Invalid quantile did not fall back to P90");
                         ++cases;
                     }
                 }
-            std::cout << image.name << ": 64 phases x 5 probe methods PASS\n" << std::flush;
             if (timing && n >= 5 && timedSizes.insert({ image.width, image.height }).second)
-                for (unsigned method = 0; method < 5; ++method)
-                    f.timing(timing, image.name, names[method], pipelines[method].Get(), reduction(method));
+                for (UINT quantile : { 500u, 900u })
+                {
+                    f.constants.quantilePermille = quantile;
+                    f.constants.threshold = quantile == 500 ? .021f : .14f;
+                    for (unsigned method = 0; method < 5; ++method)
+                        f.timing(timing, image.name, names[method], pipelines[method].Get(), reduction(method));
+                }
         }
         std::cout << "Edit signal probe: " << cases << " independent CPU/GPU assertions PASS\n";
     }

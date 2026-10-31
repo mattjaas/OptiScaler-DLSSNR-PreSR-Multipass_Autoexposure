@@ -8,7 +8,7 @@ cbuffer Parameters : register(b0)
     uint Width, Height, PhaseX, PhaseY;
     uint GridX, GridY;
     float AmplitudeThreshold;
-    uint Unused;
+    uint QuantilePermille;
 };
 #ifndef THREADS
 #define THREADS 256
@@ -40,7 +40,8 @@ float2 QuantileBracket(uint size)
 {
 #if HISTOGRAM
     uint cumulative = 0;
-    const uint rank = (size * 9 + 9) / 10;
+    const uint quantile = QuantilePermille >= 1 && QuantilePermille <= 1000 ? QuantilePermille : 900;
+    const uint rank = (size * quantile + 999) / 1000;
     for (uint bin = 0; bin < 256; ++bin)
     {
         cumulative += Histogram[bin];
