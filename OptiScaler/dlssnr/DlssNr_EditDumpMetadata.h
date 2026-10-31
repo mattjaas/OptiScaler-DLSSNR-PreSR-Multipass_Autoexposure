@@ -57,7 +57,10 @@ struct Metadata
     bool packed = false, reset = false, held = false, guidesIncluded = false;
     bool previewEnabledAtRequest = false, previewEnabledAtCapture = false;
     uint32_t privatePresetAtRequest = 0;
-    uint32_t cnnPresetOverride = 0, transformerPresetOverride = 0;
+    uint32_t cnnPresetOverride = 0, transformerPresetOverride = 0, transformer2PresetOverride = 0;
+    bool lowMotionResetEnabled = false, lowMotionResetRequested = false, lowMotionSharedProbe = false;
+    float lowMotionThreshold = .25f, lowMotionDelay = 2.f, lowMotionPeak = 0, lowMotionSeconds = 0;
+    uint64_t lowMotionRequests = 0;
     float gainAtRequest = 1;
     double requestDelaySeconds = 0;
     GainPreview::Settings previewSettings;
@@ -125,10 +128,12 @@ inline std::string MetadataJson(const Metadata& m)
     value("gain_preview_epsilon", GainPreview::Epsilon);
     const auto methodSettings = GainPreview::Sanitize(m.previewSettings);
     value("gain_preview_method_at_capture", methodSettings.method);
+    value("gain_preview_model_family_at_capture", methodSettings.modelFamily);
     value("gain_preview_boundary_target_at_capture", methodSettings.boundaryTarget);
-    value("gain_preview_target_at_capture", methodSettings.method == GainPreview::DepthBoundary
-                                                ? methodSettings.boundaryTarget
-                                                : GainPreview::Target(m.privatePreset == 10 || m.privatePreset == 11));
+    value("gain_preview_target_at_capture",
+          methodSettings.method == GainPreview::DepthBoundary
+              ? methodSettings.boundaryTarget
+              : GainPreview::Target(PrivateModel::FromPreset(m.privatePreset) != PrivateModel::Cnn));
     const auto settings = GainPreview::Sanitize(m.previewSettings);
     value("gain_preview_require_changing_motion", settings.requireChange);
     value("gain_preview_slow_seconds", settings.slowSeconds);
@@ -171,6 +176,16 @@ inline std::string MetadataJson(const Metadata& m)
     value("private_preset", m.privatePreset);
     value("private_cnn_preset_override", m.cnnPresetOverride);
     value("private_transformer_preset_override", m.transformerPresetOverride);
+    value("private_transformer2_preset_override", m.transformer2PresetOverride);
+    value("low_motion_reset_enabled", m.lowMotionResetEnabled);
+    value("low_motion_reset_requested", m.lowMotionResetRequested);
+    value("low_motion_reset_threshold", m.lowMotionThreshold);
+    value("low_motion_reset_delay", m.lowMotionDelay);
+    value("low_motion_reset_peak_mv", m.lowMotionPeak);
+    value("low_motion_reset_quiet_seconds", m.lowMotionSeconds);
+    value("low_motion_reset_requests", m.lowMotionRequests);
+    value("low_motion_reset_shared_probe", m.lowMotionSharedProbe);
+    value("automatic_gain_changes_reset_private_history", false);
     value("nr_preset_setting", m.nrPresetSetting);
     value("private_is_hdr", m.privateIsHdr);
     value("private_exposure_mode", m.exposureMode);

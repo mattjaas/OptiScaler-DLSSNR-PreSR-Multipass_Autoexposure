@@ -212,6 +212,17 @@ int main() {
         require(PrivatePresetOptionsKey(1,3,10)==PrivatePresetOptionsKey(1,3,11));
         require(PrivatePresetOptionsKey(1,3,0)!=PrivatePresetOptionsKey(1,4,0));
         require(PrivatePresetOptionsKey(11,3,10)==PrivatePresetOptionsKey(11,5,10));
+
+        require(Preset(13)==13&&Preset(12)==13&&PrivatePreset(13,.015f)==13);
+        for(unsigned value:{12u,13u})
+        {
+            PrivatePresetChoice gen2;
+            require(gen2.Select(13,true,1,.65f,3,10,value)==value);
+            require(gen2.Select(13,true,1,1.5f,4,11,value)==value);
+            require(TransformerPreset(value));
+        }
+        require(PrivatePresetOptionsKey(13,3,10,12)!=PrivatePresetOptionsKey(13,3,10,13));
+        require(PrivatePresetOptionsKey(11,3,10,12)==PrivatePresetOptionsKey(11,3,10,13));
         PrivatePresetChoice overrideChange;
         require(overrideChange.Select(1,false,1,1,3,0)==3);
         require(overrideChange.Select(1,false,1,1,4,0)==4);

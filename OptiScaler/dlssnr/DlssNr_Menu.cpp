@@ -3989,20 +3989,22 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
         if (superior)
         {
             static const char* presets[] = { "CNN - higher performance",
-                                             "Transformer - slower, more stable NR in motion" };
+                                             "Transformer - slower, more stable NR in motion",
+                                             "Transformer 2-gen (L/M)" };
             int preset =
-                DlssNr::SuperiorScaling::Preset(config->DlssNrSuperiorScalingPreset.value_or_default()) == 11 ? 1 : 0;
+                int(DlssNr::PrivateModel::FromPreference(config->DlssNrSuperiorScalingPreset.value_or_default()));
 
             if (ImGui::Combo("DLSS to temporally stabilize NR", &preset, presets, IM_ARRAYSIZE(presets)))
             {
-                config->DlssNrSuperiorScalingPreset = preset == 1 ? 11u : 1u;
+                config->DlssNrSuperiorScalingPreset = preset == 2 ? 13u : preset == 1 ? 11u : 1u;
                 DlssNr::SuperiorScaling::RetryPrivatePreset();
             }
 
-            HelpMarker("Superior Scaling: a private DLSS in DLAA mode, applied to NR's change at its working "
-                       "resolution. Independent of the NR model preset and the game's own DLSS preset. "
-                       "CNN automatically chooses its model from guided range sigma. Transformer keeps the same model. "
-                       "Preset availability depends on the installed DLSS runtime.");
+            HelpMarker(
+                "Superior Scaling: a private DLSS in DLAA mode, applied to NR's change at its working "
+                "resolution. Independent of the NR model preset and the game's own DLSS preset. "
+                "Automatic CNN chooses A/E from guided range sigma. Transformer defaults to K; 2-gen defaults to M. "
+                "Preset availability depends on the installed DLSS runtime.");
 
             ImGui::BeginDisabled(nr.vulkan);
             if (preset == 0)
@@ -4021,7 +4023,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     DlssNr::SuperiorScaling::RetryPrivatePreset();
                 }
             }
-            else
+            else if (preset == 1)
             {
                 static const char* choices[] = { "Automatic K", "J", "K" };
                 const auto value = DlssNr::SuperiorScaling::TransformerPresetOverride(
@@ -4035,12 +4037,27 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     DlssNr::SuperiorScaling::RetryPrivatePreset();
                 }
             }
+            else
+            {
+                static const char* choices[] = { "Automatic M", "L", "M" };
+                const auto value = DlssNr::SuperiorScaling::Transformer2PresetOverride(
+                    config->DlssNrSuperiorScalingTransformer2PresetOverride.value_or_default());
+                int selected = value == 12 ? 1 : value == 13 ? 2 : 0;
+                if (ImGui::Combo("Private Transformer 2-gen preset override", &selected, choices,
+                                 IM_ARRAYSIZE(choices)))
+                {
+                    config->DlssNrSuperiorScalingTransformer2PresetOverride = selected == 1   ? 12u
+                                                                              : selected == 2 ? 13u
+                                                                                              : 0u;
+                    DlssNr::SuperiorScaling::RetryPrivatePreset();
+                }
+            }
             ImGui::EndDisabled();
             HelpMarker("Override the exact private DLAA preset independently of the game's DLSS. CNN: A/C/D/E; "
-                       "Transformer: J/K. Automatic retains the previous A/E or K selection. Explicit overrides "
+                       "Transformer: J/K; 2-gen: L/M. Automatic uses A/E, K or M. Explicit overrides "
                        "do not silently fall back to another preset if NGX rejects them; choose a different override "
                        "to retry. A successful NGX creation still cannot prove which internal model the runtime used. "
-                       "Coverage calibration for J/C/D has not been validated.");
+                       "Coverage calibration for J/C/D/L/M has not been validated.");
 
             const auto unavailable = DlssNr::SuperiorScaling::Unavailable();
             ImGui::BeginDisabled(nr.vulkan || !unavailable.empty());
@@ -4051,6 +4068,35 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
 
             HelpMarker("Experimental: try only if experiencing severe ghosting. Disabling IsHDR may help, but "
                        "could reduce NR stability.");
+
+            ImGui::BeginDisabled(nr.vulkan || !unavailable.empty());
+            auto lowReset = DlssNr::LowMotionReset::Read(*config);
+            if (ImGui::Checkbox("Reset private DLSS after sustained low motion", &lowReset.enabled))
+                config->DlssNrSuperiorLowMotionReset = lowReset.enabled;
+            HelpMarker("Optional: reset private DLSS history after all 576 sampled MV stay below "
+                       "the threshold for the configured time. The timer restarts after each reset, so sustained "
+                       "low motion causes repeated resets. Motion above the threshold clears the timer. "
+                       "Uses working pixels per frame. A small moving object can fall between samples. "
+                       "Independent of automatic gain; does not reset NR or the game's own DLSS.");
+            ImGui::BeginDisabled(!lowReset.enabled);
+            if (ImGui::SliderFloat("Low-motion reset MV threshold", &lowReset.threshold, .001f, 2.f, "%.3f px",
+                                   ImGuiSliderFlags_Logarithmic))
+                config->DlssNrSuperiorLowMotionResetThreshold = lowReset.threshold;
+            if (ImGui::InputFloat("Exact low-motion MV threshold", &lowReset.threshold, .01f, .1f, "%.4f"))
+                config->DlssNrSuperiorLowMotionResetThreshold = DlssNr::LowMotionReset::Sanitize(lowReset).threshold;
+            if (ImGui::SliderFloat("Low-motion reset delay", &lowReset.seconds, .1f, 10.f, "%.2f s"))
+                config->DlssNrSuperiorLowMotionResetSeconds = lowReset.seconds;
+            if (ImGui::InputFloat("Exact low-motion reset delay", &lowReset.seconds, .1f, 1.f, "%.3f"))
+                config->DlssNrSuperiorLowMotionResetSeconds = DlssNr::LowMotionReset::Sanitize(lowReset).seconds;
+            ImGui::EndDisabled();
+            if (lowReset.enabled)
+            {
+                const auto status = DlssNr::SuperiorScaling::LowMotionResetStatus();
+                ImGui::Text("Maximum sampled MV: %.3f px | low motion: %.2f s | resets requested: %llu", status.peak,
+                            status.quietSeconds, static_cast<unsigned long long>(status.requests));
+                ImGui::TextWrapped("%s", status.text.c_str());
+            }
+            ImGui::EndDisabled();
 
             ImGui::BeginDisabled(nr.vulkan || !unavailable.empty());
             float gain =
@@ -4068,6 +4114,9 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "one global multiplier, with EMA and the same motion/change gate. Neither detects ghosting.");
             if (meterMethod == int(DlssNr::GainPreview::DepthBoundary))
             {
+                ImGui::TextDisabled("Contrast target saved for: %s", preset == 2   ? "Transformer 2-gen"
+                                                                     : preset == 1 ? "Transformer"
+                                                                                   : "CNN");
                 if (ImGui::Checkbox("Filter depth boundaries using MV", &meterSettings.boundaryUseMotion))
                     config->DlssNrSuperiorGainPreviewBoundaryUseMotion = meterSettings.boundaryUseMotion;
                 HelpMarker(
@@ -4086,14 +4135,16 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                            "allow sparse boundaries to produce a suggestion, with more sampling noise.");
                 if (ImGui::SliderFloat("Depth-boundary contrast target", &meterSettings.boundaryTarget, .01f, .5f,
                                        "%.5f"))
-                    config->DlssNrSuperiorGainPreviewBoundaryTarget = meterSettings.boundaryTarget;
+                    DlssNr::GainPreview::SetFamilyTarget(*config, meterSettings.modelFamily,
+                                                         meterSettings.boundaryTarget);
                 if (ImGui::InputFloat("Exact boundary contrast target", &meterSettings.boundaryTarget, .001f, .01f,
                                       "%.7f"))
-                    config->DlssNrSuperiorGainPreviewBoundaryTarget =
-                        DlssNr::GainPreview::Sanitize(meterSettings).boundaryTarget;
+                    DlssNr::GainPreview::SetFamilyTarget(*config, meterSettings.modelFamily,
+                                                         meterSettings.boundaryTarget);
                 HelpMarker("Default 0.1429128 is mean absolute R/G contrast from head/water at 6x in the supplied "
                            "Transformer scene. It is unvalidated for other scenes and CNN; target is editable and "
-                           "saved in profiles. Uses depth proximity ratio >=2, colour endpoints one pixel inside "
+                           "saved separately for CNN, Transformer and 2-gen, including profiles. Uses depth proximity "
+                           "ratio >=2, colour endpoints one pixel inside "
                            "each side (3 px apart). MV filtering and minimum pair count are configurable above. "
                            "Same positive edit on both sides cannot be separated by a positive multiplier. "
                            "Unreachable/invalid measurements pause instead of forcing maximum gain.");
@@ -4139,6 +4190,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "Waits for four usable measurements. Updates no more than twice per second, with "
                        "2% upward / 5% downward hysteresis to limit changes. Holds the last applied value while "
                        "measurements pause. Auto never uses less than 1x, including warmup/fallback. "
+                       "Dynamic automatic gain changes continue private DLSS history. Manual gain/other transport "
+                       "changes reset it. "
                        "When disabled, the saved manual multiplier returns unchanged. "
                        "Needs edit mode, saturation 1x, depth transport and original guides off. Can run without the "
                        "preview checkbox. "

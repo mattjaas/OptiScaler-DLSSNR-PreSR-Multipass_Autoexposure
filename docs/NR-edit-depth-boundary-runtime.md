@@ -50,7 +50,7 @@ Obowiązuje dotychczasowy gate 576 punktów ruchu i zmiany między klatkami; nie
 
 Wygładzane są najpierw **mean(A), mean(B)** przez czasową EMA, a potem log2 wyliczonego gain. Dwie kolejne propozycje odsunięte >0,5 EV od wyjścia w tym samym kierunku włączają szybsze nadganianie; przemienne skoki nie spełniają tego warunku. Catch-up kończy się przy różnicy ≤0,07 EV. To konserwatywniejsza bramka niż coverage, ponieważ pojedyncze fazy mają większy rozrzut. Zmiana nie przestawia reakcji starego trybu.
 
-Automat używa istniejących zasad: minimum **1×**, cztery aktualne ruchome pomiary przed pierwszym sterowaniem, nie częściej niż co 0,5 s, histereza +2% / spadek o czynnik 1,05. W pauzie trzyma ostatni zastosowany gain; przed pierwszym użytecznym wynikiem pozostaje manual z minimum 1×. Nie zmienia brightness ani innych suwaków. Rzeczywista zmiana gain nadal resetuje prywatną historię DLSS/ekspozycji.
+Automat używa istniejących zasad: minimum **1×**, cztery aktualne ruchome pomiary przed pierwszym sterowaniem, nie częściej niż co 0,5 s, histereza +2% / spadek o czynnik 1,05. W pauzie trzyma ostatni zastosowany gain; przed pierwszym użytecznym wynikiem pozostaje manual z minimum 1×. Nie zmienia brightness ani innych suwaków. Automatyczne zmiany gain zachowują prywatną historię DLSS/ekspozycji; ręczna zmiana i powrót do manual mogą ją resetować.
 
 Metoda i cel uczestniczą w kontekście miernika/automatu. Zmiana czyści estymatę, baseline MV i unieważnia stare odczyty przed wyborem gain; nowy Auto ponownie przechodzi rozgrzewkę. Program, layout wyniku i deskryptory są niezmienne przez czas życia zapisu GPU, także podczas zmiany metody. Sloty zachowują własny program i referencję do depth; reset/shutdown nie zwalnia zasobów pod GPU. Zachowano limity puli i brak CPU/GPU wait.
 
@@ -84,3 +84,5 @@ Domyślne Off preview/Auto nadal nie tworzy jego PSO, zasobów i fence ani nie w
 ## Rozszerzenie kontroli
 
 [Opis aktualizacji](NR-private-controls-update.md): lokalny filtr MV i globalna bramka są odrębnymi opcjami. Wyłączenie obu daje miernik bez odczytów MV, aktywny także na statycznym obrazie. Liczba par jest regulowana. Nadganianie używa osobnych czasów up/down. Zmienia się selekcja i rozkład próbek, więc propozycja nie musi odpowiadać wynikowi wariantu z MV przy tym samym celu kontrastu.
+
+Aktualizacja: [trzy rodziny modeli, osobne cele i cykliczny reset przy niskim MV](NR-private-models-low-motion.md).

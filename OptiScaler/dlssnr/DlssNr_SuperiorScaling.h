@@ -7,6 +7,7 @@
 #include "DlssNr_GainPreview.h"
 #include "DlssNr_DepthTransport.h"
 #include "DlssNr_AutoGain.h"
+#include "DlssNr_LowMotionReset.h"
 #include "DlssNr_GuidedShaping.h"
 #include "DlssNr_InterPassSchedule.h"
 
@@ -27,6 +28,7 @@ bool EditDumpBusy();
 std::string EditDumpStatus();
 DlssNr::GainPreview::Status GainPreviewStatus();
 DlssNr::AutoGain::Status AutomaticGainStatus();
+DlssNr::LowMotionReset::Status LowMotionResetStatus();
 void ResetGainPreview();
 // The game's NGX D3D12 runtime is shutting down: every NGX handle is about to be destroyed by NGX itself.
 void NgxDx12Shutdown();
@@ -37,26 +39,29 @@ constexpr uint32_t ShaderFlag = 65536u;
 constexpr uint32_t LowGroupHeight = 16u;
 inline bool Enabled(uint32_t transfer) { return transfer == Transfer; }
 template <class C> inline bool Enabled(const C& cfg) { return Enabled(cfg.DlssNrTransfer.value_or_default()); }
-inline unsigned Preset(unsigned preset) { return preset == 11u ? 11u : 1u; } // K or A; no default/latest ambiguity.
+inline unsigned Preset(unsigned preset) { return PrivateModel::Preference(preset); } // explicit family preference
 // Preserve the saved CNN/Transformer preference. CNN switches from A to E only
 // below the range-sigma threshold; compression itself does not choose the model.
 inline unsigned PrivatePreset(unsigned saved, float rangeSigma)
 {
-    return Preset(saved) == 11u ? 11u : rangeSigma < .01f ? 5u : 1u;
+    return Preset(saved) == 13u ? 13u : Preset(saved) == 11u ? 11u : rangeSigma < .01f ? 5u : 1u;
 }
 inline unsigned CnnPresetOverride(unsigned value)
 {
     return value == 1 || value == 3 || value == 4 || value == 5 ? value : 0;
 }
 inline unsigned TransformerPresetOverride(unsigned value) { return value == 10 || value == 11 ? value : 0; }
-inline bool TransformerPreset(unsigned value) { return value == 10 || value == 11; }
-inline unsigned ExactPresetOverride(unsigned family, unsigned cnn, unsigned transformer)
+inline unsigned Transformer2PresetOverride(unsigned value) { return value == 12 || value == 13 ? value : 0; }
+inline bool TransformerPreset(unsigned value) { return PrivateModel::FromPreset(value) != PrivateModel::Cnn; }
+inline unsigned ExactPresetOverride(unsigned family, unsigned cnn, unsigned transformer, unsigned transformer2 = 0)
 {
-    return Preset(family) == 11 ? TransformerPresetOverride(transformer) : CnnPresetOverride(cnn);
+    return Preset(family) == 13   ? Transformer2PresetOverride(transformer2)
+           : Preset(family) == 11 ? TransformerPresetOverride(transformer)
+                                  : CnnPresetOverride(cnn);
 }
-inline uint32_t PrivatePresetOptionsKey(unsigned family, unsigned cnn, unsigned transformer)
+inline uint32_t PrivatePresetOptionsKey(unsigned family, unsigned cnn, unsigned transformer, unsigned transformer2 = 0)
 {
-    return Preset(family) | (ExactPresetOverride(family, cnn, transformer) << 8);
+    return Preset(family) | (ExactPresetOverride(family, cnn, transformer, transformer2) << 8);
 }
 inline float GuidedRange(float scale)
 {
@@ -72,11 +77,11 @@ struct PrivatePresetChoice
     float manualScale = 0.f;
     bool automatic = false, valid = false;
     unsigned Select(unsigned saved, bool isAuto, float configuredScale, float effectiveScale, unsigned cnnOverride = 0,
-                    unsigned transformerOverride = 0)
+                    unsigned transformerOverride = 0, unsigned transformer2Override = 0)
     {
         configuredScale = std::isfinite(configuredScale) ? configuredScale : 1.f;
         const unsigned wanted = Preset(saved);
-        const unsigned exact = ExactPresetOverride(saved, cnnOverride, transformerOverride);
+        const unsigned exact = ExactPresetOverride(saved, cnnOverride, transformerOverride, transformer2Override);
         if (!valid || preference != wanted || automatic != isAuto || manualScale != configuredScale ||
             exactOverride != exact)
         {

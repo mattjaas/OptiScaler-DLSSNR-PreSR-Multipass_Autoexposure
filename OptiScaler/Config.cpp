@@ -1124,6 +1124,17 @@ void Config::ReadDlssNr()
     DlssNrSuperiorScalingCnnPresetOverride.set_from_config(readUInt("DlssNr", "SuperiorScalingCnnPresetOverride"));
     DlssNrSuperiorScalingTransformerPresetOverride.set_from_config(
         readUInt("DlssNr", "SuperiorScalingTransformerPresetOverride"));
+    DlssNrSuperiorScalingTransformer2PresetOverride.set_from_config(
+        readUInt("DlssNr", "SuperiorScalingTransformer2PresetOverride"));
+    DlssNrSuperiorGainPreviewBoundaryTargetCnn.set_from_config(
+        readFloat("DlssNr", "SuperiorGainPreviewBoundaryTargetCnn"));
+    DlssNrSuperiorGainPreviewBoundaryTargetTransformer.set_from_config(
+        readFloat("DlssNr", "SuperiorGainPreviewBoundaryTargetTransformer"));
+    DlssNrSuperiorGainPreviewBoundaryTargetTransformer2.set_from_config(
+        readFloat("DlssNr", "SuperiorGainPreviewBoundaryTargetTransformer2"));
+    DlssNrSuperiorLowMotionReset.set_from_config(readBool("DlssNr", "SuperiorLowMotionReset"));
+    DlssNrSuperiorLowMotionResetThreshold.set_from_config(readFloat("DlssNr", "SuperiorLowMotionResetThreshold"));
+    DlssNrSuperiorLowMotionResetSeconds.set_from_config(readFloat("DlssNr", "SuperiorLowMotionResetSeconds"));
     DlssNrSuperiorGainPreview.set_from_config(readBool("DlssNr", "SuperiorGainPreview"));
     DlssNrSuperiorAutoPositiveEditGain.set_from_config(readBool("DlssNr", "SuperiorAutoPositiveEditGain"));
     DlssNrSuperiorGainPreviewChangingMotion.set_from_config(readBool("DlssNr", "SuperiorGainPreviewChangingMotion"));
@@ -1398,6 +1409,20 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetIntValue(c.DlssNrSuperiorScalingCnnPresetOverride.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorScalingTransformerPresetOverride",
                  GetIntValue(c.DlssNrSuperiorScalingTransformerPresetOverride.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorScalingTransformer2PresetOverride",
+                 GetIntValue(c.DlssNrSuperiorScalingTransformer2PresetOverride.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGainPreviewBoundaryTargetCnn",
+                 GetFloatValue(c.DlssNrSuperiorGainPreviewBoundaryTargetCnn.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGainPreviewBoundaryTargetTransformer",
+                 GetFloatValue(c.DlssNrSuperiorGainPreviewBoundaryTargetTransformer.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGainPreviewBoundaryTargetTransformer2",
+                 GetFloatValue(c.DlssNrSuperiorGainPreviewBoundaryTargetTransformer2.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorLowMotionReset",
+                 GetBoolValue(c.DlssNrSuperiorLowMotionReset.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorLowMotionResetThreshold",
+                 GetFloatValue(c.DlssNrSuperiorLowMotionResetThreshold.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorLowMotionResetSeconds",
+                 GetFloatValue(c.DlssNrSuperiorLowMotionResetSeconds.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGainPreview", GetBoolValue(c.DlssNrSuperiorGainPreview.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorAutoPositiveEditGain",
                  GetBoolValue(c.DlssNrSuperiorAutoPositiveEditGain.value_for_config()).c_str());
@@ -1811,6 +1836,15 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorGainPreviewBoundaryMinPairs", DlssNrSuperiorGainPreviewBoundaryMinPairs),
         NR_PROFILE_FIELD("SuperiorScalingCnnPresetOverride", DlssNrSuperiorScalingCnnPresetOverride),
         NR_PROFILE_FIELD("SuperiorScalingTransformerPresetOverride", DlssNrSuperiorScalingTransformerPresetOverride),
+        NR_PROFILE_FIELD("SuperiorScalingTransformer2PresetOverride", DlssNrSuperiorScalingTransformer2PresetOverride),
+        NR_PROFILE_FIELD("SuperiorGainPreviewBoundaryTargetCnn", DlssNrSuperiorGainPreviewBoundaryTargetCnn),
+        NR_PROFILE_FIELD("SuperiorGainPreviewBoundaryTargetTransformer",
+                         DlssNrSuperiorGainPreviewBoundaryTargetTransformer),
+        NR_PROFILE_FIELD("SuperiorGainPreviewBoundaryTargetTransformer2",
+                         DlssNrSuperiorGainPreviewBoundaryTargetTransformer2),
+        NR_PROFILE_FIELD("SuperiorLowMotionReset", DlssNrSuperiorLowMotionReset),
+        NR_PROFILE_FIELD("SuperiorLowMotionResetThreshold", DlssNrSuperiorLowMotionResetThreshold),
+        NR_PROFILE_FIELD("SuperiorLowMotionResetSeconds", DlssNrSuperiorLowMotionResetSeconds),
         NR_PROFILE_FIELD("SuperiorGainPreview", DlssNrSuperiorGainPreview),
         NR_PROFILE_FIELD("SuperiorAutoPositiveEditGain", DlssNrSuperiorAutoPositiveEditGain),
         NR_PROFILE_FIELD("SuperiorGainPreviewChangingMotion", DlssNrSuperiorGainPreviewChangingMotion),

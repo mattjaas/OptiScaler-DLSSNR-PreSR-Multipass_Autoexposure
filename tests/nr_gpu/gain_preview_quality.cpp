@@ -20,7 +20,7 @@ struct Fixture
     unsigned w, h;
     bool half;
     std::array<ComPtr<ID3D12Resource>, 4> inputs;
-    bool boundary = false;
+    bool boundary = false,watch=false;
     unsigned inputCount = 3;
     std::vector<ComPtr<ID3D12Resource>> uploads;
     ComPtr<ID3D12Resource> output, readback, cb;
@@ -28,8 +28,8 @@ struct Fixture
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT fp {};
     UINT64 bytes = 0;
     std::array<std::vector<float>, 4> values;
-    Fixture(bool hardware, unsigned width, unsigned height, bool fp16 = false, bool edge = false)
-        : r(hardware, 5), w(width), h(height), half(fp16), boundary(edge), inputCount(edge?4:3)
+    Fixture(bool hardware, unsigned width, unsigned height, bool fp16 = false, bool edge = false, bool motionOnly = false)
+        : r(hardware, 5), w(width), h(height), half(fp16), boundary(edge), watch(motionOnly), inputCount(edge?4:3)
     {
         D3D12_DESCRIPTOR_RANGE ranges[2] {};
         ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
@@ -48,13 +48,13 @@ struct Fixture
         check(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &errors));
         r.root.Reset();
         check(r.device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&r.root)));
-        pso = r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", boundary?"private_boundary_gain_preview":"private_gain_preview");
+        pso = r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", watch?"private_motion_watch":boundary?"private_boundary_gain_preview":"private_gain_preview");
         cb = r.buffer(sizeof(Constants), D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
         D3D12_RESOURCE_DESC d {};
         d.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
         d.DepthOrArraySize = d.MipLevels = d.SampleDesc.Count = 1;
-        d.Width = boundary?BoundaryTextureWidth:TextureWidth;
-        d.Height = boundary?BoundaryTextureHeight:TextureHeight;
+        d.Width = watch?2:boundary?BoundaryTextureWidth:TextureWidth;
+        d.Height = watch?1:boundary?BoundaryTextureHeight:TextureHeight;
         d.Format = DXGI_FORMAT_R32G32B32A32_UINT;
         d.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
         output = r.resource(d, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_STATE_COPY_SOURCE);
@@ -151,7 +151,7 @@ struct Fixture
     void Probe(unsigned groups = Groups)
     {
         r.barrier(output.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, Uav);
-        r.list->Dispatch(groups, 1, 1);
+        r.list->Dispatch(watch?1:groups, 1, 1);
         r.barrier(output.Get(), Uav, D3D12_RESOURCE_STATE_COPY_SOURCE);
         D3D12_TEXTURE_COPY_LOCATION a {}, b {};
         a.pResource = output.Get();
@@ -159,7 +159,7 @@ struct Fixture
         b.pResource = readback.Get();
         b.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
         b.PlacedFootprint = fp;
-        D3D12_BOX box { 0, 0, 0, boundary?BoundaryTextureWidth:TextureWidth, boundary?BoundaryTextureHeight:groups * 2 + 2, 1 };
+        D3D12_BOX box { 0, 0, 0, watch?2:boundary?BoundaryTextureWidth:TextureWidth, watch?1:boundary?BoundaryTextureHeight:groups * 2 + 2, 1 };
         r.list->CopyTextureRegion(&b, 0, 0, 0, &a, &box);
     }
     Reading Run(const Constants& c)
@@ -170,7 +170,7 @@ struct Fixture
         r.finish();
         void* data;
         check(readback->Map(0, nullptr, &data));
-        auto s = boundary?UnpackBoundary(data,fp.Footprint.RowPitch,(c.reserved0&4)==0):Unpack(data, fp.Footprint.RowPitch);
+        auto s = watch?UnpackMotionWatch(data,fp.Footprint.RowPitch):boundary?UnpackBoundary(data,fp.Footprint.RowPitch,(c.reserved0&4)==0):Unpack(data, fp.Footprint.RowPitch);
         readback->Unmap(0, nullptr);
         return s;
     }
@@ -410,13 +410,53 @@ void DepthWithoutMotionQuality(bool hardware)
     CheckBoundary(reading,BoundaryReference(f,c));
     std::cout<<"Depth-only probe with all-NaN MV PASS\n";
 }
-void RuntimeQuality(bool hardware, bool boundary = false, bool depthOnly = false)
+
+void MotionWatchQuality(bool hardware)
 {
-    Fixture f(hardware, 128, 72, false, boundary);
+    Fixture f(hardware,517,293,false,false,true);
+    unsigned cases=0;
+    for(auto region:{MotionRegion{0,0,517,293,1,1},MotionRegion{3,5,400,240,-2,.5f},MotionRegion{7,9,256,128,1920,1080}})
+    for(unsigned pattern=0;pattern<6;++pattern)
+    {
+        for(size_t i=0;i<f.values[2].size();i+=2)
+        {
+            f.values[2][i]=pattern==2?0:pattern==3?3:.25f+float(i%11)*.0625f;
+            f.values[2][i+1]=pattern==2?0:pattern==3?4:-.125f;
+        }
+        const unsigned sx=region.x+region.width/64,sy=region.y+region.height/36;
+        if(pattern==1)f.values[2][(size_t(sy)*f.w+sx)*2]=NAN;
+        if(pattern==4)f.values[2][(size_t(sy)*f.w+sx)*2]=32;
+        if(pattern==5)std::fill(f.values[2].begin(),f.values[2].end(),INFINITY);
+        f.r.begin();f.Upload(2);f.r.finish();f.uploads.clear();
+        Constants c;c.width=2496;c.height=1404;SetMotionRegion(c,region);c.serialLow=0xdeadbeef;c.serialHigh=7;
+        const auto got=f.Run(c);
+        double expected=0;unsigned count=0;
+        for(unsigned i=0;i<576;++i)
+        {
+            const unsigned x=region.x+((i%32*2+1)*region.width)/64,
+                           y=region.y+((i/32*2+1)*region.height)/36;
+            const double a=double(f.values[2][(size_t(y)*f.w+x)*2])*region.scaleX,
+                         b=double(f.values[2][(size_t(y)*f.w+x)*2+1])*region.scaleY;
+            if(!std::isfinite(a)||!std::isfinite(b)||std::abs(a)>=1e6||std::abs(b)>=1e6)continue;
+            ++count;expected=std::max(expected,a*a+b*b);
+        }
+        Require(got.validMotion==count&&got.gate==(count==576?1u:0u),"Motion-only validity reference");
+        Require(std::abs(double(got.peakSquared)-expected)<=std::max(1e-7,expected*2e-6),"Motion-only max magnitude numeric reference");
+        Require(got.serial==0x00000007deadbeefull,"Motion-only 64-bit serial");
+        ++cases;
+    }
+    Constants invalid;invalid.width=100;invalid.height=100;SetMotionRegion(invalid,{500,0,30,10,1,1});
+    Require(f.Run(invalid).validMotion==0,"Motion-only bounds guard");
+    std::cout<<"Motion-only numeric/origin/units validation PASS: "<<cases<<" cases\n";
+}
+void RuntimeQuality(bool hardware, bool boundary = false, bool depthOnly = false, bool watchOnly = false)
+{
+    Fixture f(hardware, 128, 72, false, boundary,watchOnly);
     Runtime preview;
     Settings settings;
     settings.requireChange = false;
-    settings.method = boundary ? DepthBoundary : Coverage;
+    settings.method = watchOnly?MotionWatch:boundary ? DepthBoundary : Coverage;
+    settings.trackMotion=true;
     settings.boundaryUseMotion = !depthOnly; settings.boundaryMotionGate = !depthOnly;
     Require(!preview.Record(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, false, 0, 0), "Disabled path");
     preview.Configure(true, settings);
@@ -446,6 +486,8 @@ void RuntimeQuality(bool hardware, bool boundary = false, bool depthOnly = false
         submit(list.Get());
         const auto status = preview.Get();
         Require(status.valid && status.measurements == i + 1, "Readback must complete before game list Reset/release");
+        const auto telemetry=preview.GetMotionStatus();
+        Require(telemetry.valid==!(boundary&&depthOnly),"Shared/standalone motion payload availability");
         // Replay is legal: immutable constants/descriptors, state cycle, one diagnostic readback.
         ID3D12CommandList* raw[] { list.Get() };
         f.r.queue->ExecuteCommandLists(1, raw);
@@ -542,14 +584,14 @@ void BoundaryCapture(bool hardware,const std::string& path,double captureGain,un
        <<",\"phase_min_gain\":"<<minGain<<",\"phase_max_gain\":"<<maxGain
        <<",\"min_pairs\":"<<countMin<<",\"max_pairs\":"<<countMax<<"}\n";
 }
-void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false, unsigned options = 0, const std::string& baselineDir = "")
+void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false, unsigned options = 0, const std::string& baselineDir = "", bool watchOnly=false)
 {
-    Fixture f(hardware, w, h, true, boundary);
-    std::ofstream raw(!baselineDir.empty() ? "artifacts/validation/depth-only-compare-flags"+std::to_string(options)+".csv" : boundary?"artifacts/validation/boundary-gain-preview-timing.csv":"artifacts/validation/gain-preview-timing.csv", w == 2240 ? std::ios::out : std::ios::app);
+    Fixture f(hardware, w, h, true, boundary,watchOnly);
+    std::ofstream raw(watchOnly?"artifacts/validation/low-motion-watch-timing.csv":!baselineDir.empty() ? "artifacts/validation/depth-only-compare-flags"+std::to_string(options)+".csv" : boundary?"artifacts/validation/boundary-gain-preview-timing.csv":"artifacts/validation/gain-preview-timing.csv", w == 2240 ? std::ios::out : std::ios::app);
     if (w == 2240)
         raw << "width,height,comparison,quartet,window,variant,gpu_ms\n";
     raw << std::setprecision(10);
-    auto single = boundary ? f.pso : f.r.pipeline("artifacts/validation/gain-preview", "single");
+    auto single = boundary || watchOnly ? f.pso : f.r.pipeline("artifacts/validation/gain-preview", "single");
     auto baseline=baselineDir.empty()?f.pso:f.r.pipeline(baselineDir,"private_boundary_gain_preview");
     D3D12_QUERY_HEAP_DESC desc {};
     desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -565,6 +607,7 @@ void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false, unsign
         c.width = w;
         c.height = h;
         c.reserved0 = mode==5 ? 1 : 1|options;
+        if(watchOnly)SetMotionRegion(c,{0,0,w,h,1,1});
         c.requireChange = false;
         c.motionThreshold = mode == 1 ? 10.f : .1f;
         if (boundary && mode == 1) c.minMoving = 576;
@@ -588,7 +631,8 @@ void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false, unsign
     };
     for (unsigned mode : { 1u, 2u, 4u })
     {
-        if (boundary && mode == 4) continue;
+        if ((boundary || watchOnly) && mode == 4) continue;
+        if(watchOnly && mode!=2)continue;
         if (!baselineDir.empty() && mode!=2) continue;
         const unsigned baseMode = !baselineDir.empty() ? 5 : mode == 4 ? 3 : 0, variantMode = mode == 4 ? 2 : mode;
         for (unsigned i = 0; i < 16; ++i)
@@ -640,9 +684,15 @@ int main(int argc, char** argv)
         RuntimeQuality(hardware);
         RuntimeQuality(hardware,true);
         RuntimeQuality(hardware,true,true);
+        RuntimeQuality(hardware,false,false,true);
+        MotionWatchQuality(hardware);
         DepthWithoutMotionQuality(hardware);
         BoundaryQuality(hardware,false);
         BoundaryQuality(hardware,true);
+        if(argc==2 && std::string(argv[1])=="--motion-watch-timing")
+        {
+            Timing(hardware,2240,1264,false,0,"",true);Timing(hardware,2496,1404,false,0,"",true);
+        }
         if(argc==4 && std::string(argv[1])=="--depth-only-compare")
         {
             Timing(hardware,2240,1264,true,unsigned(std::stoul(argv[3])),argv[2]);

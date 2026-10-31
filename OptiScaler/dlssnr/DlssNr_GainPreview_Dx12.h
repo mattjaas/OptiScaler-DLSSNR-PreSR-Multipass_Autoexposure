@@ -12,6 +12,7 @@ namespace DlssNr::GainPreview
 namespace Bytecode
 {
 #include "../shaders/dlssnr/superior/precompile/private_gain_preview_Shader.h"
+#include "../shaders/dlssnr/superior/precompile/private_motion_watch_Shader.h"
 #include "../shaders/dlssnr/superior/precompile/private_boundary_gain_preview_Shader.h"
 }
 // Owner serializes this object with NR's mutex. Nothing waits for GPU completion.
@@ -60,6 +61,7 @@ class Runtime
     double nextTime = 0;
     Settings settings;
     Filter filter;
+    Status motionStatus;
     static bool Succeeded(HRESULT result) { return SUCCEEDED(result); }
     bool MakeProgram(ID3D12Device* device)
     {
@@ -87,7 +89,9 @@ class Runtime
             return false;
         D3D12_COMPUTE_PIPELINE_STATE_DESC ps {};
         ps.pRootSignature = p->root.Get();
-        ps.CS = settings.method == DepthBoundary
+        ps.CS = settings.method == MotionWatch ? D3D12_SHADER_BYTECODE { Bytecode::private_motion_watch_cso,
+                                                                         sizeof(Bytecode::private_motion_watch_cso) }
+                : settings.method == DepthBoundary
                     ? D3D12_SHADER_BYTECODE { Bytecode::private_boundary_gain_preview_cso,
                                               sizeof(Bytecode::private_boundary_gain_preview_cso) }
                     : D3D12_SHADER_BYTECODE { Bytecode::private_gain_preview_cso,
@@ -107,8 +111,12 @@ class Runtime
         hp.CreationNodeMask = hp.VisibleNodeMask = 1;
         D3D12_RESOURCE_DESC d {};
         d.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-        d.Width = program->method == DepthBoundary ? BoundaryTextureWidth : TextureWidth;
-        d.Height = program->method == DepthBoundary ? BoundaryTextureHeight : TextureHeight;
+        d.Width = program->method == MotionWatch     ? 2
+                  : program->method == DepthBoundary ? BoundaryTextureWidth
+                                                     : TextureWidth;
+        d.Height = program->method == MotionWatch     ? 1
+                   : program->method == DepthBoundary ? BoundaryTextureHeight
+                                                      : TextureHeight;
         d.DepthOrArraySize = d.MipLevels = d.SampleDesc.Count = 1;
         d.Format = DXGI_FORMAT_R32G32B32A32_UINT;
         d.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
@@ -198,6 +206,7 @@ class Runtime
         nextTime = 0;
         failedDevice.Reset();
         filter.Reset(reason);
+        motionStatus = {};
     }
     void Configure(bool on, Settings s)
     {
@@ -209,6 +218,8 @@ class Runtime
               settings.boundaryMotionGate != s.boundaryMotionGate || settings.boundaryMinPairs != s.boundaryMinPairs)))
             Reset(on ? "Waiting for moving frames." : "Preview disabled.");
         enabled = on;
+        if (settings.trackMotion != s.trackMotion)
+            motionStatus = {};
         settings = s;
     }
     void Pause(const char* reason)
@@ -220,6 +231,7 @@ class Runtime
             previousValid = false;
             suspended = true;
         }
+        motionStatus.paused = true;
         filter.Pause(reason,
                      std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count());
     }
@@ -258,7 +270,8 @@ class Runtime
                     {
                         const auto* data = static_cast<char*>(p) + s.footprint.Offset;
                         const auto reading =
-                            s.program->method == DepthBoundary
+                            s.program->method == MotionWatch ? UnpackMotionWatch(data, s.footprint.Footprint.RowPitch)
+                            : s.program->method == DepthBoundary
                                 ? UnpackBoundary(data, s.footprint.Footprint.RowPitch, settings.boundaryMotionGate)
                                 : Unpack(data, s.footprint.Footprint.RowPitch);
                         const D3D12_RANGE none { 0, 0 };
@@ -268,7 +281,14 @@ class Runtime
                             acceptedId = s.id;
                             previous = reading.motion;
                             previousValid = reading.validMotion >= 548;
-                            filter.Update(reading, s.transformer, settings, s.time);
+                            if (s.program->method == MotionWatch ||
+                                (settings.trackMotion &&
+                                 (s.program->method == Coverage || settings.boundaryMotionGate)))
+                                motionStatus = MotionStatus(reading, s.time, s.program->method == MotionWatch);
+                            if (s.program->method == MotionWatch)
+                                filter.state = motionStatus;
+                            else
+                                filter.Update(reading, s.transformer, settings, s.time);
                         }
                         else
                             Pause("Discarded mismatched GPU preview result.");
@@ -308,10 +328,19 @@ class Runtime
         }
         return status;
     }
+    Status GetMotionStatus()
+    {
+        Collect();
+        auto result = motionStatus;
+        const auto now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+        if (result.valid && now - result.measuredAt > .5)
+            result.paused = true;
+        return result;
+    }
     bool Record(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, const void* identity, ID3D12Resource* proxy,
                 ID3D12Resource* answer, ID3D12Resource* motion, unsigned width, unsigned height, bool transformer,
                 uint64_t context, double time, ID3D12Resource* depth = nullptr, bool inverted = false,
-                float depthPrecision = 0)
+                float depthPrecision = 0, const MotionRegion* sourceMotionRegion = nullptr)
     {
         if (!enabled)
             return false;
@@ -343,7 +372,15 @@ class Runtime
             Pause("Preview inputs unavailable.");
             return false;
         }
-        for (auto* input : { proxy, answer, motion })
+        const MotionRegion region =
+            sourceMotionRegion ? *sourceMotionRegion : MotionRegion { 0, 0, width, height, 1, 1 };
+        if (settings.method == MotionWatch &&
+            !MotionRegionFits(motion->GetDesc().Width, motion->GetDesc().Height, region))
+        {
+            Pause("Motion probe region unavailable.");
+            return false;
+        }
+        for (auto* input : { proxy, answer, settings.method == MotionWatch ? proxy : motion })
             if (input->GetDesc().Width < width || input->GetDesc().Height < height)
             {
                 Pause("Preview inputs smaller than the active colour grid.");
@@ -382,6 +419,8 @@ class Runtime
         c.previous = previous;
         SetBoundaryDepth(c, inverted, depthPrecision);
         SetBoundaryOptions(c, settings);
+        if (settings.method == MotionWatch)
+            SetMotionRegion(c, region);
         c.serialLow = uint32_t(nextId + 1);
         c.serialHigh = uint32_t((nextId + 1) >> 32);
         void* mapped = nullptr;
@@ -434,7 +473,7 @@ class Runtime
         cmd->SetPipelineState(program->pso.Get());
         cmd->SetComputeRootDescriptorTable(0, slot->descriptors->GetGPUDescriptorHandleForHeapStart());
         cmd->SetComputeRootConstantBufferView(1, slot->cb->GetGPUVirtualAddress());
-        cmd->Dispatch(Groups, 1, 1);
+        cmd->Dispatch(settings.method == MotionWatch ? 1 : Groups, 1, 1);
         std::swap(b.Transition.StateBefore, b.Transition.StateAfter);
         cmd->ResourceBarrier(1, &b);
         return true;

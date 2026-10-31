@@ -28,7 +28,7 @@ NaN/Inf i depth poza [0,1] otrzymują wagę 0 (daleka płaszczyzna). Obie konwen
 
 Kolejność: gain dodatniej części editu, saturation podpisanego RGB, baza 0,5 lub bieżący proxy dla pełnej odpowiedzi, depth colour i bias, ograniczenie do nieujemnego FP16. Przy bias > 0 dodajemy go przed ograniczeniem: może przenieść również ujemną wartość nośnika powyżej zera. Bias 0 zachowuje dotychczasową kolejność clippingu. Decode odejmuje bieżący bias i colour, odwraca saturation, a następnie gain. Nie dodano arbitralnego limitu 2; granica górna pozostaje 65504.
 
-To odwrotność transportu dla bieżącej głębi, nie odwrócenie działania temporalnego DLSS. Historia może przenosić offset z poprzedniej powierzchni; ruchome krawędzie głębi, clipping i FP16 mogą pozostawić różnice także przy edicie 0. Zmiana efektywnych parametrów transportu resetuje historię prywatnego DLSS i obliczanej ekspozycji. Nie dodano resetu od każdej zmiany render subrect ani nowych pełnoekranowych przebiegów/tekstur maski. Zaktualizowano także wariant łączący rekonstrukcję guides i carrier, z ABI przypiętym static_assertami i nazwanymi setterami; zamrożone źródła/bloby v59 są zachowane.
+To odwrotność transportu dla bieżącej głębi, nie odwrócenie działania temporalnego DLSS. Historia może przenosić offset z poprzedniej powierzchni; ruchome krawędzie głębi, clipping i FP16 mogą pozostawić różnice także przy edicie 0. Zmiana parametrów transportu resetuje historię prywatnego DLSS i obliczanej ekspozycji, z wyjątkiem automatycznych zmian dodatniego mnożnika, które zachowują ciągłość historii. Nie dodano resetu od każdej zmiany render subrect ani nowych pełnoekranowych przebiegów/tekstur maski. Zaktualizowano także wariant łączący rekonstrukcję guides i carrier, z ABI przypiętym static_assertami i nazwanymi setterami; zamrożone źródła/bloby v59 są zachowane.
 
 ## Eksperyment z oryginalnymi depth/MV
 
@@ -78,3 +78,5 @@ Dla natywnego AutoExposure (w oknie tylko transport), mediany ms:
 | Gain+bias, ograniczony zakres | 0,031744 → 0,032768 | 0,186368 → 0,258048 | +0,071680 |
 
 Rozrzut odchylenia standardowego 4K: A 0,0100..0,0237 ms, B 0,0249..0,0344 ms. Małe różnice Off są w obrębie rozrzutu; nie deklarujemy przyspieszenia. [Surowe próbki](validation/private-depth-transport-timing.csv) i [pełne podsumowanie](validation/private-depth-transport-timing.json) obejmują również obie metody external exposure. Nie zmierzono osobno nowej arytmetyki w fused packed wariancie ani wpływu original-guides na NGX. Weryfikacja gry: rozgrzane A/B/ABBA tej samej sceny/ruchu z GPU timestamp całego toru, to samo GPU/rozdzielczość/preset, osobno każdy tryb i kombinacje; zapisać ghosting i stabilność obok median/zmienności. Żadna z tych funkcji nie gwarantuje usunięcia ghostingu.
+
+Aktualizacja: [trzy rodziny modeli, osobne cele i cykliczny reset przy niskim MV](NR-private-models-low-motion.md).

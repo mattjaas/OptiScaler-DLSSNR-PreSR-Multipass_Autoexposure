@@ -160,6 +160,18 @@ int main(int argc, char** argv)
     assert(controls.find("\"gain_preview_boundary_min_pairs\": 16")!=std::string::npos);
     assert(controls.find("\"private_cnn_preset_override\": 3")!=std::string::npos);
     assert(controls.find("\"private_transformer_preset_override\": 10")!=std::string::npos);
+    metadata.previewSettings.modelFamily=2; metadata.transformer2PresetOverride=12;
+    metadata.lowMotionResetEnabled=true;metadata.lowMotionResetRequested=true;
+    metadata.lowMotionSharedProbe=true;metadata.lowMotionRequests=7;
+    metadata.lowMotionThreshold=.25f;metadata.lowMotionDelay=2;
+    const auto motion=MetadataJson(metadata);
+    assert(motion.find("\"gain_preview_model_family_at_capture\": 2")!=std::string::npos);
+    assert(motion.find("\"private_transformer2_preset_override\": 12")!=std::string::npos);
+    assert(motion.find("\"low_motion_reset_enabled\": true")!=std::string::npos);
+    assert(motion.find("\"low_motion_reset_requested\": true")!=std::string::npos);
+    assert(motion.find("\"low_motion_reset_shared_probe\": true")!=std::string::npos);
+    assert(motion.find("\"low_motion_reset_requests\": 7")!=std::string::npos);
+    assert(motion.find("\"automatic_gain_changes_reset_private_history\": false")!=std::string::npos);
     const auto noPreview = MetadataJson({});
     assert(noPreview.find("\"preview_request_suggested_gain\": null") != std::string::npos);
     assert(noPreview.find("\"preview_request_measurement_age_seconds\": null") != std::string::npos);

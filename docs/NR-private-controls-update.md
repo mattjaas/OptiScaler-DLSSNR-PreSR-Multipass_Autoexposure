@@ -33,7 +33,7 @@ W **Multiplier preview response**:
 
 Przykład: up **0,10 s**, down **1,00 s**. Mniejszy czas oznacza szybsze nadganianie. Oba czasy są skończone, dodatnie, ograniczone 0,05..10 s i nie przekraczają normalnego EMA time. Po załadowaniu wcześniejszego profilu zachowany jest dawny fast jako up; użytkownik może mieć wcześniej wyższą własną wartość up, którą należy dobrać względem nowego down.
 
-Dla obu metod (coverage i boundary) czas aktualizacji histogramów/momentów wybierany jest z kierunku surowej propozycji względem wyjścia, a czas końcowej EMA log gain z kierunku propozycji po pierwszym wygładzeniu. Catch-up włącza się nadal po trwałej zmianie, a zwykły EMA jest wspólny. Nie zniesiono limitu aktuatora Auto co 0,5 s ani +2% / factor 1,05 histerezy. Minimum 1× dotyczy także warmup/fallback. Zmiana samych czasów nie resetuje historii DLSS; reset następuje nadal po rzeczywistej zmianie zastosowanego gain.
+Dla obu metod (coverage i boundary) czas aktualizacji histogramów/momentów wybierany jest z kierunku surowej propozycji względem wyjścia, a czas końcowej EMA log gain z kierunku propozycji po pierwszym wygładzeniu. Catch-up włącza się nadal po trwałej zmianie, a zwykły EMA jest wspólny. Nie zniesiono limitu aktuatora Auto co 0,5 s ani +2% / factor 1,05 histerezy. Minimum 1× dotyczy także warmup/fallback. Zmiana samych czasów nie resetuje historii DLSS; automatyczne zmiany zastosowanego gain również zachowują historię. Ręczna zmiana lub wyłączenie Auto może ją resetować.
 
 Test CPU porównuje symetryczne skoki obu metod i sprawdza większy postęp w górę przy krótszym czasie up, stabilny sygnał, przemienne fluktuacje, pauzę i minimalną liczbę par.
 
@@ -82,3 +82,5 @@ RTX 4090, proceduralne rezydentne FP16 proxy/answer, R32 depth i RG32 MV; 256×1
 | Oba MV Off | 2496×1404 | 0,033112±0,000376 | 0,025997±0,000445 | −0,007115 |
 
 Nie przedstawiamy drobnej różnicy domyślnej ścieżki jako istotnej zmiany całego toru. Dla capture suffixes, CPU smoothing i preset hints nie ma nowego stałego dispatchu; różnice zachowania modeli/historii mogą wpływać na koszt klatki. Porównanie całego toru wymaga rozgrzanego ABBA w grze z tym samym presetem, sceną, ruchem i timestamp NR+DLSS+composition. Obserwacja użytkownika o niezłym działaniu na Transformerze dotyczy wcześniejszego wariantu z MV, nie jest potwierdzeniem depth-only lub nowych presetów.
+
+Aktualizacja: [trzy rodziny modeli, osobne cele i cykliczny reset przy niskim MV](NR-private-models-low-motion.md).

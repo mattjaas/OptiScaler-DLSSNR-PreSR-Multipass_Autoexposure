@@ -4,6 +4,7 @@
 #include <vector>
 #include "../OptiScaler/dlssnr/DlssNr_GainPreview.h"
 #include "../OptiScaler/dlssnr/DlssNr_AutoGain.h"
+#include "../OptiScaler/dlssnr/DlssNr_LowMotionReset.h"
 using namespace DlssNr::GainPreview;
 Reading Signal(float value)
 {
@@ -239,5 +240,58 @@ int main()
     assert(unpackEdge.boundaryPairs==64&&unpackEdge.boundaryCandidates==65);
     assert(unpackEdge.boundaryOffset==1.25&&unpackEdge.boundarySlope==.5);
     assert(unpackEdge.motion[1148]==1&&unpackEdge.motion[1151]==4&&unpackEdge.serial==0x1234567889abcdefULL);
+
+    using DlssNr::AutoGain::ResetHistoryForTransport;
+    assert(!ResetHistoryForTransport(true,true,false));
+    assert(ResetHistoryForTransport(true,false,false));
+    assert(ResetHistoryForTransport(true,true,true));
+    assert(!ResetHistoryForTransport(false,false,false));
+    for(unsigned i=0;i<200;++i)assert(!ResetHistoryForTransport(true,true,false));
+    struct Value
+    {
+        float value=0;bool set=false;
+        bool has_value()const{return set;}float value_or_default()const{return value;}
+        Value& operator=(float v){value=v;set=true;return *this;}
+    };
+    struct Targets
+    {
+        Value DlssNrSuperiorGainPreviewBoundaryTarget{.18f,true};
+        Value DlssNrSuperiorGainPreviewBoundaryTargetCnn, DlssNrSuperiorGainPreviewBoundaryTargetTransformer,
+              DlssNrSuperiorGainPreviewBoundaryTargetTransformer2;
+    } targets;
+    using namespace DlssNr::PrivateModel;
+    assert(FamilyTarget(targets,Cnn)==.18f&&FamilyTarget(targets,Transformer)==.18f&&FamilyTarget(targets,Transformer2)==.18f);
+    SetFamilyTarget(targets,Cnn,.1f);SetFamilyTarget(targets,Transformer,.2f);SetFamilyTarget(targets,Transformer2,.3f);
+    assert(FamilyTarget(targets,Cnn)==.1f&&FamilyTarget(targets,Transformer)==.2f&&FamilyTarget(targets,Transformer2)==.3f);
+    SetFamilyTarget(targets,Transformer,.4f);assert(FamilyTarget(targets,Cnn)==.1f&&FamilyTarget(targets,Transformer2)==.3f);
+    DlssNr::LowMotionReset::Settings lowSettings{true,.25f,.5f};
+    DlssNr::LowMotionReset::Controller resetController;Status mv;mv.valid=true;mv.paused=false;mv.raw=.1f;
+    for(unsigned i=0;i<5;++i)
+    {
+        mv.measurements=i+1;mv.measuredAt=i*.125;
+        const bool requested=resetController.Update(lowSettings,mv,mv.measuredAt,1,false,true);
+        assert(requested==(i==4));
+    }
+    assert(resetController.state.requests==1&&resetController.state.quietSeconds==0);
+    for(unsigned i=5;i<30;++i){mv.measurements=i+1;mv.measuredAt=i*.125;assert(resetController.Update(lowSettings,mv,mv.measuredAt,1,false,true)==(i%4==0));}
+    mv.raw=1;mv.measurements=31;mv.measuredAt=4;assert(!resetController.Update(lowSettings,mv,4,1,false,true));
+    assert(resetController.state.quietSeconds==0&&resetController.state.requests==7);
+    mv.raw=0;
+    for(unsigned i=0;i<5;++i){mv.measurements=32+i;mv.measuredAt=4.125+i*.125;assert(resetController.Update(lowSettings,mv,mv.measuredAt,1,false,true)==(i==4));}
+    assert(resetController.state.requests==8);
+    resetController={};mv.raw=.1f;mv.measurements=1;mv.measuredAt=0;
+    assert(!resetController.Update(lowSettings,mv,0,2,false,false));
+    // Repeated UI polls cannot advance the sampled quiet duration.
+    assert(!resetController.Update(lowSettings,mv,.4,2,false,false)&&resetController.state.quietSeconds==0);
+    assert(!resetController.Update(lowSettings,mv,1,2,false,false)&&resetController.state.quietSeconds==0);
+    mv.measurements=2;mv.measuredAt=2;assert(!resetController.Update(lowSettings,mv,2,2,false,false));
+    mv.measurements=3;mv.measuredAt=2.125;assert(!resetController.Update(lowSettings,mv,2.125,2,true,false));
+    mv.measurements=4;mv.measuredAt=2.25;assert(!resetController.Update(lowSettings,mv,2.25,2,false,false));
+    assert(resetController.state.quietSeconds==0);
+    mv.raw=NAN;mv.measurements=5;mv.measuredAt=2.375;assert(!resetController.Update(lowSettings,mv,2.375,2,false,false));
+    MotionRegion region{3,5,64,32,-2,3};assert(MotionRegionFits(67,37,region));assert(!MotionRegionFits(66,37,region));
+    Reading telemetry;telemetry.validMotion=576;telemetry.serial=42;telemetry.motion[0]=3;telemetry.motion[1]=4;
+    const auto motionTelemetry=MotionStatus(telemetry,5,false);assert(motionTelemetry.valid&&motionTelemetry.raw==5&&motionTelemetry.measurements==42);
+    telemetry.validMotion=0;assert(!MotionStatus(telemetry,5,false).valid);
     std::cout << "NR gain preview CPU checks passed\n";
 }

@@ -3419,7 +3419,8 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
             DlssNr::SuperiorScaling::PrivatePresetOptionsKey(
                 cfg.DlssNrSuperiorScalingPreset.value_or_default(),
                 cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default(),
-                cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default()))
+                cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default(),
+                cfg.DlssNrSuperiorScalingTransformer2PresetOverride.value_or_default()))
     {
         superiorState.unavailable.clear();
         superiorState.srUnavailable = false;
@@ -3436,6 +3437,13 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
                                         superiorSelected && superiorState.unavailable.empty(),
                                     previewSettings);
     superiorState.preview.Collect();
+    DlssNr::GainPreview::Settings observerSettings;
+    observerSettings.method = DlssNr::GainPreview::MotionWatch;
+    observerSettings.trackMotion = true;
+    superiorState.motionWatch.Configure(cfg.DlssNrSuperiorLowMotionReset.value_or_default() && superiorSelected &&
+                                            superiorState.unavailable.empty(),
+                                        observerSettings);
+    superiorState.motionWatch.Collect();
     if (superiorState.editDump)
         SuperiorRun::CollectEditDump();
     if ((!superiorSelected || !superiorState.unavailable.empty()) && !superiorState.pendingEditDump.empty())
@@ -7546,6 +7554,19 @@ DlssNr::AutoGain::Status DlssNr::SuperiorScaling::AutomaticGainStatus()
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     return SuperiorRun::GetState().automaticGain.state;
 }
+DlssNr::LowMotionReset::Status DlssNr::SuperiorScaling::LowMotionResetStatus()
+{
+    std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    auto& s = SuperiorRun::GetState();
+    if (s.current && s.current->temporal)
+        return s.current->lowMotion.state;
+    DlssNr::LowMotionReset::Status status;
+    status.enabled = Config::Instance()->DlssNrSuperiorLowMotionReset.value_or_default();
+    if (status.enabled)
+        status.text = "Waiting for a running private DLSS instance.";
+    return status;
+}
+
 void DlssNr::SuperiorScaling::ResetGainPreview()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);

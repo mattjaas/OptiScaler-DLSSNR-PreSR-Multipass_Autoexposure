@@ -1,4 +1,5 @@
 #pragma once
+#include "DlssNr_PrivateModel.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -10,7 +11,8 @@
 namespace DlssNr::GainPreview
 {
 constexpr unsigned Bins = 1024, MotionSamples = 32 * 18, Groups = 8, TextureWidth = 257, TextureHeight = Groups * 2 + 2;
-constexpr unsigned Coverage = 0, DepthBoundary = 1, BoundaryTextureWidth = 32, BoundaryTextureHeight = 10;
+constexpr unsigned Coverage = 0, DepthBoundary = 1, MotionWatch = 2, BoundaryTextureWidth = 32,
+                   BoundaryTextureHeight = 10;
 // Compact HLSL output ABI: two metadata entries, eight partial moments, 288 motion pairs.
 static_assert(Groups == 8 && BoundaryTextureWidth == 32 && BoundaryTextureHeight == 10);
 static_assert(2 + Groups + MotionSamples / 2 <= BoundaryTextureWidth * BoundaryTextureHeight);
@@ -35,6 +37,27 @@ inline void SetBoundaryDepth(Constants& c, bool inverted, float precision)
     std::memcpy(&c.reserved1, &precision, 4);
 }
 static_assert(offsetof(Constants, reserved0) == 56 && offsetof(Constants, reserved1) == 60);
+struct MotionRegion
+{
+    uint32_t x = 0, y = 0, width = 0, height = 0;
+    float scaleX = 1.f, scaleY = 1.f;
+};
+inline bool MotionRegionFits(uint64_t width, uint32_t height, const MotionRegion& r)
+{
+    return r.width && r.height && r.width <= 16384 && r.height <= 16384 && r.x <= width && r.y <= height &&
+           r.width <= width - r.x && r.height <= height - r.y && std::isfinite(r.scaleX) && std::isfinite(r.scaleY);
+}
+inline void SetMotionRegion(Constants& c, const MotionRegion& r)
+{
+    c.phaseX = r.x;
+    c.phaseY = r.y;
+    c.gridX = r.width;
+    c.gridY = r.height;
+    c.motionThreshold = r.scaleX;
+    c.changeThreshold = r.scaleY;
+}
+static_assert(offsetof(Constants, phaseX) == 8 && offsetof(Constants, motionThreshold) == 16 &&
+              offsetof(Constants, gridX) == 40);
 struct Settings
 {
     float slowSeconds = 1.5f, fastSeconds = .25f, motionThreshold = .1f;
@@ -44,6 +67,8 @@ struct Settings
     float downSeconds = 1.f;
     bool boundaryUseMotion = true, boundaryMotionGate = true;
     uint32_t boundaryMinPairs = 64;
+    uint32_t modelFamily = PrivateModel::Cnn;
+    bool trackMotion = false;
 };
 inline float Seconds(float value, float fallback)
 {
@@ -54,7 +79,7 @@ inline Settings Sanitize(Settings s)
     s.slowSeconds = Seconds(s.slowSeconds, 1.5f);
     s.fastSeconds = std::min(Seconds(s.fastSeconds, .25f), s.slowSeconds);
     s.motionThreshold = std::isfinite(s.motionThreshold) ? std::clamp(s.motionThreshold, .001f, 10.f) : .1f;
-    s.method = s.method == DepthBoundary ? DepthBoundary : Coverage;
+    s.method = s.method == DepthBoundary || s.method == MotionWatch ? s.method : Coverage;
     s.boundaryTarget = std::isfinite(s.boundaryTarget) ? std::clamp(s.boundaryTarget, .000001f, 16.f) : BoundaryTarget;
     s.downSeconds = std::min(Seconds(s.downSeconds, 1.f), s.slowSeconds);
     s.boundaryMinPairs = std::clamp(s.boundaryMinPairs, 8u, 4096u);
@@ -68,18 +93,38 @@ inline double ResponseSeconds(bool fast, bool rising, const Settings& s)
 {
     return fast ? (rising ? s.fastSeconds : s.downSeconds) : s.slowSeconds;
 }
+template <class C> inline float FamilyTarget(const C& c, PrivateModel::Family family)
+{
+    const auto& value = family == PrivateModel::Transformer2  ? c.DlssNrSuperiorGainPreviewBoundaryTargetTransformer2
+                        : family == PrivateModel::Transformer ? c.DlssNrSuperiorGainPreviewBoundaryTargetTransformer
+                                                              : c.DlssNrSuperiorGainPreviewBoundaryTargetCnn;
+    // Preserve pre-upgrade custom target for each unset family; editing one never overwrites the others.
+    return value.has_value() ? value.value_or_default() : c.DlssNrSuperiorGainPreviewBoundaryTarget.value_or_default();
+}
+template <class C> inline void SetFamilyTarget(C& c, uint32_t family, float value)
+{
+    value = std::isfinite(value) ? std::clamp(value, .000001f, 16.f) : BoundaryTarget;
+    if (family == PrivateModel::Transformer2)
+        c.DlssNrSuperiorGainPreviewBoundaryTargetTransformer2 = value;
+    else if (family == PrivateModel::Transformer)
+        c.DlssNrSuperiorGainPreviewBoundaryTargetTransformer = value;
+    else
+        c.DlssNrSuperiorGainPreviewBoundaryTargetCnn = value;
+}
 template <class C> inline Settings Read(const C& c)
 {
     return Sanitize({ c.DlssNrSuperiorGainPreviewSlowSeconds.value_or_default(),
                       c.DlssNrSuperiorGainPreviewFastSeconds.value_or_default(),
                       c.DlssNrSuperiorGainPreviewMotionThreshold.value_or_default(),
                       c.DlssNrSuperiorGainPreviewChangingMotion.value_or_default(),
-                      c.DlssNrSuperiorGainPreviewMethod.value_or_default(),
-                      c.DlssNrSuperiorGainPreviewBoundaryTarget.value_or_default(),
+                      c.DlssNrSuperiorGainPreviewMethod.value_or_default() == DepthBoundary ? DepthBoundary : Coverage,
+                      FamilyTarget(c, PrivateModel::FromPreference(c.DlssNrSuperiorScalingPreset.value_or_default())),
                       c.DlssNrSuperiorGainPreviewFastDownSeconds.value_or_default(),
                       c.DlssNrSuperiorGainPreviewBoundaryUseMotion.value_or_default(),
                       c.DlssNrSuperiorGainPreviewBoundaryMotionGate.value_or_default(),
-                      c.DlssNrSuperiorGainPreviewBoundaryMinPairs.value_or_default() });
+                      c.DlssNrSuperiorGainPreviewBoundaryMinPairs.value_or_default(),
+                      PrivateModel::FromPreference(c.DlssNrSuperiorScalingPreset.value_or_default()),
+                      c.DlssNrSuperiorLowMotionReset.value_or_default() });
 }
 inline uint64_t Context(uint64_t base, Settings s)
 {
@@ -113,6 +158,7 @@ struct Reading
     uint64_t serial = 0;
     double boundaryOffset = 0, boundarySlope = 0;
     uint32_t boundaryPairs = 0, boundaryCandidates = 0;
+    float peakSquared = 0;
 };
 inline Reading Unpack(const void* data, size_t rowPitch)
 {
@@ -177,6 +223,20 @@ inline Reading UnpackBoundary(const void* data, size_t rowPitch, bool motionPayl
             std::memcpy(s.motion.data() + i * 4, at(2 + Groups + i), 16);
     return s;
 }
+inline Reading UnpackMotionWatch(const void* data, size_t rowPitch)
+{
+    (void) rowPitch;
+    Reading s;
+    uint32_t a[4], b[4];
+    std::memcpy(a, data, 16);
+    std::memcpy(b, static_cast<const char*>(data) + 16, 16);
+    std::memcpy(&s.peakSquared, a, 4);
+    s.validMotion = a[1];
+    s.samples = a[2];
+    s.gate = b[1];
+    s.serial = uint64_t(a[3]) | (uint64_t(b[3]) << 32);
+    return s;
+}
 inline double Lower(unsigned bin)
 {
     if (bin == 0)
@@ -234,6 +294,30 @@ struct Status
     float boundaryBase = 0, boundarySlope = 0, boundaryTarget = BoundaryTarget;
     std::string text = "Preview disabled.";
 };
+inline Status MotionStatus(const Reading& reading, double time, bool compact)
+{
+    Status status;
+    status.method = MotionWatch;
+    status.measuredAt = time;
+    status.measurements = reading.serial;
+    double peak = compact ? reading.peakSquared : 0;
+    unsigned valid = compact ? reading.validMotion : 0;
+    if (!compact)
+        for (unsigned i = 0; i < MotionSamples; ++i)
+        {
+            const double x = reading.motion[i * 2], y = reading.motion[i * 2 + 1];
+            if (std::isfinite(x) && std::isfinite(y) && std::abs(x) < 1e6 && std::abs(y) < 1e6)
+            {
+                ++valid;
+                peak = std::max(peak, x * x + y * y);
+            }
+        }
+    status.valid = valid == MotionSamples && reading.validMotion == MotionSamples && std::isfinite(peak) && peak >= 0;
+    status.paused = !status.valid;
+    status.raw = status.smoothed = status.valid ? float(std::sqrt(peak)) : 0;
+    status.text = status.valid ? "Motion sample ready." : "Waiting for valid motion samples.";
+    return status;
+}
 class Filter
 {
     std::array<double, Bins> histR {}, histG {};

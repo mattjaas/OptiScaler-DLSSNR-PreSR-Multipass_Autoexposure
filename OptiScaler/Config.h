@@ -441,7 +441,7 @@ class Config
     // How a model that worked below the frame's size is brought back. 0 classic, 1 matched
     // residual. Only has an effect when Model resolution is under 100%.
     CustomOptional<uint32_t> DlssNrTransfer { 1 }; // 11: Superior Scaling
-    // Private SR preference: CNN=1 (automatic A/E), Transformer=11 (K).
+    // Private SR family preference: CNN=1 (A/E), Transformer=11 (K), Transformer 2-gen=13 (M).
     CustomOptional<uint32_t> DlssNrSuperiorScalingPreset { 1 };
     // Independent private residual DLSS creation flags and experimental carrier/exposure settings.
     CustomOptional<bool> DlssNrSuperiorScalingDisableIsHDR { false };
@@ -454,6 +454,13 @@ class Config
     CustomOptional<uint32_t> DlssNrSuperiorGainPreviewBoundaryMinPairs { 64 };
     CustomOptional<uint32_t> DlssNrSuperiorScalingCnnPresetOverride { 0 };
     CustomOptional<uint32_t> DlssNrSuperiorScalingTransformerPresetOverride { 0 };
+    CustomOptional<uint32_t> DlssNrSuperiorScalingTransformer2PresetOverride { 0 };
+    CustomOptional<float> DlssNrSuperiorGainPreviewBoundaryTargetCnn { .1429128154342723f };
+    CustomOptional<float> DlssNrSuperiorGainPreviewBoundaryTargetTransformer { .1429128154342723f };
+    CustomOptional<float> DlssNrSuperiorGainPreviewBoundaryTargetTransformer2 { .1429128154342723f };
+    CustomOptional<bool> DlssNrSuperiorLowMotionReset { false };
+    CustomOptional<float> DlssNrSuperiorLowMotionResetThreshold { .25f };
+    CustomOptional<float> DlssNrSuperiorLowMotionResetSeconds { 2.f };
     CustomOptional<bool> DlssNrSuperiorGainPreview { false };
     CustomOptional<uint32_t> DlssNrSuperiorGainPreviewMethod { 0 };
     CustomOptional<float> DlssNrSuperiorGainPreviewBoundaryTarget { .1429128154342723f };

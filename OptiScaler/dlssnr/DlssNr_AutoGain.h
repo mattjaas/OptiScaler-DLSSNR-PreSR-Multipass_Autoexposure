@@ -4,6 +4,10 @@
 
 namespace DlssNr::AutoGain
 {
+inline bool ResetHistoryForTransport(bool gainChanged, bool automaticControlled, bool otherTransformChanged)
+{
+    return otherTransformChanged || (gainChanged && !automaticControlled);
+}
 struct Status
 {
     bool enabled = false, controlled = false;

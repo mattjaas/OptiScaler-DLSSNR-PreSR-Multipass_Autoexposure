@@ -46,6 +46,7 @@ struct Generation
     DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
     bool inverted = false, beforeSr = false, reset = true;
     bool temporal = false, packed = false;
+    DlssNr::LowMotionReset::Controller lowMotion;
     bool exactPresetOverride = false;
     bool disableIsHDR = false; // creation identity, independent of the game's HDR and AutoExposure
     uint32_t exposureMode = DlssNr::PrivateExposure::Native;
@@ -176,6 +177,7 @@ struct State
 {
     DlssNr::GpuLifetime lifetime { &Destroyed };
     DlssNr::GainPreview::Runtime preview;
+    DlssNr::GainPreview::Runtime motionWatch;
     DlssNr::AutoGain::Controller automaticGain;
     std::shared_ptr<Generation> current;
     bool wasSelected = false, wasActive = false;
@@ -314,8 +316,12 @@ void Submitted(ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* 
     auto& s = GetState();
     s.lifetime.Submitted(queue, count, lists);
     s.preview.SignalSubmitted(queue, count, lists);
+    s.motionWatch.SignalSubmitted(queue,count,lists);
     for (UINT i = 0; i < count; ++i)
+    {
         s.preview.CopySubmitted(queue, Util::RealObjectIdentity(lists[i]));
+        s.motionWatch.CopySubmitted(queue,Util::RealObjectIdentity(lists[i]));
+    }
     if (s.editDump && s.editDump->copy.Poll() == DlssNr::EditDump::ReadbackCopy::State::NotSubmitted &&
         g_editDumpCommands == s.editDump->commands)
         for (UINT i = 0; i < count; ++i)
@@ -352,6 +358,7 @@ void ResetRecording(ID3D12CommandList* cmd)
     auto& s = GetState();
     s.lifetime.ResetRecording(cmd);
     s.preview.ResetRecording(cmd);
+    s.motionWatch.ResetRecording(cmd);
     if (s.editDump && s.editDump->commands == Util::RealObjectIdentity(cmd))
     {
         EditDumpListDestroyed(s.editDump->commands);
@@ -528,6 +535,12 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         m.width = job->width; m.height = job->height;
         m.gain = gain; m.saturation = g.editSaturation; m.depthStrength = g.depthStrength;
         m.fullNrAnswer = g.filterNrAnswer; m.privatePreset = g.preset;
+        const auto resetSettings=DlssNr::LowMotionReset::Read(cfg);
+        m.lowMotionResetEnabled=resetSettings.enabled; m.lowMotionThreshold=resetSettings.threshold;m.lowMotionDelay=resetSettings.seconds;
+        m.lowMotionResetRequested=g.lowMotion.state.triggered;m.lowMotionPeak=g.lowMotion.state.peak;
+        m.lowMotionSeconds=g.lowMotion.state.quietSeconds;m.lowMotionRequests=g.lowMotion.state.requests;
+        m.lowMotionSharedProbe=g.lowMotion.state.sharedProbe;
+        m.transformer2PresetOverride=DlssNr::SuperiorScaling::Transformer2PresetOverride(cfg.DlssNrSuperiorScalingTransformer2PresetOverride.value_or_default());
         m.nrPresetSetting = cfg.DlssNrPreset.value_or_default();
         m.cnnPresetOverride = DlssNr::SuperiorScaling::CnnPresetOverride(cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default());
         m.transformerPresetOverride = DlssNr::SuperiorScaling::TransformerPresetOverride(cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default());
@@ -736,7 +749,9 @@ static_assert(unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_A) == 1u &&
               unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_D) == 4u &&
               unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_E) == 5u &&
               unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_J) == 10u &&
-              unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_K) == 11u);
+              unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_K) == 11u &&
+              unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_L) == 12u &&
+              unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_M) == 13u);
 
 Constants Shaping(const Config& cfg, unsigned first, unsigned completed,
                   DlssNr::SuperiorScaling::FrequencyScales scales)
@@ -893,13 +908,14 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     const bool filterNrAnswer = cfg.DlssNrSuperiorFilterNrAnswer.value_or_default();
     const bool autoRequested = cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
     const bool measurementRequested = cfg.DlssNrSuperiorGainPreview.value_or_default() || autoRequested;
+    const auto lowMotionSettings=DlssNr::LowMotionReset::Read(cfg);
     const uint64_t baseContext = uint64_t(g.workWidth) | (uint64_t(g.workHeight) << 16) |
         (uint64_t(g.preset) << 32) | (uint64_t(cfg.DlssNrPreset.value_or_default()) << 40) |
         (uint64_t(g.exposureMode) << 48) | (uint64_t(g.disableIsHDR) << 52) |
         (uint64_t(g.inverted) << 53) | (uint64_t(g.packed) << 54) | (uint64_t(g.beforeSr) << 55);
     const auto measurementSettings = DlssNr::GainPreview::Read(cfg);
     const uint64_t context = DlssNr::GainPreview::Context(baseContext,measurementSettings);
-    const double now = measurementRequested ? std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count() : 0;
+    const double now = (measurementRequested || lowMotionSettings.enabled) ? std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count() : 0;
     auto& runtime = GetState();
     const bool supported = !filterNrAnswer && saturation == 1.f && depthStrength == 0.f && !depthActive && !cfg.DlssNrSuperiorOriginalGuides.value_or_default();
     // Auto never attenuates positive edit, including during warmup, fallback and secondary views.
@@ -915,9 +931,10 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     }
     const bool automaticControlled = !g_viewSecondary && autoRequested && runtime.automaticGain.state.controlled;
 
-    if (gain != g.positiveGain || saturation != g.editSaturation || depthStrength != g.depthStrength ||
-        depthCurve != g.depthCurve || depthPair != g.depthPair || filterNrAnswer != g.filterNrAnswer ||
-        depthTransport != g.depthTransport)
+    const bool gainChanged = gain != g.positiveGain;
+    const bool transformChanged = saturation != g.editSaturation || depthStrength != g.depthStrength ||
+        depthCurve != g.depthCurve || depthPair != g.depthPair || filterNrAnswer != g.filterNrAnswer || depthTransport != g.depthTransport;
+    if (gainChanged || transformChanged)
     {
         g.positiveGain = gain;
         g.editSaturation = saturation;
@@ -926,8 +943,13 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         g.depthPair = depthPair;
         g.filterNrAnswer = filterNrAnswer;
         g.depthTransport = depthTransport;
-        g.reset = true; // never mix histories encoded with different transport transforms
-        for (auto& h : g.exposure) h.initialized = false;
+        // Automatic gain follows the existing DLSS history, explicitly requested for live regulation.
+        // Manual gain and other transport changes retain their previous reset behaviour.
+        if (DlssNr::AutoGain::ResetHistoryForTransport(gainChanged,autoRequested && supported,transformChanged))
+        {
+            g.reset = true;
+            for (auto& h : g.exposure) h.initialized = false;
+        }
     }
     auto encode = GuideConstants(g.workWidth, g.workHeight, regions, frame, true, hold);
     Fields::SetPositiveCarrierGain(encode, gain);
@@ -1069,6 +1091,35 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
                            g.workWidth, g.workHeight, DlssNr::SuperiorScaling::TransformerPreset(g.preset), context, now, temporalDepth, g.inverted, packedDepthPrecision);
         }
     }
+    if(!g_viewSecondary)
+    {
+        const bool shared = measurementRequested && supported && !hold &&
+            (measurementSettings.method==DlssNr::GainPreview::Coverage || measurementSettings.boundaryMotionGate);
+        DlssNr::GainPreview::Status motionSample;
+        if(lowMotionSettings.enabled)
+        {
+            if(shared)
+            {
+                if(runtime.preview.MatchesContext(g.device.Get(),context)) motionSample=runtime.preview.GetMotionStatus();
+            }
+            else if(!hold)
+            {
+                if(runtime.motionWatch.MatchesContext(g.device.Get(),baseContext)) motionSample=runtime.motionWatch.GetMotionStatus();
+                const DlssNr::GainPreview::MotionRegion region = useOriginal ?
+                    DlssNr::GainPreview::MotionRegion{mx,my,regions.motion.width,regions.motion.height,dlssMvX,dlssMvY} :
+                    DlssNr::GainPreview::MotionRegion{0,0,g.workWidth,g.workHeight,1,1};
+                Record(cmd);
+                runtime.motionWatch.Record(g.device.Get(),cmd,Util::RealObjectIdentity(cmd),proxy,answer,dlssMotion,
+                    g.workWidth,g.workHeight,false,baseContext,now,nullptr,false,0,&region);
+            }
+            else runtime.motionWatch.Pause("Low-motion probe paused: frame held.");
+        }
+        if(g.lowMotion.Update(lowMotionSettings,motionSample,now,baseContext ^ (shared?(1ull<<63):0),reset||g.reset||hold,shared))
+        {
+            g.reset=true;
+            for(auto& h:g.exposure)h.initialized=false;
+        }
+    }
     RecordEditDump(g, shader, cmd, proxy, answer, gain, temporalDepth, g.temporalMotion.Get(), frame,
                    reset || g.reset, hold, automaticControlled);
     auto* exposure = PrivateExposureTexture(g, shader, cmd, reset || g.reset);
@@ -1179,7 +1230,8 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
                                                   cfg.DlssNrModelResolutionAuto.value_or_default(),
                                                   cfg.DlssNrWorkingScale.value_or_default(), modelScale,
                                                   cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default(),
-                                                  cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default());
+                                                  cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default(),
+                cfg.DlssNrSuperiorScalingTransformer2PresetOverride.value_or_default());
     const bool exactOverride = PresetChoice().exactOverride != 0;
     if (auto* previous = state.current.get())
     {
@@ -1243,7 +1295,8 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
             GiveUp("requested exact private preset rejected by NGX; choose another override to retry", false);
             state.rejectedPresetOptions = DlssNr::SuperiorScaling::PrivatePresetOptionsKey(
                 cfg.DlssNrSuperiorScalingPreset.value_or_default(),cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default(),
-                cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default());
+                cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default(),
+                cfg.DlssNrSuperiorScalingTransformer2PresetOverride.value_or_default());
             return Began::Unavailable;
         case Created::SrUnavailable:
             GiveUp("private NVIDIA DLSS SR (NGX) is not available", true);
@@ -1284,6 +1337,8 @@ void NgxShutdown()
     s.preview.Configure(false, {});
     s.preview.Reset("Preview stopped: NR/NGX shutdown.");
     s.preview.Collect();
+    s.motionWatch.Configure(false,{});
+    s.motionWatch.Reset("Motion observer stopped: NR/NGX shutdown.");s.motionWatch.Collect();
     CollectEditDump();
     s.rejectedPresetOptions = 0;
     PresetChoice() = {};
@@ -1303,6 +1358,8 @@ void Shutdown()
     s.preview.Configure(false, {});
     s.preview.Reset("Preview stopped: NR/NGX shutdown.");
     s.preview.Collect();
+    s.motionWatch.Configure(false,{});
+    s.motionWatch.Reset("Motion observer stopped: NR/NGX shutdown.");s.motionWatch.Collect();
     CollectEditDump();
     s.rejectedPresetOptions = 0;
     PresetChoice() = {};
