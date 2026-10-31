@@ -48,6 +48,9 @@ struct Metadata
     double requestDelaySeconds = 0;
     GainPreview::Settings previewSettings;
     PreviewSnapshot previewAtRequest, previewAtCapture;
+    bool autoGainEnabledAtRequest = false, autoGainEnabledAtCapture = false, autoGainControlledAtCapture = false;
+    float manualGain = 1, effectiveGainAtRequest = 1;
+    uint64_t autoGainChanges = 0;
 };
 // Only fixed field names and numeric values are serialized. No user text or
 // paths, no locale-dependent decimals, and no invalid JSON NaN/Inf literals.
@@ -73,6 +76,12 @@ inline std::string MetadataJson(const Metadata& m)
         out << v;
     };
     value("guides_included", m.guidesIncluded);
+    value("auto_positive_gain_enabled_at_request", m.autoGainEnabledAtRequest);
+    value("auto_positive_gain_enabled_at_capture", m.autoGainEnabledAtCapture);
+    value("auto_positive_gain_controlled_capture", m.autoGainControlledAtCapture);
+    value("manual_positive_gain", m.manualGain);
+    value("effective_positive_gain_at_request", m.effectiveGainAtRequest);
+    value("auto_positive_gain_changes_primary", m.autoGainChanges);
     value("positive_gain_at_request", m.gainAtRequest);
     value("private_preset_at_request", m.privatePresetAtRequest);
     value("capture_request_delay_seconds", m.requestDelaySeconds);

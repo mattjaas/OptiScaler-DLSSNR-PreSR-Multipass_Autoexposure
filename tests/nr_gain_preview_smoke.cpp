@@ -3,6 +3,7 @@
 #include <limits>
 #include <vector>
 #include "../OptiScaler/dlssnr/DlssNr_GainPreview.h"
+#include "../OptiScaler/dlssnr/DlssNr_AutoGain.h"
 using namespace DlssNr::GainPreview;
 Reading Signal(float value)
 {
@@ -14,8 +15,67 @@ Reading Signal(float value)
     s.g[Bin(value)] = 24000;
     return s;
 }
+void AutomaticGainChecks()
+{
+    using DlssNr::AutoGain::Controller;
+    Controller c; DlssNr::GainPreview::Status e;
+    int deviceA = 1, deviceB = 2;
+    e.valid = true; e.paused = false; e.smoothed = 2; e.measurements = 3; e.measuredAt = 0;
+    assert(c.Update(false, true, false, .25f, e, &deviceA, 1, 0) == .25f);
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, 0) == 1 && !c.state.controlled);
+    e.measurements = 4; e.measuredAt = .5;
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, .5) == 2 && c.state.controlled);
+    e.smoothed = 3; e.measurements = 5; e.measuredAt = .75;
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, .75) == 2); // cooldown
+    e.measurements = 6; e.measuredAt = 1;
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, 1) == 3);
+    e.smoothed = 3.03f; e.measurements = 7; e.measuredAt = 2;
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, 2) == 3); // upward deadband
+    e.smoothed = 2.9f; e.measurements = 8; e.measuredAt = 3;
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, 3) == 3); // downward deadband
+    e.smoothed = 2.8f; e.measurements = 9; e.measuredAt = 4;
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, 4) == 2.8f);
+    e.smoothed = .2f; e.measurements = 10; e.measuredAt = 5;
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, 5) == 1); // automatic floor
+    e.smoothed = 10; e.paused = true; e.measuredAt = 6; e.measurements = 11;
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, 6) == 1);
+    e.paused = false; e.measuredAt = 6;
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, 8) == 1); // stale reading
+    e.measuredAt = 8;
+    assert(c.Update(true, true, true, .25f, e, &deviceA, 1, 8) == 1); // frame hold
+    e.smoothed = NAN;
+    assert(c.Update(true, true, false, .25f, e, &deviceA, 1, 8) == 1);
+    assert(c.Update(true, false, false, .25f, e, &deviceA, 1, 8) == 1 && !c.state.controlled);
+    assert(c.Update(false, true, false, .25f, e, &deviceA, 1, 8) == .25f); // manual preference restored
+    // Context/device changes restart on manual (at least 1x), awaiting matching measurements.
+    e = {}; assert(c.Update(true, true, false, 4, e, &deviceA, 2, 9) == 4);
+    e.valid = true; e.paused = false; e.smoothed = 6; e.measurements = 4; e.measuredAt = 10;
+    assert(c.Update(true, true, false, 4, e, &deviceA, 2, 10) == 6);
+    e = {}; assert(c.Update(true, true, false, .5f, e, &deviceB, 2, 11) == 1);
+    // At 60 rendering calls/s and 8 measurements/s, small measurement noise must
+    // not cause repeated history changes. Large alternating targets obey cooldown.
+    c.Reset(); double lastApplied = -10; unsigned changes = 0;
+    float before = 1;
+    for (unsigned frame = 0; frame < 1200; ++frame)
+    {
+        const double time = frame / 60.;
+        e.valid = true; e.paused = false; e.measurements = 4 + frame / 8;
+        e.measuredAt = (frame / 8) * (8. / 60.);
+        e.smoothed = frame < 600 ? 2.f + .01f * float(int(frame / 8 % 3) - 1) : (frame / 8 % 2 ? 4.f : 2.f);
+        const float gain = c.Update(true, true, false, .25f, e, &deviceA, 1, time);
+        if (gain != before)
+        {
+            if (frame < 600) assert(changes == 0);
+            assert(time - lastApplied >= Controller::Cooldown - 1e-10);
+            lastApplied = time; ++changes; before = gain;
+        }
+        assert(gain >= 1 && gain <= 1024);
+    }
+    assert(changes > 5 && changes < 25);
+}
 int main()
 {
+    AutomaticGainChecks();
     // Independent sorted weighted distribution: unequal positive counts in R and G
     // must still contribute equal total weights. Conservative bin edge must bracket
     // the exact inverse threshold, with at most one 3.125% histogram interval.

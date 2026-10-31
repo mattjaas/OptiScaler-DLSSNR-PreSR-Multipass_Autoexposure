@@ -169,6 +169,7 @@ struct State
 {
     DlssNr::GpuLifetime lifetime { &Destroyed };
     DlssNr::GainPreview::Runtime preview;
+    DlssNr::AutoGain::Controller automaticGain;
     std::shared_ptr<Generation> current;
     bool wasSelected = false, wasActive = false;
     std::string status;
@@ -178,7 +179,8 @@ struct State
     bool pendingEditDumpGuides = false, pendingEditDumpPreviewEnabled = false;
     DlssNr::EditDump::PreviewSnapshot pendingEditDumpPreview;
     uint32_t pendingEditDumpPrivatePreset = 0;
-    float pendingEditDumpGain = 1;
+    float pendingEditDumpGain = 1, pendingEditDumpEffectiveGain = 1;
+    bool pendingEditDumpAutoGain = false;
     double pendingEditDumpRequestedAt = 0;
     std::shared_ptr<EditDumpJob> editDump;
     std::shared_ptr<std::atomic_uint64_t> editDumpRetainedBytes = std::make_shared<std::atomic_uint64_t>(0);
@@ -431,7 +433,7 @@ bool PrepareDumpGuide(EditDumpJob& job, unsigned index, ID3D12Resource* source,
 
 void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd,
                    ID3D12Resource* proxy, ID3D12Resource* answer, float gain,
-                   ID3D12Resource* depth, ID3D12Resource* motion, const DlssNrFrameInfo& frame, bool reset, bool hold)
+                   ID3D12Resource* depth, ID3D12Resource* motion, const DlssNrFrameInfo& frame, bool reset, bool hold, bool automaticControlled)
 {
     auto& s = GetState();
     if (s.pendingEditDump.empty() || s.editDump) return;
@@ -497,6 +499,12 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         DlssNr::EditDump::Metadata m;
         const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
         m.guidesIncluded = withGuides;
+        m.autoGainEnabledAtRequest = s.pendingEditDumpAutoGain;
+        m.autoGainEnabledAtCapture = cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
+        m.autoGainControlledAtCapture = automaticControlled;
+        m.manualGain = DlssNr::PrivateExposure::PositiveGain(cfg.DlssNrSuperiorPositiveEditGain.value_or_default());
+        m.effectiveGainAtRequest = s.pendingEditDumpEffectiveGain;
+        m.autoGainChanges = s.automaticGain.state.changes;
         m.previewEnabledAtRequest = s.pendingEditDumpPreviewEnabled;
         m.previewEnabledAtCapture = cfg.DlssNrSuperiorGainPreview.value_or_default();
         m.previewAtRequest = s.pendingEditDumpPreview;
@@ -853,7 +861,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
 {
     if (!g.feature || !g.parameters || !NgxAlive(g.ngxEpoch))
         return nullptr;
-    const float gain = DlssNr::PrivateExposure::PositiveGain(Config::Instance()->DlssNrSuperiorPositiveEditGain.value_or_default());
+    const float manualGain = DlssNr::PrivateExposure::PositiveGain(Config::Instance()->DlssNrSuperiorPositiveEditGain.value_or_default());
     const float saturation = DlssNr::PrivateExposure::EditSaturation(Config::Instance()->DlssNrSuperiorEditSaturation.value_or_default());
     const auto& cfg = *Config::Instance();
     const float depthStrength = cfg.DlssNrSuperiorDepthColour.value_or_default()
@@ -861,6 +869,28 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     const float depthCurve = depthStrength > 0 ? DlssNr::PrivateExposure::DepthCurve(cfg.DlssNrSuperiorDepthColourCurve.value_or_default()) : 1.f;
     const uint32_t depthPair = depthStrength > 0 ? DlssNr::PrivateExposure::DepthPair(cfg.DlssNrSuperiorDepthColourPair.value_or_default()) : 0u;
     const bool filterNrAnswer = cfg.DlssNrSuperiorFilterNrAnswer.value_or_default();
+    const bool autoRequested = cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
+    const bool measurementRequested = cfg.DlssNrSuperiorGainPreview.value_or_default() || autoRequested;
+    const uint64_t context = uint64_t(g.workWidth) | (uint64_t(g.workHeight) << 16) |
+        (uint64_t(g.preset) << 32) | (uint64_t(cfg.DlssNrPreset.value_or_default()) << 40) |
+        (uint64_t(g.exposureMode) << 48) | (uint64_t(g.disableIsHDR) << 52) |
+        (uint64_t(g.inverted) << 53) | (uint64_t(g.packed) << 54) | (uint64_t(g.beforeSr) << 55);
+    const double now = measurementRequested ? std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count() : 0;
+    auto& runtime = GetState();
+    const bool supported = !filterNrAnswer && saturation == 1.f && depthStrength == 0.f;
+    // Auto never attenuates positive edit, including during warmup, fallback and secondary views.
+    float gain = autoRequested ? std::max(1.f, manualGain) : manualGain;
+    if (!g_viewSecondary && autoRequested)
+    {
+        // Reject a result from another device, grid, preset or private exposure context
+        // before selecting this frame's gain, rather than resetting it after encoding.
+        const auto estimate = runtime.preview.MatchesContext(g.device.Get(), context)
+                                  ? runtime.preview.Get() : DlssNr::GainPreview::Status{};
+        gain = runtime.automaticGain.Update(autoRequested, supported, hold, manualGain, estimate,
+                                           g.device.Get(), context, now);
+    }
+    const bool automaticControlled = !g_viewSecondary && autoRequested && runtime.automaticGain.state.controlled;
+
     if (gain != g.positiveGain || saturation != g.editSaturation || depthStrength != g.depthStrength ||
         depthCurve != g.depthCurve || depthPair != g.depthPair || filterNrAnswer != g.filterNrAnswer)
     {
@@ -952,7 +982,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         return nullptr;
     // The estimate samples raw NR differences, independent of the manually selected gain.
     // Secondary views do not feed a different image into the primary-view smoother.
-    if (!g_viewSecondary && cfg.DlssNrSuperiorGainPreview.value_or_default())
+    if (!g_viewSecondary && measurementRequested)
     {
         auto& preview = GetState().preview;
         if (filterNrAnswer || saturation != 1.f || depthStrength > 0.f)
@@ -961,18 +991,13 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
             preview.Pause("Paused: frame held.");
         else
         {
-            const uint64_t context = uint64_t(g.workWidth) | (uint64_t(g.workHeight) << 16) |
-                (uint64_t(g.preset) << 32) | (uint64_t(cfg.DlssNrPreset.value_or_default()) << 40) |
-                (uint64_t(g.exposureMode) << 48) | (uint64_t(g.disableIsHDR) << 52) |
-                (uint64_t(g.inverted) << 53) | (uint64_t(g.packed) << 54) | (uint64_t(g.beforeSr) << 55);
-            const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
             Record(cmd);
             preview.Record(g.device.Get(), cmd, Util::RealObjectIdentity(cmd), proxy, answer, g.temporalMotion.Get(),
                            g.workWidth, g.workHeight, g.preset == 11, context, now);
         }
     }
     RecordEditDump(g, shader, cmd, proxy, answer, gain, temporalDepth, g.temporalMotion.Get(), frame,
-                   reset || g.reset, hold);
+                   reset || g.reset, hold, automaticControlled);
     auto* exposure = PrivateExposureTexture(g, shader, cmd, reset || g.reset);
     if (!exposure)
     {
@@ -1157,6 +1182,7 @@ void NgxShutdown()
     if (!s.pendingEditDump.empty()) s.editDumpStatus = "Edit capture cancelled: NGX shutdown.";
     s.pendingEditDump.clear();
     s.pendingEditDumpGuides = false;
+    s.automaticGain.Reset();
     s.preview.Configure(false, {});
     s.preview.Reset("Preview stopped: NR/NGX shutdown.");
     s.preview.Collect();
@@ -1174,6 +1200,7 @@ void Shutdown()
     if (!s.pendingEditDump.empty()) s.editDumpStatus = "Edit capture cancelled: NR shutdown.";
     s.pendingEditDump.clear();
     s.pendingEditDumpGuides = false;
+    s.automaticGain.Reset();
     s.preview.Configure(false, {});
     s.preview.Reset("Preview stopped: NR/NGX shutdown.");
     s.preview.Collect();

@@ -277,6 +277,10 @@ class Runtime
         if (!enabled && slots.empty())
             program.reset();
     }
+    bool MatchesContext(ID3D12Device* device, uint64_t context) const
+    {
+        return program && program->device.Get() == device && signature == context;
+    }
     Status Get()
     {
         Collect();

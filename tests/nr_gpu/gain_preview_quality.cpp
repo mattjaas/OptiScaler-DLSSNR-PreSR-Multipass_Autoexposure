@@ -326,6 +326,8 @@ void RuntimeQuality(bool hardware)
         Require(preview.Record(f.r.device.Get(), list.Get(), list.Get(), f.inputs[0].Get(), f.inputs[1].Get(),
                                f.inputs[2].Get(), f.w, f.h, false, 1, i * .25),
                 "Record lease");
+        Require(preview.MatchesContext(f.r.device.Get(), 1) && !preview.MatchesContext(f.r.device.Get(), 2) &&
+                    !preview.MatchesContext(nullptr, 1), "Automatic gain must reject foreign preview contexts");
         submit(list.Get());
         const auto status = preview.Get();
         Require(status.valid && status.measurements == i + 1, "Readback must complete before game list Reset/release");

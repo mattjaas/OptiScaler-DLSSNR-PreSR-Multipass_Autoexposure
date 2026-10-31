@@ -3418,8 +3418,13 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
     previewSettings.fastSeconds = cfg.DlssNrSuperiorGainPreviewFastSeconds.value_or_default();
     previewSettings.motionThreshold = cfg.DlssNrSuperiorGainPreviewMotionThreshold.value_or_default();
     previewSettings.requireChange = cfg.DlssNrSuperiorGainPreviewChangingMotion.value_or_default();
-    superiorState.preview.Configure(cfg.DlssNrSuperiorGainPreview.value_or_default() && superiorSelected &&
-                                        superiorState.unavailable.empty(),
+    if ((!cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default() || !superiorSelected ||
+         !superiorState.unavailable.empty()) &&
+        superiorState.automaticGain.state.enabled)
+        superiorState.automaticGain.Reset();
+    superiorState.preview.Configure((cfg.DlssNrSuperiorGainPreview.value_or_default() ||
+                                     cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default()) &&
+                                        superiorSelected && superiorState.unavailable.empty(),
                                     previewSettings);
     superiorState.preview.Collect();
     if (superiorState.editDump)
@@ -7527,6 +7532,11 @@ DlssNr::GainPreview::Status DlssNr::SuperiorScaling::GainPreviewStatus()
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     return SuperiorRun::GetState().preview.Get();
 }
+DlssNr::AutoGain::Status DlssNr::SuperiorScaling::AutomaticGainStatus()
+{
+    std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    return SuperiorRun::GetState().automaticGain.state;
+}
 void DlssNr::SuperiorScaling::ResetGainPreview()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
@@ -7557,15 +7567,21 @@ bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename, bool 
     s.pendingEditDumpRequestedAt =
         std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
     // The menu supplies the exact status it displayed, rather than an extra asynchronous poll.
+    const bool meterEnabled =
+        cfg.DlssNrSuperiorGainPreview.value_or_default() || cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
     s.pendingEditDumpPreview = DlssNr::EditDump::SnapshotPreview(displayedPreview ? *displayedPreview
-                                                                 : cfg.DlssNrSuperiorGainPreview.value_or_default()
-                                                                     ? s.preview.Get()
-                                                                     : DlssNr::GainPreview::Status {},
+                                                                 : meterEnabled   ? s.preview.Get()
+                                                                                  : DlssNr::GainPreview::Status {},
                                                                  s.pendingEditDumpRequestedAt);
     s.pendingEditDumpPreviewEnabled = cfg.DlssNrSuperiorGainPreview.value_or_default();
     s.pendingEditDumpPrivatePreset = s.current->preset;
     s.pendingEditDumpGain =
         DlssNr::PrivateExposure::PositiveGain(cfg.DlssNrSuperiorPositiveEditGain.value_or_default());
+    s.pendingEditDumpAutoGain = cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
+    s.pendingEditDumpEffectiveGain = s.pendingEditDumpAutoGain && s.automaticGain.state.enabled
+                                         ? s.automaticGain.state.applied
+                                     : s.pendingEditDumpAutoGain ? std::max(1.f, s.pendingEditDumpGain)
+                                                                 : s.pendingEditDumpGain;
     s.editDumpStatus = "Waiting for the next private DLSS evaluation.";
     return true;
 }

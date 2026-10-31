@@ -447,8 +447,9 @@ class Config
     CustomOptional<bool> DlssNrSuperiorScalingDisableIsHDR { false };
     CustomOptional<bool> DlssNrSuperiorScalingDisableAutoExposure { false };
     CustomOptional<float> DlssNrSuperiorPositiveEditGain { 1.0f };
-    // Diagnostic recommendation only; never applies the estimated multiplier.
+    // Shared measurement and opt-in automatic application; manual preference is retained.
     CustomOptional<bool> DlssNrSuperiorGainPreview { false };
+    CustomOptional<bool> DlssNrSuperiorAutoPositiveEditGain { false };
     CustomOptional<bool> DlssNrSuperiorGainPreviewChangingMotion { true };
     CustomOptional<float> DlssNrSuperiorGainPreviewSlowSeconds { 1.5f };
     CustomOptional<float> DlssNrSuperiorGainPreviewFastSeconds { .25f };

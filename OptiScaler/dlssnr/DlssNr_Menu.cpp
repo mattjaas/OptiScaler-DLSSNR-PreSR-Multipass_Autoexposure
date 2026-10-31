@@ -4015,6 +4015,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             float gain =
                 DlssNr::PrivateExposure::PositiveGain(config->DlssNrSuperiorPositiveEditGain.value_or_default());
             bool filterNrAnswer = config->DlssNrSuperiorFilterNrAnswer.value_or_default();
+            bool automaticGain = config->DlssNrSuperiorAutoPositiveEditGain.value_or_default();
             if (ImGui::Checkbox("Private DLSS on full NR answer", &filterNrAnswer))
                 config->DlssNrSuperiorFilterNrAnswer = filterNrAnswer;
             HelpMarker("Experimental: private DLSS processes NR's full working-resolution picture. The edit is then "
@@ -4022,11 +4023,20 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "around 0.5. With multiplier 1x, saturation 1x and depth colour off, the full NR answer is "
                        "fed directly to DLSS. Other transport controls can also be combined with this mode. "
                        "DLSS may alter picture detail as well as NR's edit; temporal behaviour can change.");
+            const bool previewInputSupported =
+                !filterNrAnswer &&
+                DlssNr::PrivateExposure::EditSaturation(config->DlssNrSuperiorEditSaturation.value_or_default()) ==
+                    1.f &&
+                (!config->DlssNrSuperiorDepthColour.value_or_default() ||
+                 DlssNr::PrivateExposure::DepthStrength(config->DlssNrSuperiorDepthColourStrength.value_or_default()) ==
+                     0.f);
+            ImGui::BeginDisabled(automaticGain && previewInputSupported);
             if (ImGui::SliderFloat("Positive NR edit transport multiplier", &gain, .01f, 64.f, "%.3fx",
                                    ImGuiSliderFlags_Logarithmic))
                 config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
             if (ImGui::InputFloat("Exact transport multiplier", &gain, .01f, 1.f, "%.4f"))
                 config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
+            ImGui::EndDisabled();
             HelpMarker(
                 "Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
                 "then divide positive changes by the same multiplier. In edit mode without depth colour, zero "
@@ -4036,27 +4046,32 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "Small multipliers can lose detail to FP16 precision; large values can change temporal behaviour. "
                 "Exact entry supports 0.01..1024.");
 
+            ImGui::BeginDisabled(!previewInputSupported && !automaticGain);
+            if (ImGui::Checkbox("Automatically apply suggested multiplier", &automaticGain))
+                config->DlssNrSuperiorAutoPositiveEditGain = automaticGain;
+            ImGui::EndDisabled();
+            HelpMarker("Experimental: apply the same smoothed R/G suggestion automatically to the main view. "
+                       "Waits for four moving-frame measurements. Updates no more than twice per second, with "
+                       "2% upward / 5% downward hysteresis to limit changes. Holds the last applied value while "
+                       "measurements pause. Auto never uses less than 1x, including warmup/fallback. "
+                       "When disabled, the saved manual multiplier returns unchanged. "
+                       "Needs edit mode, saturation 1x and depth colour off. Can run without the preview checkbox. "
+                       "This estimate is calibrated on the supplied examples; it does not guarantee no ghosting.");
             bool gainPreview = config->DlssNrSuperiorGainPreview.value_or_default();
             DlssNr::GainPreview::Status displayedPreview;
-            const bool previewInputSupported =
-                !filterNrAnswer &&
-                DlssNr::PrivateExposure::EditSaturation(config->DlssNrSuperiorEditSaturation.value_or_default()) ==
-                    1.f &&
-                (!config->DlssNrSuperiorDepthColour.value_or_default() ||
-                 DlssNr::PrivateExposure::DepthStrength(config->DlssNrSuperiorDepthColourStrength.value_or_default()) ==
-                     0.f);
             ImGui::BeginDisabled(!previewInputSupported && !gainPreview);
             if (ImGui::Checkbox("Preview suggested positive multiplier", &gainPreview))
                 config->DlssNrSuperiorGainPreview = gainPreview;
             ImGui::EndDisabled();
             HelpMarker(
                 "Experimental estimate from positive R/G edit coverage, calibrated on the supplied CNN and "
-                "Transformer examples. Displays a suggestion only; never changes the transport multiplier. "
+                "Transformer examples. This checkbox displays a suggestion; automatic application is a separate "
+                "option. "
                 "Not a ghosting detector or a guarantee for other scenes. Needs edit mode, saturation 1x "
                 "and depth colour off. Samples up to eight times per second while motion is usable. "
                 "EMA smooths the measurements and catches up faster after a sustained image change. "
                 "Changing motion helps reject frozen buffers, but cannot reliably identify every menu or video.");
-            if (gainPreview)
+            if (gainPreview || automaticGain)
             {
                 displayedPreview = DlssNr::SuperiorScaling::GainPreviewStatus();
                 if (!previewInputSupported)
@@ -4072,6 +4087,12 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 if (status.valid)
                     ImGui::Text("Latest sample: %.2fx | moving MV: %.1f%% | changed MV: %.1f%%", status.raw,
                                 status.motionPercent, status.changedPercent);
+                if (automaticGain)
+                {
+                    const auto applied = DlssNr::SuperiorScaling::AutomaticGainStatus();
+                    ImGui::Text("Applied positive multiplier: %.3fx", applied.applied);
+                    ImGui::TextWrapped("%s", applied.text.c_str());
+                }
                 if (ImGui::Button("Reset multiplier preview"))
                     DlssNr::SuperiorScaling::ResetGainPreview();
                 if (ImGui::TreeNode("Multiplier preview response"))
@@ -4101,10 +4122,11 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             ImGui::BeginDisabled(DlssNr::SuperiorScaling::EditDumpBusy());
             if (ImGui::Button("Save pre-DLSS edit"))
                 DlssNr::SuperiorScaling::RequestEditDump(editFilename, false,
-                                                         gainPreview ? &displayedPreview : nullptr);
+                                                         (gainPreview || automaticGain) ? &displayedPreview : nullptr);
             ImGui::SameLine();
             if (ImGui::Button("Save edit + object guides"))
-                DlssNr::SuperiorScaling::RequestEditDump(editFilename, true, gainPreview ? &displayedPreview : nullptr);
+                DlssNr::SuperiorScaling::RequestEditDump(editFilename, true,
+                                                         (gainPreview || automaticGain) ? &displayedPreview : nullptr);
             ImGui::EndDisabled();
             HelpMarker(
                 "Save one working-resolution signed RGB edit after the positive multiplier, before private "

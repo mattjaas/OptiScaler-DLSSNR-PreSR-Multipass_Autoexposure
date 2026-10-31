@@ -45,6 +45,7 @@ inline constexpr std::string_view kKeptKeys[] = {
     "SuperiorScalingDisableAutoExposure",
     "SuperiorPositiveEditGain",
     "SuperiorGainPreview",
+    "SuperiorAutoPositiveEditGain",
     "SuperiorGainPreviewChangingMotion",
     "SuperiorGainPreviewSlowSeconds",
     "SuperiorGainPreviewFastSeconds",

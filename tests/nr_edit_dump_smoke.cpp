@@ -67,6 +67,9 @@ int main(int argc, char** argv)
     metadata.previewEnabledAtRequest = metadata.previewEnabledAtCapture = true;
     metadata.privatePresetAtRequest = metadata.privatePreset = 11;
     metadata.requestDelaySeconds = .25;
+    metadata.manualGain = 1; metadata.effectiveGainAtRequest = 2.5f;
+    metadata.autoGainEnabledAtRequest = metadata.autoGainEnabledAtCapture = metadata.autoGainControlledAtCapture = true;
+    metadata.autoGainChanges = 12;
     assert(metadata.previewAtRequest.suggestedGain == 3 && metadata.previewAtCapture.suggestedGain == 4);
     assert(metadata.previewAtRequest.ageSeconds == .5 && metadata.previewAtCapture.ageSeconds == .75);
     const auto text = MetadataJson(metadata);
@@ -76,6 +79,9 @@ int main(int argc, char** argv)
     assert(text.find("\"depth_inverted\": true") != std::string::npos);
     assert(text.find("\"nr_game_trim_control\": null") != std::string::npos);
     assert(text.find("private_input_pixels") != std::string::npos);
+    assert(text.find("\"manual_positive_gain\": 1") != std::string::npos);
+    assert(text.find("\"effective_positive_gain_at_request\": 2.5") != std::string::npos);
+    assert(text.find("\"auto_positive_gain_controlled_capture\": true") != std::string::npos);
     assert(text.find("\"schema\": 2") != std::string::npos);
     assert(text.find("\"preview_request_suggested_gain\": 3") != std::string::npos);
     assert(text.find("\"preview_request_raw_gain\": 3.25") != std::string::npos);
