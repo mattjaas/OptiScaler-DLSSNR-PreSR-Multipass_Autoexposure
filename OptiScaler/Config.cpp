@@ -1112,6 +1112,8 @@ void Config::ReadDlssNr()
     DlssNrSuperiorScalingDisableIsHDR.set_from_config(readBool("DlssNr", "SuperiorScalingDisableIsHDR"));
     DlssNrSuperiorScalingDisableAutoExposure.set_from_config(readBool("DlssNr", "SuperiorScalingDisableAutoExposure"));
     DlssNrSuperiorPositiveEditGain.set_from_config(readFloat("DlssNr", "SuperiorPositiveEditGain"));
+    DlssNrSuperiorGainPreviewMethod.set_from_config(readUInt("DlssNr", "SuperiorGainPreviewMethod"));
+    DlssNrSuperiorGainPreviewBoundaryTarget.set_from_config(readFloat("DlssNr", "SuperiorGainPreviewBoundaryTarget"));
     DlssNrSuperiorGainPreview.set_from_config(readBool("DlssNr", "SuperiorGainPreview"));
     DlssNrSuperiorAutoPositiveEditGain.set_from_config(readBool("DlssNr", "SuperiorAutoPositiveEditGain"));
     DlssNrSuperiorGainPreviewChangingMotion.set_from_config(readBool("DlssNr", "SuperiorGainPreviewChangingMotion"));
@@ -1370,6 +1372,10 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetBoolValue(c.DlssNrSuperiorScalingDisableAutoExposure.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorPositiveEditGain",
                  GetFloatValue(c.DlssNrSuperiorPositiveEditGain.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGainPreviewMethod",
+                 GetUIntValue(c.DlssNrSuperiorGainPreviewMethod.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGainPreviewBoundaryTarget",
+                 GetFloatValue(c.DlssNrSuperiorGainPreviewBoundaryTarget.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGainPreview", GetBoolValue(c.DlssNrSuperiorGainPreview.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorAutoPositiveEditGain",
                  GetBoolValue(c.DlssNrSuperiorAutoPositiveEditGain.value_for_config()).c_str());
@@ -1775,6 +1781,8 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorScalingDisableIsHDR", DlssNrSuperiorScalingDisableIsHDR),
         NR_PROFILE_FIELD("SuperiorScalingDisableAutoExposure", DlssNrSuperiorScalingDisableAutoExposure),
         NR_PROFILE_FIELD("SuperiorPositiveEditGain", DlssNrSuperiorPositiveEditGain),
+        NR_PROFILE_FIELD("SuperiorGainPreviewMethod", DlssNrSuperiorGainPreviewMethod),
+        NR_PROFILE_FIELD("SuperiorGainPreviewBoundaryTarget", DlssNrSuperiorGainPreviewBoundaryTarget),
         NR_PROFILE_FIELD("SuperiorGainPreview", DlssNrSuperiorGainPreview),
         NR_PROFILE_FIELD("SuperiorAutoPositiveEditGain", DlssNrSuperiorAutoPositiveEditGain),
         NR_PROFILE_FIELD("SuperiorGainPreviewChangingMotion", DlssNrSuperiorGainPreviewChangingMotion),

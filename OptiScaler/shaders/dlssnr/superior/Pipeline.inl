@@ -532,10 +532,7 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         m.previewAtCapture = DlssNr::EditDump::SnapshotPreview(s.preview.Get(), now);
         m.privatePresetAtRequest = s.pendingEditDumpPrivatePreset; m.gainAtRequest = s.pendingEditDumpGain;
         m.requestDelaySeconds = std::max(0., now - s.pendingEditDumpRequestedAt);
-        m.previewSettings = { cfg.DlssNrSuperiorGainPreviewSlowSeconds.value_or_default(),
-            cfg.DlssNrSuperiorGainPreviewFastSeconds.value_or_default(),
-            cfg.DlssNrSuperiorGainPreviewMotionThreshold.value_or_default(),
-            cfg.DlssNrSuperiorGainPreviewChangingMotion.value_or_default() };
+        m.previewSettings = DlssNr::GainPreview::Read(cfg);
         m.frame = g_frames; m.submissionEpoch = frame.SubmissionEpoch;
         m.width = job->width; m.height = job->height;
         m.gain = gain; m.saturation = g.editSaturation; m.depthStrength = g.depthStrength;
@@ -898,10 +895,12 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     const bool filterNrAnswer = cfg.DlssNrSuperiorFilterNrAnswer.value_or_default();
     const bool autoRequested = cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
     const bool measurementRequested = cfg.DlssNrSuperiorGainPreview.value_or_default() || autoRequested;
-    const uint64_t context = uint64_t(g.workWidth) | (uint64_t(g.workHeight) << 16) |
+    const uint64_t baseContext = uint64_t(g.workWidth) | (uint64_t(g.workHeight) << 16) |
         (uint64_t(g.preset) << 32) | (uint64_t(cfg.DlssNrPreset.value_or_default()) << 40) |
         (uint64_t(g.exposureMode) << 48) | (uint64_t(g.disableIsHDR) << 52) |
         (uint64_t(g.inverted) << 53) | (uint64_t(g.packed) << 54) | (uint64_t(g.beforeSr) << 55);
+    const auto measurementSettings = DlssNr::GainPreview::Read(cfg);
+    const uint64_t context = DlssNr::GainPreview::Context(baseContext,measurementSettings);
     const double now = measurementRequested ? std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count() : 0;
     auto& runtime = GetState();
     const bool supported = !filterNrAnswer && saturation == 1.f && depthStrength == 0.f && !depthActive && !cfg.DlssNrSuperiorOriginalGuides.value_or_default();
@@ -1069,7 +1068,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         {
             Record(cmd);
             preview.Record(g.device.Get(), cmd, Util::RealObjectIdentity(cmd), proxy, answer, g.temporalMotion.Get(),
-                           g.workWidth, g.workHeight, g.preset == 11, context, now);
+                           g.workWidth, g.workHeight, g.preset == 11, context, now, temporalDepth, g.inverted, packedDepthPrecision);
         }
     }
     RecordEditDump(g, shader, cmd, proxy, answer, gain, temporalDepth, g.temporalMotion.Get(), frame,

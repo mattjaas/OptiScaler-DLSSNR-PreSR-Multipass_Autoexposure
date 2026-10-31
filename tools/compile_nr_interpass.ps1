@@ -110,6 +110,7 @@ try {
     Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @() 'private_carrier'
     Build (Join-Path $shaders 'superior/PrivateExposure.hlsl') 'PrivateExposureMain' @() 'private_exposure'
     Build (Join-Path $shaders 'superior/GainPreview.hlsl') 'GainPreviewMain' @() 'private_gain_preview'
+    Build (Join-Path $shaders 'superior/DepthBoundaryGainPreview.hlsl') 'DepthBoundaryGainPreviewMain' @() 'private_boundary_gain_preview'
 
     Build (Join-Path $shaders "superior/SpatialGuides.hlsl") "SuperiorSurfaceGuidesMain" @() "host_surface_guides"
     Build (Join-Path $shaders "superior/SpatialGuides.hlsl") "SuperiorUniformSurfaceGuidesMain" @() "host_uniform_surface_guides"

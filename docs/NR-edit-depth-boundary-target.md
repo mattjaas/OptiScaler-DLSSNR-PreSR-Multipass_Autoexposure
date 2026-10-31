@@ -104,3 +104,7 @@ Sprawdzono syntetycznie wzór A+gB, rozwiązanie dla znanego gain, brak sterowal
 ```powershell
 python tools/analyze_nr_depth_boundary_target.py '<capture>.json' --output '<report>.json'
 ```
+
+## Implementacja eksperymentalna
+
+Po tym badaniu dodano [osobny tryb podglądu i automatu](NR-edit-depth-boundary-runtime.md). Domyślnym pozostaje coverage; nowy cel jest jawnie eksperymentalny i regulowany. GPU potwierdziło momenty tego zrzutu, nie jakość temporalną w grze.

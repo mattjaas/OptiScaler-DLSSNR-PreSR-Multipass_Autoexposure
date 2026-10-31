@@ -3413,11 +3413,7 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
     // ordinary path runs, with Matched residual in its place. Selecting it again retries.
     const bool superiorSelected = DlssNr::SuperiorScaling::Enabled(cfg);
     auto& superiorState = SuperiorRun::GetState();
-    DlssNr::GainPreview::Settings previewSettings;
-    previewSettings.slowSeconds = cfg.DlssNrSuperiorGainPreviewSlowSeconds.value_or_default();
-    previewSettings.fastSeconds = cfg.DlssNrSuperiorGainPreviewFastSeconds.value_or_default();
-    previewSettings.motionThreshold = cfg.DlssNrSuperiorGainPreviewMotionThreshold.value_or_default();
-    previewSettings.requireChange = cfg.DlssNrSuperiorGainPreviewChangingMotion.value_or_default();
+    const auto previewSettings = DlssNr::GainPreview::Read(cfg);
     if ((!cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default() || !superiorSelected ||
          !superiorState.unavailable.empty()) &&
         superiorState.automaticGain.state.enabled)

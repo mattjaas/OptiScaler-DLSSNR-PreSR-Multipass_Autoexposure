@@ -4016,6 +4016,31 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 DlssNr::PrivateExposure::PositiveGain(config->DlssNrSuperiorPositiveEditGain.value_or_default());
             bool filterNrAnswer = config->DlssNrSuperiorFilterNrAnswer.value_or_default();
             bool automaticGain = config->DlssNrSuperiorAutoPositiveEditGain.value_or_default();
+            auto meterSettings = DlssNr::GainPreview::Read(*config);
+            int meterMethod = int(meterSettings.method);
+            static const char* meterMethods[] = { "Positive R/G coverage", "Depth-boundary contrast (experimental)" };
+            if (ImGui::Combo("Positive multiplier measurement", &meterMethod, meterMethods, IM_ARRAYSIZE(meterMethods)))
+                config->DlssNrSuperiorGainPreviewMethod = uint32_t(meterMethod);
+            HelpMarker("Select the measurement shared by preview and automatic application. Coverage retains the "
+                       "previous CNN/Transformer calibration. Depth-boundary contrast targets separation across "
+                       "moving near/far surfaces, using unscaled edit before the current multiplier. Both produce "
+                       "one global multiplier, with EMA and the same motion/change gate. Neither detects ghosting.");
+            if (meterMethod == int(DlssNr::GainPreview::DepthBoundary))
+            {
+                if (ImGui::SliderFloat("Depth-boundary contrast target", &meterSettings.boundaryTarget, .01f, .5f,
+                                       "%.5f"))
+                    config->DlssNrSuperiorGainPreviewBoundaryTarget = meterSettings.boundaryTarget;
+                if (ImGui::InputFloat("Exact boundary contrast target", &meterSettings.boundaryTarget, .001f, .01f,
+                                      "%.7f"))
+                    config->DlssNrSuperiorGainPreviewBoundaryTarget =
+                        DlssNr::GainPreview::Sanitize(meterSettings).boundaryTarget;
+                HelpMarker("Default 0.1429128 is mean absolute R/G contrast from head/water at 6x in the supplied "
+                           "Transformer scene. It is unvalidated for other scenes and CNN; target is editable and "
+                           "saved in profiles. Uses depth proximity ratio >=2, colour endpoints one pixel inside "
+                           "each side (3 px apart), and MV difference >2 working pixels. At least 64 pairs required. "
+                           "Same positive edit on both sides cannot be separated by a positive multiplier. "
+                           "Unreachable/invalid measurements pause instead of forcing maximum gain.");
+            }
             if (ImGui::Checkbox("Private DLSS on full NR answer", &filterNrAnswer))
                 config->DlssNrSuperiorFilterNrAnswer = filterNrAnswer;
             HelpMarker("Experimental: private DLSS processes NR's full working-resolution picture. The edit is then "
@@ -4053,7 +4078,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             if (ImGui::Checkbox("Automatically apply suggested multiplier", &automaticGain))
                 config->DlssNrSuperiorAutoPositiveEditGain = automaticGain;
             ImGui::EndDisabled();
-            HelpMarker("Experimental: apply the same smoothed R/G suggestion automatically to the main view. "
+            HelpMarker("Experimental: apply the selected smoothed suggestion automatically to the main view. "
                        "Waits for four moving-frame measurements. Updates no more than twice per second, with "
                        "2% upward / 5% downward hysteresis to limit changes. Holds the last applied value while "
                        "measurements pause. Auto never uses less than 1x, including warmup/fallback. "
@@ -4068,8 +4093,9 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 config->DlssNrSuperiorGainPreview = gainPreview;
             ImGui::EndDisabled();
             HelpMarker(
-                "Experimental estimate from positive R/G edit coverage, calibrated on the supplied CNN and "
-                "Transformer examples. This checkbox displays a suggestion; automatic application is a separate "
+                "Experimental estimate from the selected method. Coverage is calibrated on the supplied CNN and "
+                "Transformer examples; depth-boundary target comes from one Transformer scene. This checkbox displays "
+                "a suggestion; automatic application is a separate "
                 "option. "
                 "Not a ghosting detector or a guarantee for other scenes. Needs edit mode, saturation 1x "
                 "and depth transport/original guides off. Samples up to eight times per second while motion is usable. "
@@ -4090,6 +4116,10 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     previewInputSupported
                         ? status.text.c_str()
                         : "Paused: preview needs edit mode, saturation 1x, depth transport and original guides off.");
+                if (meterMethod == int(DlssNr::GainPreview::DepthBoundary))
+                    ImGui::Text("Depth-boundary pairs: %u | smoothed contrast at 1x: %.5f | target: %.5f",
+                                status.boundaryPairs, status.boundaryBase + status.boundarySlope,
+                                meterSettings.boundaryTarget);
                 if (status.valid)
                     ImGui::Text("Latest sample: %.2fx | moving MV: %.1f%% | changed MV: %.1f%%", status.raw,
                                 status.motionPercent, status.changedPercent);

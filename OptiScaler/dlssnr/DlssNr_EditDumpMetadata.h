@@ -16,6 +16,8 @@ struct PreviewSnapshot
     float suggestedGain = 0, rawGain = 0, movingPercent = 0, changedPercent = 0;
     double ageSeconds = -1;
     uint64_t measurements = 0;
+    uint32_t method = GainPreview::Coverage, boundaryPairs = 0;
+    float boundaryBase = 0, boundarySlope = 0, boundaryTarget = GainPreview::BoundaryTarget;
     bool valid = false, paused = true, catchingUp = false;
 };
 inline PreviewSnapshot SnapshotPreview(const GainPreview::Status& status, double now)
@@ -29,6 +31,11 @@ inline PreviewSnapshot SnapshotPreview(const GainPreview::Status& status, double
     s.movingPercent = status.motionPercent;
     s.changedPercent = status.changedPercent;
     s.measurements = status.measurements;
+    s.method = status.method;
+    s.boundaryPairs = status.boundaryPairs;
+    s.boundaryBase = status.boundaryBase;
+    s.boundarySlope = status.boundarySlope;
+    s.boundaryTarget = status.boundaryTarget;
     s.ageSeconds = status.valid && std::isfinite(now) && std::isfinite(status.measuredAt)
                        ? std::max(0., now - status.measuredAt)
                        : -1;
@@ -115,7 +122,12 @@ inline std::string MetadataJson(const Metadata& m)
     value("gain_preview_enabled_at_request", m.previewEnabledAtRequest);
     value("gain_preview_enabled_at_capture", m.previewEnabledAtCapture);
     value("gain_preview_epsilon", GainPreview::Epsilon);
-    value("gain_preview_target_at_capture", GainPreview::Target(m.privatePreset == 11));
+    const auto methodSettings = GainPreview::Sanitize(m.previewSettings);
+    value("gain_preview_method_at_capture", methodSettings.method);
+    value("gain_preview_boundary_target_at_capture", methodSettings.boundaryTarget);
+    value("gain_preview_target_at_capture", methodSettings.method == GainPreview::DepthBoundary
+                                                ? methodSettings.boundaryTarget
+                                                : GainPreview::Target(m.privatePreset == 11));
     const auto settings = GainPreview::Sanitize(m.previewSettings);
     value("gain_preview_require_changing_motion", settings.requireChange);
     value("gain_preview_slow_seconds", settings.slowSeconds);
@@ -125,6 +137,11 @@ inline std::string MetadataJson(const Metadata& m)
     {
         const std::string p = prefix;
         auto field = [&](const char* key, auto v) { value((p + key).c_str(), v); };
+        field("method", s.method);
+        field("boundary_pairs", s.boundaryPairs);
+        field("boundary_base", s.boundaryBase);
+        field("boundary_slope", s.boundarySlope);
+        field("boundary_target", s.boundaryTarget);
         field("valid", s.valid);
         field("paused", s.paused);
         field("catching_up", s.catchingUp);

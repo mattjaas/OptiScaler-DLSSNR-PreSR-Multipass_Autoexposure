@@ -166,5 +166,49 @@ int main()
     assert(unpacked.r[7] == 30 && unpacked.validEdits == 36860);
     assert(unpacked.serial == 0x1234567889abcdefULL && unpacked.changed == 9 && unpacked.samples == 36864);
     assert(unpacked.motion[1148] == 1 && unpacked.motion[1151] == 4);
+
+    Settings edges;edges.method=DepthBoundary;
+    assert(BoundaryGain(.02,.01,.08)==6);
+    assert(BoundaryGain(.1,0,.08)==1&&BoundaryGain(0,0,.08)==0&&BoundaryGain(NAN,.1,.08)==0);
+    assert(BoundaryGain(0,.00000001,.08)==0);
+    assert(Context(123,edges)!=Context(123,{}));
+    auto other=edges;other.boundaryTarget*=2;assert(Context(123,other)!=Context(123,edges));
+    Reading pairs;pairs.gate=1;pairs.samples=36864;pairs.moving=pairs.changed=12;pairs.validMotion=576;
+    pairs.boundaryPairs=pairs.boundaryCandidates=128;
+    pairs.boundaryOffset=.02*128;pairs.boundarySlope=.01*128;
+    edges.boundaryTarget=.08f;Filter edgeFilter;edgeFilter.Update(pairs,true,edges,0);
+    assert(edgeFilter.state.valid&&std::abs(edgeFilter.state.smoothed-6)<1e-5);
+    for(unsigned i=1;i<64;++i)edgeFilter.Update(pairs,false,edges,i*.125);
+    assert(std::abs(edgeFilter.state.smoothed-6)<1e-5);
+    pairs.boundaryPairs=63;edgeFilter.Update(pairs,false,edges,8);
+    assert(edgeFilter.state.paused&&std::abs(edgeFilter.state.smoothed-6)<1e-5);
+    pairs.boundaryPairs=128;pairs.boundarySlope=.001*128;
+    edgeFilter.Update(pairs,false,edges,8.125);assert(!edgeFilter.state.catchingUp);
+    edgeFilter.Update(pairs,false,edges,8.25);assert(edgeFilter.state.catchingUp);
+    for(unsigned i=3;i<256;++i)edgeFilter.Update(pairs,false,edges,8+i*.125);
+    assert(std::abs(edgeFilter.state.smoothed-60)<.001);
+    const auto saved=edgeFilter.state.smoothed;pairs.boundarySlope=0;
+    edgeFilter.Update(pairs,false,edges,41);assert(edgeFilter.state.paused&&edgeFilter.state.smoothed==saved);
+    Filter jitter; Reading probe=pairs; probe.boundarySlope=.01*128;
+    for(unsigned i=0;i<256;++i)
+    {
+        const double g=i==0?6.:i%2?5.1:7.9;
+        probe.boundarySlope=(double(edges.boundaryTarget)-.02)/g*128;
+        jitter.Update(probe,true,edges,i*.125);
+        assert(!jitter.state.catchingUp && jitter.state.smoothed>=5 && jitter.state.smoothed<=8);
+    }
+    assert(jitter.state.smoothed>5.5&&jitter.state.smoothed<6.8);
+    // Compact result respects row padding, distinct sum/count words and 64-bit serial.
+    constexpr size_t compactPitch=768;
+    std::vector<char> compact(compactPitch*BoundaryTextureHeight,0);
+    auto ptr=[&](unsigned i){return compact.data()+(i/BoundaryTextureWidth)*compactPitch+(i%BoundaryTextureWidth)*16;};
+    std::memcpy(ptr(0),meta,16);std::memcpy(ptr(1),meta1,16);
+    float sums[2]={1.25f,.5f};uint32_t counts[2]={64,65};
+    std::memcpy(ptr(2),sums,8);std::memcpy(ptr(2)+8,counts,8);
+    std::memcpy(ptr(2+Groups+287),pair,16);
+    const auto unpackEdge=UnpackBoundary(compact.data(),compactPitch);
+    assert(unpackEdge.boundaryPairs==64&&unpackEdge.boundaryCandidates==65);
+    assert(unpackEdge.boundaryOffset==1.25&&unpackEdge.boundarySlope==.5);
+    assert(unpackEdge.motion[1148]==1&&unpackEdge.motion[1151]==4&&unpackEdge.serial==0x1234567889abcdefULL);
     std::cout << "NR gain preview CPU checks passed\n";
 }

@@ -275,3 +275,7 @@ No shader/blob changes or additional GPU passes relative to preview metering. Lo
 ### Depth brightness and original-guide extension
 
 [Depth brightness and original-guide controls](Private-DLSS-depth-brightness.md) add complete INI/profile settings, separate gain/bias toggles, shared relative range/distribution and experimental NGX original input pointers. Preview/Auto pauses for these modes. JSON schema 2 gains optional spatial-transport fields, a depth-only companion when weighting is active, and the actual NGX guide geometry/scales; a spatial capture must not be undone with one global division. Guide bundles are disabled while original guides is selected; edit-only remains available.
+
+### Depth-boundary multiplier measurement
+
+**Positive multiplier measurement** adds a separate **Depth-boundary contrast (experimental)** method shared by preview and Auto. **Positive R/G coverage** remains the default with identical shader bytes. [Controls, target, EMA, metadata and validation](NR-edit-depth-boundary-runtime.md). The global positive gain still has the same encode/decode/capture contract; no game brightness/exposure control is adjusted.

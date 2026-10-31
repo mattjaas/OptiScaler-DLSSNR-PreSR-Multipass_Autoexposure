@@ -102,6 +102,15 @@ int main(int argc, char** argv)
     assert(spatial.find("\"private_depth_allocation_width\": 1920") != std::string::npos);
     assert(spatial.find("\"private_motion_scale_x\": 0.5") != std::string::npos);
     assert(spatial.find("\"captured_guides_match_private_dlss_inputs\": false") != std::string::npos);
+    metadata.previewSettings.method = DlssNr::GainPreview::DepthBoundary;
+    metadata.previewSettings.boundaryTarget = .15f;
+    shown.method=DlssNr::GainPreview::DepthBoundary; shown.boundaryPairs=123;
+    shown.boundaryBase=.02f; shown.boundarySlope=.01f; shown.boundaryTarget=.15f;
+    metadata.previewAtCapture=SnapshotPreview(shown,11);
+    const auto methodJson=MetadataJson(metadata);
+    assert(methodJson.find("\"gain_preview_method_at_capture\": 1")!=std::string::npos);
+    assert(methodJson.find("\"preview_capture_boundary_pairs\": 123")!=std::string::npos);
+    assert(methodJson.find("\"preview_capture_method\": 1")!=std::string::npos);
     const auto noPreview = MetadataJson({});
     assert(noPreview.find("\"preview_request_suggested_gain\": null") != std::string::npos);
     assert(noPreview.find("\"preview_request_measurement_age_seconds\": null") != std::string::npos);
