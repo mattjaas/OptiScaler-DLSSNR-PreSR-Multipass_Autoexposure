@@ -79,3 +79,7 @@ Mnożnik wzmacnia więc także teksturę samej wody. Z jednej statycznej klatki 
 Kontrole sprawdzają zgodność wymiarów, rozłączne maski, skończone dane, zachowanie wszystkich niedodatnich składowych editu oraz zgodność odtworzonego nośnika przy 6x z niezależnym `FP16(0.5+savedDDS)`. Sprawdzono dziewięć ustawień odsunięcia/maksymalnej odległości, wariant zakresu głowy, zakresy miar i niezmienione hashe źródeł. Nie mierzono GPU; jest to wyłącznie analiza CPU.
 
 `python tools/analyze_nr_head_water_contrast.py <nr-edit.json> --output <report.json> --preview <local.png>` wymaga signed editu, depth i JSON oraz NumPy/SciPy (Pillow tylko dla podglądu). Podgląd przedstawia maski i oba warianty z tą samą skalą liczbową; wartości >1 są przycinane wyłącznie do PNG. Nie publikujemy pikseli źródłowych i nie zmieniamy DLL/HLSL/regulatora na podstawie tego pomiaru.
+
+## Następny test: globalny gain z kontrastu granic
+
+[Badanie celu kontrastu na granicach głębi](NR-edit-depth-boundary-target.md) wykorzystuje poziom R/G z głowy/wody przy 6× jako jawnie sceniczny cel. Automatyczne granice na całym ekranie, odsunięte próbki i ΔMV>2 dają około 6,17×; symulacja rzadkiej siatki po połączeniu 64 faz daje 6,18×. To kandydat pomiaru, nie niezależna kalibracja, implementacja w DLL ani gwarancja usunięcia smużenia.
