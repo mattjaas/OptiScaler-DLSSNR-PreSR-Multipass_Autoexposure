@@ -1,0 +1,356 @@
+{
+  "warning": "Exploratory same-data coarse screening; not a validated object-boundary detector/controller.",
+  "reconstruction": "C(rho) = max(0.5 + min(E,0),0) + rho*max(E,0); tested range stays below FP16 maximum; FP16 rounding omitted.",
+  "grids": [
+    "16x9",
+    "32x18",
+    "64x36",
+    "128x72"
+  ],
+  "rhos": [
+    0.5,
+    0.75,
+    1,
+    1.02,
+    1.05,
+    1.1,
+    1.15,
+    1.2,
+    1.3,
+    1.5,
+    2,
+    3,
+    4,
+    8,
+    16,
+    32
+  ],
+  "best_screened_worst_case_gain_ratio": 3.0,
+  "candidates": [
+    {
+      "key": "16x9_luma_difference_p1",
+      "worst": 3.0
+    },
+    {
+      "key": "32x18_rgb_difference_p2",
+      "worst": 3.0
+    },
+    {
+      "key": "32x18_luma_difference_p2",
+      "worst": 3.0
+    },
+    {
+      "key": "32x18_global_michelson_0.25_0.75",
+      "worst": 3.0
+    },
+    {
+      "key": "64x36_rgb_difference_p2",
+      "worst": 3.0
+    },
+    {
+      "key": "64x36_luma_difference_p2",
+      "worst": 3.0
+    },
+    {
+      "key": "64x36_global_michelson_0.1_0.9",
+      "worst": 3.0
+    },
+    {
+      "key": "128x72_luma_michelson_p2",
+      "worst": 3.0
+    },
+    {
+      "key": "128x72_global_cv",
+      "worst": 3.0
+    },
+    {
+      "key": "128x72_global_michelson_0.1_0.9",
+      "worst": 3.0
+    },
+    {
+      "key": "128x72_local_cv_rms",
+      "worst": 3.0
+    },
+    {
+      "key": "16x9_rgb_difference_p1",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_rgb_difference_p2",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_rgb_michelson_q0.75",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_rgb_michelson_q0.9",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_luma_michelson_p1",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_luma_difference_p2",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_luma_michelson_q0.75",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_luma_michelson_q0.9",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_global_cv",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_global_michelson_0.1_0.9",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_global_michelson_0.25_0.75",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_local_cv_mean",
+      "worst": 4.0
+    },
+    {
+      "key": "32x18_rgb_difference_p1",
+      "worst": 4.0
+    },
+    {
+      "key": "32x18_rgb_michelson_p2",
+      "worst": 4.0
+    },
+    {
+      "key": "32x18_rgb_michelson_q0.9",
+      "worst": 4.0
+    },
+    {
+      "key": "32x18_luma_difference_p1",
+      "worst": 4.0
+    },
+    {
+      "key": "32x18_luma_michelson_p2",
+      "worst": 4.0
+    },
+    {
+      "key": "32x18_luma_michelson_q0.9",
+      "worst": 4.0
+    },
+    {
+      "key": "32x18_global_cv",
+      "worst": 4.0
+    },
+    {
+      "key": "32x18_global_michelson_0.1_0.9",
+      "worst": 4.0
+    },
+    {
+      "key": "32x18_local_cv_mean",
+      "worst": 4.0
+    },
+    {
+      "key": "32x18_local_cv_rms",
+      "worst": 4.0
+    },
+    {
+      "key": "64x36_rgb_difference_p1",
+      "worst": 4.0
+    },
+    {
+      "key": "64x36_luma_difference_p1",
+      "worst": 4.0
+    },
+    {
+      "key": "64x36_luma_michelson_p2",
+      "worst": 4.0
+    },
+    {
+      "key": "64x36_global_cv",
+      "worst": 4.0
+    },
+    {
+      "key": "64x36_global_michelson_0.25_0.75",
+      "worst": 4.0
+    },
+    {
+      "key": "64x36_local_cv_rms",
+      "worst": 4.0
+    },
+    {
+      "key": "128x72_rgb_michelson_p2",
+      "worst": 4.0
+    },
+    {
+      "key": "128x72_rgb_difference_p2",
+      "worst": 4.0
+    },
+    {
+      "key": "128x72_luma_difference_p1",
+      "worst": 4.0
+    },
+    {
+      "key": "128x72_luma_difference_p2",
+      "worst": 4.0
+    },
+    {
+      "key": "128x72_global_michelson_0.25_0.75",
+      "worst": 4.0
+    },
+    {
+      "key": "16x9_rgb_michelson_p1",
+      "worst": 8.0
+    },
+    {
+      "key": "16x9_rgb_michelson_p2",
+      "worst": 8.0
+    },
+    {
+      "key": "16x9_luma_michelson_p2",
+      "worst": 8.0
+    },
+    {
+      "key": "16x9_local_cv_rms",
+      "worst": 8.0
+    },
+    {
+      "key": "32x18_rgb_michelson_p1",
+      "worst": 8.0
+    },
+    {
+      "key": "32x18_rgb_michelson_q0.75",
+      "worst": 8.0
+    },
+    {
+      "key": "32x18_luma_michelson_p1",
+      "worst": 8.0
+    },
+    {
+      "key": "32x18_luma_michelson_q0.75",
+      "worst": 8.0
+    },
+    {
+      "key": "64x36_rgb_michelson_p1",
+      "worst": 8.0
+    },
+    {
+      "key": "64x36_rgb_michelson_p2",
+      "worst": 8.0
+    },
+    {
+      "key": "64x36_rgb_michelson_q0.9",
+      "worst": 8.0
+    },
+    {
+      "key": "64x36_luma_michelson_p1",
+      "worst": 8.0
+    },
+    {
+      "key": "64x36_luma_michelson_q0.9",
+      "worst": 8.0
+    },
+    {
+      "key": "64x36_local_cv_mean",
+      "worst": 8.0
+    },
+    {
+      "key": "128x72_rgb_michelson_p1",
+      "worst": 8.0
+    },
+    {
+      "key": "128x72_rgb_difference_p1",
+      "worst": 8.0
+    },
+    {
+      "key": "128x72_luma_michelson_p1",
+      "worst": 8.0
+    },
+    {
+      "key": "128x72_luma_michelson_q0.9",
+      "worst": 8.0
+    },
+    {
+      "key": "128x72_local_cv_mean",
+      "worst": 8.0
+    },
+    {
+      "key": "128x72_rgb_michelson_q0.9",
+      "worst": 16.0
+    },
+    {
+      "key": "16x9_rgb_michelson_q0.5",
+      "worst": 32.0
+    },
+    {
+      "key": "16x9_luma_michelson_q0.5",
+      "worst": 32.0
+    },
+    {
+      "key": "64x36_rgb_michelson_q0.75",
+      "worst": 32.0
+    },
+    {
+      "key": "64x36_luma_michelson_q0.75",
+      "worst": 32.0
+    }
+  ],
+  "example_best_candidate": {
+    "key": "16x9_luma_difference_p1",
+    "worst": 3.0,
+    "models": {
+      "cnn": {
+        "target": 0.03667106741940408,
+        "required_rhos": [
+          3.0,
+          3.0,
+          2.0,
+          1.0
+        ],
+        "worst": 3.0,
+        "bad_max": 0.028955369579379973,
+        "clear_files": [
+          "game1-cnn-noghosting.dds",
+          "game1-cnn-noghosting2.dds",
+          "game2-cnn-noghosting1.dds",
+          "game2-cnn-noghosting2.dds"
+        ],
+        "clears": [
+          0.01987054442454306,
+          0.01786695265211959,
+          0.028818847002833606,
+          0.03667106741940408
+        ]
+      },
+      "transformer": {
+        "target": 0.05676888601684697,
+        "required_rhos": [
+          1.3,
+          3.0,
+          1.0,
+          2.0
+        ],
+        "worst": 3.0,
+        "bad_max": 0.03739505388965933,
+        "clear_files": [
+          "game1-transformer-noghosting.dds",
+          "game1-transformer-noghosting2.dds",
+          "game2-transformer-noghosting1.dds",
+          "game2-transformer-noghosting2.dds"
+        ],
+        "clears": [
+          0.04738885581087129,
+          0.028740410879242086,
+          0.05676888601684697,
+          0.04597767449380431
+        ]
+      }
+    }
+  },
+  "source_identity": "Same 16 SHA-256 values as nr-edit-common-study.json; raw data not published."
+}

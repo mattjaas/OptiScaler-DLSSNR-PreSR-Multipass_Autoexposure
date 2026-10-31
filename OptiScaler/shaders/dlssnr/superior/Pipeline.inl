@@ -140,6 +140,15 @@ void Destroyed(const void* identity)
     EditDumpListDestroyed(identity);
 }
 
+struct EditDumpGuide
+{
+    Texture image;
+    ComPtr<ID3D12Resource> readback;
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint {};
+    UINT64 bytes = 0, allocationBytes = 0;
+    DlssNr::EditDump::Format format = DlssNr::EditDump::Format::R32Float;
+    const char* extension = nullptr;
+};
 struct EditDumpJob
 {
     ComPtr<ID3D12Device> device;
@@ -151,6 +160,9 @@ struct EditDumpJob
     const void* commands = nullptr; // identity only, never dereferenced
     DlssNr::EditDump::ReadbackCopy copy;
     std::filesystem::path path;
+    std::array<EditDumpGuide, 2> guides;
+    unsigned guideCount = 0;
+    std::string metadata;
 };
 
 struct State
@@ -162,6 +174,7 @@ struct State
     std::string unavailable;   // why Superior is not running this session; empty while it runs
     bool srUnavailable = false; // the NGX DLSS SR runtime itself failed: the menu greys Superior out
     std::string pendingEditDump, editDumpStatus;
+    bool pendingEditDumpGuides = false;
     std::shared_ptr<EditDumpJob> editDump;
     std::shared_ptr<std::atomic_uint64_t> editDumpRetainedBytes = std::make_shared<std::atomic_uint64_t>(0);
 };
@@ -194,35 +207,60 @@ void CollectEditDump()
         s.editDumpStatus = "Edit not saved: snapshot was discarded, copy submission failed, or the device was removed.";
         return;
     }
-    void* mapped = nullptr;
-    const D3D12_RANGE range { 0, size_t(job->bytes) };
-    if (FAILED(job->readback->Map(0, &range, &mapped)) || !mapped)
-    {
-        s.editDumpStatus = "Edit not saved: readback mapping failed.";
-        return;
-    }
     std::error_code ec;
     std::filesystem::create_directories(job->path.parent_path(), ec);
-    HANDLE file = ec ? INVALID_HANDLE_VALUE : CreateFileW(job->path.c_str(), GENERIC_WRITE, 0, nullptr,
-                                                         CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
-    const bool written = file != INVALID_HANDLE_VALUE && DlssNr::EditDump::WriteRows(
-        job->width, job->height, static_cast<const char*>(mapped) + job->footprint.Offset,
-        job->footprint.Footprint.RowPitch,
-        [file](const void* data, size_t bytes)
-        {
-            DWORD count = 0;
-            return WriteFile(file, data, DWORD(bytes), &count, nullptr) && count == bytes;
-        });
-    if (file != INVALID_HANDLE_VALUE)
+    std::vector<std::filesystem::path> paths { job->path };
+    for (unsigned i = 0; i < job->guideCount; ++i)
+        paths.push_back(std::filesystem::path(job->path).replace_extension(job->guides[i].extension));
+    if (!job->metadata.empty()) paths.push_back(std::filesystem::path(job->path).replace_extension(".json"));
+    std::vector<HANDLE> files;
+    files.reserve(paths.size());
+    bool written = !ec;
+    // Reserve every output first: no overwrite, and no partial bundle when a companion already exists.
+    for (const auto& path : paths)
     {
-        CloseHandle(file);
-        if (!written) DeleteFileW(job->path.c_str()); // only the new partial file we created
+        if (!written) break;
+        const auto file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
+        written = file != INVALID_HANDLE_VALUE;
+        if (written) files.push_back(file);
     }
-    const D3D12_RANGE none { 0, 0 };
-    job->readback->Unmap(0, &none);
+    auto writeBytes = [](HANDLE file, const void* data, size_t bytes)
+    {
+        DWORD count = 0;
+        return bytes <= MAXDWORD && WriteFile(file, data, DWORD(bytes), &count, nullptr) && count == bytes;
+    };
+    auto writeImage = [&](HANDLE file, ID3D12Resource* readback, const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& fp,
+                          UINT64 bytes, DlssNr::EditDump::Format format)
+    {
+        void* mapped = nullptr;
+        const D3D12_RANGE range { 0, size_t(bytes) };
+        if (FAILED(readback->Map(0, &range, &mapped)) || !mapped) return false;
+        const bool ok = DlssNr::EditDump::WriteRows(job->width, job->height,
+            static_cast<const char*>(mapped) + fp.Offset, fp.Footprint.RowPitch,
+            [&](const void* data, size_t count) { return writeBytes(file, data, count); }, format);
+        const D3D12_RANGE none { 0, 0 };
+        readback->Unmap(0, &none);
+        return ok;
+    };
+    if (written)
+        written = writeImage(files[0], job->readback.Get(), job->footprint, job->bytes,
+                             DlssNr::EditDump::Format::Rgba32Float);
+    for (unsigned i = 0; written && i < job->guideCount; ++i)
+    {
+        const auto& guide = job->guides[i];
+        written = writeImage(files[i + 1], guide.readback.Get(), guide.footprint, guide.bytes, guide.format);
+    }
+    if (written && !job->metadata.empty())
+        written = writeBytes(files.back(), job->metadata.data(), job->metadata.size());
+    for (size_t i = 0; i < files.size(); ++i)
+    {
+        CloseHandle(files[i]);
+        if (!written) DeleteFileW(paths[i].c_str()); // only outputs reserved by this capture
+    }
     const auto utf8 = job->path.u8string();
-    s.editDumpStatus = written ? "Saved: " + std::string(utf8.begin(), utf8.end())
-                               : "Edit not saved: file exists or the capture folder is not writable. Choose another name.";
+    s.editDumpStatus = written ? (job->guideCount ? "Saved edit + depth + motion + settings: " : "Saved: ") +
+                                   std::string(utf8.begin(), utf8.end())
+                               : "Edit not saved: an output exists, or GPU readback/file writing failed. Choose another name if needed.";
 }
 // Set by the first Superior frame. Until then the NGX shutdown path does not touch the NR lock at all.
 std::atomic_bool g_used = false;
@@ -277,8 +315,14 @@ void Submitted(ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* 
             {
                 // The real game Execute has already happened. Queue order captures the image once;
                 // replay never writes this private readback, even while the file is being mapped.
-                s.editDump->copy.Submit(queue, s.editDump->image.Get(), s.editDump->readback.Get(),
-                                       s.editDump->footprint);
+                std::array<DlssNr::EditDump::ReadbackCopy::Item, 3> items;
+                items[0] = { s.editDump->image.Get(), s.editDump->readback.Get(), s.editDump->footprint };
+                for (unsigned j = 0; j < s.editDump->guideCount; ++j)
+                {
+                    const auto& guide = s.editDump->guides[j];
+                    items[j + 1] = { guide.image.Get(), guide.readback.Get(), guide.footprint };
+                }
+                s.editDump->copy.SubmitMany(queue, items.data(), 1 + s.editDump->guideCount);
                 s.editDumpStatus = "Snapshot submitted; waiting for capture GPU fence.";
                 break;
             }
@@ -344,13 +388,47 @@ bool Dispatch(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, const Constan
     return true;
 }
 
+bool PrepareDumpGuide(EditDumpJob& job, unsigned index, ID3D12Resource* source,
+                      DlssNr::EditDump::Format format, const char* extension,
+                      UINT64& snapshots, UINT64& readbacks)
+{
+    if (!source) return false;
+    auto desc = source->GetDesc();
+    if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.SampleDesc.Count != 1 ||
+        desc.DepthOrArraySize != 1 || desc.Width < job.width || desc.Height < job.height ||
+        uint32_t(desc.Format) != uint32_t(format)) return false;
+    desc.Width = job.width; desc.Height = job.height;
+    desc.MipLevels = 1; desc.Flags = D3D12_RESOURCE_FLAG_NONE; desc.Alignment = 0;
+    auto& guide = job.guides[index];
+    guide.format = format; guide.extension = extension;
+    job.device->GetCopyableFootprints(&desc, 0, 1, 0, &guide.footprint, nullptr, nullptr, &guide.bytes);
+    guide.allocationBytes = job.device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
+    constexpr UINT64 budget = 512ull << 20;
+    if (guide.allocationBytes == UINT64_MAX || guide.allocationBytes > budget || guide.bytes > budget ||
+        GetState().editDumpRetainedBytes->load() + snapshots + readbacks + guide.allocationBytes + guide.bytes > budget)
+        return false;
+    const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    if (FAILED(job.device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+        D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&guide.image.resource)))) return false;
+    guide.image.state = D3D12_RESOURCE_STATE_COPY_SOURCE;
+    const auto readHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+    const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(guide.bytes);
+    if (FAILED(job.device->CreateCommittedResource(&readHeap, D3D12_HEAP_FLAG_NONE, &buffer,
+        D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&guide.readback)))) return false;
+    snapshots += guide.allocationBytes; readbacks += guide.bytes;
+    ++job.guideCount;
+    return true;
+}
+
 void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd,
-                   ID3D12Resource* proxy, ID3D12Resource* answer, float gain)
+                   ID3D12Resource* proxy, ID3D12Resource* answer, float gain,
+                   ID3D12Resource* depth, ID3D12Resource* motion, const DlssNrFrameInfo& frame, bool reset, bool hold)
 {
     auto& s = GetState();
     if (s.pendingEditDump.empty() || s.editDump) return;
     auto name = std::move(s.pendingEditDump);
     s.pendingEditDump.clear();
+    const bool withGuides = std::exchange(s.pendingEditDumpGuides, false);
     auto job = std::make_shared<EditDumpJob>();
     job->device = g.device;
     job->width = g.workWidth;
@@ -358,12 +436,24 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
     job->commands = Util::RealObjectIdentity(cmd);
     job->path = Util::DllPath().remove_filename() / "dlssnr-edit" / std::filesystem::u8path(name);
     // Bound a diagnostic's transient allocation to 512 MiB for the texture + readback together.
-    if (s.editDumpRetainedBytes->load() + uint64_t(job->width) * job->height * 32u > (512ull << 20) ||
-        !Ensure(job->image, g.device.Get(), DXGI_FORMAT_R32G32B32A32_FLOAT, job->width, job->height))
+    if (!job->width || !job->height || job->width > 16384 || job->height > 16384 ||
+        s.editDumpRetainedBytes->load() + uint64_t(job->width) * job->height * 32u > (512ull << 20))
     {
         s.editDumpStatus = "Edit not saved: image allocation failed or the 512 MiB capture limit was exceeded.";
         return;
     }
+    const auto imageHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+    const auto imageDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32B32A32_FLOAT,
+        job->width, job->height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    // A replayable recording must start/end in the same snapshot state. The
+    // private readback copy also leaves COPY_SOURCE, so every replay is valid.
+    if (FAILED(g.device->CreateCommittedResource(&imageHeap, D3D12_HEAP_FLAG_NONE, &imageDesc,
+        D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&job->image.resource))))
+    {
+        s.editDumpStatus = "Edit not saved: image allocation failed.";
+        return;
+    }
+    job->image.state = D3D12_RESOURCE_STATE_COPY_SOURCE;
     const auto desc = job->image.Get()->GetDesc();
     g.device->GetCopyableFootprints(&desc, 0, 1, 0, &job->footprint, nullptr, nullptr, &job->bytes);
     const auto snapshotBytes = g.device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
@@ -382,26 +472,69 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         s.editDumpStatus = "Edit not saved: readback allocation failed.";
         return;
     }
+    UINT64 snapshotTotal = snapshotBytes, readbackTotal = job->bytes;
+    if (withGuides)
+    {
+        if (!PrepareDumpGuide(*job, 0, depth, DlssNr::EditDump::Format::R32Float, ".depth.dds", snapshotTotal, readbackTotal) ||
+            !PrepareDumpGuide(*job, 1, motion, DlssNr::EditDump::Format::Rg32Float, ".motion.dds", snapshotTotal, readbackTotal))
+        {
+            s.editDumpStatus = "Diagnostic not saved: guides unavailable/unsupported or the 512 MiB capture budget was exceeded.";
+            return;
+        }
+        const auto& cfg = *Config::Instance();
+        DlssNr::EditDump::Metadata m;
+        m.frame = g_frames; m.submissionEpoch = frame.SubmissionEpoch;
+        m.width = job->width; m.height = job->height;
+        m.gain = gain; m.saturation = g.editSaturation; m.depthStrength = g.depthStrength;
+        m.fullNrAnswer = g.filterNrAnswer; m.privatePreset = g.preset;
+        m.nrPresetSetting = cfg.DlssNrPreset.value_or_default();
+        m.privateIsHdr = !g.disableIsHDR; m.exposureMode = g.exposureMode;
+        m.manualExposure = DlssNr::PrivateExposure::ManualValue(cfg.DlssNrSuperiorPrivateExposureValue.value_or_default());
+        m.invertedDepth = g.inverted; m.packed = g.packed; m.reset = reset; m.held = hold;
+        m.expectedPassMask = g.expectedMask; m.completedPassMask = g.successfulMask;
+        m.whitePointSource = DlssNr::WhitePointSourceEffective(cfg);
+        m.autoTrimControl = DlssNr::AutoTrimEffective(cfg);
+        m.gameTrimControl = cfg.DlssNrWhitePointTrim.value_or_default();
+        m.scanTrimControl = cfg.DlssNrScanTrim.value_or_default();
+        job->metadata = DlssNr::EditDump::MetadataJson(m);
+    }
     Constants c {};
     c.Mode = 43u;
     c.Width = job->width;
     c.Height = job->height;
     Fields::SetPositiveCarrierGain(c, gain);
     Record(cmd);
+    // Even a failed dispatch may have recorded a barrier referencing the snapshot.
+    // Retain before recording anything that could leave a partial command sequence.
+    std::vector<ComPtr<ID3D12Resource>> snapshots { job->image.resource };
+    for (unsigned i = 0; i < job->guideCount; ++i) snapshots.push_back(job->guides[i].image.resource);
+    auto retainedBytes = s.editDumpRetainedBytes;
+    retainedBytes->fetch_add(snapshotTotal);
+    s.lifetime.Retire([snapshots, retainedBytes, snapshotTotal] { retainedBytes->fetch_sub(snapshotTotal); });
     if (!Dispatch(shader, cmd, c, proxy, answer, nullptr, nullptr, nullptr, nullptr, job->image))
     {
         s.editDumpStatus = "Edit not saved: snapshot dispatch failed.";
         return;
     }
     job->image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    for (unsigned i = 0; i < job->guideCount; ++i)
+    {
+        auto* source = i == 0 ? depth : motion;
+        auto& guide = job->guides[i];
+        guide.image.To(cmd, D3D12_RESOURCE_STATE_COPY_DEST);
+        Barrier(cmd, source, Srv, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        D3D12_TEXTURE_COPY_LOCATION src {}, dst {};
+        src.pResource = source; src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        dst.pResource = guide.image.Get(); dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        const D3D12_BOX box { 0, 0, 0, job->width, job->height, 1 };
+        cmd->CopyTextureRegion(&dst, 0, 0, 0, &src, &box);
+        Barrier(cmd, source, D3D12_RESOURCE_STATE_COPY_SOURCE, Srv);
+        guide.image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    }
     s.editDump = job;
     g_editDumpCommands = job->commands;
     // Only the snapshot is referenced by the game list. Keep it until replay is impossible;
     // private copy/readback ownership is separately held by the job until its fence completes.
-    auto snapshot = job->image.resource;
-    auto retainedBytes = s.editDumpRetainedBytes;
-    retainedBytes->fetch_add(snapshotBytes);
-    s.lifetime.Retire([snapshot, retainedBytes, snapshotBytes] { retainedBytes->fetch_sub(snapshotBytes); });
     s.editDumpStatus = "Snapshot recorded; waiting for game submission.";
 }
 
@@ -793,7 +926,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         !Dispatch(shader, cmd, encode, proxy, answer, motion, depthStrength > 0 ? temporalDepth : nullptr,
                   nullptr, nullptr, g.carrier, &g.temporalMotion))
         return nullptr;
-    RecordEditDump(g, shader, cmd, proxy, answer, gain);
+    RecordEditDump(g, shader, cmd, proxy, answer, gain, temporalDepth, g.temporalMotion.Get(), frame,
+                   reset || g.reset, hold);
     auto* exposure = PrivateExposureTexture(g, shader, cmd, reset || g.reset);
     if (!exposure)
     {
@@ -977,6 +1111,7 @@ void NgxShutdown()
     Drop();
     if (!s.pendingEditDump.empty()) s.editDumpStatus = "Edit capture cancelled: NGX shutdown.";
     s.pendingEditDump.clear();
+    s.pendingEditDumpGuides = false;
     CollectEditDump();
     PresetChoice() = {};
 }
@@ -990,6 +1125,7 @@ void Shutdown()
     s.lifetime.Collect();
     if (!s.pendingEditDump.empty()) s.editDumpStatus = "Edit capture cancelled: NR shutdown.";
     s.pendingEditDump.clear();
+    s.pendingEditDumpGuides = false;
     CollectEditDump();
     PresetChoice() = {};
 }

@@ -17,6 +17,14 @@ W parze zmieniającej jasność bazowy edit też się zmienia. Nie wolno traktow
 
 Wspólna funkcja i jeden cel na rodzinę wymagają odpowiednio zbliżonych wyników na granicznych zapisach **w jednostkach proponowanego mnożnika**. Samą monotoniczną kompresją S do [0,1] można sztucznie zmniejszyć rozrzut wyników, ale nie naprawić błędu po odwróceniu funkcji do mnożnika.
 
+## Jednostronny zapas jest dopuszczalny
+
+Kolejne doprecyzowanie użytkownika: niewielkie przekroczenie pierwszej dobrej wartości jest dopuszczalne; wartości z ghostingiem są niedopuszczalne. Głównym kryterium jest więc przedział **[1, 1+zapas]** proponowanego mnożnika względem pierwszego dobrego zapisu, a nie symetryczny błąd wokół 1. Symetryczne wartości poniżej pozostają wyłącznie historyczną diagnostyką rozrzutu.
+
+Dla jednorodnego S minimalny wspólny cel to maksimum wyników dobrych oraz wartość ściśle powyżej maksimum wyników złych. Minimalny konieczny zapas wynosi `cel/min(S_dobre)-1`. Poprzedni S wymaga **33,34% dla CNN i 216,19% dla transformera**. Dopuszczenie małego jednostronnego zapasu nie rozwiązuje tego problemu. Skrypt zapisuje też wykonalność przykładowych limitów 2/5/10/15/20/30%; nie są to limity jakości narzucone przez użytkownika. S2 wymagałby już na pełnym obrazie około 27,4%, a rzadkie próbkowanie dodatkowo go destabilizuje.
+
+Użytkownik potwierdził wejście: edit wokół 0,5, nasycenie bez zmiany, bez kolorowania głębi. Automat może regulować tylko dodatni mnożnik. Dalsze badanie kontrastu: [NR-object-contrast-study.md](NR-object-contrast-study.md).
+
 ## Dlaczego poprzedni S odpada
 
 | Model | S w granicznych `noghosting` | Największy/najmniejszy | Propozycja mnożnika przez wcześniejszy cel, względem użytego na granicy |
@@ -82,4 +90,4 @@ python tools/analyze_nr_edit_boundary.py `
         'F:/Gry/The Last of Us - Part I/dlssnr-edit/game2-transformer-*.dds'
 ```
 
-[Wyniki audytu](validation/nr-edit-boundary-audit.json). To zmiana analizy i narzędzia CPU; renderowanie, shaderowe prototypy, ich wcześniejsze pomiary GPU oraz DLL nie zmieniają się.
+[Wyniki audytu](validation/nr-edit-boundary-audit.json). Audyt sam nie zmienia renderowania ani shaderowych prototypów. Osobny zapis diagnostyczny opisano w badaniu kontrastu obiektów.

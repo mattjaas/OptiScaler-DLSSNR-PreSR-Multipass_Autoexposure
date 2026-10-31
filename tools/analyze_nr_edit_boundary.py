@@ -6,7 +6,6 @@ also reproduces a rejected, spatially normalized common-score experiment.
 """
 
 import argparse
-import glob
 import hashlib
 import json
 import math
@@ -15,7 +14,7 @@ from pathlib import Path
 import numpy as np
 
 from analyze_nr_edit_common import measure
-from analyze_nr_edit_ghosting import load_edit
+from analyze_nr_edit_ghosting import edit_paths, load_edit
 
 
 def boundary_range(values, classification_target=None):
@@ -33,6 +32,17 @@ def boundary_range(values, classification_target=None):
         result["previous_classification_target"] = classification_target
         result["predicted_gain_over_observed_boundary_gain"] = [classification_target / v for v in values]
     return result
+
+
+def one_sided_range(clear_intervals, bad_highs):
+    """No reduction below first-clear; known bads rejected, reserve only upward."""
+    low = min(lo for lo, hi in clear_intervals)
+    target = max(max(hi for lo, hi in clear_intervals),
+                 math.nextafter(max(bad_highs), math.inf))
+    return dict(minimum_target=target, minimum_required_positive_reserve=target / low - 1,
+                illustrative_reserve_feasibility={str(percent): target <= (1 + percent / 100) * low
+                                                 for percent in (2, 5, 10, 15, 20, 30)},
+                warning="Reserve budgets are illustrative, not user-specified quality limits or temporal guarantees.")
 
 
 def spatial_score(rgb, neighbor_x=None, neighbor_y=None):
@@ -58,15 +68,18 @@ def spatial_score(rgb, neighbor_x=None, neighbor_y=None):
 
 def analyse(study, paths):
     report = dict(
-        interpretation="The user states noghosting captures are approximately the first disappearance, not safe headroom.",
+        interpretation="First-clear captures are lower anchors; small positive reserve is allowed, known ghosting must be rejected.",
+        input_contract="NR edit around 0.5, saturation identity, depth colour off; regulate positive gain only.",
         pair_design="One pair changes only positive gain; the other changes only model input brightness. Number mapping not specified.",
         warning="The previous RGB classifier is rejected as a minimum-gain controller. No new validated controller is claimed.",
         shared_rgb_score={}, rejected_spatial_candidate={})
     for model, classification_target in study["thresholds"].items():
         clear = [r for r in study["files"] if r["model"] == model and not r["ghosting"]]
         values = [r["full"]["score"] for r in clear]
+        bad = [r for r in study["files"] if r["model"] == model and r["ghosting"]]
         report["shared_rgb_score"][model] = dict(
             files=[r["file"] for r in clear], scores=values,
+            one_sided_full=one_sided_range([(v, v) for v in values], [r["full"]["score"] for r in bad]),
             **boundary_range(values, classification_target))
     if paths:
         known = {r["file"]: r for r in study["files"]}
@@ -121,7 +134,7 @@ def main():
     parser.add_argument("--dds", nargs="*", default=[], help="Optional paths/globs for spatial rejection experiment")
     args = parser.parse_args()
     study = json.loads(args.study.read_text(encoding="utf-8"))
-    paths = sorted({Path(p) for pattern in args.dds for p in glob.glob(pattern)})
+    paths = edit_paths(args.dds)
     if args.dds and not paths:
         parser.error("No DDS files matched")
     report = analyse(study, paths)

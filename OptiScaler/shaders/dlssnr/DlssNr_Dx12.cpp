@@ -5,6 +5,7 @@
 #include <dlssnr/DlssNr_PrivateExposure.h>
 #include <dlssnr/DlssNr_EditDump.h>
 #include <dlssnr/DlssNr_EditDumpReadback.h>
+#include <dlssnr/DlssNr_EditDumpMetadata.h>
 #include <dlssnr/DlssNr_GpuLifetime.h>
 #include <output/SdrToHdr_ProxyDx12.h>
 #include <native/DriverInitGate.h>
@@ -3416,6 +3417,7 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
     if ((!superiorSelected || !superiorState.unavailable.empty()) && !superiorState.pendingEditDump.empty())
     {
         superiorState.pendingEditDump.clear();
+        superiorState.pendingEditDumpGuides = false;
         superiorState.editDumpStatus = "Edit capture cancelled: Superior Scaling is inactive or unavailable.";
     }
     if (superiorState.wasSelected != superiorSelected)
@@ -7510,7 +7512,7 @@ bool DlssNr::SuperiorScaling::SrUnavailable()
     return SuperiorRun::GetState().srUnavailable;
 }
 
-bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename)
+bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename, bool withGuides)
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     auto& s = SuperiorRun::GetState();
@@ -7528,6 +7530,7 @@ bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename)
         return false;
     }
     s.pendingEditDump = *name;
+    s.pendingEditDumpGuides = withGuides;
     s.editDumpStatus = "Waiting for the next private DLSS evaluation.";
     return true;
 }

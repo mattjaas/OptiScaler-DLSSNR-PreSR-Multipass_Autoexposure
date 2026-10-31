@@ -29,7 +29,7 @@ try {
     $arguments = @()
     if ($Warp) { $arguments += '--warp' }
     if ($TimingCsv) { $arguments += @('--timing', $TimingCsv) }
-    $arguments += $DdsPaths
+    $arguments += @($DdsPaths | Where-Object { $_ -notmatch '\.(depth|motion)\.dds$' })
     & ./artifacts/edit_signal_probe.exe @arguments
     if ($LASTEXITCODE -ne 0) { throw 'Probe validation failed' }
 } finally { Pop-Location }

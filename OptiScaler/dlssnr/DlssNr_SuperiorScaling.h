@@ -16,7 +16,7 @@ std::string Status();
 std::string Unavailable();
 bool SrUnavailable();
 // One-shot signed FP32 edit dump, recorded before private DLSS; filename only, .dds is appended.
-bool RequestEditDump(const std::string& filename);
+bool RequestEditDump(const std::string& filename, bool withGuides = false);
 bool EditDumpBusy();
 std::string EditDumpStatus();
 // The game's NGX D3D12 runtime is shutting down: every NGX handle is about to be destroyed by NGX itself.

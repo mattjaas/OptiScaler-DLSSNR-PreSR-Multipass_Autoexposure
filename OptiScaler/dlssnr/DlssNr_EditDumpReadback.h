@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d12.h>
 #include <wrl/client.h>
+#include <array>
 
 namespace DlssNr::EditDump
 {
@@ -14,11 +15,18 @@ class ReadbackCopy
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> allocator;
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commands;
     Microsoft::WRL::ComPtr<ID3D12Fence> fence;
-    Microsoft::WRL::ComPtr<ID3D12Resource> source, destination;
+    static constexpr unsigned MaxItems = 3;
+    std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, MaxItems> sources, destinations;
     bool attempted = false, executed = false;
     HRESULT result = S_OK;
 
   public:
+    struct Item
+    {
+        ID3D12Resource* snapshot;
+        ID3D12Resource* readback;
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+    };
     enum class State
     {
         NotSubmitted,
@@ -30,14 +38,24 @@ class ReadbackCopy
     HRESULT Submit(ID3D12CommandQueue* actualQueue, ID3D12Resource* snapshot, ID3D12Resource* readback,
                    const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint)
     {
+        const Item item { snapshot, readback, footprint };
+        return SubmitMany(actualQueue, &item, 1);
+    }
+    HRESULT SubmitMany(ID3D12CommandQueue* actualQueue, const Item* items, unsigned count)
+    {
         if (attempted)
             return S_FALSE;
         attempted = true;
-        if (!actualQueue || !snapshot || !readback)
+        if (!actualQueue || !items || !count || count > MaxItems)
             return result = E_INVALIDARG;
         queue = actualQueue;
-        source = snapshot;
-        destination = readback;
+        for (unsigned i = 0; i < count; ++i)
+        {
+            if (!items[i].snapshot || !items[i].readback)
+                return result = E_INVALIDARG;
+            sources[i] = items[i].snapshot;
+            destinations[i] = items[i].readback;
+        }
         result = queue->GetDevice(IID_PPV_ARGS(&device));
         if (FAILED(result))
             return result;
@@ -53,14 +71,17 @@ class ReadbackCopy
         result = device->CreateCommandList(0, type, allocator.Get(), nullptr, IID_PPV_ARGS(&commands));
         if (FAILED(result))
             return result;
-        D3D12_TEXTURE_COPY_LOCATION src {}, dst {};
-        src.pResource = source.Get();
-        src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-        dst.pResource = destination.Get();
-        dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-        dst.PlacedFootprint = footprint;
-        // The game's snapshot ends in COPY_SOURCE. The private readback stays COPY_DEST.
-        commands->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+        for (unsigned i = 0; i < count; ++i)
+        {
+            D3D12_TEXTURE_COPY_LOCATION src {}, dst {};
+            src.pResource = sources[i].Get();
+            src.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+            dst.pResource = destinations[i].Get();
+            dst.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+            dst.PlacedFootprint = items[i].footprint;
+            // Replay writes only snapshots, never these capture-owned readbacks.
+            commands->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+        }
         result = commands->Close();
         if (FAILED(result))
             return result;

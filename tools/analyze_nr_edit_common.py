@@ -6,14 +6,13 @@ source paths are never exported. Coefficients are fixed for both model families.
 
 import argparse
 import csv
-import glob
 import hashlib
 import json
 from pathlib import Path
 
 import numpy as np
 
-from analyze_nr_edit_ghosting import load_edit
+from analyze_nr_edit_ghosting import edit_paths, load_edit
 
 
 THRESHOLDS = {"cnn": .052, "transformer": .084}
@@ -96,7 +95,7 @@ def main():
     parser.add_argument("files", nargs="+", help="DDS paths or quoted glob patterns")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    paths = sorted({Path(p) for pattern in args.files for p in glob.glob(pattern)})
+    paths = edit_paths(args.files)
     if not paths:
         parser.error("No DDS files matched")
     report = analyse(paths)

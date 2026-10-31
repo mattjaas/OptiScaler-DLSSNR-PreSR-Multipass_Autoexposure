@@ -2,6 +2,8 @@
 #include <cstring>
 #include <vector>
 #include "../OptiScaler/dlssnr/DlssNr_EditDump.h"
+#include "../OptiScaler/dlssnr/DlssNr_EditDumpMetadata.h"
+#include <limits>
 
 int main()
 {
@@ -33,4 +35,33 @@ int main()
     assert(!WriteRows(0, h, data, sizeof(data[0]), fail));
     assert(!WriteRows(w, h, data, 4, fail));
     assert(!WriteRows(w, h, nullptr, sizeof(data[0]), fail));
+    for (auto format : {Format::R32Float, Format::Rg32Float})
+    {
+        bytes.clear();
+        const unsigned stride = format == Format::R32Float ? 4u : 8u;
+        assert(WriteRows(w, h, data, sizeof(data[0]), [&](const void* p, size_t n)
+        {
+            bytes.insert(bytes.end(), static_cast<const char*>(p), static_cast<const char*>(p) + n); return true;
+        }, format));
+        assert(bytes.size() == 148 + w * h * stride);
+        assert(word(20) == w * stride);
+        assert(word(128) == (stride == 4 ? 41u : 16u));
+        for (unsigned y = 0; y < h; ++y)
+            assert(std::memcmp(bytes.data() + 148 + y * w * stride, data[y], w * stride) == 0);
+    }
+    assert(!WriteRows(w, h, data, sizeof(data[0]), fail, Format(999)));
+    struct Comma : std::numpunct<char> { char do_decimal_point() const override { return ','; } };
+    const auto oldLocale = std::locale();
+    std::locale::global(std::locale(oldLocale, new Comma));
+    Metadata metadata;
+    metadata.gain = 1.25f; metadata.width = 3; metadata.height = 2;
+    metadata.frame = 1234567890123ull; metadata.invertedDepth = true;
+    metadata.gameTrimControl = std::numeric_limits<float>::quiet_NaN();
+    const auto text = MetadataJson(metadata);
+    std::locale::global(oldLocale);
+    assert(text.find("\"positive_gain\": 1.25") != std::string::npos);
+    assert(text.find("\"frame\": 1234567890123") != std::string::npos);
+    assert(text.find("\"depth_inverted\": true") != std::string::npos);
+    assert(text.find("\"nr_game_trim_control\": null") != std::string::npos);
+    assert(text.find("private_input_pixels") != std::string::npos);
 }

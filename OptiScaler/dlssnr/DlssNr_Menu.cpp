@@ -4041,13 +4041,19 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             ImGui::BeginDisabled(DlssNr::SuperiorScaling::EditDumpBusy());
             if (ImGui::Button("Save pre-DLSS edit"))
                 DlssNr::SuperiorScaling::RequestEditDump(editFilename);
+            ImGui::SameLine();
+            if (ImGui::Button("Save edit + object guides"))
+                DlssNr::SuperiorScaling::RequestEditDump(editFilename, true);
             ImGui::EndDisabled();
             HelpMarker(
                 "Save one working-resolution signed RGB edit after the positive multiplier, before private "
                 "DLSS, saturation, depth colour and carrier clipping. Zero edit is 0. Values below 0 and above 1 "
                 "are preserved in FP32 DDS. Works in edit and full NR answer modes. Enter a filename only; "
                 ".dds is added automatically. Saved under dlssnr-edit next to OptiScaler.dll. Existing files "
-                "are not overwritten. Snapshot/readback run only when requested; saving may briefly pause a frame.");
+                "are not overwritten. Snapshot/readback run only when requested; saving may briefly pause a frame. "
+                "Save edit + object guides also writes .depth.dds, .motion.dds and .json companions from the same "
+                "private DLSS input grid. Capture after the picture has settled at the chosen settings. "
+                "This diagnostic does not adjust the image or any settings.");
             if (const auto status = DlssNr::SuperiorScaling::EditDumpStatus(); !status.empty())
                 ImGui::TextWrapped("%s", status.c_str());
 

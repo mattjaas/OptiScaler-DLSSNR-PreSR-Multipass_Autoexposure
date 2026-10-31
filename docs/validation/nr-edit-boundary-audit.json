@@ -1,5 +1,5 @@
 {
-  "interpretation": "The user states noghosting captures are approximately the first disappearance, not safe headroom.",
+  "interpretation": "First-clear captures are lower anchors; small positive reserve is allowed, known ghosting must be rejected.",
   "pair_design": "One pair changes only positive gain; the other changes only model input brightness. Number mapping not specified.",
   "warning": "The previous RGB classifier is rejected as a minimum-gain controller. No new validated controller is claimed.",
   "shared_rgb_score": {
@@ -16,6 +16,19 @@
         0.05597320578416283,
         0.05761030676826514
       ],
+      "one_sided_full": {
+        "minimum_target": 0.07291820687553364,
+        "minimum_required_positive_reserve": 0.3333889369238521,
+        "illustrative_reserve_feasibility": {
+          "2": false,
+          "5": false,
+          "10": false,
+          "15": false,
+          "20": false,
+          "30": false
+        },
+        "warning": "Reserve budgets are illustrative, not user-specified quality limits or temporal guarantees."
+      },
       "min_score": 0.05468637458756559,
       "max_score": 0.07291820687553364,
       "max_min_ratio": 1.333388936923852,
@@ -45,6 +58,19 @@
         0.16648898680354965,
         0.09063957683191909
       ],
+      "one_sided_full": {
+        "minimum_target": 0.28659387835477307,
+        "minimum_required_positive_reserve": 2.1619066237062117,
+        "illustrative_reserve_feasibility": {
+          "2": false,
+          "5": false,
+          "10": false,
+          "15": false,
+          "20": false,
+          "30": false
+        },
+        "warning": "Reserve budgets are illustrative, not user-specified quality limits or temporal guarantees."
+      },
       "min_score": 0.09063957683191909,
       "max_score": 0.28659387835477307,
       "max_min_ratio": 3.1619066237062117,
@@ -366,5 +392,6 @@
         }
       }
     }
-  }
+  },
+  "input_contract": "NR edit around 0.5, saturation identity, depth colour off; regulate positive gain only."
 }

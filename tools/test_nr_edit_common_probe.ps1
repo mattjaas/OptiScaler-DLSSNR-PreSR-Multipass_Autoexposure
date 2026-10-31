@@ -25,7 +25,7 @@ try {
     $arguments = @()
     if ($Warp) { $arguments += '--warp' }
     if ($TimingCsv) { $arguments += @('--timing', $TimingCsv) }
-    $arguments += $DdsPaths
+    $arguments += @($DdsPaths | Where-Object { $_ -notmatch '\.(depth|motion)\.dds$' })
     & ./artifacts/edit_signal_common.exe @arguments
     if ($LASTEXITCODE -ne 0) { throw 'Common probe validation failed' }
 } finally { Pop-Location }

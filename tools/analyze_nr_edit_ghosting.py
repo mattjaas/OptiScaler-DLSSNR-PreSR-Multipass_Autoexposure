@@ -17,6 +17,12 @@ import struct
 import numpy as np
 
 
+def edit_paths(patterns):
+    """Expand raw-edit inputs, ignoring diagnostic depth/motion companions."""
+    return sorted({Path(p) for pattern in patterns for p in glob.glob(pattern)
+                   if not p.lower().endswith((".depth.dds", ".motion.dds"))})
+
+
 def load_edit(path):
     with path.open("rb") as stream:
         header = stream.read(148)
@@ -155,7 +161,7 @@ def main():
         parser.error("threshold and target must be finite and positive")
     if not math.isfinite(args.coverage_threshold) or not 0 < args.coverage_threshold < 1:
         parser.error("coverage-threshold must be between 0 and 1 (exclusive)")
-    paths = sorted({Path(p) for pattern in args.files for p in glob.glob(pattern)})
+    paths = edit_paths(args.files)
     if not paths:
         parser.error("no DDS files matched")
     groups = {p.stem.split("-")[0] for p in paths}
