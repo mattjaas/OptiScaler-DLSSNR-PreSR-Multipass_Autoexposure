@@ -878,5 +878,7 @@
         "delta_ms": 0.00361
       }
     ]
-  }
+  },
+  "controller_status": "Rejected as a minimum-gain controller after the user clarified that noghosting files are approximately first-clear boundaries.",
+  "boundary_audit": "nr-edit-boundary-audit.json"
 }

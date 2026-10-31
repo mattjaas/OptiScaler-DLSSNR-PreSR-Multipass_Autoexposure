@@ -1,5 +1,7 @@
 # Wspólny wskaźnik dla CNN i transformera
 
+**Po doprecyzowaniu etykiet: odrzucony jako regulator najniższego mnożnika.** Pliki `noghosting` są blisko samej granicy zaniku ghostingu. S bardzo różni się na tych granicach, dlatego poniższe progi klasyfikacji nie są poprawnymi celami automatu. [Audyt granic i błędu proponowanego mnożnika](NR-edit-boundary-audit.md). Historyczne wyniki 16/16 i pomiar GPU pozostają prawdziwe, ale nie rozwiązują właściwego zadania regulacji.
+
 2026-10-31. Znaleziono **jedną wspólną funkcję**, która z ustalonymi progami 0,052 dla CNN i 0,084 dla transformera rozdziela wszystkie 16 dostarczonych pełnych editów. Te same współczynniki działają dla obu gier i obu rodzin modeli. Siatka 64×36 zachowuje etykiety we wszystkich 64 sprawdzonych fazach każdego pliku. Nie ma wyboru innego percentyla ani innej definicji funkcji dla CNN.
 
 **To heurystyka dopasowana do tego zbioru, nie potwierdzony uniwersalny detektor.** Cechy, współczynniki i progi wybierano po obejrzeniu wszystkich etykiet oraz wyników próbkowania. Kalibracja progu na jednej grze i sprawdzenie drugiej daje 14/16, mimo 16/16 przy podanych ustalonych progach. Nie wykonano niezależnej walidacji nowych scen ani inferencji DLSS. W tej zmianie są narzędzia analizy i prototypy GPU; automat oraz DLL pozostają bez zmian.

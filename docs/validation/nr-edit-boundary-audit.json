@@ -1,0 +1,370 @@
+{
+  "interpretation": "The user states noghosting captures are approximately the first disappearance, not safe headroom.",
+  "pair_design": "One pair changes only positive gain; the other changes only model input brightness. Number mapping not specified.",
+  "warning": "The previous RGB classifier is rejected as a minimum-gain controller. No new validated controller is claimed.",
+  "shared_rgb_score": {
+    "cnn": {
+      "files": [
+        "game1-cnn-noghosting.dds",
+        "game1-cnn-noghosting2.dds",
+        "game2-cnn-noghosting1.dds",
+        "game2-cnn-noghosting2.dds"
+      ],
+      "scores": [
+        0.07291820687553364,
+        0.05468637458756559,
+        0.05597320578416283,
+        0.05761030676826514
+      ],
+      "min_score": 0.05468637458756559,
+      "max_score": 0.07291820687553364,
+      "max_min_ratio": 1.333388936923852,
+      "diagnostic_minimax_target": 0.06314770285171926,
+      "diagnostic_minimax_gain_ratio_min": 0.8660073465534889,
+      "diagnostic_minimax_gain_ratio_max": 1.1547246151892026,
+      "target_reaching_all_observed_boundaries": 0.07291820687553364,
+      "maximum_overgain_factor_with_that_target": 1.333388936923852,
+      "previous_classification_target": 0.052,
+      "predicted_gain_over_observed_boundary_gain": [
+        0.7131277938411241,
+        0.9508767109206685,
+        0.9290159330969209,
+        0.9026162663769116
+      ]
+    },
+    "transformer": {
+      "files": [
+        "game1-transformer-noghosting.dds",
+        "game1-transformer-noghosting2.dds",
+        "game2-transformer-noghosting1.dds",
+        "game2-transformer-noghosting2.dds"
+      ],
+      "scores": [
+        0.28659387835477307,
+        0.09234240810317033,
+        0.16648898680354965,
+        0.09063957683191909
+      ],
+      "min_score": 0.09063957683191909,
+      "max_score": 0.28659387835477307,
+      "max_min_ratio": 3.1619066237062117,
+      "diagnostic_minimax_target": 0.16117303700276644,
+      "diagnostic_minimax_gain_ratio_min": 0.5623743184188016,
+      "diagnostic_minimax_gain_ratio_max": 1.778175082410675,
+      "target_reaching_all_observed_boundaries": 0.28659387835477307,
+      "maximum_overgain_factor_with_that_target": 3.1619066237062117,
+      "previous_classification_target": 0.084,
+      "predicted_gain_over_observed_boundary_gain": [
+        0.2930976770411573,
+        0.9096578887800966,
+        0.5045378773258837,
+        0.9267474864293395
+      ]
+    }
+  },
+  "rejected_spatial_candidate": {
+    "warning": "Post-hoc fit to full boundary frames; rejected after sparse sampling, not implemented on GPU.",
+    "files": [
+      {
+        "file": "game1-cnn-ghosting.dds",
+        "model": "cnn",
+        "ghosting": true,
+        "score": 0.03211485659298374,
+        "sampling": {
+          "64x36": {
+            "min": 0.021669424955580142,
+            "max": 0.13224727821654125
+          },
+          "128x72": {
+            "min": 0.022595439992506707,
+            "max": 0.05527628458715924
+          }
+        }
+      },
+      {
+        "file": "game1-cnn-ghosting2.dds",
+        "model": "cnn",
+        "ghosting": true,
+        "score": 0.038164301078239024,
+        "sampling": {
+          "64x36": {
+            "min": 0.025965351152421837,
+            "max": 0.26920754981089984
+          },
+          "128x72": {
+            "min": 0.025371765813897166,
+            "max": 0.0686101593425016
+          }
+        }
+      },
+      {
+        "file": "game1-cnn-noghosting.dds",
+        "model": "cnn",
+        "ghosting": false,
+        "score": 0.086069333100623,
+        "sampling": {
+          "64x36": {
+            "min": 0.05810147549736979,
+            "max": 0.3727499737020716
+          },
+          "128x72": {
+            "min": 0.059956845323484054,
+            "max": 0.1475333948362254
+          }
+        }
+      },
+      {
+        "file": "game1-cnn-noghosting2.dds",
+        "model": "cnn",
+        "ghosting": false,
+        "score": 0.0975203280217095,
+        "sampling": {
+          "64x36": {
+            "min": 0.06020781206244712,
+            "max": 0.42707289637848683
+          },
+          "128x72": {
+            "min": 0.07022011932204678,
+            "max": 0.1689129193455067
+          }
+        }
+      },
+      {
+        "file": "game1-transformer-ghosting.dds",
+        "model": "transformer",
+        "ghosting": true,
+        "score": 0.06689051885667245,
+        "sampling": {
+          "64x36": {
+            "min": 0.04429933555820801,
+            "max": 0.25331976043246085
+          },
+          "128x72": {
+            "min": 0.047050167217993516,
+            "max": 0.11527075763410294
+          }
+        }
+      },
+      {
+        "file": "game1-transformer-ghosting2.dds",
+        "model": "transformer",
+        "ghosting": true,
+        "score": 0.20776290828369826,
+        "sampling": {
+          "64x36": {
+            "min": 0.11874324329373528,
+            "max": 0.6033632688909737
+          },
+          "128x72": {
+            "min": 0.14704528168919273,
+            "max": 0.3608845122016763
+          }
+        }
+      },
+      {
+        "file": "game1-transformer-noghosting.dds",
+        "model": "transformer",
+        "ghosting": false,
+        "score": 0.3061264141549109,
+        "sampling": {
+          "64x36": {
+            "min": 0.2114188201991241,
+            "max": 1.0905065945265848
+          },
+          "128x72": {
+            "min": 0.22127811737004258,
+            "max": 0.5252104699191688
+          }
+        }
+      },
+      {
+        "file": "game1-transformer-noghosting2.dds",
+        "model": "transformer",
+        "ghosting": false,
+        "score": 0.3077042741703624,
+        "sampling": {
+          "64x36": {
+            "min": 0.1713808503251517,
+            "max": 0.450886428693075
+          },
+          "128x72": {
+            "min": 0.2342971856158832,
+            "max": 0.4213974110105298
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-ghosting1.dds",
+        "model": "cnn",
+        "ghosting": true,
+        "score": 0.042613758666861394,
+        "sampling": {
+          "64x36": {
+            "min": 0.03397077806405743,
+            "max": 0.12307070260772174
+          },
+          "128x72": {
+            "min": 0.032499819558346486,
+            "max": 0.11318251606843995
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-ghosting2.dds",
+        "model": "cnn",
+        "ghosting": true,
+        "score": 0.0796952428965416,
+        "sampling": {
+          "64x36": {
+            "min": 0.060376254687030735,
+            "max": 0.20446963406443772
+          },
+          "128x72": {
+            "min": 0.06099090110766526,
+            "max": 0.17845786977702366
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-noghosting1.dds",
+        "model": "cnn",
+        "ghosting": false,
+        "score": 0.08107928722799464,
+        "sampling": {
+          "64x36": {
+            "min": 0.062119031981956084,
+            "max": 0.27258839830256804
+          },
+          "128x72": {
+            "min": 0.061835962120725264,
+            "max": 0.22385394643806888
+          }
+        }
+      },
+      {
+        "file": "game2-cnn-noghosting2.dds",
+        "model": "cnn",
+        "ghosting": false,
+        "score": 0.10331994265675373,
+        "sampling": {
+          "64x36": {
+            "min": 0.06949337304688602,
+            "max": 0.20028501873409482
+          },
+          "128x72": {
+            "min": 0.08245897878488642,
+            "max": 0.21129886314705248
+          }
+        }
+      },
+      {
+        "file": "game2-transformer-ghosting1.dds",
+        "model": "transformer",
+        "ghosting": true,
+        "score": 0.08073469447078299,
+        "sampling": {
+          "64x36": {
+            "min": 0.06159857462647654,
+            "max": 0.28337926011580705
+          },
+          "128x72": {
+            "min": 0.05961410224991897,
+            "max": 0.22663460935512947
+          }
+        }
+      },
+      {
+        "file": "game2-transformer-ghosting2.dds",
+        "model": "transformer",
+        "ghosting": true,
+        "score": 0.11706404643294248,
+        "sampling": {
+          "64x36": {
+            "min": 0.07823260708276336,
+            "max": 0.23870912977947914
+          },
+          "128x72": {
+            "min": 0.0923448553170012,
+            "max": 0.2336744742141675
+          }
+        }
+      },
+      {
+        "file": "game2-transformer-noghosting1.dds",
+        "model": "transformer",
+        "ghosting": false,
+        "score": 0.2413962143837823,
+        "sampling": {
+          "64x36": {
+            "min": 0.1862055860863519,
+            "max": 0.7777012161028851
+          },
+          "128x72": {
+            "min": 0.1795949957050776,
+            "max": 0.692023498597942
+          }
+        }
+      },
+      {
+        "file": "game2-transformer-noghosting2.dds",
+        "model": "transformer",
+        "ghosting": false,
+        "score": 0.2550361800796335,
+        "sampling": {
+          "64x36": {
+            "min": 0.16832914184239492,
+            "max": 0.3828158580574876
+          },
+          "128x72": {
+            "min": 0.20666585750416758,
+            "max": 0.3665815705346449
+          }
+        }
+      }
+    ],
+    "families": {
+      "cnn": {
+        "min_score": 0.08107928722799464,
+        "max_score": 0.10331994265675373,
+        "max_min_ratio": 1.274307485785099,
+        "diagnostic_minimax_target": 0.09152653881277753,
+        "diagnostic_minimax_gain_ratio_min": 0.8858554937147431,
+        "diagnostic_minimax_gain_ratio_max": 1.1288522869645519,
+        "target_reaching_all_observed_boundaries": 0.10331994265675373,
+        "maximum_overgain_factor_with_that_target": 1.274307485785099,
+        "full_frame_classes_separable": true,
+        "sparse_gain_ratio_ranges": {
+          "64x36": {
+            "min": 0.21431127938323563,
+            "max": 1.5752876846805872
+          },
+          "128x72": {
+            "min": 0.4088672112738434,
+            "max": 1.526540269404871
+          }
+        }
+      },
+      "transformer": {
+        "min_score": 0.2413962143837823,
+        "max_score": 0.3077042741703624,
+        "max_min_ratio": 1.2746855826047074,
+        "diagnostic_minimax_target": 0.2725410921942505,
+        "diagnostic_minimax_gain_ratio_min": 0.885724102887685,
+        "diagnostic_minimax_gain_ratio_max": 1.1290197441164205,
+        "target_reaching_all_observed_boundaries": 0.3077042741703624,
+        "maximum_overgain_factor_with_that_target": 1.2746855826047074,
+        "full_frame_classes_separable": true,
+        "sparse_gain_ratio_ranges": {
+          "64x36": {
+            "min": 0.2499215443191035,
+            "max": 1.6190963086440986
+          },
+          "128x72": {
+            "min": 0.3938321353919715,
+            "max": 1.5175316613042191
+          }
+        }
+      }
+    }
+  }
+}
