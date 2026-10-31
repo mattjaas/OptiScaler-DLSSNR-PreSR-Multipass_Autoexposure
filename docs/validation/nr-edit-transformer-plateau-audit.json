@@ -1,0 +1,567 @@
+{
+  "warning": "Single static capture; a user-observed improvement plateau is not a no-ghosting threshold. No NGX execution.",
+  "observation": {
+    "plateau_gain": 6.0,
+    "residual_ghosting": true,
+    "ghost_free_gain": null
+  },
+  "metadata": {
+    "schema": 2,
+    "edit_stage": "after_positive_gain_before_colour_and_clipping",
+    "guide_lattice": "private_dlss_input",
+    "guide_origin": [
+      0,
+      0
+    ],
+    "motion_units": "private_input_pixels",
+    "mv_scale": [
+      1,
+      1
+    ],
+    "guides_included": true,
+    "auto_positive_gain_enabled_at_request": false,
+    "auto_positive_gain_enabled_at_capture": false,
+    "auto_positive_gain_controlled_capture": false,
+    "manual_positive_gain": 6,
+    "effective_positive_gain_at_request": 6,
+    "auto_positive_gain_changes_primary": 0,
+    "positive_gain_at_request": 6,
+    "private_preset_at_request": 11,
+    "capture_request_delay_seconds": 0.0465484,
+    "gain_preview_enabled_at_request": true,
+    "gain_preview_enabled_at_capture": true,
+    "gain_preview_epsilon": 0.00879179221,
+    "gain_preview_target_at_capture": 0.972343313,
+    "gain_preview_require_changing_motion": true,
+    "gain_preview_slow_seconds": 5,
+    "gain_preview_fast_seconds": 1.5,
+    "gain_preview_motion_threshold": 0.100000001,
+    "preview_request_valid": true,
+    "preview_request_paused": false,
+    "preview_request_catching_up": false,
+    "preview_request_suggested_gain": 2.25069904,
+    "preview_request_raw_gain": 2.25069904,
+    "preview_request_measurement_age_seconds": 0.1492463,
+    "preview_request_measurements": 1859,
+    "preview_request_moving_percent": 99.8263931,
+    "preview_request_changed_percent": 98.2638931,
+    "preview_capture_valid": true,
+    "preview_capture_paused": false,
+    "preview_capture_catching_up": false,
+    "preview_capture_suggested_gain": 2.25069904,
+    "preview_capture_raw_gain": 2.25069904,
+    "preview_capture_measurement_age_seconds": 0.0479922,
+    "preview_capture_measurements": 1860,
+    "preview_capture_moving_percent": 100.000008,
+    "preview_capture_changed_percent": 98.0902863,
+    "frame": 113514,
+    "submission_epoch": 116625,
+    "width": 2496,
+    "height": 1404,
+    "positive_gain": 6,
+    "edit_saturation": 1,
+    "depth_colour_strength": 0,
+    "full_nr_answer": false,
+    "private_preset": 11,
+    "nr_preset_setting": 0,
+    "private_is_hdr": true,
+    "private_exposure_mode": 0,
+    "private_manual_exposure": 1,
+    "depth_inverted": true,
+    "packed": false,
+    "private_history_reset": false,
+    "held": false,
+    "expected_pass_mask": 0,
+    "completed_pass_mask_before_capture": 0,
+    "nr_white_point_source": 3,
+    "nr_auto_trim_control": 5,
+    "nr_game_trim_control": 1,
+    "nr_scan_trim_control": 1,
+    "nr_gpu_white_point_included": false
+  },
+  "sha256": {
+    "nr-edit.dds": "e26366a0807b2ae042fa01676fe716edbba7aa8499a31a0d6e5bc2a45a21443b",
+    "nr-edit.json": "fb451653cc0ecc3376446d68595b13577f9137bc6c823d29a5863689b2ca0415",
+    "nr-edit.depth.dds": "9ed9d4ac25a3abb7a6567b9c3987c880296b7855127dd7750cea2c224a15f476",
+    "nr-edit.motion.dds": "ca2ff3893a046f1b58a0cfcdc11f41257893be8aedb4c7af385be637731f693b"
+  },
+  "independent_channel_suggested_gains": [
+    2.2506988048844505,
+    3.0009317398362327,
+    2.2506988048844505
+  ],
+  "exact_full_raw_suggested_gain": 2.2506988048844505,
+  "full_histogram_suggested_gain": 2.250699043273926,
+  "phase_256x144_suggested_gains": [
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926,
+    2.250699043273926
+  ],
+  "source_positive_fraction_rgb": [
+    0.47606398157279567,
+    0.5446991539739937,
+    0.587888484823581
+  ],
+  "source_zero_fraction_rgb": [
+    0.024505590711520198,
+    0.030064056907005626,
+    0.041280293483819126
+  ],
+  "unboostable_neutral_fraction_rgb": [
+    0.0991666438381182,
+    0.11562488585725765,
+    0.11177970222441376
+  ],
+  "curve": [
+    {
+      "gain": 1.0,
+      "conditional_positive_rgb_raw": [
+        0.8414186563536415,
+        0.8287646653587135,
+        0.8158594341193299
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.8413317421032409,
+        0.8287143729028439,
+        0.8158506970483748
+      ],
+      "score_rg_raw": 0.8350916608561776,
+      "score_rg_fp16": 0.8350230575030424,
+      "neutral_rgb_fp16": [
+        0.17470288644166848,
+        0.20892402202498356,
+        0.22003895691796332
+      ]
+    },
+    {
+      "gain": 2.0,
+      "conditional_positive_rgb_raw": [
+        0.9181759276298005,
+        0.9170420701632147,
+        0.9504734278975646
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.9181747288125536,
+        0.9170378791252256,
+        0.9504734278975646
+      ],
+      "score_rg_raw": 0.9176089988965076,
+      "score_rg_fp16": 0.9176063039688895,
+      "neutral_rgb_fp16": [
+        0.13812070823288772,
+        0.16081428290963548,
+        0.14089580365622031
+      ]
+    },
+    {
+      "gain": 2.25,
+      "conditional_positive_rgb_raw": [
+        0.9183089963442068,
+        0.9171861370940915,
+        0.950597688462261
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.9183089963442068,
+        0.9171861370940915,
+        0.950597688462261
+      ],
+      "score_rg_raw": 0.9177475667191491,
+      "score_rg_fp16": 0.9177475667191491,
+      "neutral_rgb_fp16": [
+        0.1380567882971729,
+        0.16073352691942436,
+        0.14082275230111768
+      ]
+    },
+    {
+      "gain": 2.25069904,
+      "conditional_positive_rgb_raw": [
+        0.9768526371881502,
+        0.972141646606438,
+        0.9953577029657987
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.9183089963442068,
+        0.9171861370940915,
+        0.950597688462261
+      ],
+      "score_rg_raw": 0.9744971418972941,
+      "score_rg_fp16": 0.9177475667191491,
+      "neutral_rgb_fp16": [
+        0.1380567882971729,
+        0.16073352691942436,
+        0.14082275230111768
+      ]
+    },
+    {
+      "gain": 2.3125,
+      "conditional_positive_rgb_raw": [
+        0.9768526371881502,
+        0.972141646606438,
+        0.9953577029657987
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.9183089963442068,
+        0.9171861370940915,
+        0.950597688462261
+      ],
+      "score_rg_raw": 0.9744971418972941,
+      "score_rg_fp16": 0.9177475667191491,
+      "neutral_rgb_fp16": [
+        0.1380567882971729,
+        0.16073352691942436,
+        0.14082275230111768
+      ]
+    },
+    {
+      "gain": 2.32,
+      "conditional_positive_rgb_raw": [
+        0.9768526371881502,
+        0.972141646606438,
+        0.9953577029657987
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.9768526371881502,
+        0.972141646606438,
+        0.9953577029657987
+      ],
+      "score_rg_raw": 0.9744971418972941,
+      "score_rg_fp16": 0.9744971418972941,
+      "neutral_rgb_fp16": [
+        0.11018626954123749,
+        0.13079930738183942,
+        0.11450885519395135
+      ]
+    },
+    {
+      "gain": 3.0,
+      "conditional_positive_rgb_raw": [
+        0.9770210710113402,
+        0.972321861239971,
+        0.9954800219591716
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.9770210710113402,
+        0.972321861239971,
+        0.9954800219591716
+      ],
+      "score_rg_raw": 0.9746714661256556,
+      "score_rg_fp16": 0.9746714661256556,
+      "neutral_rgb_fp16": [
+        0.11010608426473811,
+        0.13070114462342025,
+        0.11443694526627218
+      ]
+    },
+    {
+      "gain": 4.0,
+      "conditional_positive_rgb_raw": [
+        0.9774508469943554,
+        0.9734172937943825,
+        0.995911050792962
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.9774508469943554,
+        0.9734172937943825,
+        0.995911050792962
+      ],
+      "score_rg_raw": 0.9754340703943689,
+      "score_rg_fp16": 0.9754340703943689,
+      "neutral_rgb_fp16": [
+        0.10990148339907956,
+        0.13010446343779677,
+        0.11418354837825992
+      ]
+    },
+    {
+      "gain": 5.0,
+      "conditional_positive_rgb_raw": [
+        0.9993766150316098,
+        0.9984283607540725,
+        0.9995466430959908
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.9993766150316098,
+        0.9984283607540725,
+        0.9995466430959908
+      ],
+      "score_rg_raw": 0.9989024878928412,
+      "score_rg_fp16": 0.9989024878928412,
+      "neutral_rgb_fp16": [
+        0.09946341496822265,
+        0.11648095642486668,
+        0.11204622552779604
+      ]
+    },
+    {
+      "gain": 6.0,
+      "conditional_positive_rgb_raw": [
+        0.9994251671301094,
+        0.9984618890579856,
+        0.9995471284888217
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.9994251671301094,
+        0.9984618890579856,
+        0.9995471284888217
+      ],
+      "score_rg_raw": 0.9989435280940475,
+      "score_rg_fp16": 0.9989435280940475,
+      "neutral_rgb_fp16": [
+        0.09944030106289721,
+        0.11646269358609102,
+        0.11204594017094018
+      ]
+    },
+    {
+      "gain": 8.0,
+      "conditional_positive_rgb_raw": [
+        0.9995390547685653,
+        0.9986001933116273,
+        0.9996213935919409
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.9995390547685653,
+        0.9986001933116273,
+        0.9996213935919409
+      ],
+      "score_rg_raw": 0.9990696240400962,
+      "score_rg_fp16": 0.9990696240400962,
+      "neutral_rgb_fp16": [
+        0.09938608326028198,
+        0.11638735937614143,
+        0.11200228057199212
+      ]
+    },
+    {
+      "gain": 10.0,
+      "conditional_positive_rgb_raw": [
+        0.999843554349279,
+        0.9998396927969154,
+        0.9999495191455922
+      ],
+      "conditional_positive_rgb_fp16": [
+        0.999843554349279,
+        0.9998396927969154,
+        0.9999495191455922
+      ],
+      "score_rg_raw": 0.9998416235730971,
+      "score_rg_fp16": 0.9998416235730971,
+      "neutral_rgb_fp16": [
+        0.09924112197750018,
+        0.11571220505515377,
+        0.11180937933742421
+      ]
+    }
+  ],
+  "positive_quantiles_rgb": [
+    [
+      0.000244140625,
+      0.001953125,
+      0.00390625,
+      0.00390625,
+      0.0234375,
+      0.05078125,
+      0.0859375,
+      1.0
+    ],
+    [
+      0.000244140625,
+      0.001953125,
+      0.0029296875,
+      0.00390625,
+      0.02734375,
+      0.046875,
+      0.08984375,
+      1.0
+    ],
+    [
+      0.00048828125,
+      0.00390625,
+      0.00390625,
+      0.00537109375,
+      0.0234375,
+      0.046875,
+      0.1015625,
+      1.0
+    ]
+  ],
+  "quantile_levels": [
+    0,
+    0.01,
+    0.02765668724781878,
+    0.05,
+    0.5,
+    0.9,
+    0.99,
+    1
+  ],
+  "motion_speed_quantiles": [
+    0.0023952496703714132,
+    0.3422713601589203,
+    2.9042297363281255,
+    16.823493003845215,
+    23.278996849060057,
+    26.162778244018554,
+    40.50286102294922
+  ],
+  "regions": [
+    {
+      "name": "depth_zero",
+      "pixel_fraction": 0.21668601386149464,
+      "positive_counts_rg": [
+        394847,
+        540390
+      ],
+      "suggested_gain": 2.2506988048844505,
+      "score_at_shown": 1.0,
+      "score_at_plateau": 1.0
+    },
+    {
+      "name": "depth_nonzero",
+      "pixel_fraction": 0.7833139861385053,
+      "positive_counts_rg": [
+        1273464,
+        1368445
+      ],
+      "suggested_gain": 4.501397609739797,
+      "score_at_shown": 0.9654080947825991,
+      "score_at_plateau": 0.9985507175006256
+    },
+    {
+      "name": "speed_below_1",
+      "pixel_fraction": 0.031828703703703706,
+      "positive_counts_rg": [
+        15625,
+        12461
+      ],
+      "suggested_gain": 9.00279521945049,
+      "score_at_shown": 0.8408882112190033,
+      "score_at_plateau": 0.9532188581975765
+    },
+    {
+      "name": "speed_1_to_10",
+      "pixel_fraction": 0.3532312668931259,
+      "positive_counts_rg": [
+        580482,
+        605029
+      ],
+      "suggested_gain": 4.501397609739797,
+      "score_at_shown": 0.9474553253746485,
+      "score_at_plateau": 0.9984825386643228
+    },
+    {
+      "name": "speed_10_to_20",
+      "pixel_fraction": 0.32507111092848273,
+      "positive_counts_rg": [
+        659105,
+        756516
+      ],
+      "suggested_gain": 2.2506988048844505,
+      "score_at_shown": 0.987670732109448,
+      "score_at_plateau": 0.9996125865639036
+    },
+    {
+      "name": "speed_above_20",
+      "pixel_fraction": 0.2898689184746877,
+      "positive_counts_rg": [
+        413099,
+        534829
+      ],
+      "suggested_gain": 2.2506988048844505,
+      "score_at_shown": 0.9922883326461363,
+      "score_at_plateau": 0.9997502082050542
+    }
+  ],
+  "counterfactual_target": {
+    "target": 0.9989435280940475,
+    "known_clear_references": [
+      {
+        "file": "game1-transformer-noghosting.dds",
+        "sha256": "3d11f4f4f4c9fb2a96139db3bd8b76965ed83a926459c11a72eaf132368c9669",
+        "current_target_relative_gain": 1.0020502505358309,
+        "plateau_target_relative_gain": 7.202236175566213
+      },
+      {
+        "file": "game1-transformer-noghosting2.dds",
+        "sha256": "05beabbc4a3c9f545bfe3f9ed1ef30c9cfc009ccfa3c1617eb48847b3546391c",
+        "current_target_relative_gain": 1.1253494024567772,
+        "plateau_target_relative_gain": 18.005590438871877
+      },
+      {
+        "file": "game2-transformer-noghosting1.dds",
+        "sha256": "8007e7604036ab41624fcf0ebcd2cf5a377a187207d433aa0c16c747d32fbd50",
+        "current_target_relative_gain": 1.0140566519985441,
+        "plateau_target_relative_gain": 20.731825627502985
+      },
+      {
+        "file": "game2-transformer-noghosting2.dds",
+        "sha256": "32bfb6afe353febacf064521b2cf31b70dae6f9dd8fdc9e9b8003df886e5d9c5",
+        "current_target_relative_gain": 1.1253494024567772,
+        "plateau_target_relative_gain": 2.2506988048844505
+      }
+    ],
+    "warning": "These are relative to the already multiplied old clear captures; not absolute slider values."
+  }
+}
