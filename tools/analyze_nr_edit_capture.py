@@ -89,6 +89,8 @@ def main():
     if (m.get("edit_stage") != "after_positive_gain_before_colour_and_clipping"
             or m.get("full_nr_answer") or m.get("edit_saturation") != 1 or m.get("depth_colour_strength") != 0):
         parser.error("This audit supports plain edit mode only")
+    if m.get("depth_weighted_positive_gain") or m.get("depth_additive_brightness") or m.get("original_guides_active"):
+        raise ValueError("This analysis requires uniform gain, additive depth brightness off and matched guides")
     gain, plateau = float(m["positive_gain"]), args.observed_plateau_gain
     if not np.isfinite([gain, plateau]).all() or min(gain, plateau) <= 0:
         parser.error("Finite positive gains required")

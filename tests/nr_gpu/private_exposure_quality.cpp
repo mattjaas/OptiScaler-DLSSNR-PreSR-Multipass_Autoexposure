@@ -166,7 +166,7 @@ struct Fixture
 };
 
 void Timing(Fixture& f, const std::string& saturationBaseline = "", float saturation = 1.f, float depthStrength = 0.f,
-            bool fullAnswer = false, float gain = 16.f)
+            bool fullAnswer = false, float gain = 16.f, unsigned depthFlags = 0)
 {
     // Synthetic changed stages only: no NR model, NGX evaluate, game scene or final composition.
     // Resident FP16 carrier and GPU timestamps, warmup and ABBA. No allocation/upload/fence in a window.
@@ -176,7 +176,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
         : r.pipeline(saturationBaseline, "private_carrier");
     const std::string csvPath = saturationBaseline.empty() ? "artifacts/private-exposure-timing.csv"
         : "artifacts/private-" + std::string(fullAnswer ? "answer-" : "transport-") + "g" + std::to_string(int(gain)) +
-            "-s" + std::to_string(int(saturation)) + "-d" + std::to_string(int(depthStrength)) + "-timing.csv";
+            "-s" + std::to_string(int(saturation)) + "-d" + std::to_string(int(depthStrength)) + "-flags" + std::to_string(depthFlags) + "-timing.csv";
     std::ofstream csv(csvPath);
     csv << "width,height,method,block,position,variant,ms\n";
     for (auto size : { std::pair<UINT, UINT>{1920, 1080}, {3840, 2160} })
@@ -224,6 +224,9 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
         {
             DlssNrConstants c = seed; c.WhitePoint = gain; c.MaxRatio = saturation; c.DirectDetailMode = fullAnswer ? 1u : 0u;
             c.ResidualScale = depthStrength; c.ResidualBlend = 1.f;
+            c.DirectResolveUpscaler = depthFlags;
+            c.ExposureAnchors[0] = .125f; c.ExposureAnchors[1] = .75f;
+            c.ExposureAnchors[2] = .25f; c.ExposureAnchors[3] = .25f;
             auto encodeCb = constants(c); c.Mode = 38; auto decodeCb = constants(c);
             c = {}; c.Mode = 40; c.Width = sw; c.Height = sh; c.ExposureMode = method; c.PreExposure = 1;
             c.ExposureSourceWidth = w; c.ExposureSourceHeight = h;
@@ -303,6 +306,10 @@ int main(int argc, char** argv)
         if (argc == 6 && std::string(argv[1]) == "--nr-answer-timing")
         {
             Timing(f, argv[2], std::stof(argv[3]), std::stof(argv[4]), true, std::stof(argv[5])); return 0;
+        }
+        if (argc == 4 && std::string(argv[1]) == "--depth-timing")
+        {
+            Timing(f, argv[2], 1.f, 0.f, false, 16.f, unsigned(std::stoul(argv[3]))); return 0;
         }
         if (argc == 3 && std::string(argv[1]) == "--transport-parity")
         {
@@ -691,6 +698,86 @@ int main(int argc, char** argv)
                 throw std::runtime_error("GPU snapshot DDS serialization failed");
             if (dds.size() != 148 + values.size() * 4 || std::memcmp(dds.data() + 148, values.data(), values.size() * 4))
                 throw std::runtime_error("GPU snapshot DDS did not preserve signed FP32 data");
+            ++checks;
+        }
+
+        // Independent double-precision reference for spatial gain + additive lift, including
+        // neutral/dark edit, clipping, full-answer, saturation, depth colour, reversed and invalid Z.
+        for (unsigned flags : {1u,2u,3u,5u,6u,7u}) for (bool inverted : {false,true})
+        for (bool fullAnswer : {false,true}) for (bool halfCarrier : {false,true})
+        for (float saturation : {1.f,4.f})
+        {
+            constexpr UINT w=17,h=9;
+            constexpr double peak=16, nearLimit=.125, farLimit=.75, curve=.5, lift=.25;
+            std::vector<float> proxy(w*h*4,.25f), answer(proxy.size()), depth(proxy.size());
+            for (size_t i=0;i<proxy.size();i+=4)
+            {
+                depth[i] = i/4%13==0 ? NAN : i/4%13==1 ? INFINITY : i/4%13==2 ? -1.f :
+                    i/4%13==3 ? 2.f : float(i/4%9)/8.f;
+                for (unsigned ch=0;ch<3;++ch)
+                    answer[i+ch] = i/4%7==0 ? proxy[i+ch] : i/4%7==1 ? -1.f :
+                        proxy[i+ch]+float(int((i/4+ch)%5)-2)/64.f;
+                answer[i+3]=1;
+            }
+            auto weight = [&](size_t i)
+            {
+                double z=depth[i]; if (!std::isfinite(z)||z<0||z>1) return 0.;
+                const double proximity=std::pow(inverted?z:1-z,curve);
+                if (flags&4) return proximity;
+                const double t=std::clamp((1-proximity-nearLimit)/(farLimit-nearLimit),0.,1.);
+                return 1-t*t*(3-2*t);
+            };
+            auto colour = [&](size_t i)
+            {
+                const double z=std::isfinite(depth[i])?std::clamp(double(depth[i]),0.,1.):(inverted?0.:1.);
+                const double u=inverted?1-z:z,t=u*u*(3-2*u);
+                return std::array<double,3>{.125*(1-t),.125*t,.125*t};
+            };
+            f.r.begin(); auto p=f.texture(w,h,&proxy),a=f.texture(w,h,&answer),d=f.texture(w,h,&depth,DXGI_FORMAT_R32_FLOAT),
+                out=f.texture(w,h,nullptr,halfCarrier?DXGI_FORMAT_R16G16B16A16_FLOAT:DXGI_FORMAT_R32G32B32A32_FLOAT);
+            DlssNrConstants c{};c.Mode=37;c.Width=w;c.Height=h;c.WhitePoint=float(peak);c.MaxRatio=saturation;
+            c.DirectDetailMode=fullAnswer;c.Passthrough=inverted;c.DirectResolveUpscaler=flags;
+            c.ExposureAnchors[0]=float(nearLimit);c.ExposureAnchors[1]=float(farLimit);
+            c.ExposureAnchors[2]=float(curve);c.ExposureAnchors[3]=float(lift);
+            c.ResidualScale=.125f;c.ResidualBlend=1;
+            f.dispatch(f.carrier.Get(),c,p.Get(),a.Get(),out.Get(),3,2,d.Get());
+            const auto encoded=f.read(out.Get());
+            for (size_t i=0;i<encoded.size();i+=4)
+            {
+                const double gain=flags&1?1+weight(i)*(peak-1):peak,bias=flags&2?weight(i)*lift:0;
+                std::array<double,3> edit{};
+                for(unsigned ch=0;ch<3;++ch) {double v=answer[i+ch]-proxy[i+ch];edit[ch]=v>0?v*gain:v;}
+                const auto chroma=matrix(edit,saturation), col=colour(i);
+                for(unsigned ch=0;ch<3;++ch)
+                {
+                    double expected=(fullAnswer?proxy[i+ch]:.5)+chroma[ch];
+                    expected=bias==0?std::min(std::clamp(expected,0.,65504.)+col[ch],65504.):
+                        std::clamp(expected+col[ch]+bias,0.,65504.);
+                    Near(encoded[i+ch],float(expected),"spatial transport encode independent reference");
+                }
+            }
+            f.r.begin();auto e=f.texture(w,h,&encoded),decoded=f.texture(w,h);c.Mode=38;
+            f.dispatch(f.carrier.Get(),c,e.Get(),p.Get(),decoded.Get(),3,2,d.Get());
+            const auto values=f.read(decoded.Get());
+            for(size_t i=0;i<values.size();i+=4)
+            {
+                const double gain=flags&1?1+weight(i)*(peak-1):peak,bias=flags&2?weight(i)*lift:0;
+                const auto col=colour(i);std::array<double,3> delta{};
+                for(unsigned ch=0;ch<3;++ch) delta[ch]=encoded[i+ch]-col[ch]-bias-(fullAnswer?proxy[i+ch]:.5);
+                const auto restored=matrix(delta,1./saturation);
+                for(unsigned ch=0;ch<3;++ch)
+                    Near(values[i+ch],float(restored[ch]>0?restored[ch]/gain:restored[ch]),"spatial inverse independent reference");
+            }
+            // Capture always precedes additive/saturation/colour: reconstruct positive edit using spatial gain.
+            f.r.begin(); auto saved=f.texture(w,h);c.Mode=43;
+            f.dispatch(f.carrier.Get(),c,p.Get(),a.Get(),saved.Get(),3,2,d.Get());
+            const auto snapshot=f.read(saved.Get());
+            for(size_t i=0;i<snapshot.size();i+=4)
+                for(unsigned ch=0;ch<3;++ch)
+                {
+                    const double gain=flags&1?1+weight(i)*(peak-1):peak,edit=answer[i+ch]-proxy[i+ch];
+                    Near(snapshot[i+ch],float(edit>0?edit*gain:edit),"depth-weighted diagnostic before additive lift");
+                }
             ++checks;
         }
         std::cout << "Private exposure/carrier GPU PASS: " << checks << " cases against independent numeric reference\n";

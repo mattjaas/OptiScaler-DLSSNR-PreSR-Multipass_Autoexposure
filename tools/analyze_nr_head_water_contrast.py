@@ -131,6 +131,8 @@ def main():
         parser.error("This scene-specific audit requires reversed depth and plain edit transport")
     path = args.metadata.with_suffix(".dds")
     source = load_edit(path)
+    if m.get("depth_weighted_positive_gain") or m.get("depth_additive_brightness") or m.get("original_guides_active"):
+        raise ValueError("This analysis requires uniform gain, additive depth brightness off and matched guides")
     gain = float(m["positive_gain"])
     if not np.isfinite(gain) or gain <= 0:
         raise ValueError("Invalid saved multiplier")

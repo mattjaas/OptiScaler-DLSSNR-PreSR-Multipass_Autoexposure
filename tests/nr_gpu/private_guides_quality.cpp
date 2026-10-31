@@ -5,11 +5,11 @@
 #include "four_candidates_fixture.h"
 #include "superior_input_fixture.h"
 
-int main()
+int main(int argc, char** argv)
 {
     try
     {
-        Runner r(true, 64, 3);
+        Runner r(argc < 2 || std::string(argv[1]) != "--warp", 64, 3);
         const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
         auto joint = r.pipeline(dir, "host_uniform_joint_guides"), fused = r.pipeline(dir, "host_private_guides"),
              carrier = r.pipeline(dir, "private_carrier");
@@ -167,6 +167,13 @@ int main()
                                 const unsigned depthPair = pattern % 3;
                                 DlssNr::Spatial::SetPrivateCarrierDepthColour(g, depthStrength, depthCurve, depthPair);
                                 DlssNr::Spatial::SetPrivateCarrierNrAnswer(g, fullAnswer);
+                                DlssNr::DepthTransport::Settings transport;
+                                transport.weightedGain = pattern % 3 != 0;
+                                transport.additive = pattern % 3 != 1;
+                                transport.fullRange = pattern % 2 == 0;
+                                transport.nearLimit = .125f; transport.farLimit = .75f;
+                                transport.curve = .5f; transport.bias = .25f;
+                                DlssNr::Spatial::SetPrivateCarrierDepthBrightness(g, transport);
                                 auto fc = cb(g);
                                 DlssNrConstants c {};
                                 c.Mode = 39;
@@ -183,6 +190,9 @@ int main()
                                 c.SkinProtection = depthPair;
                                 c.Passthrough = inverted;
                                 c.DirectDetailMode = fullAnswer ? 1u : 0u;
+                                c.DirectResolveUpscaler = DlssNr::DepthTransport::Flags(transport);
+                                c.ExposureAnchors[0] = transport.nearLimit; c.ExposureAnchors[1] = transport.farLimit;
+                                c.ExposureAnchors[2] = transport.curve; c.ExposureAnchors[3] = transport.bias;
                                 auto cc = cb(c);
                                 table(0, { d.Get(), d.Get(), m.Get(), d.Get(), d.Get(), d.Get() },
                                       { od.Get(), raw.Get(), od.Get() });

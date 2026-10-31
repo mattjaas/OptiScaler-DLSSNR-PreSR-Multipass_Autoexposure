@@ -6187,7 +6187,7 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
             auto* residual =
                 g.temporal
                     ? SuperiorRun::Stabilize(g, *this, cmdList, shapingProxy, g.packed ? finalAnswer : ordinaryAnswer,
-                                             motionIn, guides, frame, superiorReset, g_nr.heldActive,
+                                             depthIn, motionIn, guides, frame, superiorReset, g_nr.heldActive,
                                              g.packed ? EdgeCompression::depth : nullptr,
                                              g.packed ? EdgeCompression::motion : nullptr,
                                              { spatialGuideLayout.modelW, spatialGuideLayout.modelH },
@@ -7541,6 +7541,13 @@ void DlssNr::SuperiorScaling::ResetGainPreview()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     SuperiorRun::GetState().preview.Reset();
+}
+
+std::string DlssNr::SuperiorScaling::OriginalGuideStatus()
+{
+    std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    const auto& s = SuperiorRun::GetState();
+    return s.current ? s.current->originalGuideStatus : "Waiting for private DLSS.";
 }
 
 bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename, bool withGuides,

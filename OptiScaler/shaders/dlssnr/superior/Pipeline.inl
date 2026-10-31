@@ -49,6 +49,12 @@ struct Generation
     bool disableIsHDR = false; // creation identity, independent of the game's HDR and AutoExposure
     uint32_t exposureMode = DlssNr::PrivateExposure::Native;
     float positiveGain = 1.f, editSaturation = 1.f, manualExposure = 1.f;
+    DlssNr::DepthTransport::Settings depthTransport;
+    bool originalGuides = false, originalMvLowRes = true, usedOriginalGuides = false, originalRejected = false;
+    std::string originalGuideStatus;
+    unsigned dlssDepthW = 0, dlssDepthH = 0, dlssMotionW = 0, dlssMotionH = 0;
+    unsigned dlssDepthX = 0, dlssDepthY = 0, dlssMotionX = 0, dlssMotionY = 0;
+    float dlssMotionScaleX = 1, dlssMotionScaleY = 1;
     float depthStrength = 0.f, depthCurve = 1.f;
     uint32_t depthPair = 0;
     bool unitInitialized = false;
@@ -265,7 +271,8 @@ void CollectEditDump()
         if (!written) DeleteFileW(paths[i].c_str()); // only outputs reserved by this capture
     }
     const auto utf8 = job->path.u8string();
-    s.editDumpStatus = written ? (job->guideCount ? "Saved edit + depth + motion + settings: " : "Saved edit + settings: ") +
+    s.editDumpStatus = written ? (job->guideCount == 2 ? "Saved edit + depth + motion + settings: " :
+                                  job->guideCount == 1 ? "Saved edit + transport depth + settings: " : "Saved edit + settings: ") +
                                    std::string(utf8.begin(), utf8.end())
                                : "Edit not saved: an output exists, or GPU readback/file writing failed. Choose another name if needed.";
 }
@@ -440,6 +447,11 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
     auto name = std::move(s.pendingEditDump);
     s.pendingEditDump.clear();
     const bool withGuides = std::exchange(s.pendingEditDumpGuides, false);
+    if (withGuides && Config::Instance()->DlssNrSuperiorOriginalGuides.value_or_default())
+    {
+        s.editDumpStatus = "Guide capture requires original-guide experiment off; edit-only capture remains available.";
+        return;
+    }
     auto job = std::make_shared<EditDumpJob>();
     job->device = g.device;
     job->width = g.workWidth;
@@ -484,10 +496,11 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         return;
     }
     UINT64 snapshotTotal = snapshotBytes, readbackTotal = job->bytes;
-    if (withGuides)
+    const bool withDepth = withGuides || g.depthTransport.weightedGain;
+    if (withDepth)
     {
         if (!PrepareDumpGuide(*job, 0, depth, DlssNr::EditDump::Format::R32Float, ".depth.dds", snapshotTotal, readbackTotal) ||
-            !PrepareDumpGuide(*job, 1, motion, DlssNr::EditDump::Format::Rg32Float, ".motion.dds", snapshotTotal, readbackTotal))
+            (withGuides && !PrepareDumpGuide(*job, 1, motion, DlssNr::EditDump::Format::Rg32Float, ".motion.dds", snapshotTotal, readbackTotal)))
         {
             s.editDumpStatus = "Diagnostic not saved: guides unavailable/unsupported or the 512 MiB capture budget was exceeded.";
             return;
@@ -499,6 +512,14 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         DlssNr::EditDump::Metadata m;
         const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
         m.guidesIncluded = withGuides;
+        m.depthIncluded = withDepth;
+        m.depthTransport = g.depthTransport;
+        m.originalGuides = g.usedOriginalGuides;
+        m.dlssDepthW = g.dlssDepthW; m.dlssDepthH = g.dlssDepthH;
+        m.dlssMotionW = g.dlssMotionW; m.dlssMotionH = g.dlssMotionH;
+        m.dlssDepthX = g.dlssDepthX; m.dlssDepthY = g.dlssDepthY;
+        m.dlssMotionX = g.dlssMotionX; m.dlssMotionY = g.dlssMotionY;
+        m.dlssMotionScaleX = g.dlssMotionScaleX; m.dlssMotionScaleY = g.dlssMotionScaleY;
         m.autoGainEnabledAtRequest = s.pendingEditDumpAutoGain;
         m.autoGainEnabledAtCapture = cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
         m.autoGainControlledAtCapture = automaticControlled;
@@ -535,6 +556,10 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
     c.Width = job->width;
     c.Height = job->height;
     Fields::SetPositiveCarrierGain(c, gain);
+    auto snapshotTransport = g.depthTransport;
+    snapshotTransport.additive = false;
+    Fields::SetCarrierDepthBrightness(c, snapshotTransport);
+    c.Passthrough = g.inverted;
     Record(cmd);
     // Even a failed dispatch may have recorded a barrier referencing the snapshot.
     // Retain before recording anything that could leave a partial command sequence.
@@ -543,7 +568,7 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
     auto retainedBytes = s.editDumpRetainedBytes;
     retainedBytes->fetch_add(snapshotTotal);
     s.lifetime.Retire([snapshots, retainedBytes, snapshotTotal] { retainedBytes->fetch_sub(snapshotTotal); });
-    if (!Dispatch(shader, cmd, c, proxy, answer, nullptr, nullptr, nullptr, nullptr, job->image))
+    if (!Dispatch(shader, cmd, c, proxy, answer, nullptr, g.depthTransport.weightedGain ? depth : nullptr, nullptr, nullptr, job->image))
     {
         s.editDumpStatus = "Edit not saved: snapshot dispatch failed.";
         return;
@@ -692,7 +717,7 @@ Created CreateTemporal(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommand
     p->Set(NVSDK_NGX_Parameter_CreationNodeMask, 1u);
     p->Set(NVSDK_NGX_Parameter_VisibilityNodeMask, 1u);
     p->Set(NVSDK_NGX_Parameter_PerfQualityValue, (int) NVSDK_NGX_PerfQuality_Value_DLAA);
-    const unsigned flags = NVSDK_NGX_DLSS_Feature_Flags_MVLowRes |
+    const unsigned flags = (!g.originalGuides || g.originalMvLowRes ? NVSDK_NGX_DLSS_Feature_Flags_MVLowRes : 0u) |
                            (g.exposureMode == DlssNr::PrivateExposure::Native ? NVSDK_NGX_DLSS_Feature_Flags_AutoExposure : 0u) |
                            (g.disableIsHDR ? 0u : NVSDK_NGX_DLSS_Feature_Flags_IsHDR) |
                            (g.inverted ? NVSDK_NGX_DLSS_Feature_Flags_DepthInverted : 0u);
@@ -854,7 +879,7 @@ ID3D12Resource* PrivateExposureTexture(Generation& g, DlssNr_Dx12& shader, ID3D1
 }
 
 ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Resource* proxy,
-                          ID3D12Resource* answer, ID3D12Resource* originalMotion, const DlssNr::GuideRegions& regions,
+                          ID3D12Resource* answer, ID3D12Resource* originalDepth, ID3D12Resource* originalMotion, const DlssNr::GuideRegions& regions,
                           const DlssNrFrameInfo& frame, bool reset, bool hold, ID3D12Resource* packedDepth,
                           ID3D12Resource* packedMotion, DlssNr::GuideExtent packedGuideExtent,
                           float packedDepthPrecision)
@@ -868,6 +893,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
                                     ? DlssNr::PrivateExposure::DepthStrength(cfg.DlssNrSuperiorDepthColourStrength.value_or_default()) : 0.f;
     const float depthCurve = depthStrength > 0 ? DlssNr::PrivateExposure::DepthCurve(cfg.DlssNrSuperiorDepthColourCurve.value_or_default()) : 1.f;
     const uint32_t depthPair = depthStrength > 0 ? DlssNr::PrivateExposure::DepthPair(cfg.DlssNrSuperiorDepthColourPair.value_or_default()) : 0u;
+    const auto depthTransport = DlssNr::DepthTransport::Effective(DlssNr::DepthTransport::Read(cfg));
+    const bool depthActive = DlssNr::DepthTransport::Flags(depthTransport) != 0;
     const bool filterNrAnswer = cfg.DlssNrSuperiorFilterNrAnswer.value_or_default();
     const bool autoRequested = cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
     const bool measurementRequested = cfg.DlssNrSuperiorGainPreview.value_or_default() || autoRequested;
@@ -877,7 +904,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         (uint64_t(g.inverted) << 53) | (uint64_t(g.packed) << 54) | (uint64_t(g.beforeSr) << 55);
     const double now = measurementRequested ? std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count() : 0;
     auto& runtime = GetState();
-    const bool supported = !filterNrAnswer && saturation == 1.f && depthStrength == 0.f;
+    const bool supported = !filterNrAnswer && saturation == 1.f && depthStrength == 0.f && !depthActive && !cfg.DlssNrSuperiorOriginalGuides.value_or_default();
     // Auto never attenuates positive edit, including during warmup, fallback and secondary views.
     float gain = autoRequested ? std::max(1.f, manualGain) : manualGain;
     if (!g_viewSecondary && autoRequested)
@@ -892,7 +919,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     const bool automaticControlled = !g_viewSecondary && autoRequested && runtime.automaticGain.state.controlled;
 
     if (gain != g.positiveGain || saturation != g.editSaturation || depthStrength != g.depthStrength ||
-        depthCurve != g.depthCurve || depthPair != g.depthPair || filterNrAnswer != g.filterNrAnswer)
+        depthCurve != g.depthCurve || depthPair != g.depthPair || filterNrAnswer != g.filterNrAnswer ||
+        depthTransport != g.depthTransport)
     {
         g.positiveGain = gain;
         g.editSaturation = saturation;
@@ -900,6 +928,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         g.depthCurve = depthCurve;
         g.depthPair = depthPair;
         g.filterNrAnswer = filterNrAnswer;
+        g.depthTransport = depthTransport;
         g.reset = true; // never mix histories encoded with different transport transforms
         for (auto& h : g.exposure) h.initialized = false;
     }
@@ -908,6 +937,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     Fields::SetCarrierSaturation(encode, saturation);
     Fields::SetCarrierDepthColour(encode, depthStrength, depthCurve, depthPair, g.inverted);
     Fields::SetCarrierNrAnswer(encode, filterNrAnswer);
+    Fields::SetCarrierDepthBrightness(encode, depthTransport);
     encode.Mode = 39u; // v50: fixed carrier + motion; reuse this frame's exact NR depth.
     auto* motion = originalMotion;
     auto* temporalDepth = g.packed ? packedDepth : g.depth.Get();
@@ -946,6 +976,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
             DlssNr::Spatial::SetPrivateCarrierSaturation(fused, saturation);
             DlssNr::Spatial::SetPrivateCarrierDepthColour(fused, depthStrength, depthCurve, depthPair);
             DlssNr::Spatial::SetPrivateCarrierNrAnswer(fused, filterNrAnswer);
+            DlssNr::Spatial::SetPrivateCarrierDepthBrightness(fused, depthTransport);
             Record(cmd);
             g.depth.To(cmd, Uav);
             g.carrier.To(cmd, Uav);
@@ -976,17 +1007,62 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         motion = g.motion.Get();
         Fields::SetMotionRegion(encode, 0, 0, g.workWidth, g.workHeight);
     }
+    // Explicit raw-guide experiment: only NGX's inputs change. NR, transport inversion and
+    // diagnostics still need the matched raster. The SDK does not specify arbitrary guide sizes.
+    auto* dlssDepth = temporalDepth;
+    auto* dlssMotion = g.temporalMotion.Get();
+    float dlssMvX = 1.f, dlssMvY = 1.f;
+    unsigned dx = 0, dy = 0, mx = 0, my = 0;
+    bool useOriginal = false;
+    if (g.originalGuides && !hold && !g.originalRejected && originalDepth && originalMotion)
+    {
+        const auto dd = originalDepth->GetDesc(), md = originalMotion->GetDesc();
+        const auto scales = GuideConstants(g.workWidth, g.workHeight, regions, frame, true, false);
+        useOriginal = DlssNr::SuperiorScaling::OriginalGuideFits(dd.Width, dd.Height, regions.depth, g.workWidth, g.workHeight) &&
+            DlssNr::SuperiorScaling::OriginalGuideFits(md.Width, md.Height, regions.motion, g.workWidth, g.workHeight) &&
+            std::isfinite(scales.MvScaleX) && std::isfinite(scales.MvScaleY) && scales.MvScaleX != 0 && scales.MvScaleY != 0;
+        if (useOriginal)
+        {
+            dlssDepth = originalDepth; dlssMotion = originalMotion;
+            dx = regions.depth.x; dy = regions.depth.y; mx = regions.motion.x; my = regions.motion.y;
+            dlssMvX = scales.MvScaleX; dlssMvY = scales.MvScaleY;
+        }
+    }
+    if (useOriginal != g.usedOriginalGuides)
+    {
+        g.reset = true;
+        for (auto& h : g.exposure) h.initialized = false;
+    }
+    g.usedOriginalGuides = useOriginal;
+    g.dlssDepthW = unsigned(dlssDepth->GetDesc().Width); g.dlssDepthH = dlssDepth->GetDesc().Height;
+    g.dlssMotionW = unsigned(dlssMotion->GetDesc().Width); g.dlssMotionH = dlssMotion->GetDesc().Height;
+    g.dlssDepthX = dx; g.dlssDepthY = dy; g.dlssMotionX = mx; g.dlssMotionY = my;
+    g.dlssMotionScaleX = dlssMvX; g.dlssMotionScaleY = dlssMvY;
+    if (g.originalGuides)
+    {
+        if (useOriginal)
+        {
+            const auto dd = originalDepth->GetDesc(), md = originalMotion->GetDesc();
+            g.originalGuideStatus = std::format("Original depth {}x{} + MV {}x{} -> private DLAA {}x{} (experimental; no resampling).",
+                dd.Width, dd.Height, md.Width, md.Height, g.workWidth, g.workHeight);
+        }
+        else g.originalGuideStatus = g.originalRejected ? "NGX rejected original guides; matched fallback. Toggle off/on to retry." :
+            hold ? "Matched fallback: frame held (zero motion)." : "Matched fallback: original active guide region too small or invalid MV scale.";
+    }
+    else g.originalGuideStatus = cfg.DlssNrSuperiorOriginalGuides.value_or_default() ?
+        "Matched guides: original-guide experiment unavailable with edge compression." : "Matched guides (original-guide experiment off).";
+    encode.Mode = useOriginal ? 37u : 39u; // Raw NGX motion needs no converted-motion write.
     if (!prepared &&
-        !Dispatch(shader, cmd, encode, proxy, answer, motion, depthStrength > 0 ? temporalDepth : nullptr,
-                  nullptr, nullptr, g.carrier, &g.temporalMotion))
+        !Dispatch(shader, cmd, encode, proxy, answer, motion, depthStrength > 0 || depthActive ? temporalDepth : nullptr,
+                  nullptr, nullptr, g.carrier, useOriginal ? nullptr : &g.temporalMotion))
         return nullptr;
     // The estimate samples raw NR differences, independent of the manually selected gain.
     // Secondary views do not feed a different image into the primary-view smoother.
     if (!g_viewSecondary && measurementRequested)
     {
         auto& preview = GetState().preview;
-        if (filterNrAnswer || saturation != 1.f || depthStrength > 0.f)
-            preview.Pause("Preview needs edit mode, saturation 1x and depth colour off.");
+        if (!supported)
+            preview.Pause("Preview needs edit mode, saturation 1x, depth transport and original guides off.");
         else if (hold)
             preview.Pause("Paused: frame held.");
         else
@@ -1009,16 +1085,20 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     auto* p = g.parameters;
     p->Set(NVSDK_NGX_Parameter_Color, g.carrier.Get());
     p->Set(NVSDK_NGX_Parameter_Output, g.temporalOutput.Get());
-    p->Set(NVSDK_NGX_Parameter_Depth, temporalDepth);
-    p->Set(NVSDK_NGX_Parameter_MotionVectors, g.temporalMotion.Get());
+    p->Set(NVSDK_NGX_Parameter_Depth, dlssDepth);
+    p->Set(NVSDK_NGX_Parameter_MotionVectors, dlssMotion);
+    p->Set(NVSDK_NGX_Parameter_DLSS_Input_Depth_Subrect_Base_X, dx);
+    p->Set(NVSDK_NGX_Parameter_DLSS_Input_Depth_Subrect_Base_Y, dy);
+    p->Set(NVSDK_NGX_Parameter_DLSS_Input_MV_SubrectBase_X, mx);
+    p->Set(NVSDK_NGX_Parameter_DLSS_Input_MV_SubrectBase_Y, my);
     p->Set(NVSDK_NGX_Parameter_ExposureTexture, exposure);
     p->Set(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Width, g.workWidth);
     p->Set(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Height, g.workHeight);
     p->Set(NVSDK_NGX_Parameter_Reset, (unsigned) (reset || g.reset));
     p->Set(NVSDK_NGX_Parameter_Jitter_Offset_X, 0.0f);
     p->Set(NVSDK_NGX_Parameter_Jitter_Offset_Y, 0.0f);
-    p->Set(NVSDK_NGX_Parameter_MV_Scale_X, 1.0f);
-    p->Set(NVSDK_NGX_Parameter_MV_Scale_Y, 1.0f);
+    p->Set(NVSDK_NGX_Parameter_MV_Scale_X, dlssMvX);
+    p->Set(NVSDK_NGX_Parameter_MV_Scale_Y, dlssMvY);
     p->Set(NVSDK_NGX_Parameter_FrameTimeDeltaInMsec,
            std::isfinite(frame.FrameTimeMs) && frame.FrameTimeMs > 0 ? frame.FrameTimeMs : 16.67f);
     p->Set(NVSDK_NGX_Parameter_DLSS_Pre_Exposure, 1.0f);
@@ -1027,6 +1107,11 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     if (NVNGXProxy::D3D12_EvaluateFeature()(cmd, g.feature, p, nullptr) != NVSDK_NGX_Result_Success)
     {
         g.reset = true;
+        if (useOriginal)
+        {
+            g.originalRejected = true;
+            g.originalGuideStatus = "NGX rejected original guides; matched fallback next frame. Toggle off/on to retry.";
+        }
         Say("Private DLSS evaluation failed; keeping the game frame.");
         return nullptr;
     }
@@ -1041,8 +1126,9 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     Fields::SetCarrierSaturation(decode, saturation);
     Fields::SetCarrierDepthColour(decode, depthStrength, depthCurve, depthPair, g.inverted);
     Fields::SetCarrierNrAnswer(decode, filterNrAnswer);
+    Fields::SetCarrierDepthBrightness(decode, depthTransport);
     if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), filterNrAnswer ? proxy : nullptr, nullptr,
-                  depthStrength > 0 ? temporalDepth : nullptr, nullptr, nullptr, g.carrier))
+                  depthStrength > 0 || depthActive ? temporalDepth : nullptr, nullptr, nullptr, g.carrier))
         return nullptr;
     g.reset = false;
     return g.carrier.Get();
@@ -1086,6 +1172,7 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         return Began::Unavailable;
     }
     const auto& cfg = *Config::Instance();
+    const bool originalGuides = cfg.DlssNrSuperiorOriginalGuides.value_or_default() && !layout;
     const bool disableIsHDR = cfg.DlssNrSuperiorScalingDisableIsHDR.value_or_default();
     const auto selectedExposure = DlssNr::PrivateExposure::SanitizeMode(cfg.DlssNrSuperiorPrivateExposureMode.value_or_default());
     const auto exposureMode = cfg.DlssNrSuperiorScalingDisableAutoExposure.value_or_default()
@@ -1106,7 +1193,9 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
             previous->workWidth != workWidth || previous->workHeight != workHeight || previous->format != format ||
             previous->inverted != frame.DepthInverted || previous->beforeSr != frame.BeforeUpscale ||
             previous->temporal != temporal || previous->packed != (layout != nullptr) ||
-            (temporal && (previous->disableIsHDR != disableIsHDR || previous->exposureMode != exposureMode)) ||
+            (temporal && (previous->disableIsHDR != disableIsHDR || previous->exposureMode != exposureMode ||
+                          previous->originalGuides != originalGuides ||
+                          (originalGuides && previous->originalMvLowRes != frame.MotionVectorsLowResolution))) ||
             (layout && previous->layout != *layout) ||
             DlssNr::SuperiorScaling::PrivatePresetChanged(previous->preset, preset))
         {
@@ -1128,6 +1217,8 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         g.beforeSr = frame.BeforeUpscale;
         g.temporal = temporal;
         g.disableIsHDR = disableIsHDR;
+        g.originalGuides = originalGuides;
+        g.originalMvLowRes = frame.MotionVectorsLowResolution;
         g.exposureMode = exposureMode;
         g.packed = layout != nullptr;
         if (layout)

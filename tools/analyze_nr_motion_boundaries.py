@@ -170,6 +170,8 @@ def main():
     m = json.loads(args.metadata.read_text(encoding="utf-8-sig"))
     if m["full_nr_answer"] or m["edit_saturation"] != 1 or m["depth_colour_strength"] != 0:
         parser.error("Plain edit mode required")
+    if m.get("depth_weighted_positive_gain") or m.get("depth_additive_brightness") or m.get("original_guides_active"):
+        raise ValueError("This analysis requires uniform gain, additive depth brightness off and matched guides")
     gain, plateau = float(m["positive_gain"]), args.observed_plateau_gain
     if not np.isfinite([gain, plateau]).all() or min(gain, plateau) <= 0:
         parser.error("Finite positive gains required")

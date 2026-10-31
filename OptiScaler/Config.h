@@ -454,6 +454,14 @@ class Config
     CustomOptional<float> DlssNrSuperiorGainPreviewSlowSeconds { 1.5f };
     CustomOptional<float> DlssNrSuperiorGainPreviewFastSeconds { .25f };
     CustomOptional<float> DlssNrSuperiorGainPreviewMotionThreshold { .1f };
+    CustomOptional<bool> DlssNrSuperiorDepthWeightedGain { false };
+    CustomOptional<bool> DlssNrSuperiorDepthBrightness { false };
+    CustomOptional<bool> DlssNrSuperiorDepthBrightnessFullRange { true };
+    CustomOptional<float> DlssNrSuperiorDepthBrightnessNear { 0.f };
+    CustomOptional<float> DlssNrSuperiorDepthBrightnessFar { 1.f };
+    CustomOptional<float> DlssNrSuperiorDepthBrightnessCurve { .25f };
+    CustomOptional<float> DlssNrSuperiorDepthBrightnessStrength { .1f };
+    CustomOptional<bool> DlssNrSuperiorOriginalGuides { false };
     CustomOptional<float> DlssNrSuperiorEditSaturation { 1.0f };
     CustomOptional<bool> DlssNrSuperiorFilterNrAnswer { false };
     CustomOptional<bool> DlssNrSuperiorDepthColour { false };

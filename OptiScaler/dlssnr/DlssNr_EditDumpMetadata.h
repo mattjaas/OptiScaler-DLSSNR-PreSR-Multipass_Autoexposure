@@ -1,5 +1,6 @@
 #pragma once
 #include "DlssNr_GainPreview.h"
+#include "DlssNr_DepthTransport.h"
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
@@ -35,6 +36,11 @@ inline PreviewSnapshot SnapshotPreview(const GainPreview::Status& status, double
 }
 struct Metadata
 {
+    DepthTransport::Settings depthTransport;
+    bool depthIncluded = false, originalGuides = false;
+    unsigned dlssDepthW = 0, dlssDepthH = 0, dlssMotionW = 0, dlssMotionH = 0;
+    unsigned dlssDepthX = 0, dlssDepthY = 0, dlssMotionX = 0, dlssMotionY = 0;
+    float dlssMotionScaleX = 1, dlssMotionScaleY = 1;
     uint64_t frame = 0, submissionEpoch = 0;
     uint32_t width = 0, height = 0, privatePreset = 0, nrPresetSetting = 0, exposureMode = 0;
     uint32_t whitePointSource = 0, expectedPassMask = 0, completedPassMask = 0;
@@ -60,7 +66,8 @@ inline std::string MetadataJson(const Metadata& m)
     out.imbue(std::locale::classic());
     out << std::boolalpha << std::setprecision(9)
         << "{\n  \"schema\": 2,\n  \"edit_stage\": \"after_positive_gain_before_colour_and_clipping\","
-           "\n  \"guide_lattice\": \"private_dlss_input\",\n  \"guide_origin\": [0, 0],"
+        << "\n  \"guide_lattice\": \"" << (m.originalGuides ? "transport_matched" : "private_dlss_input")
+        << "\",\n  \"guide_origin\": [0, 0],"
            "\n  \"motion_units\": \"private_input_pixels\",\n  \"mv_scale\": [1, 1]";
     auto value = [&](const char* name, auto v)
     {
@@ -76,6 +83,26 @@ inline std::string MetadataJson(const Metadata& m)
         out << v;
     };
     value("guides_included", m.guidesIncluded);
+    value("depth_included", m.depthIncluded || m.guidesIncluded);
+    value("original_guides_active", m.originalGuides);
+    value("captured_guides_match_private_dlss_inputs", !m.originalGuides);
+    value("private_depth_allocation_width", m.dlssDepthW);
+    value("private_depth_allocation_height", m.dlssDepthH);
+    value("private_motion_allocation_width", m.dlssMotionW);
+    value("private_motion_allocation_height", m.dlssMotionH);
+    value("private_depth_origin_x", m.dlssDepthX);
+    value("private_depth_origin_y", m.dlssDepthY);
+    value("private_motion_origin_x", m.dlssMotionX);
+    value("private_motion_origin_y", m.dlssMotionY);
+    value("private_motion_scale_x", m.dlssMotionScaleX);
+    value("private_motion_scale_y", m.dlssMotionScaleY);
+    value("depth_weighted_positive_gain", m.depthTransport.weightedGain);
+    value("depth_additive_brightness", m.depthTransport.additive);
+    value("depth_brightness_full_range", m.depthTransport.fullRange);
+    value("depth_brightness_near", m.depthTransport.nearLimit);
+    value("depth_brightness_far", m.depthTransport.farLimit);
+    value("depth_brightness_curve", m.depthTransport.curve);
+    value("depth_brightness_strength", m.depthTransport.bias);
     value("auto_positive_gain_enabled_at_request", m.autoGainEnabledAtRequest);
     value("auto_positive_gain_enabled_at_capture", m.autoGainEnabledAtCapture);
     value("auto_positive_gain_controlled_capture", m.autoGainControlledAtCapture);

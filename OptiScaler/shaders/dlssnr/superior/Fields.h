@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include "Constants.h"
+#include "../../../dlssnr/DlssNr_DepthTransport.h"
 #include "../DlssNr_Common.h"
 
 // Superior passes reuse constant-buffer fields named for other modes (the v59 shader ABI and the shared resolve's
@@ -50,6 +51,19 @@ inline void SetCarrierDepthColour(DlssNrConstants& c, float strength, float curv
 }
 static_assert(offsetof(DlssNrConstants, ResidualScale) == 88 && offsetof(DlssNrConstants, ResidualBlend) == 116 &&
               offsetof(DlssNrConstants, SkinProtection) == 92);
+
+// Private carrier only; these exposure/resolve fields are not otherwise read.
+inline void SetCarrierDepthBrightness(DlssNrConstants& c, const DlssNr::DepthTransport::Settings& value)
+{
+    const auto s = DlssNr::DepthTransport::Sanitize(value);
+    c.DirectResolveUpscaler = DlssNr::DepthTransport::Flags(s);
+    c.ExposureAnchors[0] = s.nearLimit;
+    c.ExposureAnchors[1] = s.farLimit;
+    c.ExposureAnchors[2] = s.curve;
+    c.ExposureAnchors[3] = s.bias;
+}
+static_assert(offsetof(DlssNrConstants, ExposureAnchors) == 176 &&
+              offsetof(DlssNrConstants, DirectResolveUpscaler) == 248);
 
 // Experimental exposure modes 40..42 reuse the frozen cbuffer, without changing v59's ABI.
 inline void SetPrivateExposure(DlssNrConstants& c, uint32_t method, uint32_t sourceW, uint32_t sourceH, bool measure,

@@ -14,6 +14,7 @@
 #include "DlssNr_Guides.h"
 #include "../../../external/peripheral_warp/SpatialWarp.h"
 
+#include "../../dlssnr/DlssNr_DepthTransport.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -422,6 +423,19 @@ inline void SetPrivateCarrierDepthColour(Constants& c, float strength, float cur
     c.motionScale[1] = float(pair);
 }
 static_assert(offsetof(Constants, motionScale) == 224 && offsetof(Constants, padding) + 5 * sizeof(float) == 252);
+// Uniform PrivateGuidesMain only: this entry point does not use warp fractions/flags.
+// Keep options.w (source depth precision) and options.y (NR answer selector) independent.
+inline void SetPrivateCarrierDepthBrightness(Constants& c, const DlssNr::DepthTransport::Settings& value)
+{
+    const auto s = DlssNr::DepthTransport::Sanitize(value);
+    c.warp.flags = DlssNr::DepthTransport::Flags(s);
+    c.warp.centerFractionX = s.nearLimit;
+    c.warp.centerFractionY = s.farLimit;
+    c.warp.workFractionX = s.curve;
+    c.warp.workFractionY = s.bias;
+}
+static_assert(offsetof(Constants, warp) + offsetof(pw::ShaderConstants, centerFractionX) == 32 &&
+              offsetof(Constants, warp) + offsetof(pw::ShaderConstants, flags) == 72);
 inline void SetDepthPrecision(Constants& c, float floor)
 {
     floor = std::isfinite(floor) && floor > 0.f ? floor : 0.f;

@@ -5,6 +5,7 @@
 #include <cstring>
 #include <string>
 #include "DlssNr_GainPreview.h"
+#include "DlssNr_DepthTransport.h"
 #include "DlssNr_AutoGain.h"
 #include "DlssNr_GuidedShaping.h"
 #include "DlssNr_InterPassSchedule.h"
@@ -13,6 +14,7 @@ namespace DlssNr::SuperiorScaling
 {
 // Runtime state, defined with the D3D12 pipeline (DlssNr_Dx12.cpp). Status: the last thing worth telling the user.
 std::string Status();
+std::string OriginalGuideStatus();
 // Why Superior is not running this session (empty while it runs); the ordinary path uses Matched residual meanwhile.
 // Selecting Superior again retries. SrUnavailable: the NGX DLSS SR runtime itself could not be used here.
 std::string Unavailable();
@@ -203,6 +205,14 @@ inline bool NeedsTemporal(unsigned nativeW, unsigned nativeH, unsigned ordinaryW
            (compressed && ordinaryW == nativeW && ordinaryH == nativeH && (modelW < nativeW || modelH < nativeH));
 }
 // Missing render/output metadata falls back to the original valid motion region, before any resample.
+template <class R>
+inline bool OriginalGuideFits(uint64_t allocationWidth, unsigned allocationHeight, const R& region, unsigned workWidth,
+                              unsigned workHeight)
+{
+    return workWidth && workHeight && region.valid() && region.x <= allocationWidth && region.y <= allocationHeight &&
+           region.width <= allocationWidth - region.x && region.height <= allocationHeight - region.y &&
+           workWidth <= region.width && workHeight <= region.height;
+}
 inline float MotionScale(float gameScale, unsigned motionExtent, unsigned referenceExtent,
                          unsigned validSourceExtent = 0)
 {
