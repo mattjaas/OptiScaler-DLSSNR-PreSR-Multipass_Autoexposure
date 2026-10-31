@@ -4,6 +4,7 @@
 #include <dlssnr/DlssNr_SuperiorGains.h>
 #include <dlssnr/DlssNr_PrivateExposure.h>
 #include <dlssnr/DlssNr_EditDump.h>
+#include <dlssnr/DlssNr_GainPreview_Dx12.h>
 #include <dlssnr/DlssNr_EditDumpReadback.h>
 #include <dlssnr/DlssNr_EditDumpMetadata.h>
 #include <dlssnr/DlssNr_GpuLifetime.h>
@@ -3412,6 +3413,15 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
     // ordinary path runs, with Matched residual in its place. Selecting it again retries.
     const bool superiorSelected = DlssNr::SuperiorScaling::Enabled(cfg);
     auto& superiorState = SuperiorRun::GetState();
+    DlssNr::GainPreview::Settings previewSettings;
+    previewSettings.slowSeconds = cfg.DlssNrSuperiorGainPreviewSlowSeconds.value_or_default();
+    previewSettings.fastSeconds = cfg.DlssNrSuperiorGainPreviewFastSeconds.value_or_default();
+    previewSettings.motionThreshold = cfg.DlssNrSuperiorGainPreviewMotionThreshold.value_or_default();
+    previewSettings.requireChange = cfg.DlssNrSuperiorGainPreviewChangingMotion.value_or_default();
+    superiorState.preview.Configure(cfg.DlssNrSuperiorGainPreview.value_or_default() && superiorSelected &&
+                                        superiorState.unavailable.empty(),
+                                    previewSettings);
+    superiorState.preview.Collect();
     if (superiorState.editDump)
         SuperiorRun::CollectEditDump();
     if ((!superiorSelected || !superiorState.unavailable.empty()) && !superiorState.pendingEditDump.empty())
@@ -7510,6 +7520,17 @@ bool DlssNr::SuperiorScaling::SrUnavailable()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     return SuperiorRun::GetState().srUnavailable;
+}
+
+DlssNr::GainPreview::Status DlssNr::SuperiorScaling::GainPreviewStatus()
+{
+    std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    return SuperiorRun::GetState().preview.Get();
+}
+void DlssNr::SuperiorScaling::ResetGainPreview()
+{
+    std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    SuperiorRun::GetState().preview.Reset();
 }
 
 bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename, bool withGuides)

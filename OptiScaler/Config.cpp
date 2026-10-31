@@ -1112,6 +1112,11 @@ void Config::ReadDlssNr()
     DlssNrSuperiorScalingDisableIsHDR.set_from_config(readBool("DlssNr", "SuperiorScalingDisableIsHDR"));
     DlssNrSuperiorScalingDisableAutoExposure.set_from_config(readBool("DlssNr", "SuperiorScalingDisableAutoExposure"));
     DlssNrSuperiorPositiveEditGain.set_from_config(readFloat("DlssNr", "SuperiorPositiveEditGain"));
+    DlssNrSuperiorGainPreview.set_from_config(readBool("DlssNr", "SuperiorGainPreview"));
+    DlssNrSuperiorGainPreviewChangingMotion.set_from_config(readBool("DlssNr", "SuperiorGainPreviewChangingMotion"));
+    DlssNrSuperiorGainPreviewSlowSeconds.set_from_config(readFloat("DlssNr", "SuperiorGainPreviewSlowSeconds"));
+    DlssNrSuperiorGainPreviewFastSeconds.set_from_config(readFloat("DlssNr", "SuperiorGainPreviewFastSeconds"));
+    DlssNrSuperiorGainPreviewMotionThreshold.set_from_config(readFloat("DlssNr", "SuperiorGainPreviewMotionThreshold"));
     DlssNrSuperiorEditSaturation.set_from_config(readFloat("DlssNr", "SuperiorEditSaturation"));
     DlssNrSuperiorFilterNrAnswer.set_from_config(readBool("DlssNr", "SuperiorFilterNrAnswer"));
     DlssNrSuperiorDepthColour.set_from_config(readBool("DlssNr", "SuperiorDepthColour"));
@@ -1356,6 +1361,15 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetBoolValue(c.DlssNrSuperiorScalingDisableAutoExposure.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorPositiveEditGain",
                  GetFloatValue(c.DlssNrSuperiorPositiveEditGain.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGainPreview", GetBoolValue(c.DlssNrSuperiorGainPreview.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGainPreviewChangingMotion",
+                 GetBoolValue(c.DlssNrSuperiorGainPreviewChangingMotion.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGainPreviewSlowSeconds",
+                 GetFloatValue(c.DlssNrSuperiorGainPreviewSlowSeconds.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGainPreviewFastSeconds",
+                 GetFloatValue(c.DlssNrSuperiorGainPreviewFastSeconds.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGainPreviewMotionThreshold",
+                 GetFloatValue(c.DlssNrSuperiorGainPreviewMotionThreshold.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorEditSaturation",
                  GetFloatValue(c.DlssNrSuperiorEditSaturation.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorFilterNrAnswer",
@@ -1734,6 +1748,11 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorScalingDisableIsHDR", DlssNrSuperiorScalingDisableIsHDR),
         NR_PROFILE_FIELD("SuperiorScalingDisableAutoExposure", DlssNrSuperiorScalingDisableAutoExposure),
         NR_PROFILE_FIELD("SuperiorPositiveEditGain", DlssNrSuperiorPositiveEditGain),
+        NR_PROFILE_FIELD("SuperiorGainPreview", DlssNrSuperiorGainPreview),
+        NR_PROFILE_FIELD("SuperiorGainPreviewChangingMotion", DlssNrSuperiorGainPreviewChangingMotion),
+        NR_PROFILE_FIELD("SuperiorGainPreviewSlowSeconds", DlssNrSuperiorGainPreviewSlowSeconds),
+        NR_PROFILE_FIELD("SuperiorGainPreviewFastSeconds", DlssNrSuperiorGainPreviewFastSeconds),
+        NR_PROFILE_FIELD("SuperiorGainPreviewMotionThreshold", DlssNrSuperiorGainPreviewMotionThreshold),
         NR_PROFILE_FIELD("SuperiorEditSaturation", DlssNrSuperiorEditSaturation),
         NR_PROFILE_FIELD("SuperiorFilterNrAnswer", DlssNrSuperiorFilterNrAnswer),
         NR_PROFILE_FIELD("SuperiorDepthColour", DlssNrSuperiorDepthColour),

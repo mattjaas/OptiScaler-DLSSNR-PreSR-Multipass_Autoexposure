@@ -57,6 +57,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./artifacts/validation/edit_dump_completion.exe --warp
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify multiplier preview shader and asynchronous runtime using WARP
+        shell: powershell
+        run: |
+          ./tools/test_nr_gain_preview.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build Release package
         shell: powershell
         run: ./package_release.ps1 -Version 'private-exposure-experiments'

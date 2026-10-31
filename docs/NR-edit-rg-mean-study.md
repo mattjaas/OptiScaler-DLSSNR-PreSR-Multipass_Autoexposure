@@ -80,3 +80,8 @@ python tools/analyze_nr_edit_channel_coverage.py `
 Pierwszy kandydat w tym porównaniu to rg_mean, co zapisano również w raportach faz. Wszystkie wyniki są dopasowaniem/oceną na tych samych 16 etykietach; nie publikujemy źródłowych obrazów i nie zmieniamy DLL/HLSL. S_RG jest obecnie lepszym tropem do dalszej walidacji niż pozostałe porównane tu średnie, z opisanym problemem próbkowania.
 
 Następnie sprawdzono na prośbę użytkownika [różne wagi R/G/B](NR-edit-channel-weights-study.md): wspólny wektor dla CNN/transformer, bez zmiany kolorów obrazu.
+
+
+## Podgląd w OptiScalerze
+
+Dodano eksperymentalny podgląd oparty na S_RG, z EMA histogramów i mnożnika oraz bramką zmieniających się MV. Nie steruje suwakiem. [Implementacja, ograniczenia próbkowania i pomiar kosztu GPU](NR-edit-gain-preview.md). Powyższy brak pomiaru GPU dotyczy wcześniejszego badania offline; nowy test mierzy osobno koszt implementacji podglądu, bez potwierdzania jakości w grze.

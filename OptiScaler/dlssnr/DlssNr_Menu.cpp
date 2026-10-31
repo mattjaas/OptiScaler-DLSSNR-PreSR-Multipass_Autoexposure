@@ -4036,6 +4036,62 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "Small multipliers can lose detail to FP16 precision; large values can change temporal behaviour. "
                 "Exact entry supports 0.01..1024.");
 
+            bool gainPreview = config->DlssNrSuperiorGainPreview.value_or_default();
+            const bool previewInputSupported =
+                !filterNrAnswer &&
+                DlssNr::PrivateExposure::EditSaturation(config->DlssNrSuperiorEditSaturation.value_or_default()) ==
+                    1.f &&
+                (!config->DlssNrSuperiorDepthColour.value_or_default() ||
+                 DlssNr::PrivateExposure::DepthStrength(config->DlssNrSuperiorDepthColourStrength.value_or_default()) ==
+                     0.f);
+            ImGui::BeginDisabled(!previewInputSupported && !gainPreview);
+            if (ImGui::Checkbox("Preview suggested positive multiplier", &gainPreview))
+                config->DlssNrSuperiorGainPreview = gainPreview;
+            ImGui::EndDisabled();
+            HelpMarker(
+                "Experimental estimate from positive R/G edit coverage, calibrated on the supplied CNN and "
+                "Transformer examples. Displays a suggestion only; never changes the transport multiplier. "
+                "Not a ghosting detector or a guarantee for other scenes. Needs edit mode, saturation 1x "
+                "and depth colour off. Samples up to eight times per second while motion is usable. "
+                "EMA smooths the measurements and catches up faster after a sustained image change. "
+                "Changing motion helps reject frozen buffers, but cannot reliably identify every menu or video.");
+            if (gainPreview)
+            {
+                const auto status = DlssNr::SuperiorScaling::GainPreviewStatus();
+                if (status.valid)
+                    ImGui::Text("Suggested positive multiplier: %.2fx", status.smoothed);
+                else
+                    ImGui::TextUnformatted("Suggested positive multiplier: waiting for measurement");
+                ImGui::TextWrapped("%s", previewInputSupported
+                                             ? status.text.c_str()
+                                             : "Paused: preview needs edit mode, saturation 1x and depth colour off.");
+                if (status.valid)
+                    ImGui::Text("Latest sample: %.2fx | moving MV: %.1f%% | changed MV: %.1f%%", status.raw,
+                                status.motionPercent, status.changedPercent);
+                if (ImGui::Button("Reset multiplier preview"))
+                    DlssNr::SuperiorScaling::ResetGainPreview();
+                if (ImGui::TreeNode("Multiplier preview response"))
+                {
+                    bool changing = config->DlssNrSuperiorGainPreviewChangingMotion.value_or_default();
+                    if (ImGui::Checkbox("Require changing motion field", &changing))
+                        config->DlssNrSuperiorGainPreviewChangingMotion = changing;
+                    HelpMarker("Compare 576 fixed MV samples with the previous completed probe, using a 0.0625 "
+                               "working-pixel tolerance. At least six samples must change. A perfectly uniform "
+                               "constant real motion field also pauses the preview. Off: nonzero motion is enough.");
+                    auto response = DlssNr::GainPreview::Sanitize(
+                        { config->DlssNrSuperiorGainPreviewSlowSeconds.value_or_default(),
+                          config->DlssNrSuperiorGainPreviewFastSeconds.value_or_default(),
+                          config->DlssNrSuperiorGainPreviewMotionThreshold.value_or_default(), changing });
+                    if (ImGui::SliderFloat("Preview EMA time", &response.slowSeconds, .1f, 5.f, "%.2f s"))
+                        config->DlssNrSuperiorGainPreviewSlowSeconds = response.slowSeconds;
+                    if (ImGui::SliderFloat("Preview catch-up time", &response.fastSeconds, .05f, 1.5f, "%.2f s"))
+                        config->DlssNrSuperiorGainPreviewFastSeconds = response.fastSeconds;
+                    if (ImGui::SliderFloat("Preview minimum motion", &response.motionThreshold, .01f, 2.f, "%.2f px"))
+                        config->DlssNrSuperiorGainPreviewMotionThreshold = response.motionThreshold;
+                    ImGui::TreePop();
+                }
+            }
+
             static char editFilename[128] = "nr-edit";
             ImGui::InputText("Pre-DLSS edit filename", editFilename, IM_ARRAYSIZE(editFilename));
             ImGui::BeginDisabled(DlssNr::SuperiorScaling::EditDumpBusy());

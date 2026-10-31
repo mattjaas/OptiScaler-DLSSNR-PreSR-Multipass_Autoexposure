@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
+#include "DlssNr_GainPreview.h"
 #include "DlssNr_GuidedShaping.h"
 #include "DlssNr_InterPassSchedule.h"
 
@@ -19,6 +20,8 @@ bool SrUnavailable();
 bool RequestEditDump(const std::string& filename, bool withGuides = false);
 bool EditDumpBusy();
 std::string EditDumpStatus();
+DlssNr::GainPreview::Status GainPreviewStatus();
+void ResetGainPreview();
 // The game's NGX D3D12 runtime is shutting down: every NGX handle is about to be destroyed by NGX itself.
 void NgxDx12Shutdown();
 constexpr uint32_t Transfer = 11u;

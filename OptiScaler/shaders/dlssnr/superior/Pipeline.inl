@@ -168,6 +168,7 @@ struct EditDumpJob
 struct State
 {
     DlssNr::GpuLifetime lifetime { &Destroyed };
+    DlssNr::GainPreview::Runtime preview;
     std::shared_ptr<Generation> current;
     bool wasSelected = false, wasActive = false;
     std::string status;
@@ -308,6 +309,9 @@ void Submitted(ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* 
 {
     auto& s = GetState();
     s.lifetime.Submitted(queue, count, lists);
+    s.preview.SignalSubmitted(queue, count, lists);
+    for (UINT i = 0; i < count; ++i)
+        s.preview.CopySubmitted(queue, Util::RealObjectIdentity(lists[i]));
     if (s.editDump && s.editDump->copy.Poll() == DlssNr::EditDump::ReadbackCopy::State::NotSubmitted &&
         g_editDumpCommands == s.editDump->commands)
         for (UINT i = 0; i < count; ++i)
@@ -343,6 +347,7 @@ void ResetRecording(ID3D12CommandList* cmd)
 {
     auto& s = GetState();
     s.lifetime.ResetRecording(cmd);
+    s.preview.ResetRecording(cmd);
     if (s.editDump && s.editDump->commands == Util::RealObjectIdentity(cmd))
     {
         EditDumpListDestroyed(s.editDump->commands);
@@ -926,6 +931,27 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         !Dispatch(shader, cmd, encode, proxy, answer, motion, depthStrength > 0 ? temporalDepth : nullptr,
                   nullptr, nullptr, g.carrier, &g.temporalMotion))
         return nullptr;
+    // The estimate samples raw NR differences, independent of the manually selected gain.
+    // Secondary views do not feed a different image into the primary-view smoother.
+    if (!g_viewSecondary && cfg.DlssNrSuperiorGainPreview.value_or_default())
+    {
+        auto& preview = GetState().preview;
+        if (filterNrAnswer || saturation != 1.f || depthStrength > 0.f)
+            preview.Pause("Preview needs edit mode, saturation 1x and depth colour off.");
+        else if (hold)
+            preview.Pause("Paused: frame held.");
+        else
+        {
+            const uint64_t context = uint64_t(g.workWidth) | (uint64_t(g.workHeight) << 16) |
+                (uint64_t(g.preset) << 32) | (uint64_t(cfg.DlssNrPreset.value_or_default()) << 40) |
+                (uint64_t(g.exposureMode) << 48) | (uint64_t(g.disableIsHDR) << 52) |
+                (uint64_t(g.inverted) << 53) | (uint64_t(g.packed) << 54) | (uint64_t(g.beforeSr) << 55);
+            const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+            Record(cmd);
+            preview.Record(g.device.Get(), cmd, Util::RealObjectIdentity(cmd), proxy, answer, g.temporalMotion.Get(),
+                           g.workWidth, g.workHeight, g.preset == 11, context, now);
+        }
+    }
     RecordEditDump(g, shader, cmd, proxy, answer, gain, temporalDepth, g.temporalMotion.Get(), frame,
                    reset || g.reset, hold);
     auto* exposure = PrivateExposureTexture(g, shader, cmd, reset || g.reset);
@@ -1112,6 +1138,9 @@ void NgxShutdown()
     if (!s.pendingEditDump.empty()) s.editDumpStatus = "Edit capture cancelled: NGX shutdown.";
     s.pendingEditDump.clear();
     s.pendingEditDumpGuides = false;
+    s.preview.Configure(false, {});
+    s.preview.Reset("Preview stopped: NR/NGX shutdown.");
+    s.preview.Collect();
     CollectEditDump();
     PresetChoice() = {};
 }
@@ -1126,6 +1155,9 @@ void Shutdown()
     if (!s.pendingEditDump.empty()) s.editDumpStatus = "Edit capture cancelled: NR shutdown.";
     s.pendingEditDump.clear();
     s.pendingEditDumpGuides = false;
+    s.preview.Configure(false, {});
+    s.preview.Reset("Preview stopped: NR/NGX shutdown.");
+    s.preview.Collect();
     CollectEditDump();
     PresetChoice() = {};
 }
