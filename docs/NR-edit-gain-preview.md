@@ -66,3 +66,10 @@ Każde porównanie: osobna rozgrzewka 16 okien na wariant, potem 16 kwartetów A
 | 2496×1404 | Pierwotna 1 grupa | Produkcyjne 8 grup | 0,115267 ± 0,001868 | 0,027266 ± 0,000464 | −0,088001 |
 
 [Surowe okna](validation/nr-gain-preview-timing.csv). `tools/test_nr_gain_preview.ps1 -Timing` odtwarza procedurę i kompiluje wariant jednej grupy z tego samego HLSL tylko do artefaktów testowych; nie jest to runtime opcja renderowania. Przy 8 próbach/s i 60 FPS arytmetyczne rozłożenie 0,0275 ms na wszystkie klatki daje około 0,0037 ms/klatkę, **nie jest to pomiar gry**. W grze należy porównać podgląd Off/On w ABBA po rozgrzewce, przy tej samej scenie, siatce, ruchu i ustawieniach, mierząc cały tor oraz okna z próbą i bez próby. Nie wykonano takiego pomiaru ani obserwacji ghostingu w tej sesji.
+
+
+## Dalsza kalibracja przez zapisy użytkownika
+
+**Save pre-DLSS edit** zapisuje teraz DDS i JSON schema 2. **Save edit + object guides** dodaje jeszcze depth/MV. `positive_gain` to faktyczny mnożnik zapisanego editu; `preview_request_suggested_gain` to propozycja widoczna przy kliknięciu, a `preview_capture_suggested_gain` to ostatnia zakończona propozycja w chwili nagrania następnej klatki NR. Każda sugestia ma wiek, ważność, stan pauzy, surowy wynik i liczbę pomiarów; JSON zawiera też opóźnienie od kliknięcia, preset oraz konfigurację podglądu. Brak pomiaru oznacza null.
+
+Przykład: `positive_gain=2.5`, `preview_request_suggested_gain=3` plus opis użytkownika „2,5x już bez ghostingu” pozwala sprawdzić nadwyżkę propozycji. Pozytywny edit przed mnożnikiem odtwarzamy przez podział dodatnich kanałów DDS przez 2,5; ujemnych nie dzielimy. Potrzebne są DDS i odpowiadający JSON oraz informacja, czy był ghosting. Przy próbach tej samej sceny warto zachować podobny ruch i poczekać na ustabilizowanie historii DLSS po zmianie mnożnika. Sam zapis wejścia nie rozstrzyga o ghostingu, a wiek pomiaru pozwala odróżnić starszą sugestię od konkretnej klatki. Dopisanie JSON do zwykłego przycisku nie dodaje pracy GPU.

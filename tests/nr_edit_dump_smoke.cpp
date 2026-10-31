@@ -4,8 +4,9 @@
 #include "../OptiScaler/dlssnr/DlssNr_EditDump.h"
 #include "../OptiScaler/dlssnr/DlssNr_EditDumpMetadata.h"
 #include <limits>
+#include <iostream>
 
-int main()
+int main(int argc, char** argv)
 {
     using namespace DlssNr::EditDump;
     assert(Filename("nr-edit") == "nr-edit.dds");
@@ -54,14 +55,36 @@ int main()
     const auto oldLocale = std::locale();
     std::locale::global(std::locale(oldLocale, new Comma));
     Metadata metadata;
-    metadata.gain = 1.25f; metadata.width = 3; metadata.height = 2;
+    metadata.gain = 2.5f; metadata.gainAtRequest = 2.5f; metadata.width = 3; metadata.height = 2;
     metadata.frame = 1234567890123ull; metadata.invertedDepth = true;
     metadata.gameTrimControl = std::numeric_limits<float>::quiet_NaN();
+    DlssNr::GainPreview::Status shown;
+    shown.valid = true; shown.paused = false; shown.smoothed = 3; shown.raw = 3.25f;
+    shown.measuredAt = 10; shown.measurements = 20; shown.motionPercent = 5; shown.changedPercent = 4;
+    metadata.previewAtRequest = SnapshotPreview(shown, 10.5);
+    shown.smoothed = 4; shown.raw = std::numeric_limits<float>::quiet_NaN();
+    metadata.previewAtCapture = SnapshotPreview(shown, 10.75);
+    metadata.previewEnabledAtRequest = metadata.previewEnabledAtCapture = true;
+    metadata.privatePresetAtRequest = metadata.privatePreset = 11;
+    metadata.requestDelaySeconds = .25;
+    assert(metadata.previewAtRequest.suggestedGain == 3 && metadata.previewAtCapture.suggestedGain == 4);
+    assert(metadata.previewAtRequest.ageSeconds == .5 && metadata.previewAtCapture.ageSeconds == .75);
     const auto text = MetadataJson(metadata);
     std::locale::global(oldLocale);
-    assert(text.find("\"positive_gain\": 1.25") != std::string::npos);
+    assert(text.find("\"positive_gain\": 2.5") != std::string::npos);
     assert(text.find("\"frame\": 1234567890123") != std::string::npos);
     assert(text.find("\"depth_inverted\": true") != std::string::npos);
     assert(text.find("\"nr_game_trim_control\": null") != std::string::npos);
     assert(text.find("private_input_pixels") != std::string::npos);
+    assert(text.find("\"schema\": 2") != std::string::npos);
+    assert(text.find("\"preview_request_suggested_gain\": 3") != std::string::npos);
+    assert(text.find("\"preview_request_raw_gain\": 3.25") != std::string::npos);
+    assert(text.find("\"preview_capture_suggested_gain\": 4") != std::string::npos);
+    assert(text.find("\"preview_capture_raw_gain\": null") != std::string::npos);
+    assert(text.find("\"preview_request_measurement_age_seconds\": 0.5") != std::string::npos);
+    assert(text.find("\"guides_included\": false") != std::string::npos);
+    const auto noPreview = MetadataJson({});
+    assert(noPreview.find("\"preview_request_suggested_gain\": null") != std::string::npos);
+    assert(noPreview.find("\"preview_request_measurement_age_seconds\": null") != std::string::npos);
+    if (argc > 1 && std::string(argv[1]) == "--metadata") std::cout << text;
 }

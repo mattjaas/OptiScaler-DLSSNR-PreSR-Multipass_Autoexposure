@@ -4037,6 +4037,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "Exact entry supports 0.01..1024.");
 
             bool gainPreview = config->DlssNrSuperiorGainPreview.value_or_default();
+            DlssNr::GainPreview::Status displayedPreview;
             const bool previewInputSupported =
                 !filterNrAnswer &&
                 DlssNr::PrivateExposure::EditSaturation(config->DlssNrSuperiorEditSaturation.value_or_default()) ==
@@ -4057,7 +4058,10 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "Changing motion helps reject frozen buffers, but cannot reliably identify every menu or video.");
             if (gainPreview)
             {
-                const auto status = DlssNr::SuperiorScaling::GainPreviewStatus();
+                displayedPreview = DlssNr::SuperiorScaling::GainPreviewStatus();
+                if (!previewInputSupported)
+                    displayedPreview.paused = true;
+                const auto& status = displayedPreview;
                 if (status.valid)
                     ImGui::Text("Suggested positive multiplier: %.2fx", status.smoothed);
                 else
@@ -4096,10 +4100,11 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             ImGui::InputText("Pre-DLSS edit filename", editFilename, IM_ARRAYSIZE(editFilename));
             ImGui::BeginDisabled(DlssNr::SuperiorScaling::EditDumpBusy());
             if (ImGui::Button("Save pre-DLSS edit"))
-                DlssNr::SuperiorScaling::RequestEditDump(editFilename);
+                DlssNr::SuperiorScaling::RequestEditDump(editFilename, false,
+                                                         gainPreview ? &displayedPreview : nullptr);
             ImGui::SameLine();
             if (ImGui::Button("Save edit + object guides"))
-                DlssNr::SuperiorScaling::RequestEditDump(editFilename, true);
+                DlssNr::SuperiorScaling::RequestEditDump(editFilename, true, gainPreview ? &displayedPreview : nullptr);
             ImGui::EndDisabled();
             HelpMarker(
                 "Save one working-resolution signed RGB edit after the positive multiplier, before private "
@@ -4107,7 +4112,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "are preserved in FP32 DDS. Works in edit and full NR answer modes. Enter a filename only; "
                 ".dds is added automatically. Saved under dlssnr-edit next to OptiScaler.dll. Existing files "
                 "are not overwritten. Snapshot/readback run only when requested; saving may briefly pause a frame. "
-                "Save edit + object guides also writes .depth.dds, .motion.dds and .json companions from the same "
+                "Both buttons also save .json settings: actual multiplier, displayed suggestion and measurement age. "
+                "Save edit + object guides additionally writes .depth.dds and .motion.dds from the same "
                 "private DLSS input grid. Capture after the picture has settled at the chosen settings. "
                 "This diagnostic does not adjust the image or any settings.");
             if (const auto status = DlssNr::SuperiorScaling::EditDumpStatus(); !status.empty())

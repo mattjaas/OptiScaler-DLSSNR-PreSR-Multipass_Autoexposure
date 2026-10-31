@@ -16,8 +16,9 @@ std::string Status();
 // Selecting Superior again retries. SrUnavailable: the NGX DLSS SR runtime itself could not be used here.
 std::string Unavailable();
 bool SrUnavailable();
-// One-shot signed FP32 edit dump, recorded before private DLSS; filename only, .dds is appended.
-bool RequestEditDump(const std::string& filename, bool withGuides = false);
+// One-shot signed FP32 edit + JSON settings, recorded before private DLSS; filename only, .dds is appended.
+bool RequestEditDump(const std::string& filename, bool withGuides = false,
+                     const DlssNr::GainPreview::Status* displayedPreview = nullptr);
 bool EditDumpBusy();
 std::string EditDumpStatus();
 DlssNr::GainPreview::Status GainPreviewStatus();

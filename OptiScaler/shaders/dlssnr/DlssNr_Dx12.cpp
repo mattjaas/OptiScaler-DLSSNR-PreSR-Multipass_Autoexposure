@@ -7533,7 +7533,8 @@ void DlssNr::SuperiorScaling::ResetGainPreview()
     SuperiorRun::GetState().preview.Reset();
 }
 
-bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename, bool withGuides)
+bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename, bool withGuides,
+                                              const DlssNr::GainPreview::Status* displayedPreview)
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     auto& s = SuperiorRun::GetState();
@@ -7552,6 +7553,19 @@ bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename, bool 
     }
     s.pendingEditDump = *name;
     s.pendingEditDumpGuides = withGuides;
+    const auto& cfg = *Config::Instance();
+    s.pendingEditDumpRequestedAt =
+        std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    // The menu supplies the exact status it displayed, rather than an extra asynchronous poll.
+    s.pendingEditDumpPreview = DlssNr::EditDump::SnapshotPreview(displayedPreview ? *displayedPreview
+                                                                 : cfg.DlssNrSuperiorGainPreview.value_or_default()
+                                                                     ? s.preview.Get()
+                                                                     : DlssNr::GainPreview::Status {},
+                                                                 s.pendingEditDumpRequestedAt);
+    s.pendingEditDumpPreviewEnabled = cfg.DlssNrSuperiorGainPreview.value_or_default();
+    s.pendingEditDumpPrivatePreset = s.current->preset;
+    s.pendingEditDumpGain =
+        DlssNr::PrivateExposure::PositiveGain(cfg.DlssNrSuperiorPositiveEditGain.value_or_default());
     s.editDumpStatus = "Waiting for the next private DLSS evaluation.";
     return true;
 }

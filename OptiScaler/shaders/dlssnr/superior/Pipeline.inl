@@ -175,7 +175,11 @@ struct State
     std::string unavailable;   // why Superior is not running this session; empty while it runs
     bool srUnavailable = false; // the NGX DLSS SR runtime itself failed: the menu greys Superior out
     std::string pendingEditDump, editDumpStatus;
-    bool pendingEditDumpGuides = false;
+    bool pendingEditDumpGuides = false, pendingEditDumpPreviewEnabled = false;
+    DlssNr::EditDump::PreviewSnapshot pendingEditDumpPreview;
+    uint32_t pendingEditDumpPrivatePreset = 0;
+    float pendingEditDumpGain = 1;
+    double pendingEditDumpRequestedAt = 0;
     std::shared_ptr<EditDumpJob> editDump;
     std::shared_ptr<std::atomic_uint64_t> editDumpRetainedBytes = std::make_shared<std::atomic_uint64_t>(0);
 };
@@ -259,7 +263,7 @@ void CollectEditDump()
         if (!written) DeleteFileW(paths[i].c_str()); // only outputs reserved by this capture
     }
     const auto utf8 = job->path.u8string();
-    s.editDumpStatus = written ? (job->guideCount ? "Saved edit + depth + motion + settings: " : "Saved: ") +
+    s.editDumpStatus = written ? (job->guideCount ? "Saved edit + depth + motion + settings: " : "Saved edit + settings: ") +
                                    std::string(utf8.begin(), utf8.end())
                                : "Edit not saved: an output exists, or GPU readback/file writing failed. Choose another name if needed.";
 }
@@ -486,8 +490,23 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
             s.editDumpStatus = "Diagnostic not saved: guides unavailable/unsupported or the 512 MiB capture budget was exceeded.";
             return;
         }
+    }
+    // Settings and the shown recommendation accompany every edit, with or without guides.
+    {
         const auto& cfg = *Config::Instance();
         DlssNr::EditDump::Metadata m;
+        const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+        m.guidesIncluded = withGuides;
+        m.previewEnabledAtRequest = s.pendingEditDumpPreviewEnabled;
+        m.previewEnabledAtCapture = cfg.DlssNrSuperiorGainPreview.value_or_default();
+        m.previewAtRequest = s.pendingEditDumpPreview;
+        m.previewAtCapture = DlssNr::EditDump::SnapshotPreview(s.preview.Get(), now);
+        m.privatePresetAtRequest = s.pendingEditDumpPrivatePreset; m.gainAtRequest = s.pendingEditDumpGain;
+        m.requestDelaySeconds = std::max(0., now - s.pendingEditDumpRequestedAt);
+        m.previewSettings = { cfg.DlssNrSuperiorGainPreviewSlowSeconds.value_or_default(),
+            cfg.DlssNrSuperiorGainPreviewFastSeconds.value_or_default(),
+            cfg.DlssNrSuperiorGainPreviewMotionThreshold.value_or_default(),
+            cfg.DlssNrSuperiorGainPreviewChangingMotion.value_or_default() };
         m.frame = g_frames; m.submissionEpoch = frame.SubmissionEpoch;
         m.width = job->width; m.height = job->height;
         m.gain = gain; m.saturation = g.editSaturation; m.depthStrength = g.depthStrength;
