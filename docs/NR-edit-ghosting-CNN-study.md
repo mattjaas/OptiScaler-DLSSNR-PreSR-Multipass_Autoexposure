@@ -1,5 +1,7 @@
 # CNN: sprawdzenie reguły znalezionej na transformerze
 
+Nowsze badanie: [wspólna funkcja RGB dla obu rodzin](NR-edit-common-score.md) rozdziela aktualne 16 zapisów przy wspólnych współczynnikach i progach zależnych wyłącznie od rodziny modelu. Nadal jest to dopasowanie do tego zbioru, bez niezależnej walidacji scen.
+
 2026-10-31. **Reguła P90 z progiem 0,14 nie działa dla dostarczonych próbek CNN.** Poprawnie oznacza cztery przypadki z ghostingiem, ale błędnie odrzuca wszystkie cztery bez ghostingu: 4/8. Nie wystarczy zmienić samego progu P90, ponieważ wartości klas nakładają się także wewnątrz drugiej gry. Wynik ten ogranicza wniosek [pierwszego badania transformera](NR-edit-ghosting-study.md).
 
 Przeanalizowano osiem nowych podpisanych DDS po mnożniku dodatniego editu, przed kolorami, dodaniem neutralnego 0,5 i clippingiem. Format, rozmiary, skończoność RGB i hashe zweryfikowano tak jak poprzednio. Etykiety CNN/ghosting pochodzą od użytkownika; pliki nie zawierają metadanych identyfikujących konkretny preset, wersję DLSS ani suwaki. Nie przypisujemy im na tej podstawie A/E/F. Oryginalne obrazy pozostają poza repozytorium.

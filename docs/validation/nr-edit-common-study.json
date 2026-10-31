@@ -1,0 +1,882 @@
+{
+  "format_version": 1,
+  "warning": "Post-hoc score selection on these same images and sampling phases; no unseen temporal validation.",
+  "thresholds": {
+    "cnn": 0.052,
+    "transformer": 0.084
+  },
+  "coefficients": [
+    0.125,
+    2.0,
+    1.625,
+    1.0,
+    1.0
+  ],
+  "files": [
+    {
+      "file": "game1-cnn-ghosting.dds",
+      "model": "cnn",
+      "game": "game1",
+      "ghosting": true,
+      "width": 2240,
+      "height": 1264,
+      "sha256": "e3a9d17eb53e183ae9985d49ec9159ce4647c6085610f78b4669b0878a70dc4c",
+      "threshold": 0.052,
+      "full": {
+        "score": 0.029378156252888945,
+        "amplitude": 0.019873406258522634,
+        "pixel_middle_chroma": 0.004268568774047719,
+        "mean_chroma": 0.005530005339031096,
+        "mean_lower_chroma": 0.0014233744446787763,
+        "occupancy_correction": 0.007947209801873873,
+        "positive_rgb_mean": [
+          0.01120803797121403,
+          0.012631412415892806,
+          0.016738043310245126
+        ],
+        "pixel_min_mean": 0.008217759332390804,
+        "pixel_middle_mean": 0.012486328106438523,
+        "two_channel_fraction": 0.6110702983725136
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.02618883490093088,
+          "max": 0.031766873422619156,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.0284967917363673,
+          "max": 0.03085861818695976,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.028769056502229502,
+          "max": 0.030216518095529832,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game1-cnn-ghosting2.dds",
+      "model": "cnn",
+      "game": "game1",
+      "ghosting": true,
+      "width": 2240,
+      "height": 1264,
+      "sha256": "c4b0c407dc258d6f9754f0de53853dc59f53229fbd0d9d9fa45c7b9c365b1f58",
+      "threshold": 0.052,
+      "full": {
+        "score": 0.028677611229905628,
+        "amplitude": 0.0212199502488157,
+        "pixel_middle_chroma": 0.004221892127325964,
+        "mean_chroma": 0.004747827860878724,
+        "mean_lower_chroma": 0.002712091433042645,
+        "occupancy_correction": 0.007154021487181167,
+        "positive_rgb_mean": [
+          0.01449498963587754,
+          0.017207081068920185,
+          0.019242817496756263
+        ],
+        "pixel_min_mean": 0.012751522912706162,
+        "pixel_middle_mean": 0.016973415040032126,
+        "two_channel_fraction": 0.7034901955244123
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.0245990367850872,
+          "max": 0.03246608062567992,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.02710999160298064,
+          "max": 0.03118698674328912,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.02814119353324347,
+          "max": 0.029381912415590513,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game1-cnn-noghosting.dds",
+      "model": "cnn",
+      "game": "game1",
+      "ghosting": false,
+      "width": 2240,
+      "height": 1264,
+      "sha256": "7e190dbe5e949f67028b02f4ca93b67cd1bfd214bffa946d1098de38e823cd68",
+      "threshold": 0.052,
+      "full": {
+        "score": 0.07291820687553364,
+        "amplitude": 0.049975750917305585,
+        "pixel_middle_chroma": 0.010205519169648972,
+        "mean_chroma": 0.012486080244517427,
+        "mean_lower_chroma": 0.0031587946565568466,
+        "occupancy_correction": 0.02281152461767484,
+        "positive_rgb_mean": [
+          0.029724365465634024,
+          0.03288316012219087,
+          0.04221044571015145
+        ],
+        "pixel_min_mean": 0.022318350605510878,
+        "pixel_middle_mean": 0.03252386977515985,
+        "two_channel_fraction": 0.5877588861889692
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.0639135523695967,
+          "max": 0.0794497753226993,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.06924850075929476,
+          "max": 0.08044976370350147,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.0706556901030624,
+          "max": 0.07541950468740075,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game1-cnn-noghosting2.dds",
+      "model": "cnn",
+      "game": "game1",
+      "ghosting": false,
+      "width": 2240,
+      "height": 1264,
+      "sha256": "96ab5a2f310810c48f2b6fb96fa10d7346c4a76174e09ba62a6d146420a3b18c",
+      "threshold": 0.052,
+      "full": {
+        "score": 0.05468637458756559,
+        "amplitude": 0.03843581284957165,
+        "pixel_middle_chroma": 0.007946065829807444,
+        "mean_chroma": 0.010657922628168927,
+        "mean_lower_chroma": 0.005461562512472783,
+        "occupancy_correction": 0.011209079538506962,
+        "positive_rgb_mean": [
+          0.024853922294664987,
+          0.03031548480713777,
+          0.035511844922833914
+        ],
+        "pixel_min_mean": 0.022149686672628788,
+        "pixel_middle_mean": 0.03009575250243623,
+        "two_channel_fraction": 0.7286254662070525
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.05114725614205384,
+          "max": 0.05844110335218964,
+          "correct": 62
+        },
+        "64x36": {
+          "min": 0.053331377248692004,
+          "max": 0.0562717962832678,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.054065172657953374,
+          "max": 0.05558224508824115,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game1-transformer-ghosting.dds",
+      "model": "transformer",
+      "game": "game1",
+      "ghosting": true,
+      "width": 2240,
+      "height": 1264,
+      "sha256": "d8ea2fb35aff32e06650b563a9cfec5d5f42abfa3a68c0ebdb402e8faef29109",
+      "threshold": 0.084,
+      "full": {
+        "score": 0.05831177779598651,
+        "amplitude": 0.03900028279124444,
+        "pixel_middle_chroma": 0.008199988281022537,
+        "mean_chroma": 0.010921164871291151,
+        "mean_lower_chroma": 0.0029277223711799694,
+        "occupancy_correction": 0.016362150598007785,
+        "positive_rgb_mean": [
+          0.022293570207787262,
+          0.02522129257896723,
+          0.03321473507907841
+        ],
+        "pixel_min_mean": 0.016764663396782963,
+        "pixel_middle_mean": 0.0249646516778055,
+        "two_channel_fraction": 0.6040789585216998
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.05225132105976762,
+          "max": 0.0634369974935505,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.05454206642037447,
+          "max": 0.06378612963284587,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.055878601755067196,
+          "max": 0.06054158540588961,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game1-transformer-ghosting2.dds",
+      "model": "transformer",
+      "game": "game1",
+      "ghosting": true,
+      "width": 2240,
+      "height": 1264,
+      "sha256": "ec6faa05c002f25c6e26139028b11f3e2c764d9df706d4a55f7409c61d0bd43f",
+      "threshold": 0.084,
+      "full": {
+        "score": 0.07916314282362494,
+        "amplitude": 0.05742647577157989,
+        "pixel_middle_chroma": 0.011812025692926931,
+        "mean_chroma": 0.017658179562882424,
+        "mean_lower_chroma": 0.007772130703732075,
+        "occupancy_correction": 0.011894109472907574,
+        "positive_rgb_mean": [
+          0.03539926119141995,
+          0.043171391895152025,
+          0.053057440754302375
+        ],
+        "pixel_min_mean": 0.03119479618818376,
+        "pixel_middle_mean": 0.04300682188111069,
+        "two_channel_fraction": 0.7833532295433996
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.07361308075833327,
+          "max": 0.08364959080098544,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.07711578913818253,
+          "max": 0.081178008717952,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.07810505147881688,
+          "max": 0.08020890226744413,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game1-transformer-noghosting.dds",
+      "model": "transformer",
+      "game": "game1",
+      "ghosting": false,
+      "width": 2240,
+      "height": 1264,
+      "sha256": "3d11f4f4f4c9fb2a96139db3bd8b76965ed83a926459c11a72eaf132368c9669",
+      "threshold": 0.084,
+      "full": {
+        "score": 0.28659387835477307,
+        "amplitude": 0.19059188419628373,
+        "pixel_middle_chroma": 0.042259784952769386,
+        "mean_chroma": 0.05393104037614353,
+        "mean_lower_chroma": 0.014843296346647883,
+        "occupancy_correction": 0.07576908596681771,
+        "positive_rgb_mean": [
+          0.10665142159908168,
+          0.12149471794572957,
+          0.16058246197522522
+        ],
+        "pixel_min_mean": 0.07793846618549168,
+        "pixel_middle_mean": 0.12019825113826106,
+        "two_channel_fraction": 0.6133585979882459
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.264393127763682,
+          "max": 0.3114968029326979,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.2701807215576114,
+          "max": 0.3036510697167112,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.27896152268991825,
+          "max": 0.29515705698134187,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game1-transformer-noghosting2.dds",
+      "model": "transformer",
+      "game": "game1",
+      "ghosting": false,
+      "width": 2240,
+      "height": 1264,
+      "sha256": "05beabbc4a3c9f545bfe3f9ed1ef30c9cfc009ccfa3c1617eb48847b3546391c",
+      "threshold": 0.084,
+      "full": {
+        "score": 0.09234240810317033,
+        "amplitude": 0.03866044276648253,
+        "pixel_middle_chroma": 0.005106776451547147,
+        "mean_chroma": 0.0005360489997467133,
+        "mean_lower_chroma": 6.089279492121208e-05,
+        "occupancy_correction": 0.0763643274347561,
+        "positive_rgb_mean": [
+          0.03256344002137671,
+          0.0325025472264555,
+          0.03303859622620221
+        ],
+        "pixel_min_mean": 0.027168682128002372,
+        "pixel_middle_mean": 0.03227545857954952,
+        "two_channel_fraction": 0.2970869122965642
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.08305647878935841,
+          "max": 0.10663249119218574,
+          "correct": 63
+        },
+        "64x36": {
+          "min": 0.08744097983610982,
+          "max": 0.10062240295939973,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.0879245828511077,
+          "max": 0.09592573682452457,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game2-cnn-ghosting1.dds",
+      "model": "cnn",
+      "game": "game2",
+      "ghosting": true,
+      "width": 2496,
+      "height": 1404,
+      "sha256": "f92960aa4cb3ef0be26642a9467f80e4e289cbfcee51a07725190fdf43a20cc0",
+      "threshold": 0.052,
+      "full": {
+        "score": 0.02838616702053481,
+        "amplitude": 0.018033487402370877,
+        "pixel_middle_chroma": 0.0032004992988481484,
+        "mean_chroma": 0.004847925351300285,
+        "mean_lower_chroma": 0.0016640122914133408,
+        "occupancy_correction": 0.010189091510265848,
+        "positive_rgb_mean": [
+          0.01649250747444607,
+          0.013308594414559125,
+          0.011644582123145784
+        ],
+        "pixel_min_mean": 0.010105848655465979,
+        "pixel_middle_mean": 0.013306347954314127,
+        "two_channel_fraction": 0.5663374789977355
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.025611048244501135,
+          "max": 0.030784684921021543,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.027301312224022434,
+          "max": 0.02971772680144282,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.027866942570899084,
+          "max": 0.029297719430381657,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game2-cnn-ghosting2.dds",
+      "model": "cnn",
+      "game": "game2",
+      "ghosting": true,
+      "width": 2496,
+      "height": 1404,
+      "sha256": "3a3df30679ddf32874992fc039076f9c74fecaeaf802d46ea4ec25c62b7cb88f",
+      "threshold": 0.052,
+      "full": {
+        "score": 0.04599492598730638,
+        "amplitude": 0.035273526373327285,
+        "pixel_middle_chroma": 0.005202434072580545,
+        "mean_chroma": 0.0031760271691154383,
+        "mean_lower_chroma": 0.00012542325800570658,
+        "occupancy_correction": 0.02589439963766109,
+        "positive_rgb_mean": [
+          0.030208821060999046,
+          0.027158217149889315,
+          0.027032793891883608
+        ],
+        "pixel_min_mean": 0.021961935828432068,
+        "pixel_middle_mean": 0.027164369901012612,
+        "two_channel_fraction": 0.5119675811783183
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.042920609315236405,
+          "max": 0.05346924149906717,
+          "correct": 62
+        },
+        "64x36": {
+          "min": 0.04333697729852149,
+          "max": 0.05031015797778293,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.04487293432327377,
+          "max": 0.04750451836561045,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game2-cnn-noghosting1.dds",
+      "model": "cnn",
+      "game": "game2",
+      "ghosting": false,
+      "width": 2496,
+      "height": 1404,
+      "sha256": "b7e20a9334f0a74668a0397bb2842f36520e79090a3b655b31e7593105fe3184",
+      "threshold": 0.052,
+      "full": {
+        "score": 0.05597320578416283,
+        "amplitude": 0.03543942628367956,
+        "pixel_middle_chroma": 0.0063874815971100875,
+        "mean_chroma": 0.009745371860756146,
+        "mean_lower_chroma": 0.003297688206973102,
+        "occupancy_correction": 0.019634396823780875,
+        "positive_rgb_mean": [
+          0.03235037619879433,
+          0.025902692545011284,
+          0.022605004338038182
+        ],
+        "pixel_min_mean": 0.019515582600527184,
+        "pixel_middle_mean": 0.02590306419763727,
+        "two_channel_fraction": 0.5688297857769011
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.0518728179523942,
+          "max": 0.06250658701729916,
+          "correct": 62
+        },
+        "64x36": {
+          "min": 0.05353937886200999,
+          "max": 0.06010808700753867,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.05437647828907152,
+          "max": 0.057550267336600215,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game2-cnn-noghosting2.dds",
+      "model": "cnn",
+      "game": "game2",
+      "ghosting": false,
+      "width": 2496,
+      "height": 1404,
+      "sha256": "2fb112b859816df3b04792c5f75e318d67d726257e7b318fb7ca328751db8d4c",
+      "threshold": 0.052,
+      "full": {
+        "score": 0.05761030676826514,
+        "amplitude": 0.042952209262592224,
+        "pixel_middle_chroma": 0.007716007375570863,
+        "mean_chroma": 0.0038563076234454235,
+        "mean_lower_chroma": 0.00026555903311999834,
+        "occupancy_correction": 0.030277206938080573,
+        "positive_rgb_mean": [
+          0.03513472718251649,
+          0.03154397859219107,
+          0.03127841955907107
+        ],
+        "pixel_min_mean": 0.02364445434780777,
+        "pixel_middle_mean": 0.031360461723378634,
+        "two_channel_fraction": 0.5087872790196508
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.05459368098323149,
+          "max": 0.062061391679472465,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.055081569570811784,
+          "max": 0.0623325583506574,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.05645999634707769,
+          "max": 0.059289994138229295,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game2-transformer-ghosting1.dds",
+      "model": "transformer",
+      "game": "game2",
+      "ghosting": true,
+      "width": 2496,
+      "height": 1404,
+      "sha256": "277680c8fcf34ddef50ff7dc61710b7048d24fcd535440672e47683581fa6bcb",
+      "threshold": 0.084,
+      "full": {
+        "score": 0.05666136988241784,
+        "amplitude": 0.034936379394448755,
+        "pixel_middle_chroma": 0.00625704088247564,
+        "mean_chroma": 0.010718984402644998,
+        "mean_lower_chroma": 0.0037687234421486457,
+        "occupancy_correction": 0.0185931675967137,
+        "positive_rgb_mean": [
+          0.032163140913675003,
+          0.02521287995317865,
+          0.021444156511030005
+        ],
+        "pixel_min_mean": 0.018813378550479633,
+        "pixel_middle_mean": 0.025070419432955272,
+        "two_channel_fraction": 0.5741722368324932
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.05260031363676962,
+          "max": 0.06361023413345643,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.05489413736617019,
+          "max": 0.061183992396191406,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.055428898373402605,
+          "max": 0.05808660365412896,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game2-transformer-ghosting2.dds",
+      "model": "transformer",
+      "game": "game2",
+      "ghosting": true,
+      "width": 2496,
+      "height": 1404,
+      "sha256": "4128664ceac76974647f65bc094db7f901c4f111436f94a74c70812373dd88be",
+      "threshold": 0.084,
+      "full": {
+        "score": 0.06227060136807537,
+        "amplitude": 0.04489161163749196,
+        "pixel_middle_chroma": 0.007646127500059625,
+        "mean_chroma": 0.004305783652416302,
+        "mean_lower_chroma": 0.00029799698546732756,
+        "occupancy_correction": 0.03407199949262581,
+        "positive_rgb_mean": [
+          0.03728280969895354,
+          0.033275023032004566,
+          0.03297702604653724
+        ],
+        "pixel_min_mean": 0.025498559819971883,
+        "pixel_middle_mean": 0.03314468732003151,
+        "two_channel_fraction": 0.49310206872306234
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.05642307740429562,
+          "max": 0.06797028160667995,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.059034402937052,
+          "max": 0.06524434420857277,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.06079123528036234,
+          "max": 0.06463629371305565,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game2-transformer-noghosting1.dds",
+      "model": "transformer",
+      "game": "game2",
+      "ghosting": false,
+      "width": 2496,
+      "height": 1404,
+      "sha256": "8007e7604036ab41624fcf0ebcd2cf5a377a187207d433aa0c16c747d32fbd50",
+      "threshold": 0.084,
+      "full": {
+        "score": 0.16648898680354965,
+        "amplitude": 0.10611363570694857,
+        "pixel_middle_chroma": 0.019585240988569466,
+        "mean_chroma": 0.027473166520602568,
+        "mean_lower_chroma": 0.0103310174144179,
+        "occupancy_correction": 0.05907938735264508,
+        "positive_rgb_mean": [
+          0.09541975152113706,
+          0.0782776024149524,
+          0.06794658500053449
+        ],
+        "pixel_min_mean": 0.05797253112055184,
+        "pixel_middle_mean": 0.0775577721091213,
+        "two_channel_fraction": 0.5676184459237343
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.15309945452784268,
+          "max": 0.18516907055526366,
+          "correct": 64
+        },
+        "64x36": {
+          "min": 0.15843386503459356,
+          "max": 0.17742947454235142,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.16351800196891592,
+          "max": 0.1712487370764465,
+          "correct": 64
+        }
+      }
+    },
+    {
+      "file": "game2-transformer-noghosting2.dds",
+      "model": "transformer",
+      "game": "game2",
+      "ghosting": false,
+      "width": 2496,
+      "height": 1404,
+      "sha256": "32bfb6afe353febacf064521b2cf31b70dae6f9dd8fdc9e9b8003df886e5d9c5",
+      "threshold": 0.084,
+      "full": {
+        "score": 0.09063957683191909,
+        "amplitude": 0.056643394538756484,
+        "pixel_middle_chroma": 0.01139844094521944,
+        "mean_chroma": 0.007747775988581319,
+        "mean_lower_chroma": 0.005946553239649349,
+        "occupancy_correction": 0.04222558140304165,
+        "positive_rgb_mean": [
+          0.048081922202331394,
+          0.046280699453399424,
+          0.040334146213750074
+        ],
+        "pixel_min_mean": 0.03332746619275249,
+        "pixel_middle_mean": 0.04472590713797193,
+        "two_channel_fraction": 0.5143777051829936
+      },
+      "sampling": {
+        "32x18": {
+          "min": 0.08136015020809778,
+          "max": 0.09589882949499119,
+          "correct": 63
+        },
+        "64x36": {
+          "min": 0.08755107741236957,
+          "max": 0.09309378071748924,
+          "correct": 64
+        },
+        "128x72": {
+          "min": 0.08884075613912258,
+          "max": 0.09195555916388483,
+          "correct": 64
+        }
+      }
+    }
+  ],
+  "threshold_game_holdout": [
+    {
+      "model": "cnn",
+      "test_game": "game1",
+      "threshold": 0.050984065885734606,
+      "correct": 4,
+      "count": 4
+    },
+    {
+      "model": "cnn",
+      "test_game": "game2",
+      "threshold": 0.04203226542022727,
+      "correct": 3,
+      "count": 4
+    },
+    {
+      "model": "transformer",
+      "test_game": "game1",
+      "threshold": 0.07645508909999724,
+      "correct": 3,
+      "count": 4
+    },
+    {
+      "model": "transformer",
+      "test_game": "game2",
+      "threshold": 0.08575277546339763,
+      "correct": 4,
+      "count": 4
+    }
+  ],
+  "selection": {
+    "type": "post-hoc exploration and coefficient selection on all 16 images and 64x36 sampling phases",
+    "common_formula": true,
+    "model_specific_threshold_only": true,
+    "independent_temporal_validation": false,
+    "search_note": "Single moments/quantiles failed. Explored hundreds of channel/conditional features and combinations, rejected fragile quantile/outlier candidates. Nonnegative RGB-distribution terms fitted and rounded to fixed binary-exact coefficients; positive amplitude term retained for grey inputs. Same-data fits can overfit."
+  },
+  "validation": {
+    "common_numeric_cases_per_adapter": 11680,
+    "adapters": [
+      "RTX 4090",
+      "WARP"
+    ],
+    "supplied_label_agreement_per_adapter": [
+      5120,
+      5120
+    ],
+    "same_label_repeats_not_independent_examples": true,
+    "legacy_P50_P90_numeric_cases_per_adapter": 13455,
+    "positive_gain_cases": "16 real inputs at 0.5x and 2x, grey/R/RG synthetic inputs at 0.01/0.5/1/16/1024",
+    "uniform_analytic_scores": "grey=0.125*A; one channel=1.75*A; two equal channels=4.75*A",
+    "scope": "numeric score and supplied labels; no private DLSS inference"
+  },
+  "performance": {
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "driver": "616.56",
+    "source": "Resident signed RGBA FP32 DDS; 2304 point samples",
+    "scope": "Probe dispatches and UAV barriers only; excludes live model-proxy reads, NR/NGX, gain application, allocations, upload/readback and CPU waits",
+    "warmup_per_variant": 64,
+    "order": "ABBA",
+    "blocks": 4,
+    "quartets_per_block": 16,
+    "samples_per_variant": 128,
+    "repeats_per_window": 8,
+    "summary": [
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "method": "common1024",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.004224,
+        "probe_p50_ms": 0.00439,
+        "probe_p90_ms": 0.0045596000000000005,
+        "delta_ms": 0.00439
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "method": "common256",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.003712,
+        "probe_p50_ms": 0.003936,
+        "probe_p90_ms": 0.004224,
+        "delta_ms": 0.003936
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "method": "common512",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.003968,
+        "probe_p50_ms": 0.004118,
+        "probe_p90_ms": 0.004244,
+        "delta_ms": 0.004118
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "method": "common64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.005632,
+        "probe_p50_ms": 0.00583,
+        "probe_p90_ms": 0.006016,
+        "delta_ms": 0.00583
+      },
+      {
+        "scene": "game1-cnn-ghosting.dds",
+        "width": 2240,
+        "height": 1264,
+        "method": "common_tiled64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.0032,
+        "probe_p50_ms": 0.003248,
+        "probe_p90_ms": 0.003456,
+        "delta_ms": 0.003248
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "method": "common1024",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.004736,
+        "probe_p50_ms": 0.0049,
+        "probe_p90_ms": 0.00512,
+        "delta_ms": 0.0049
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "method": "common256",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.004224,
+        "probe_p50_ms": 0.0044340000000000004,
+        "probe_p90_ms": 0.004608,
+        "delta_ms": 0.0044340000000000004
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "method": "common512",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.00448,
+        "probe_p50_ms": 0.004608,
+        "probe_p90_ms": 0.004736,
+        "delta_ms": 0.004608
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "method": "common64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.006272,
+        "probe_p50_ms": 0.006494,
+        "probe_p90_ms": 0.006784,
+        "delta_ms": 0.006494
+      },
+      {
+        "scene": "game2-cnn-ghosting1.dds",
+        "width": 2496,
+        "height": 1404,
+        "method": "common_tiled64",
+        "base_p50_ms": 0.0,
+        "probe_p10_ms": 0.003456,
+        "probe_p50_ms": 0.00361,
+        "probe_p90_ms": 0.00384,
+        "delta_ms": 0.00361
+      }
+    ]
+  }
+}

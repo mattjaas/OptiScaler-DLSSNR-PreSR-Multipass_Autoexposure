@@ -1,5 +1,7 @@
 # Edit NR a ghosting: analiza ośmiu zapisów
 
+Nowsze badanie: [wspólna funkcja RGB dla CNN i transformera](NR-edit-common-score.md), z osobnym progiem na rodzinę, dopasowana do wszystkich 16 zapisów. Zachowuje etykiety w obecnym zbiorze, ale kalibracja progu na jednej grze nadal nie jest bezbłędna (14/16).
+
 **Uzupełnienie po otrzymaniu próbek CNN:** poniższe osiem zapisów dotyczy transformera. Nowe dane CNN obalają uniwersalne stosowanie P90/progu 0,14; nawet inny pojedynczy próg P90 nie rozdziela wszystkich próbek CNN. Porównanie i ograniczenia: [analiza CNN](NR-edit-ghosting-CNN-study.md). Historyczne liczby poniżej pozostają wynikami pierwszego badania.
 
 Analiza z 2026-10-31. **Znaleziono tani wskaźnik rozdzielający wszystkie przekazane przykłady. Nie znaleziono dowodu, że pojedynczy edit pozwala bezbłędnie przewidywać ghosting DLSS w dowolnej grze.** Wskaźnik nadaje się do eksperymentalnej regulacji siły sygnału, a próg wymaga walidacji na nowych sekwencjach w ruchu. W tej zmianie powstały analiza, narzędzie CPU i przetestowany prototyp GPU; kod renderowania, DLL i automatyczny mnożnik pozostają bez zmian.
