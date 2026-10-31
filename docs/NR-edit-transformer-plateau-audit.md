@@ -75,3 +75,8 @@ Osobno R/G/B przy dotychczasowym celu dają odpowiednio 2,251x / 3,001x / 2,251x
 `tools/analyze_nr_edit_capture.py <capture.json> --observed-plateau-gain 6 --residual-ghosting --output <report.json>` wykonuje audyt na CPU. Wymaga trzech DDS obok JSON, potwierdza formaty i siatki, odtwarza edit przed mnożnikiem i porównuje pełny obraz, koszyki i 64 fazy. Opcjonalne powtórzone `--clear-reference <same-family-noghosting.dds>` odtwarza wyłącznie kontrfaktyczne porównanie ze starymi dobrymi zapisami. Raport zawiera metadane, statystyki i hashe, bez pikseli i ścieżek źródłowych. `--residual-ghosting` jest jawną etykietą użytkownika; bez niego obecność ghostingu pozostaje nieznana.
 
 Potwierdzono liczbową zgodność wszystkich 64 faz i produkcyjnych koszyków z zapisanym UI (błąd poniżej 1e-6), zakresy odsetków oraz zachowanie etykiety residual ghosting bez przypisania ghost-free gain. Nie zmieniono HLSL, binariów ani progów automatu. W tej scenie obecny Auto kończy podnoszenie zbyt wcześnie w stosunku do zaobserwowanej poprawy przy 6x; modyfikacja wymaga nowej walidacji, a nie samego dopasowania progu do tej jednej klatki.
+
+
+## Następny test: sąsiedztwo różnych pól ruchu
+
+Na propozycję użytkownika sprawdzono [granice i przeplot wolniejszych/szybszych MV](NR-edit-motion-boundaries-study.md), z parą pikseli zamiast globalnej klasy MV<1 px. Przy niezmienionym celu sześć wariantów sąsiedztwa daje w tej scenie 4,5014x zamiast 2,2507x. Maska obrysowuje postać i barierkę; nie znamy jeszcze zgodności z miejscami ghostingu. Wąski przeplot jest zbyt skąpo reprezentowany na siatce 256×144. Jest to badanie CPU, bez nowej reguły runtime ani zmiany DLL.
