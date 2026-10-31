@@ -1373,7 +1373,7 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
     out.SetValue("DlssNr", "SuperiorPositiveEditGain",
                  GetFloatValue(c.DlssNrSuperiorPositiveEditGain.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGainPreviewMethod",
-                 GetUIntValue(c.DlssNrSuperiorGainPreviewMethod.value_for_config()).c_str());
+                 GetIntValue(c.DlssNrSuperiorGainPreviewMethod.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGainPreviewBoundaryTarget",
                  GetFloatValue(c.DlssNrSuperiorGainPreviewBoundaryTarget.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGainPreview", GetBoolValue(c.DlssNrSuperiorGainPreview.value_for_config()).c_str());
