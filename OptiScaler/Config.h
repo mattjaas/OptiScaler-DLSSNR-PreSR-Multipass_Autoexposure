@@ -448,6 +448,12 @@ class Config
     CustomOptional<bool> DlssNrSuperiorScalingDisableAutoExposure { false };
     CustomOptional<float> DlssNrSuperiorPositiveEditGain { 1.0f };
     // Shared measurement and opt-in automatic application; manual preference is retained.
+    CustomOptional<float> DlssNrSuperiorGainPreviewFastDownSeconds { 1.f };
+    CustomOptional<bool> DlssNrSuperiorGainPreviewBoundaryUseMotion { true };
+    CustomOptional<bool> DlssNrSuperiorGainPreviewBoundaryMotionGate { true };
+    CustomOptional<uint32_t> DlssNrSuperiorGainPreviewBoundaryMinPairs { 64 };
+    CustomOptional<uint32_t> DlssNrSuperiorScalingCnnPresetOverride { 0 };
+    CustomOptional<uint32_t> DlssNrSuperiorScalingTransformerPresetOverride { 0 };
     CustomOptional<bool> DlssNrSuperiorGainPreview { false };
     CustomOptional<uint32_t> DlssNrSuperiorGainPreviewMethod { 0 };
     CustomOptional<float> DlssNrSuperiorGainPreviewBoundaryTarget { .1429128154342723f };

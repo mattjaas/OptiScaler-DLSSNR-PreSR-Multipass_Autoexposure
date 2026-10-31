@@ -55,7 +55,7 @@ The frozen v59 source/blobs remain an independent reference, and their hashes re
 
 Enter a filename in **Pre-DLSS edit filename**, then click **Save pre-DLSS edit**. This queues one snapshot at the next Superior private DLSS evaluation. The menu displays waiting, success (including the full path), cancellation or failure. The button is disabled while a capture is pending/in flight. Capture requires the active temporal Superior path; native Vulkan and unavailable Superior remain disabled by the existing menu gate.
 
-The outputs are `<OptiScaler.dll folder>/dlssnr-edit/<name>.dds` and `<name>.json` settings. The `.dds` extension is added if omitted. Plain ASCII names (letters/digits/spaces/dash/underscore/dot, subject to the existing profile-name length rule) are accepted; paths, traversal, Windows reserved characters and device names are rejected. Existing files are never overwritten: `CREATE_NEW` fails and the UI asks for another name. The last typed name is kept in the running menu only, not in NR look profiles or INI.
+The outputs are `<OptiScaler.dll folder>/dlssnr-edit/<name>.dds` and `<name>.json` settings. The `.dds` extension is added if omitted. Plain ASCII names (letters/digits/spaces/dash/underscore/dot, subject to the existing profile-name length rule) are accepted; paths, traversal, Windows reserved characters and device names are rejected. Existing files are never overwritten. Occupied bundle names automatically advance to `name-001`, `name-002`, etc.; DDS, depth, motion and JSON share the selected stem. Orphan companion names also count as occupied. Each attempted bundle still uses `CREATE_NEW`; partial failures remove only files created by that attempt. The last typed name is kept in the running menu only, not in NR look profiles or INI.
 
 The file contains the **signed edit after the positive multiplier**, before saturation, depth colouring, carrier offset/clipping and private DLSS:
 
@@ -279,3 +279,7 @@ No shader/blob changes or additional GPU passes relative to preview metering. Lo
 ### Depth-boundary multiplier measurement
 
 **Positive multiplier measurement** adds a separate **Depth-boundary contrast (experimental)** method shared by preview and Auto. **Positive R/G coverage** remains the default with identical shader bytes. [Controls, target, EMA, metadata and validation](NR-edit-depth-boundary-runtime.md). The global positive gain still has the same encode/decode/capture contract; no game brightness/exposure control is adjusted.
+
+### Capture names, MV options, directional response and exact private presets
+
+[Current controls and validation](NR-private-controls-update.md) add automatic capture suffixes, optional local/global MV checks for the boundary meter, configurable pair count, separate catch-up up/down times, and private CNN A/C/D/E or Transformer J/K overrides. These settings have complete INI/profile round-trip. Explicit preset creation failures do not silently fall back to the runtime default.

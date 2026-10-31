@@ -1,4 +1,7 @@
+#define NOMINMAX
 #include <cassert>
+#include "../OptiScaler/dlssnr/DlssNr_EditDumpFiles.h"
+#include <fstream>
 #include <cstring>
 #include <vector>
 #include "../OptiScaler/dlssnr/DlssNr_EditDump.h"
@@ -6,8 +9,44 @@
 #include <limits>
 #include <iostream>
 
+
+void FilenameReservationChecks()
+{
+    using namespace DlssNr::EditDump;
+    namespace fs=std::filesystem;
+    const auto folder=fs::path("artifacts/validation")/("capture-names-"+std::to_string(GetCurrentProcessId())+"-"+std::to_string(GetTickCount64()));
+    fs::create_directories(folder);
+    const auto original=folder/"nr-edit.dds";
+    std::vector<fs::path> created;
+    const std::vector<std::string> extensions{".depth.dds",".motion.dds",".json"};
+    Files first;
+    assert(first.Reserve(original,extensions)&&first.paths[0]==original);
+    DWORD written;const char message[]="original sample";
+    assert(WriteFile(first.files[0],message,sizeof(message),&written,nullptr)&&written==sizeof(message));
+    created.insert(created.end(),first.paths.begin(),first.paths.end());first.Finish(true);
+    Files next;
+    assert(next.Reserve(original,extensions)&&next.paths[0].filename()=="nr-edit-001.dds");
+    assert(next.paths[1].filename()=="nr-edit-001.depth.dds"&&next.paths[2].filename()=="nr-edit-001.motion.dds"&&next.paths[3].filename()=="nr-edit-001.json");
+    created.insert(created.end(),next.paths.begin(),next.paths.end());next.Finish(true);
+    // Two outstanding reservations cannot select the same name, before either write is committed.
+    Files a,b;assert(a.Reserve(original,extensions)&&b.Reserve(original,extensions));
+    assert(a.paths[0].filename()=="nr-edit-002.dds"&&b.paths[0].filename()=="nr-edit-003.dds");
+    const auto aa=a.paths,bb=b.paths;a.Finish(false);b.Finish(false);
+    for(const auto& path:aa)assert(!fs::exists(path));for(const auto& path:bb)assert(!fs::exists(path));
+    const auto orphan=folder/"orphan.depth.dds";
+    {std::ofstream out(orphan);out<<"keep";}created.push_back(orphan);
+    Files plain;assert(plain.Reserve(folder/"orphan.dds",{".json"}));
+    assert(plain.paths[0].filename()=="orphan-001.dds");
+    const auto abandoned=plain.paths;plain.Finish(false);
+    for(const auto& path:abandoned)assert(!fs::exists(path));
+    std::ifstream in(original,std::ios::binary);std::string value((std::istreambuf_iterator<char>(in)),{});in.close();
+    assert(value==std::string(message,sizeof(message))&&fs::file_size(orphan)==4);
+    for(const auto& path:created)assert(fs::remove(path));
+    assert(fs::remove(folder));
+}
 int main(int argc, char** argv)
 {
+    FilenameReservationChecks();
     using namespace DlssNr::EditDump;
     assert(Filename("nr-edit") == "nr-edit.dds");
     assert(Filename(" test.DDS  ") == "test.dds");
@@ -111,6 +150,16 @@ int main(int argc, char** argv)
     assert(methodJson.find("\"gain_preview_method_at_capture\": 1")!=std::string::npos);
     assert(methodJson.find("\"preview_capture_boundary_pairs\": 123")!=std::string::npos);
     assert(methodJson.find("\"preview_capture_method\": 1")!=std::string::npos);
+    metadata.previewSettings.downSeconds=1.25f;
+    metadata.previewSettings.boundaryUseMotion=false;metadata.previewSettings.boundaryMotionGate=false;
+    metadata.previewSettings.boundaryMinPairs=16;metadata.cnnPresetOverride=3;metadata.transformerPresetOverride=10;
+    const auto controls=MetadataJson(metadata);
+    assert(controls.find("\"gain_preview_fast_down_seconds\": 1.25")!=std::string::npos);
+    assert(controls.find("\"gain_preview_boundary_use_motion\": false")!=std::string::npos);
+    assert(controls.find("\"gain_preview_boundary_motion_gate\": false")!=std::string::npos);
+    assert(controls.find("\"gain_preview_boundary_min_pairs\": 16")!=std::string::npos);
+    assert(controls.find("\"private_cnn_preset_override\": 3")!=std::string::npos);
+    assert(controls.find("\"private_transformer_preset_override\": 10")!=std::string::npos);
     const auto noPreview = MetadataJson({});
     assert(noPreview.find("\"preview_request_suggested_gain\": null") != std::string::npos);
     assert(noPreview.find("\"preview_request_measurement_age_seconds\": null") != std::string::npos);

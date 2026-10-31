@@ -57,6 +57,7 @@ struct Metadata
     bool packed = false, reset = false, held = false, guidesIncluded = false;
     bool previewEnabledAtRequest = false, previewEnabledAtCapture = false;
     uint32_t privatePresetAtRequest = 0;
+    uint32_t cnnPresetOverride = 0, transformerPresetOverride = 0;
     float gainAtRequest = 1;
     double requestDelaySeconds = 0;
     GainPreview::Settings previewSettings;
@@ -127,11 +128,16 @@ inline std::string MetadataJson(const Metadata& m)
     value("gain_preview_boundary_target_at_capture", methodSettings.boundaryTarget);
     value("gain_preview_target_at_capture", methodSettings.method == GainPreview::DepthBoundary
                                                 ? methodSettings.boundaryTarget
-                                                : GainPreview::Target(m.privatePreset == 11));
+                                                : GainPreview::Target(m.privatePreset == 10 || m.privatePreset == 11));
     const auto settings = GainPreview::Sanitize(m.previewSettings);
     value("gain_preview_require_changing_motion", settings.requireChange);
     value("gain_preview_slow_seconds", settings.slowSeconds);
     value("gain_preview_fast_seconds", settings.fastSeconds);
+    value("gain_preview_fast_up_seconds", settings.fastSeconds);
+    value("gain_preview_fast_down_seconds", settings.downSeconds);
+    value("gain_preview_boundary_use_motion", settings.boundaryUseMotion);
+    value("gain_preview_boundary_motion_gate", settings.boundaryMotionGate);
+    value("gain_preview_boundary_min_pairs", settings.boundaryMinPairs);
     value("gain_preview_motion_threshold", settings.motionThreshold);
     auto preview = [&](const char* prefix, const PreviewSnapshot& s)
     {
@@ -163,6 +169,8 @@ inline std::string MetadataJson(const Metadata& m)
     value("depth_colour_strength", m.depthStrength);
     value("full_nr_answer", m.fullNrAnswer);
     value("private_preset", m.privatePreset);
+    value("private_cnn_preset_override", m.cnnPresetOverride);
+    value("private_transformer_preset_override", m.transformerPresetOverride);
     value("nr_preset_setting", m.nrPresetSetting);
     value("private_is_hdr", m.privateIsHdr);
     value("private_exposure_mode", m.exposureMode);

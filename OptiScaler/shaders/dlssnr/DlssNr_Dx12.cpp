@@ -54,6 +54,7 @@
 #include "DlssNr_FinishedReady.h"
 #include <dlssnr/DlssNr_GameDefaults.h>
 
+#include "../../dlssnr/DlssNr_EditDumpFiles.h"
 #include <Config.h>
 #include <State.h>
 #include <Util.h>
@@ -3413,6 +3414,18 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
     // ordinary path runs, with Matched residual in its place. Selecting it again retries.
     const bool superiorSelected = DlssNr::SuperiorScaling::Enabled(cfg);
     auto& superiorState = SuperiorRun::GetState();
+    if (superiorState.rejectedPresetOptions &&
+        superiorState.rejectedPresetOptions !=
+            DlssNr::SuperiorScaling::PrivatePresetOptionsKey(
+                cfg.DlssNrSuperiorScalingPreset.value_or_default(),
+                cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default(),
+                cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default()))
+    {
+        superiorState.unavailable.clear();
+        superiorState.srUnavailable = false;
+        superiorState.rejectedPresetOptions = 0;
+        g_nr.reset = true; // profile/INI changes can retry too, without relying on a menu callback
+    }
     const auto previewSettings = DlssNr::GainPreview::Read(cfg);
     if ((!cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default() || !superiorSelected ||
          !superiorState.unavailable.empty()) &&
@@ -7537,6 +7550,17 @@ void DlssNr::SuperiorScaling::ResetGainPreview()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     SuperiorRun::GetState().preview.Reset();
+}
+
+void DlssNr::SuperiorScaling::RetryPrivatePreset()
+{
+    std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    auto& s = SuperiorRun::GetState();
+    SuperiorRun::Drop();
+    s.unavailable.clear();
+    s.srUnavailable = false;
+    s.rejectedPresetOptions = 0;
+    g_nr.reset = true;
 }
 
 std::string DlssNr::SuperiorScaling::OriginalGuideStatus()

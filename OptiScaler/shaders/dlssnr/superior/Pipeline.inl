@@ -46,6 +46,7 @@ struct Generation
     DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
     bool inverted = false, beforeSr = false, reset = true;
     bool temporal = false, packed = false;
+    bool exactPresetOverride = false;
     bool disableIsHDR = false; // creation identity, independent of the game's HDR and AutoExposure
     uint32_t exposureMode = DlssNr::PrivateExposure::Native;
     float positiveGain = 1.f, editSaturation = 1.f, manualExposure = 1.f;
@@ -180,6 +181,7 @@ struct State
     bool wasSelected = false, wasActive = false;
     std::string status;
     std::string unavailable;   // why Superior is not running this session; empty while it runs
+    uint32_t rejectedPresetOptions = 0;
     bool srUnavailable = false; // the NGX DLSS SR runtime itself failed: the menu greys Superior out
     std::string pendingEditDump, editDumpStatus;
     bool pendingEditDumpGuides = false, pendingEditDumpPreviewEnabled = false;
@@ -222,21 +224,13 @@ void CollectEditDump()
     }
     std::error_code ec;
     std::filesystem::create_directories(job->path.parent_path(), ec);
-    std::vector<std::filesystem::path> paths { job->path };
-    for (unsigned i = 0; i < job->guideCount; ++i)
-        paths.push_back(std::filesystem::path(job->path).replace_extension(job->guides[i].extension));
-    if (!job->metadata.empty()) paths.push_back(std::filesystem::path(job->path).replace_extension(".json"));
-    std::vector<HANDLE> files;
-    files.reserve(paths.size());
-    bool written = !ec;
-    // Reserve every output first: no overwrite, and no partial bundle when a companion already exists.
-    for (const auto& path : paths)
-    {
-        if (!written) break;
-        const auto file = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, nullptr);
-        written = file != INVALID_HANDLE_VALUE;
-        if (written) files.push_back(file);
-    }
+    std::vector<std::string> extensions;
+    for (unsigned i=0;i<job->guideCount;++i) extensions.emplace_back(job->guides[i].extension);
+    if (!job->metadata.empty()) extensions.emplace_back(".json");
+    DlssNr::EditDump::Files outputs;
+    bool written = !ec && outputs.Reserve(job->path,extensions);
+    auto& files=outputs.files;
+    if (written) job->path=outputs.paths.front();
     auto writeBytes = [](HANDLE file, const void* data, size_t bytes)
     {
         DWORD count = 0;
@@ -265,16 +259,12 @@ void CollectEditDump()
     }
     if (written && !job->metadata.empty())
         written = writeBytes(files.back(), job->metadata.data(), job->metadata.size());
-    for (size_t i = 0; i < files.size(); ++i)
-    {
-        CloseHandle(files[i]);
-        if (!written) DeleteFileW(paths[i].c_str()); // only outputs reserved by this capture
-    }
+    outputs.Finish(written);
     const auto utf8 = job->path.u8string();
     s.editDumpStatus = written ? (job->guideCount == 2 ? "Saved edit + depth + motion + settings: " :
                                   job->guideCount == 1 ? "Saved edit + transport depth + settings: " : "Saved edit + settings: ") +
                                    std::string(utf8.begin(), utf8.end())
-                               : "Edit not saved: an output exists, or GPU readback/file writing failed. Choose another name if needed.";
+                               : "Edit not saved: automatic filename reservation, GPU readback or file writing failed.";
 }
 // Set by the first Superior frame. Until then the NGX shutdown path does not touch the NR lock at all.
 std::atomic_bool g_used = false;
@@ -304,6 +294,7 @@ void Drop()
 void GiveUp(const std::string& reason, bool srUnavailable)
 {
     auto& s = GetState();
+    s.rejectedPresetOptions = 0;
     s.unavailable = reason;
     s.srUnavailable = s.srUnavailable || srUnavailable;
     LOG_WARN("Superior Scaling unavailable: {}; using Matched residual instead", reason);
@@ -538,6 +529,8 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         m.gain = gain; m.saturation = g.editSaturation; m.depthStrength = g.depthStrength;
         m.fullNrAnswer = g.filterNrAnswer; m.privatePreset = g.preset;
         m.nrPresetSetting = cfg.DlssNrPreset.value_or_default();
+        m.cnnPresetOverride = DlssNr::SuperiorScaling::CnnPresetOverride(cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default());
+        m.transformerPresetOverride = DlssNr::SuperiorScaling::TransformerPresetOverride(cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default());
         m.privateIsHdr = !g.disableIsHDR; m.exposureMode = g.exposureMode;
         m.manualExposure = DlssNr::PrivateExposure::ManualValue(cfg.DlssNrSuperiorPrivateExposureValue.value_or_default());
         m.invertedDepth = g.inverted; m.packed = g.packed; m.reset = reset; m.held = hold;
@@ -663,6 +656,7 @@ enum class Created
 {
     Ok,
     ResourcesFailed, // our own surfaces or passes: worth another try once Superior is selected again
+    PresetUnavailable, // explicit override rejected; no silent fallback to a different preset
     SrUnavailable    // the NGX DLSS SR runtime: not here on this machine/runtime
 };
 
@@ -725,6 +719,7 @@ Created CreateTemporal(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommand
     auto result = CreateFeature(g, cmd, g.preset);
     if (result != NVSDK_NGX_Result_Success || !g.feature)
     {
+        if (g.exactPresetOverride) return Created::PresetUnavailable;
         // A runtime without the requested preset (newer 310.x DLLs dropped the CNN presets A-E): its default.
         static std::once_flag once;
         std::call_once(once, [&]
@@ -737,7 +732,10 @@ Created CreateTemporal(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommand
 }
 
 static_assert(unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_A) == 1u &&
+              unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_C) == 3u &&
+              unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_D) == 4u &&
               unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_E) == 5u &&
+              unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_J) == 10u &&
               unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_K) == 11u);
 
 Constants Shaping(const Config& cfg, unsigned first, unsigned completed,
@@ -1068,7 +1066,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         {
             Record(cmd);
             preview.Record(g.device.Get(), cmd, Util::RealObjectIdentity(cmd), proxy, answer, g.temporalMotion.Get(),
-                           g.workWidth, g.workHeight, g.preset == 11, context, now, temporalDepth, g.inverted, packedDepthPrecision);
+                           g.workWidth, g.workHeight, DlssNr::SuperiorScaling::TransformerPreset(g.preset), context, now, temporalDepth, g.inverted, packedDepthPrecision);
         }
     }
     RecordEditDump(g, shader, cmd, proxy, answer, gain, temporalDepth, g.temporalMotion.Get(), frame,
@@ -1179,7 +1177,10 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
                                   : uint32_t(DlssNr::PrivateExposure::Native);
     const unsigned preset = PresetChoice().Select(cfg.DlssNrSuperiorScalingPreset.value_or_default(),
                                                   cfg.DlssNrModelResolutionAuto.value_or_default(),
-                                                  cfg.DlssNrWorkingScale.value_or_default(), modelScale);
+                                                  cfg.DlssNrWorkingScale.value_or_default(), modelScale,
+                                                  cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default(),
+                                                  cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default());
+    const bool exactOverride = PresetChoice().exactOverride != 0;
     if (auto* previous = state.current.get())
     {
         // Handles from a runtime NGX has since shut down are gone already: never evaluate or release them.
@@ -1196,7 +1197,7 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
                           previous->originalGuides != originalGuides ||
                           (originalGuides && previous->originalMvLowRes != frame.MotionVectorsLowResolution))) ||
             (layout && previous->layout != *layout) ||
-            DlssNr::SuperiorScaling::PrivatePresetChanged(previous->preset, preset))
+            DlssNr::SuperiorScaling::PrivatePresetChanged(previous->preset, preset) || previous->exactPresetOverride != exactOverride)
         {
             Drop();
             g_nr.reset = true;
@@ -1223,6 +1224,7 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         if (layout)
             g.layout = *layout;
         g.preset = preset;
+        g.exactPresetOverride = exactOverride;
     }
     auto& g = *state.current;
     if (temporal && !g.feature)
@@ -1236,6 +1238,12 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
             return Began::Wait;
         case Created::ResourcesFailed:
             GiveUp("its surfaces or passes could not be created", false);
+            return Began::Unavailable;
+        case Created::PresetUnavailable:
+            GiveUp("requested exact private preset rejected by NGX; choose another override to retry", false);
+            state.rejectedPresetOptions = DlssNr::SuperiorScaling::PrivatePresetOptionsKey(
+                cfg.DlssNrSuperiorScalingPreset.value_or_default(),cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default(),
+                cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default());
             return Began::Unavailable;
         case Created::SrUnavailable:
             GiveUp("private NVIDIA DLSS SR (NGX) is not available", true);
@@ -1277,6 +1285,7 @@ void NgxShutdown()
     s.preview.Reset("Preview stopped: NR/NGX shutdown.");
     s.preview.Collect();
     CollectEditDump();
+    s.rejectedPresetOptions = 0;
     PresetChoice() = {};
 }
 
@@ -1295,6 +1304,7 @@ void Shutdown()
     s.preview.Reset("Preview stopped: NR/NGX shutdown.");
     s.preview.Collect();
     CollectEditDump();
+    s.rejectedPresetOptions = 0;
     PresetChoice() = {};
 }
 

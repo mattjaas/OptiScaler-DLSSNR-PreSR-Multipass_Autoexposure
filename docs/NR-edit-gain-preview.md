@@ -20,7 +20,7 @@ Maksymalnie 8 prób/s: 256×144 punktów, rotacja 64 faz 8×8, osobne histogramy
 
 ## Wygładzanie i ruch
 
-**Multiplier preview response** zawiera **Preview EMA time** (domyślnie 1,5 s), **Preview catch-up time** (0,25 s), **Preview minimum motion** (0,1 piksela siatki prywatnego DLSS) i **Require changing motion field** (domyślnie włączone). **Reset multiplier preview** odrzuca poprzednią średnią i bazę MV.
+**Multiplier preview response** zawiera **Preview EMA time** (domyślnie 1,5 s), **Preview catch-up up time** (domyślnie 0,25 s) i **Preview catch-up down time** (1,0 s), **Preview minimum motion** (0,1 piksela siatki prywatnego DLSS) i **Require changing motion field** (domyślnie włączone). **Reset multiplier preview** odrzuca poprzednią średnią i bazę MV.
 
 Najpierw normalizujemy R i G oddzielnie, a następnie stosujemy czasową EMA histogramów: alpha = 1-exp(-dt/tau). Kwantyl tej średniej daje propozycję, wygładzaną także EMA w log2 mnożnika. Dwie kolejne istotne zmiany rozkładu i mnożnika uruchamiają krótszą stałą czasu; nadganianie trwa do zbliżenia się do nowego celu. Pojedyncza zmiana nie włącza szybkiego trybu. Przerwy nie sumują czasu do średniej, a ostatnia wartość pozostaje widoczna. Stan po ponad sekundzie bez aktualnego pomiaru jest oznaczany jako wstrzymany.
 
@@ -103,3 +103,5 @@ Nowe [tryby jasności według głębi](Private-DLSS-depth-brightness.md) wstrzym
 ## Wybór metody pomiaru
 
 **Positive multiplier measurement** wybiera domyślne **Positive R/G coverage** lub [**Depth-boundary contrast (experimental)**](NR-edit-depth-boundary-runtime.md). Wybór dotyczy wspólnie preview i Auto; nie włącza ich sam. Nowa metoda ma własny regulowany cel, EMA momentów A/B, compact readback oraz reset kontekstu po zmianie metody/celu. Nie zmienia domyślnej kalibracji coverage ani dotychczasowych blokad wejścia.
+
+[Nowe opcje MV, liczby par i asymetrycznego nadganiania](NR-private-controls-update.md) zachowują domyślne lokalne/globalne sprawdzanie ruchu, ale umożliwiają wyłączenie ich osobno w mierniku granic. Stary klucz FastSeconds pozostaje czasem nadganiania w górę.

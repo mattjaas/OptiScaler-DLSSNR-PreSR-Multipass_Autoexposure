@@ -198,6 +198,35 @@ int main()
         assert(!jitter.state.catchingUp && jitter.state.smoothed>=5 && jitter.state.smoothed<=8);
     }
     assert(jitter.state.smoothed>5.5&&jitter.state.smoothed<6.8);
+
+    Settings asym; asym.fastSeconds=.1f; asym.downSeconds=1.f;
+    assert(ResponseSeconds(true,true,asym)==double(.1f)&&ResponseSeconds(true,false,asym)==1);
+    auto edgeAsym=asym;edgeAsym.method=DepthBoundary;edgeAsym.boundaryTarget=.1f;
+    Reading step=pairs;step.boundaryPairs=step.boundaryCandidates=128;step.boundaryOffset=0;
+    Filter rise,fall;
+    step.boundarySlope=.1/3*128;rise.Update(step,true,edgeAsym,0);
+    step.boundarySlope=.1/12*128;fall.Update(step,true,edgeAsym,0);
+    for(unsigned i=1;i<=12;++i)
+    {
+        step.boundarySlope=.1/12*128;rise.Update(step,true,edgeAsym,i*.125);
+        step.boundarySlope=.1/3*128;fall.Update(step,true,edgeAsym,i*.125);
+    }
+    const double upProgress=std::log(rise.state.smoothed/3.)/std::log(4.),
+                 downProgress=std::log(12./fall.state.smoothed)/std::log(4.);
+    assert(upProgress>downProgress+.2);
+    Filter coverageRise,coverageFall;
+    auto low=Signal(.004f),high=Signal(.0005f);
+    coverageRise.Update(low,true,asym,0);coverageFall.Update(high,true,asym,0);
+    const double loStart=coverageRise.state.smoothed,hiStart=coverageFall.state.smoothed;
+    for(unsigned i=1;i<=12;++i){coverageRise.Update(high,true,asym,i*.125);coverageFall.Update(low,true,asym,i*.125);}
+    assert(std::log(coverageRise.state.smoothed/loStart)/std::log(hiStart/loStart)>
+           std::log(hiStart/coverageFall.state.smoothed)/std::log(hiStart/loStart)+.1);
+    auto fewer=edgeAsym;fewer.boundaryMinPairs=8;step.boundaryPairs=step.boundaryCandidates=16;step.boundarySlope=.01*16;
+    Filter sparse;sparse.Update(step,true,fewer,0);assert(sparse.state.valid);
+    auto flags=edges;flags.boundaryUseMotion=false;flags.boundaryMotionGate=false;
+    Constants opts;SetBoundaryDepth(opts,false,0);SetBoundaryOptions(opts,flags);assert(opts.reserved0==6);
+    SetBoundaryDepth(opts,true,0);SetBoundaryOptions(opts,flags);assert(opts.reserved0==7);
+    assert(Context(1,flags)!=Context(1,edges));
     // Compact result respects row padding, distinct sum/count words and 64-bit serial.
     constexpr size_t compactPitch=768;
     std::vector<char> compact(compactPitch*BoundaryTextureHeight,0);

@@ -204,7 +204,9 @@ class Runtime
         s = Sanitize(s);
         if (enabled != on || settings.requireChange != s.requireChange ||
             settings.motionThreshold != s.motionThreshold || settings.method != s.method ||
-            (s.method == DepthBoundary && settings.boundaryTarget != s.boundaryTarget))
+            (s.method == DepthBoundary &&
+             (settings.boundaryTarget != s.boundaryTarget || settings.boundaryUseMotion != s.boundaryUseMotion ||
+              settings.boundaryMotionGate != s.boundaryMotionGate || settings.boundaryMinPairs != s.boundaryMinPairs)))
             Reset(on ? "Waiting for moving frames." : "Preview disabled.");
         enabled = on;
         settings = s;
@@ -255,9 +257,10 @@ class Runtime
                     if (SUCCEEDED(s.readback->Map(0, &range, &p)) && p)
                     {
                         const auto* data = static_cast<char*>(p) + s.footprint.Offset;
-                        const auto reading = s.program->method == DepthBoundary
-                                                 ? UnpackBoundary(data, s.footprint.Footprint.RowPitch)
-                                                 : Unpack(data, s.footprint.Footprint.RowPitch);
+                        const auto reading =
+                            s.program->method == DepthBoundary
+                                ? UnpackBoundary(data, s.footprint.Footprint.RowPitch, settings.boundaryMotionGate)
+                                : Unpack(data, s.footprint.Footprint.RowPitch);
                         const D3D12_RANGE none { 0, 0 };
                         s.readback->Unmap(0, &none);
                         if (reading.serial == s.id)
@@ -301,7 +304,7 @@ class Runtime
         if (status.valid && !status.paused && now - status.measuredAt > 1.)
         {
             status.paused = true;
-            status.text = "Paused: no recent moving-frame measurement.";
+            status.text = "Paused: no recent usable measurement.";
         }
         return status;
     }
@@ -378,6 +381,7 @@ class Runtime
         c.previousValid = previousValid;
         c.previous = previous;
         SetBoundaryDepth(c, inverted, depthPrecision);
+        SetBoundaryOptions(c, settings);
         c.serialLow = uint32_t(nextId + 1);
         c.serialHigh = uint32_t((nextId + 1) >> 32);
         void* mapped = nullptr;

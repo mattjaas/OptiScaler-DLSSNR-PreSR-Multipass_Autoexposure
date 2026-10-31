@@ -170,7 +170,7 @@ struct Fixture
         r.finish();
         void* data;
         check(readback->Map(0, nullptr, &data));
-        auto s = boundary?UnpackBoundary(data,fp.Footprint.RowPitch):Unpack(data, fp.Footprint.RowPitch);
+        auto s = boundary?UnpackBoundary(data,fp.Footprint.RowPitch,(c.reserved0&4)==0):Unpack(data, fp.Footprint.RowPitch);
         readback->Unmap(0, nullptr);
         return s;
     }
@@ -306,7 +306,7 @@ Reading BoundaryReference(const Fixture& f, const Constants& c)
     auto z = [&](unsigned x,unsigned y)
     {
         const double v=f.values[3][size_t(y)*f.w+x];
-        return c.reserved0?v:1-v;
+        return (c.reserved0&1)?v:1-v;
     };
     float floor;std::memcpy(&floor,&c.reserved1,4);
     const double precision=std::isfinite(floor)&&floor>=0&&floor<=.01?std::max(double(floor),1e-7):1e-7;
@@ -332,7 +332,7 @@ Reading BoundaryReference(const Fixture& f, const Constants& c)
                 mvValid&=std::isfinite(ma)&&std::isfinite(mb)&&std::abs(ma)<1e6&&std::abs(mb)<1e6;
                 speedA+=ma*ma;speedB+=mb*mb;delta+=(ma-mb)*(ma-mb);
             }
-            if(!mvValid||std::max(speedA,speedB)<=.01||delta<=4)continue;
+            if(!(c.reserved0&2) && (!mvValid||std::max(speedA,speedB)<=.01||delta<=4))continue;
             ++reference.boundaryCandidates;
             double offset=0,slope=0;bool validEdit=true;
             for(unsigned ch=0;ch<2;++ch)
@@ -381,30 +381,43 @@ void BoundaryQuality(bool hardware,bool half)
             f.values[3][at]=inverted?proximity:1-proximity;
         }
         f.r.begin();for(unsigned n=0;n<4;++n)f.Upload(n);f.r.finish();f.uploads.clear();
-        for(unsigned phase:{0u,7u,19u,63u})
+        for(unsigned options : {0u,2u,6u}) for(unsigned phase:{0u,7u,19u,63u})
         {
-            Constants c;c.width=f.w;c.height=f.h;c.requireChange=0;c.reserved0=inverted;
+            Constants c;c.width=f.w;c.height=f.h;c.requireChange=0;c.reserved0=unsigned(inverted)|options;
             c.phaseX=phase&7;c.phaseY=phase>>3;c.serialLow=checks+1;
             const float precision=pattern==6?2.f/65535.f:0;std::memcpy(&c.reserved1,&precision,4);
             auto got=f.Run(c);
             Require(got.gate==1,"Moving boundary gate must pass");
             CheckBoundary(got,BoundaryReference(f,c));
-            if(pattern==0||pattern==3)Require(got.boundaryPairs==0,"Flat depth/same MV must produce no pairs");
+            if(pattern==0||(pattern==3 && !(options&2)))Require(got.boundaryPairs==0,"Flat depth/same MV must produce no pairs");
             if(pattern==5)Require(got.boundarySlope==0,"No positive signal must not demand maximum gain");
             c.previous=got.motion;c.previousValid=1;c.requireChange=1;
-            Require(f.Run(c).gate==2,"Boundary mode must reject frozen nonzero MV");
+            Require(f.Run(c).gate==((options&4)?1u:2u),"Boundary frozen MV gate vs bypass");
             ++checks;
         }
     }
     std::cout<<"Depth-boundary independent reference PASS: "<<checks<<" cases; half="<<half<<'\n';
 }
-void RuntimeQuality(bool hardware, bool boundary = false)
+
+void DepthWithoutMotionQuality(bool hardware)
+{
+    Fixture f(hardware,517,293,false,true);
+    std::fill(f.values[2].begin(),f.values[2].end(),NAN);
+    f.r.begin();f.Upload(2);f.r.finish();f.uploads.clear();
+    Constants c;c.width=f.w;c.height=f.h;c.reserved0=7;c.requireChange=1;
+    const auto reading=f.Run(c);
+    Require(reading.gate==1&&reading.boundaryPairs>=64&&reading.validMotion==0,"True depth-only mode must not depend on finite MV");
+    CheckBoundary(reading,BoundaryReference(f,c));
+    std::cout<<"Depth-only probe with all-NaN MV PASS\n";
+}
+void RuntimeQuality(bool hardware, bool boundary = false, bool depthOnly = false)
 {
     Fixture f(hardware, 128, 72, false, boundary);
     Runtime preview;
     Settings settings;
     settings.requireChange = false;
     settings.method = boundary ? DepthBoundary : Coverage;
+    settings.boundaryUseMotion = !depthOnly; settings.boundaryMotionGate = !depthOnly;
     Require(!preview.Record(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0, 0, false, 0, 0), "Disabled path");
     preview.Configure(true, settings);
     std::vector<ComPtr<ID3D12GraphicsCommandList>> lists;
@@ -495,7 +508,7 @@ std::vector<float> CapturePlane(const std::string& path,unsigned channels,unsign
     std::vector<float> values(size_t(w)*h*channels);file.read(reinterpret_cast<char*>(values.data()),values.size()*4);
     Require(bool(file),"Capture pixel data");return values;
 }
-void BoundaryCapture(bool hardware,const std::string& path,double captureGain)
+void BoundaryCapture(bool hardware,const std::string& path,double captureGain,unsigned options=0)
 {
     Require(std::isfinite(captureGain)&&captureGain>0,"Finite captured gain");
     unsigned w,h,dw,dh,mw,mh;
@@ -511,7 +524,7 @@ void BoundaryCapture(bool hardware,const std::string& path,double captureGain)
     double meanA=0,meanB=0,minGain=1024,maxGain=0;unsigned countMin=~0u,countMax=0;
     for(unsigned phase=0;phase<64;++phase)
     {
-        Constants c;c.width=w;c.height=h;c.reserved0=1;c.requireChange=0;c.phaseX=phase&7;c.phaseY=phase>>3;
+        Constants c;c.width=w;c.height=h;c.reserved0=1|options;c.requireChange=0;c.phaseX=phase&7;c.phaseY=phase>>3;
         const auto got=f.Run(c);CheckBoundary(got,BoundaryReference(f,c));
         Require(got.boundaryPairs>=64,"Capture phase has enough pairs");
         const double a=got.boundaryOffset/got.boundaryPairs,b=got.boundarySlope/got.boundaryPairs;
@@ -523,20 +536,21 @@ void BoundaryCapture(bool hardware,const std::string& path,double captureGain)
     // Independent CPU analysis of this source bundle: pooled phase moments 6.1814712866.
     // Do not apply this scene-specific assertion to unrelated capture files.
     std::cout<<std::setprecision(12)<<"Capture GPU vs independent scalar reference PASS: 64 phases; gain="<<gain<<'\n';
-    std::ofstream out("artifacts/validation/boundary-gain-capture.json");
+    std::ofstream out("artifacts/validation/boundary-gain-capture"+std::string(options?"-flags"+std::to_string(options):"")+".json");
     out<<std::setprecision(12)<<"{\"width\":"<<w<<",\"height\":"<<h<<",\"phases\":64,\"target\":"<<BoundaryTarget
        <<",\"mean_offset\":"<<meanA<<",\"mean_slope\":"<<meanB<<",\"gain\":"<<gain
        <<",\"phase_min_gain\":"<<minGain<<",\"phase_max_gain\":"<<maxGain
        <<",\"min_pairs\":"<<countMin<<",\"max_pairs\":"<<countMax<<"}\n";
 }
-void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false)
+void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false, unsigned options = 0, const std::string& baselineDir = "")
 {
     Fixture f(hardware, w, h, true, boundary);
-    std::ofstream raw(boundary?"artifacts/validation/boundary-gain-preview-timing.csv":"artifacts/validation/gain-preview-timing.csv", w == 2240 ? std::ios::out : std::ios::app);
+    std::ofstream raw(!baselineDir.empty() ? "artifacts/validation/depth-only-compare-flags"+std::to_string(options)+".csv" : boundary?"artifacts/validation/boundary-gain-preview-timing.csv":"artifacts/validation/gain-preview-timing.csv", w == 2240 ? std::ios::out : std::ios::app);
     if (w == 2240)
         raw << "width,height,comparison,quartet,window,variant,gpu_ms\n";
     raw << std::setprecision(10);
     auto single = boundary ? f.pso : f.r.pipeline("artifacts/validation/gain-preview", "single");
+    auto baseline=baselineDir.empty()?f.pso:f.r.pipeline(baselineDir,"private_boundary_gain_preview");
     D3D12_QUERY_HEAP_DESC desc {};
     desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
     desc.Count = 2;
@@ -550,7 +564,7 @@ void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false)
         Constants c;
         c.width = w;
         c.height = h;
-        c.reserved0 = 1;
+        c.reserved0 = mode==5 ? 1 : 1|options;
         c.requireChange = false;
         c.motionThreshold = mode == 1 ? 10.f : .1f;
         if (boundary && mode == 1) c.minMoving = 576;
@@ -559,8 +573,8 @@ void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false)
         f.r.list->EndQuery(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
         if (mode)
         {
-            if (mode == 3)
-                f.r.list->SetPipelineState(single.Get());
+            if (mode == 3) f.r.list->SetPipelineState(single.Get());
+            if (mode == 5) f.r.list->SetPipelineState(baseline.Get());
             f.Probe(mode == 3 ? 1 : Groups);
         }
         f.r.list->EndQuery(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
@@ -575,7 +589,8 @@ void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false)
     for (unsigned mode : { 1u, 2u, 4u })
     {
         if (boundary && mode == 4) continue;
-        const unsigned baseMode = mode == 4 ? 3 : 0, variantMode = mode == 4 ? 2 : mode;
+        if (!baselineDir.empty() && mode!=2) continue;
+        const unsigned baseMode = !baselineDir.empty() ? 5 : mode == 4 ? 3 : 0, variantMode = mode == 4 ? 2 : mode;
         for (unsigned i = 0; i < 16; ++i)
         {
             measure(baseMode);
@@ -616,16 +631,23 @@ int main(int argc, char** argv)
     try
     {
         const bool hardware = argc <= 1 || std::string(argv[1]) != "--warp";
-        if (argc==4 && (std::string(argv[1])=="--boundary-capture" || std::string(argv[1])=="--boundary-capture-warp"))
+        if ((argc==4||argc==5) && (std::string(argv[1])=="--boundary-capture" || std::string(argv[1])=="--boundary-capture-warp"))
         {
-            BoundaryCapture(std::string(argv[1])!="--boundary-capture-warp",argv[2],std::stod(argv[3]));return 0;
+            BoundaryCapture(std::string(argv[1])!="--boundary-capture-warp",argv[2],std::stod(argv[3]),argc==5?unsigned(std::stoul(argv[4])):0);return 0;
         }
         Quality(hardware, false);
         Quality(hardware, true);
         RuntimeQuality(hardware);
         RuntimeQuality(hardware,true);
+        RuntimeQuality(hardware,true,true);
+        DepthWithoutMotionQuality(hardware);
         BoundaryQuality(hardware,false);
         BoundaryQuality(hardware,true);
+        if(argc==4 && std::string(argv[1])=="--depth-only-compare")
+        {
+            Timing(hardware,2240,1264,true,unsigned(std::stoul(argv[3])),argv[2]);
+            Timing(hardware,2496,1404,true,unsigned(std::stoul(argv[3])),argv[2]);
+        }
         if (argc > 1 && std::string(argv[1]) == "--boundary-timing")
         {
             Timing(hardware,2240,1264,true); Timing(hardware,2496,1404,true);

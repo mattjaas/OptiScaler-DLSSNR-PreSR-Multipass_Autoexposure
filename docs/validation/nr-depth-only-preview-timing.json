@@ -1,0 +1,116 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "baseline_commit": "d1144b59",
+  "source": "resident procedural textures; no NR/NGX/game",
+  "method": "GPU timestamps: dispatch, state transitions and copy-to-readback; separate 16 warmups each; 16 ABBA quartets; 32 samples per variant",
+  "summary": [
+    {
+      "options": 0,
+      "width": 2240,
+      "height": 1264,
+      "A": {
+        "mean_ms": 0.033095,
+        "median_ms": 0.033072,
+        "sd_ms": 0.0003956349327347118,
+        "samples": 32
+      },
+      "B": {
+        "mean_ms": 0.033536,
+        "median_ms": 0.033536,
+        "sd_ms": 0.00034999428566763783,
+        "samples": 32
+      },
+      "delta_mean_ms": 0.0004410000000000039
+    },
+    {
+      "options": 0,
+      "width": 2496,
+      "height": 1404,
+      "A": {
+        "mean_ms": 0.03322,
+        "median_ms": 0.033168,
+        "sd_ms": 0.0003798736632092306,
+        "samples": 32
+      },
+      "B": {
+        "mean_ms": 0.033521,
+        "median_ms": 0.033535999999999996,
+        "sd_ms": 0.0004246021667396435,
+        "samples": 32
+      },
+      "delta_mean_ms": 0.00030100000000000265
+    },
+    {
+      "options": 2,
+      "width": 2240,
+      "height": 1264,
+      "A": {
+        "mean_ms": 0.033395,
+        "median_ms": 0.033472,
+        "sd_ms": 0.0003858173142822909,
+        "samples": 32
+      },
+      "B": {
+        "mean_ms": 0.030601,
+        "median_ms": 0.030624,
+        "sd_ms": 0.0002963494558793721,
+        "samples": 32
+      },
+      "delta_mean_ms": -0.0027940000000000013
+    },
+    {
+      "options": 2,
+      "width": 2496,
+      "height": 1404,
+      "A": {
+        "mean_ms": 0.033379,
+        "median_ms": 0.033392000000000005,
+        "sd_ms": 0.0003424485362795406,
+        "samples": 32
+      },
+      "B": {
+        "mean_ms": 0.030699,
+        "median_ms": 0.030719999999999997,
+        "sd_ms": 0.00045181301442078886,
+        "samples": 32
+      },
+      "delta_mean_ms": -0.0026799999999999984
+    },
+    {
+      "options": 6,
+      "width": 2240,
+      "height": 1264,
+      "A": {
+        "mean_ms": 0.033233,
+        "median_ms": 0.033136,
+        "sd_ms": 0.0003892955175698792,
+        "samples": 32
+      },
+      "B": {
+        "mean_ms": 0.026118,
+        "median_ms": 0.026016,
+        "sd_ms": 0.00034792527933451446,
+        "samples": 32
+      },
+      "delta_mean_ms": -0.007115
+    },
+    {
+      "options": 6,
+      "width": 2496,
+      "height": 1404,
+      "A": {
+        "mean_ms": 0.033112,
+        "median_ms": 0.03304,
+        "sd_ms": 0.0003755742270177767,
+        "samples": 32
+      },
+      "B": {
+        "mean_ms": 0.025997,
+        "median_ms": 0.025936,
+        "sd_ms": 0.0004451954626902658,
+        "samples": 32
+      },
+      "delta_mean_ms": -0.007115000000000003
+    }
+  ]
+}

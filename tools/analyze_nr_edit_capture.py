@@ -101,7 +101,7 @@ def main():
     if (width, height) != (m["width"], m["height"]):
         raise ValueError("DDS dimensions differ from metadata")
     epsilon = float(np.float32(m["gain_preview_epsilon"]))
-    target = .9723433127521812 if m["private_preset"] == 11 else .9205390681940847
+    target = .9723433127521812 if m["private_preset"] in (10,11) else .9205390681940847
     if abs(target - m["gain_preview_target_at_capture"]) > 1e-7:
         raise ValueError("Different calibration target: audit the corresponding runtime version")
     positive = positive_rg(raw)
@@ -165,7 +165,7 @@ def main():
     new_target = score(positive, epsilon, plateau)
     references = []
     for reference in args.clear_reference:
-        family = "transformer" if m["private_preset"] == 11 else "cnn"
+        family = "transformer" if m["private_preset"] in (10,11) else "cnn"
         if "noghosting" not in reference.stem or f"-{family}-" not in reference.stem:
             raise ValueError("Reference must be a same-family legacy capture explicitly labelled noghosting")
         distribution = positive_rg(load_edit(reference))

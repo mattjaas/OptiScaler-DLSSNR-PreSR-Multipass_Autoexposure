@@ -40,31 +40,35 @@ void DepthBoundaryGainPreviewMain(uint lane : SV_GroupIndex, uint3 group : SV_Gr
     }
     float threshold = isfinite(MotionThreshold) && MotionThreshold > 0 ? clamp(MotionThreshold, .001, 10.) : .1;
     float change = isfinite(ChangeThreshold) && ChangeThreshold > 0 ? clamp(ChangeThreshold, .001, 10.) : .0625;
-    uint4 part = 0;
-    for (uint pair = lane; pair < 288; pair += 256)
+    uint4 motion = 0;
+    if ((Reserved0 & 4u) == 0u)
     {
-        float2 a = ReadMotion(pair * 2), b = ReadMotion(pair * 2 + 1);
-        if (group.x == 0) Result[uint2((pair + 2 + DLSSNR_GAIN_PREVIEW_GROUPS) % 32, (pair + 2 + DLSSNR_GAIN_PREVIEW_GROUPS) / 32)] = uint4(asuint(a), asuint(b));
-        for (uint k = 0; k < 2; ++k)
+        uint4 part = 0;
+        for (uint pair = lane; pair < 288; pair += 256)
         {
-            float2 v = k == 0 ? a : b;
-            float2 old = k == 0 ? PreviousMotion[pair].xy : PreviousMotion[pair].zw;
-            bool valid = all(isfinite(v)) && all(abs(v) < 1e6);
-            part.y += valid;
-            part.x += valid && dot(v, v) > threshold * threshold;
-            part.z += valid && all(isfinite(old)) && dot(v - old, v - old) > change * change;
+            float2 a = ReadMotion(pair * 2), b = ReadMotion(pair * 2 + 1);
+            if (group.x == 0) Result[uint2((pair + 2 + DLSSNR_GAIN_PREVIEW_GROUPS) % 32, (pair + 2 + DLSSNR_GAIN_PREVIEW_GROUPS) / 32)] = uint4(asuint(a), asuint(b));
+            for (uint k = 0; k < 2; ++k)
+            {
+                float2 v = k == 0 ? a : b;
+                float2 old = k == 0 ? PreviousMotion[pair].xy : PreviousMotion[pair].zw;
+                bool valid = all(isfinite(v)) && all(abs(v) < 1e6);
+                part.y += valid;
+                part.x += valid && dot(v, v) > threshold * threshold;
+                part.z += valid && all(isfinite(old)) && dot(v - old, v - old) > change * change;
+            }
         }
-    }
-    Parts[lane] = part;
-    GroupMemoryBarrierWithGroupSync();
-    for (uint stride = 128; stride; stride >>= 1)
-    {
-        if (lane < stride) Parts[lane] += Parts[lane + stride];
+        Parts[lane] = part;
         GroupMemoryBarrierWithGroupSync();
+        for (uint stride = 128; stride; stride >>= 1)
+        {
+            if (lane < stride) Parts[lane] += Parts[lane + stride];
+            GroupMemoryBarrierWithGroupSync();
+        }
+        motion = Parts[0];
     }
-    uint4 motion = Parts[0];
-    uint gate = motion.y >= 548 && motion.x >= clamp(MinMoving, 1u, 576u) ? 1 : 0;
-    if (gate == 1 && RequireChange != 0)
+    uint gate = (Reserved0 & 4u) != 0u || (motion.y >= 548 && motion.x >= clamp(MinMoving, 1u, 576u)) ? 1 : 0;
+    if (gate == 1 && RequireChange != 0 && (Reserved0 & 4u) == 0u)
         gate = PreviousValid == 0 ? 3 : motion.z < clamp(MinChanged, 1u, 576u) ? 2 : 1;
     if (lane == 0)
     {
@@ -85,7 +89,7 @@ void DepthBoundaryGainPreviewMain(uint lane : SV_GroupIndex, uint3 group : SV_Gr
         uint2 at = min(((cell * 16 + uint2(PhaseX & 7, PhaseY & 7) * 2 + 1) * uint2(Width, Height)) /
                       (uint2(GridX, GridY) * 16), uint2(Width - 1, Height - 1));
         float center = Depth.Load(int3(at,0));
-        center = Reserved0 != 0 ? center : 1-center;
+        center = (Reserved0 & 1u) != 0 ? center : 1-center;
         if (!isfinite(center) || center <= 0 || center > 1) continue;
         [unroll] for (uint axis=0;axis<2;++axis)
         {
@@ -95,15 +99,18 @@ void DepthBoundaryGainPreviewMain(uint lane : SV_GroupIndex, uint3 group : SV_Gr
             if (coord < 1 || coord >= extent-2) continue;
             const uint2 a=at-step, b=at+2*step;
             float edge = Depth.Load(int3(at+step,0));
-            edge = Reserved0 != 0 ? edge : 1-edge;
+            edge = (Reserved0 & 1u) != 0 ? edge : 1-edge;
             if (!isfinite(edge) || edge <= 0 || edge > 1 || max(center,edge)<2*min(center,edge) || abs(center-edge)<=precision) continue;
             float da=Depth.Load(int3(a,0)), db=Depth.Load(int3(b,0));
-            da=Reserved0 != 0?da:1-da; db=Reserved0 != 0?db:1-db;
+            da=(Reserved0 & 1u) != 0?da:1-da; db=(Reserved0 & 1u) != 0?db:1-db;
             if (!isfinite(da) || !isfinite(db) || min(da,db)<=0 || max(da,db)>1 ||
                 abs(da-center)>.25*max(da,center) || abs(db-edge)>.25*max(db,edge) || max(da,db)<2*min(da,db)) continue;
-            float2 ma=Motion.Load(int3(a,0)), mb=Motion.Load(int3(b,0));
-            if (!all(isfinite(ma)) || !all(isfinite(mb)) || any(abs(ma)>=1e6) || any(abs(mb)>=1e6) ||
-                max(dot(ma,ma),dot(mb,mb))<=.01 || dot(ma-mb,ma-mb)<=4) continue;
+            [branch] if ((Reserved0 & 2u) == 0u)
+            {
+                float2 ma=Motion.Load(int3(a,0)), mb=Motion.Load(int3(b,0));
+                if (!all(isfinite(ma)) || !all(isfinite(mb)) || any(abs(ma)>=1e6) || any(abs(mb)>=1e6) ||
+                    max(dot(ma,ma),dot(mb,mb))<=.01 || dot(ma-mb,ma-mb)<=4) continue;
+            }
             ++candidates;
             float2 ea=Answer.Load(int3(a,0)).rg-Proxy.Load(int3(a,0)).rg;
             float2 eb=Answer.Load(int3(b,0)).rg-Proxy.Load(int3(b,0)).rg;

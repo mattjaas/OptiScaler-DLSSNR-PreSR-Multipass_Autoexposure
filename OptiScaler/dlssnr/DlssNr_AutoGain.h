@@ -61,7 +61,7 @@ class Controller
             state.text =
                 state.controlled
                     ? "Automatic multiplier held: waiting for usable moving-frame measurements."
-                    : "Automatic multiplier waiting for four moving-frame measurements; manual value with 1x minimum.";
+                    : "Automatic multiplier waiting for four usable measurements; manual value with 1x minimum.";
             return state.applied;
         }
         if (estimate.measurements == lastMeasurement)

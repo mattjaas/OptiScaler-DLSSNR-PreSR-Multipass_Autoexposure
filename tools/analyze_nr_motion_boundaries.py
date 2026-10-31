@@ -187,7 +187,7 @@ def main():
     if .5 + np.maximum(raw, 0).max() * 1024 > 65504:
         raise ValueError("Upper carrier clipping requires a different contrast reference")
     epsilon = float(np.float32(m["gain_preview_epsilon"]))
-    target = .9723433127521812 if m["private_preset"] == 11 else .9205390681940847
+    target = .9723433127521812 if m["private_preset"] in (10,11) else .9205390681940847
     shown = float(m["preview_capture_suggested_gain"])
     if not np.isfinite([epsilon, target, shown]).all() or min(epsilon, shown) <= 0:
         raise ValueError("Finite positive epsilon and shown gain required")

@@ -15,6 +15,7 @@ namespace DlssNr::SuperiorScaling
 // Runtime state, defined with the D3D12 pipeline (DlssNr_Dx12.cpp). Status: the last thing worth telling the user.
 std::string Status();
 std::string OriginalGuideStatus();
+void RetryPrivatePreset();
 // Why Superior is not running this session (empty while it runs); the ordinary path uses Matched residual meanwhile.
 // Selecting Superior again retries. SrUnavailable: the NGX DLSS SR runtime itself could not be used here.
 std::string Unavailable();
@@ -43,6 +44,20 @@ inline unsigned PrivatePreset(unsigned saved, float rangeSigma)
 {
     return Preset(saved) == 11u ? 11u : rangeSigma < .01f ? 5u : 1u;
 }
+inline unsigned CnnPresetOverride(unsigned value)
+{
+    return value == 1 || value == 3 || value == 4 || value == 5 ? value : 0;
+}
+inline unsigned TransformerPresetOverride(unsigned value) { return value == 10 || value == 11 ? value : 0; }
+inline bool TransformerPreset(unsigned value) { return value == 10 || value == 11; }
+inline unsigned ExactPresetOverride(unsigned family, unsigned cnn, unsigned transformer)
+{
+    return Preset(family) == 11 ? TransformerPresetOverride(transformer) : CnnPresetOverride(cnn);
+}
+inline uint32_t PrivatePresetOptionsKey(unsigned family, unsigned cnn, unsigned transformer)
+{
+    return Preset(family) | (ExactPresetOverride(family, cnn, transformer) << 8);
+}
 inline float GuidedRange(float scale)
 {
     const float t = std::isfinite(scale) ? std::clamp((scale - .5f) * 2.f, 0.f, 1.f) : 0.f;
@@ -53,19 +68,23 @@ inline float GuidedRange(float scale)
 // device or runtime). Recreating resources must not unlatch it.
 struct PrivatePresetChoice
 {
-    unsigned preference = 0, selected = 1;
+    unsigned preference = 0, selected = 1, exactOverride = 0;
     float manualScale = 0.f;
     bool automatic = false, valid = false;
-    unsigned Select(unsigned saved, bool isAuto, float configuredScale, float effectiveScale)
+    unsigned Select(unsigned saved, bool isAuto, float configuredScale, float effectiveScale, unsigned cnnOverride = 0,
+                    unsigned transformerOverride = 0)
     {
         configuredScale = std::isfinite(configuredScale) ? configuredScale : 1.f;
         const unsigned wanted = Preset(saved);
-        if (!valid || preference != wanted || automatic != isAuto || manualScale != configuredScale)
+        const unsigned exact = ExactPresetOverride(saved, cnnOverride, transformerOverride);
+        if (!valid || preference != wanted || automatic != isAuto || manualScale != configuredScale ||
+            exactOverride != exact)
         {
             preference = wanted;
+            exactOverride = exact;
             automatic = isAuto;
             manualScale = configuredScale;
-            selected = PrivatePreset(wanted, GuidedRange(effectiveScale));
+            selected = exact ? exact : PrivatePreset(wanted, GuidedRange(effectiveScale));
             valid = true;
         }
         return selected;

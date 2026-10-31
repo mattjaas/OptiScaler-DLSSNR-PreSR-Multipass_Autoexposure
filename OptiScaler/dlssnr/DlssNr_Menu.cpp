@@ -3994,12 +3994,53 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 DlssNr::SuperiorScaling::Preset(config->DlssNrSuperiorScalingPreset.value_or_default()) == 11 ? 1 : 0;
 
             if (ImGui::Combo("DLSS to temporally stabilize NR", &preset, presets, IM_ARRAYSIZE(presets)))
+            {
                 config->DlssNrSuperiorScalingPreset = preset == 1 ? 11u : 1u;
+                DlssNr::SuperiorScaling::RetryPrivatePreset();
+            }
 
             HelpMarker("Superior Scaling: a private DLSS in DLAA mode, applied to NR's change at its working "
                        "resolution. Independent of the NR model preset and the game's own DLSS preset. "
                        "CNN automatically chooses its model from guided range sigma. Transformer keeps the same model. "
                        "Preset availability depends on the installed DLSS runtime.");
+
+            ImGui::BeginDisabled(nr.vulkan);
+            if (preset == 0)
+            {
+                static const char* choices[] = { "Automatic A/E", "A", "C", "D", "E" };
+                static const uint32_t values[] = { 0, 1, 3, 4, 5 };
+                const auto value = DlssNr::SuperiorScaling::CnnPresetOverride(
+                    config->DlssNrSuperiorScalingCnnPresetOverride.value_or_default());
+                int selected = 0;
+                for (int i = 1; i < 5; ++i)
+                    if (values[i] == value)
+                        selected = i;
+                if (ImGui::Combo("Private CNN preset override", &selected, choices, IM_ARRAYSIZE(choices)))
+                {
+                    config->DlssNrSuperiorScalingCnnPresetOverride = values[selected];
+                    DlssNr::SuperiorScaling::RetryPrivatePreset();
+                }
+            }
+            else
+            {
+                static const char* choices[] = { "Automatic K", "J", "K" };
+                const auto value = DlssNr::SuperiorScaling::TransformerPresetOverride(
+                    config->DlssNrSuperiorScalingTransformerPresetOverride.value_or_default());
+                int selected = value == 10 ? 1 : value == 11 ? 2 : 0;
+                if (ImGui::Combo("Private Transformer preset override", &selected, choices, IM_ARRAYSIZE(choices)))
+                {
+                    config->DlssNrSuperiorScalingTransformerPresetOverride = selected == 1   ? 10u
+                                                                             : selected == 2 ? 11u
+                                                                                             : 0u;
+                    DlssNr::SuperiorScaling::RetryPrivatePreset();
+                }
+            }
+            ImGui::EndDisabled();
+            HelpMarker("Override the exact private DLAA preset independently of the game's DLSS. CNN: A/C/D/E; "
+                       "Transformer: J/K. Automatic retains the previous A/E or K selection. Explicit overrides "
+                       "do not silently fall back to another preset if NGX rejects them; choose a different override "
+                       "to retry. A successful NGX creation still cannot prove which internal model the runtime used. "
+                       "Coverage calibration for J/C/D has not been validated.");
 
             const auto unavailable = DlssNr::SuperiorScaling::Unavailable();
             ImGui::BeginDisabled(nr.vulkan || !unavailable.empty());
@@ -4027,6 +4068,22 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "one global multiplier, with EMA and the same motion/change gate. Neither detects ghosting.");
             if (meterMethod == int(DlssNr::GainPreview::DepthBoundary))
             {
+                if (ImGui::Checkbox("Filter depth boundaries using MV", &meterSettings.boundaryUseMotion))
+                    config->DlssNrSuperiorGainPreviewBoundaryUseMotion = meterSettings.boundaryUseMotion;
+                HelpMarker(
+                    "On: depth selects near/far boundaries, then endpoint MV must differ by more than 2 pixels. "
+                    "Off: boundary selection uses depth alone. This is independent of the overall motion gate below.");
+                if (ImGui::Checkbox("Require motion activity for boundary measurements",
+                                    &meterSettings.boundaryMotionGate))
+                    config->DlssNrSuperiorGainPreviewBoundaryMotionGate = meterSettings.boundaryMotionGate;
+                HelpMarker("On: retain the 576-point active/changing-MV gate to pause static menus or frozen fields. "
+                           "Off: measurements can run on a static picture. With both MV options off, the boundary "
+                           "probe reads no motion vectors. The private DLSS still uses its own MV normally.");
+                int minPairs = int(meterSettings.boundaryMinPairs);
+                if (ImGui::SliderInt("Minimum depth-boundary pairs", &minPairs, 8, 256))
+                    config->DlssNrSuperiorGainPreviewBoundaryMinPairs = uint32_t(minPairs);
+                HelpMarker("Default 64 means colour pairs used for contrast, not 64 motion vectors. Lower values "
+                           "allow sparse boundaries to produce a suggestion, with more sampling noise.");
                 if (ImGui::SliderFloat("Depth-boundary contrast target", &meterSettings.boundaryTarget, .01f, .5f,
                                        "%.5f"))
                     config->DlssNrSuperiorGainPreviewBoundaryTarget = meterSettings.boundaryTarget;
@@ -4037,7 +4094,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 HelpMarker("Default 0.1429128 is mean absolute R/G contrast from head/water at 6x in the supplied "
                            "Transformer scene. It is unvalidated for other scenes and CNN; target is editable and "
                            "saved in profiles. Uses depth proximity ratio >=2, colour endpoints one pixel inside "
-                           "each side (3 px apart), and MV difference >2 working pixels. At least 64 pairs required. "
+                           "each side (3 px apart). MV filtering and minimum pair count are configurable above. "
                            "Same positive edit on both sides cannot be separated by a positive multiplier. "
                            "Unreachable/invalid measurements pause instead of forcing maximum gain.");
             }
@@ -4079,7 +4136,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 config->DlssNrSuperiorAutoPositiveEditGain = automaticGain;
             ImGui::EndDisabled();
             HelpMarker("Experimental: apply the selected smoothed suggestion automatically to the main view. "
-                       "Waits for four moving-frame measurements. Updates no more than twice per second, with "
+                       "Waits for four usable measurements. Updates no more than twice per second, with "
                        "2% upward / 5% downward hysteresis to limit changes. Holds the last applied value while "
                        "measurements pause. Auto never uses less than 1x, including warmup/fallback. "
                        "When disabled, the saved manual multiplier returns unchanged. "
@@ -4098,7 +4155,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "a suggestion; automatic application is a separate "
                 "option. "
                 "Not a ghosting detector or a guarantee for other scenes. Needs edit mode, saturation 1x "
-                "and depth transport/original guides off. Samples up to eight times per second while motion is usable. "
+                "and depth transport/original guides off. Samples up to eight times per second; the boundary motion "
+                "gate is optional. "
                 "EMA smooths the measurements and catches up faster after a sustained image change. "
                 "Changing motion helps reject frozen buffers, but cannot reliably identify every menu or video.");
             if (gainPreview || automaticGain)
@@ -4133,22 +4191,34 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     DlssNr::SuperiorScaling::ResetGainPreview();
                 if (ImGui::TreeNode("Multiplier preview response"))
                 {
+                    ImGui::BeginDisabled(meterMethod == int(DlssNr::GainPreview::DepthBoundary) &&
+                                         !meterSettings.boundaryMotionGate);
                     bool changing = config->DlssNrSuperiorGainPreviewChangingMotion.value_or_default();
                     if (ImGui::Checkbox("Require changing motion field", &changing))
                         config->DlssNrSuperiorGainPreviewChangingMotion = changing;
                     HelpMarker("Compare 576 fixed MV samples with the previous completed probe, using a 0.0625 "
                                "working-pixel tolerance. At least six samples must change. A perfectly uniform "
                                "constant real motion field also pauses the preview. Off: nonzero motion is enough.");
-                    auto response = DlssNr::GainPreview::Sanitize(
-                        { config->DlssNrSuperiorGainPreviewSlowSeconds.value_or_default(),
-                          config->DlssNrSuperiorGainPreviewFastSeconds.value_or_default(),
-                          config->DlssNrSuperiorGainPreviewMotionThreshold.value_or_default(), changing });
+                    ImGui::EndDisabled();
+                    auto response = DlssNr::GainPreview::Read(*config);
                     if (ImGui::SliderFloat("Preview EMA time", &response.slowSeconds, .1f, 5.f, "%.2f s"))
                         config->DlssNrSuperiorGainPreviewSlowSeconds = response.slowSeconds;
-                    if (ImGui::SliderFloat("Preview catch-up time", &response.fastSeconds, .05f, 1.5f, "%.2f s"))
+                    if (ImGui::SliderFloat("Preview catch-up up time", &response.fastSeconds, .05f,
+                                           response.slowSeconds, "%.2f s"))
                         config->DlssNrSuperiorGainPreviewFastSeconds = response.fastSeconds;
+                    if (ImGui::SliderFloat("Preview catch-up down time", &response.downSeconds, .05f,
+                                           response.slowSeconds, "%.2f s"))
+                        config->DlssNrSuperiorGainPreviewFastDownSeconds = response.downSeconds;
+                    HelpMarker(
+                        "Separate catch-up times for increasing/decreasing the multiplier; smaller means faster. "
+                        "For example up 0.10 s and down 1.00 s. Normal EMA time is shared; catch-up starts after "
+                        "a sustained change. Times are limited to normal EMA time. Auto's 0.5 s update interval "
+                        "remains.");
+                    ImGui::BeginDisabled(meterMethod == int(DlssNr::GainPreview::DepthBoundary) &&
+                                         !meterSettings.boundaryMotionGate);
                     if (ImGui::SliderFloat("Preview minimum motion", &response.motionThreshold, .01f, 2.f, "%.2f px"))
                         config->DlssNrSuperiorGainPreviewMotionThreshold = response.motionThreshold;
+                    ImGui::EndDisabled();
                     ImGui::TreePop();
                 }
             }
@@ -4171,7 +4241,9 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "DLSS, saturation, depth colour and carrier clipping. Zero edit is 0. Values below 0 and above 1 "
                 "are preserved in FP32 DDS. Works in edit and full NR answer modes. Enter a filename only; "
                 ".dds is added automatically. Saved under dlssnr-edit next to OptiScaler.dll. Existing files "
-                "are not overwritten. Snapshot/readback run only when requested; saving may briefly pause a frame. "
+                "are not overwritten: occupied bundle names automatically get -001, -002, etc. All companion files "
+                "share "
+                "the selected name. Snapshot/readback run only when requested; saving may briefly pause a frame. "
                 "Both buttons also save .json settings: actual multiplier, displayed suggestion and measurement age. "
                 "Save edit + object guides additionally writes .depth.dds and .motion.dds from the same "
                 "private DLSS input grid. Capture after the picture has settled at the chosen settings. "

@@ -42,7 +42,7 @@ contrast(g) = mean_pairs(A) + g*mean_pairs(B)
 gain = max(1, (target - mean_pairs(A)) / mean_pairs(B))
 ```
 
-Dolne ograniczenie N modeluje clipping nośnika poniżej zera. Kontrast w każdym kanale rośnie monotonicznie z gain. Brak górnego clippingu jest warunkiem liniowego modelu; pary z dodatnim editem > `(65504-0.5)/1024` są nieważne. Wymagamy ≥64 poprawnych par i ≥95% poprawnych wśród kandydatów. Jeśli kontrast przy 1× wystarcza, wynik wynosi 1×. Brak sterowalnego B, niefinitywne sumy lub cel powyżej zakresu do 1024× wstrzymuje pomiar zamiast wymuszać maksimum. Identycznych editów obu powierzchni nie da się rozdzielić dodatnim mnożnikiem.
+Dolne ograniczenie N modeluje clipping nośnika poniżej zera. Kontrast w każdym kanale rośnie monotonicznie z gain. Brak górnego clippingu jest warunkiem liniowego modelu; pary z dodatnim editem > `(65504-0.5)/1024` są nieważne. Domyślnie wymagamy ≥64 poprawnych par (regulowane **Minimum depth-boundary pairs**) i ≥95% poprawnych wśród kandydatów. Jeśli kontrast przy 1× wystarcza, wynik wynosi 1×. Brak sterowalnego B, niefinitywne sumy lub cel powyżej zakresu do 1024× wstrzymuje pomiar zamiast wymuszać maksimum. Identycznych editów obu powierzchni nie da się rozdzielić dodatnim mnożnikiem.
 
 Obowiązuje dotychczasowy gate 576 punktów ruchu i zmiany między klatkami; nie wykonujemy odczytów depth/editu po odrzuceniu gate. To nie jest semantyczne wykrywanie menu/filmów. Hold i nieobsługiwane wejścia blokują również spóźnione wyniki. Wymagane są plain edit mode, saturation 1×, depth colour off, nieaktywne oba depth brightness i wyłączony eksperyment original guides. Dotychczasowe wyszarzenia oraz pauzy pozostają w mocy.
 
@@ -80,3 +80,7 @@ RTX 4090, rezydentne proceduralne proxy/answer FP16, R32 depth, RG32 MV. Timesta
 W tej samej sesji osobne ABBA Off-vs-coverage dało odpowiednio 0,027361±0,000382 i 0,026860±0,000403 ms dla pełnego poprzedniego miernika ([dane referencyjne](validation/nr-boundary-gain-coverage-reference-timing.csv)). To różne przebiegi i pola MV testu, nie bezpośredni ABBA obu metod w grze; nie przedstawiamy różnicy ~0,006 ms jako dowodu kosztu całego toru. Nowy miernik czyta dodatkową głębię, a zmniejsza wynik i nie ma histogramu/atomików: kompaktowe 32×10 uint4 = **5120 B** kopiowanego wyniku vs stary readback około 76 KiB. Potrzebny jest jeden dispatch 8 grup, bez pełnoekranowej maski lub drugiego DLSS. Pomiar ≤8/s dotyczy nowych zapisów; replay gry może ponownie wykonać już nagrany dispatch, jak w poprzednim mierniku.
 
 Domyślne Off preview/Auto nadal nie tworzy jego PSO, zasobów i fence ani nie wykonuje pracy GPU. Coverage pozostaje domyślne. Pomiar całego toru i jakości wymaga rozgrzanego ABBA w tej samej scenie gry, z porównaniem gain/stabilności/ghostingu i timestamp NR+prywatny DLSS+composition. Nie potwierdzono jeszcze jakości nowego automatu w grze, progu CNN ani odporności na zmianę odległości postać–tło.
+
+## Rozszerzenie kontroli
+
+[Opis aktualizacji](NR-private-controls-update.md): lokalny filtr MV i globalna bramka są odrębnymi opcjami. Wyłączenie obu daje miernik bez odczytów MV, aktywny także na statycznym obrazie. Liczba par jest regulowana. Nadganianie używa osobnych czasów up/down. Zmienia się selekcja i rozkład próbek, więc propozycja nie musi odpowiadać wynikowi wariantu z MV przy tym samym celu kontrastu.

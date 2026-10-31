@@ -193,6 +193,31 @@ int main() {
         }
         require(PrivatePreset(1, .01f) == 1 && PrivatePreset(1, std::nextafter(.01f, 0.f)) == 5);
 
+
+        for(unsigned value:{1u,3u,4u,5u})
+        {
+            PrivatePresetChoice exact;
+            require(exact.Select(1,true,1,.65f,value,10)==value);
+            require(exact.Select(1,true,1,1.5f,value,11)==value);
+            require(exact.Select(1,false,.75f,.75f,value,0)==value);
+        }
+        for(unsigned value:{10u,11u})
+        {
+            PrivatePresetChoice exact;
+            require(exact.Select(11,true,1,.65f,3,value)==value);
+            require(exact.Select(11,true,1,1.5f,5,value)==value);
+            require(TransformerPreset(value));
+        }
+        require(!TransformerPreset(3)&&CnnPresetOverride(2)==0&&TransformerPresetOverride(5)==0);
+        require(PrivatePresetOptionsKey(1,3,10)==PrivatePresetOptionsKey(1,3,11));
+        require(PrivatePresetOptionsKey(1,3,0)!=PrivatePresetOptionsKey(1,4,0));
+        require(PrivatePresetOptionsKey(11,3,10)==PrivatePresetOptionsKey(11,5,10));
+        PrivatePresetChoice overrideChange;
+        require(overrideChange.Select(1,false,1,1,3,0)==3);
+        require(overrideChange.Select(1,false,1,1,4,0)==4);
+        require(overrideChange.Select(1,false,1,1,0,0)==5);
+        overrideChange={};
+        require(overrideChange.Select(11,true,1,.65f,0,10)==10);
         // Native-scale fallback is tested by the host integration contract.
         DlssNrConstants input{};input.Mode=0;input.Width=1920;input.Height=1080;input.DirectResolveFlags=ShaderFlag;
         for(uint32_t pass : {0u,1u})for(uint32_t mode=0;mode<5;++mode) {

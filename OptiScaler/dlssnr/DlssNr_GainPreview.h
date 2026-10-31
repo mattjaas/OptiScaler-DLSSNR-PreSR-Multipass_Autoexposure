@@ -41,6 +41,9 @@ struct Settings
     bool requireChange = true;
     uint32_t method = Coverage;
     float boundaryTarget = BoundaryTarget;
+    float downSeconds = 1.f;
+    bool boundaryUseMotion = true, boundaryMotionGate = true;
+    uint32_t boundaryMinPairs = 64;
 };
 inline float Seconds(float value, float fallback)
 {
@@ -53,7 +56,17 @@ inline Settings Sanitize(Settings s)
     s.motionThreshold = std::isfinite(s.motionThreshold) ? std::clamp(s.motionThreshold, .001f, 10.f) : .1f;
     s.method = s.method == DepthBoundary ? DepthBoundary : Coverage;
     s.boundaryTarget = std::isfinite(s.boundaryTarget) ? std::clamp(s.boundaryTarget, .000001f, 16.f) : BoundaryTarget;
+    s.downSeconds = std::min(Seconds(s.downSeconds, 1.f), s.slowSeconds);
+    s.boundaryMinPairs = std::clamp(s.boundaryMinPairs, 8u, 4096u);
     return s;
+}
+inline void SetBoundaryOptions(Constants& c, const Settings& s)
+{
+    c.reserved0 = (c.reserved0 & 1u) | (s.boundaryUseMotion ? 0u : 2u) | (s.boundaryMotionGate ? 0u : 4u);
+}
+inline double ResponseSeconds(bool fast, bool rising, const Settings& s)
+{
+    return fast ? (rising ? s.fastSeconds : s.downSeconds) : s.slowSeconds;
 }
 template <class C> inline Settings Read(const C& c)
 {
@@ -62,7 +75,11 @@ template <class C> inline Settings Read(const C& c)
                       c.DlssNrSuperiorGainPreviewMotionThreshold.value_or_default(),
                       c.DlssNrSuperiorGainPreviewChangingMotion.value_or_default(),
                       c.DlssNrSuperiorGainPreviewMethod.value_or_default(),
-                      c.DlssNrSuperiorGainPreviewBoundaryTarget.value_or_default() });
+                      c.DlssNrSuperiorGainPreviewBoundaryTarget.value_or_default(),
+                      c.DlssNrSuperiorGainPreviewFastDownSeconds.value_or_default(),
+                      c.DlssNrSuperiorGainPreviewBoundaryUseMotion.value_or_default(),
+                      c.DlssNrSuperiorGainPreviewBoundaryMotionGate.value_or_default(),
+                      c.DlssNrSuperiorGainPreviewBoundaryMinPairs.value_or_default() });
 }
 inline uint64_t Context(uint64_t base, Settings s)
 {
@@ -71,7 +88,9 @@ inline uint64_t Context(uint64_t base, Settings s)
         return base;
     uint32_t bits;
     std::memcpy(&bits, &s.boundaryTarget, 4);
-    return ((base ^ uint64_t(bits)) * 1099511628211ull) ^ 0x424f554e44415259ull;
+    const uint64_t options =
+        uint64_t(s.boundaryMinPairs) | (uint64_t(s.boundaryUseMotion) << 32) | (uint64_t(s.boundaryMotionGate) << 33);
+    return (((base ^ uint64_t(bits)) * 1099511628211ull) ^ options) * 1099511628211ull ^ 0x424f554e44415259ull;
 }
 inline double BoundaryGain(double offset, double slope, double target)
 {
@@ -126,7 +145,7 @@ inline Reading Unpack(const void* data, size_t rowPitch)
         std::memcpy(s.motion.data() + i * 4, bytes + (Groups * 2 + i / 257) * rowPitch + (i % 257) * 16, 16);
     return s;
 }
-inline Reading UnpackBoundary(const void* data, size_t rowPitch)
+inline Reading UnpackBoundary(const void* data, size_t rowPitch, bool motionPayload = true)
 {
     Reading s;
     const auto* bytes = static_cast<const char*>(data);
@@ -153,8 +172,9 @@ inline Reading UnpackBoundary(const void* data, size_t rowPitch)
             s.boundaryPairs += counts[0];
             s.boundaryCandidates += counts[1];
         }
-    for (unsigned i = 0; i < 288; ++i)
-        std::memcpy(s.motion.data() + i * 4, at(2 + Groups + i), 16);
+    if (motionPayload)
+        for (unsigned i = 0; i < 288; ++i)
+            std::memcpy(s.motion.data() + i * 4, at(2 + Groups + i), 16);
     return s;
 }
 inline double Lower(unsigned bin)
@@ -241,10 +261,10 @@ class Filter
     void UpdateBoundary(const Reading& s, Settings settings, double time)
     {
         state.boundaryPairs = s.boundaryPairs;
-        if (s.boundaryPairs < 64 || s.boundaryPairs > s.boundaryCandidates || s.boundaryCandidates > 2ull * s.samples ||
-            s.boundaryPairs < .95 * double(s.boundaryCandidates))
+        if (s.boundaryPairs < settings.boundaryMinPairs || s.boundaryPairs > s.boundaryCandidates ||
+            s.boundaryCandidates > 2ull * s.samples || s.boundaryPairs < .95 * double(s.boundaryCandidates))
         {
-            Pause("Waiting for 64 valid moving depth-boundary pairs.", time);
+            Pause("Waiting for enough valid depth-boundary pairs.", time);
             return;
         }
         const double a = s.boundaryOffset / s.boundaryPairs, b = s.boundarySlope / s.boundaryPairs;
@@ -260,7 +280,7 @@ class Filter
         boundaryDirection = direction;
         const bool fast = changeStreak >= 2 || (state.catchingUp && delta > .07);
         const double dt = initialized ? std::clamp(time - lastTime, 0., .5) : 0;
-        const double alpha = initialized ? -std::expm1(-dt / (fast ? settings.fastSeconds : settings.slowSeconds)) : 1;
+        const double alpha = initialized ? -std::expm1(-dt / ResponseSeconds(fast, direction > 0, settings)) : 1;
         boundaryBase += alpha * (a - boundaryBase);
         boundarySlope += alpha * (b - boundarySlope);
         const double filtered = BoundaryGain(boundaryBase, boundarySlope, settings.boundaryTarget);
@@ -269,7 +289,9 @@ class Filter
             Pause("Waiting for a bounded depth-boundary estimate.", time);
             return;
         }
-        logOutput += alpha * (std::log2(filtered) - logOutput);
+        const double outAlpha =
+            initialized ? -std::expm1(-dt / ResponseSeconds(fast, std::log2(filtered) > logOutput, settings)) : 1;
+        logOutput += outAlpha * (std::log2(filtered) - logOutput);
         initialized = true;
         lastTime = time;
         state.valid = true;
@@ -282,7 +304,7 @@ class Filter
         state.measuredAt = time;
         ++state.measurements;
         state.text = fast ? "Depth boundaries: catching up to sustained contrast change."
-                          : "Measuring moving depth-boundary contrast (experimental).";
+                          : "Measuring depth-boundary contrast (experimental).";
     }
     void Update(const Reading& s, bool transformer, Settings settings, double time)
     {
@@ -335,7 +357,8 @@ class Filter
         changeStreak = initialized && tv > .15 && delta > .3 ? changeStreak + 1 : 0;
         const bool fast = changeStreak >= 2 || (state.catchingUp && delta > .07);
         const double dt = initialized ? std::clamp(time - lastTime, 0., .5) : 0;
-        const double alpha = initialized ? -std::expm1(-dt / (fast ? settings.fastSeconds : settings.slowSeconds)) : 1;
+        const double alpha =
+            initialized ? -std::expm1(-dt / ResponseSeconds(fast, std::log2(raw.value) > logOutput, settings)) : 1;
         for (unsigned i = 0; i < Bins; ++i)
         {
             histR[i] += alpha * (r[i] - histR[i]);
@@ -348,7 +371,7 @@ class Filter
             return;
         }
         const double outAlpha =
-            initialized ? -std::expm1(-dt / (fast ? settings.fastSeconds : settings.slowSeconds)) : 1;
+            initialized ? -std::expm1(-dt / ResponseSeconds(fast, std::log2(filtered.value) > logOutput, settings)) : 1;
         logOutput += outAlpha * (std::log2(filtered.value) - logOutput);
         initialized = true;
         lastTime = time;
