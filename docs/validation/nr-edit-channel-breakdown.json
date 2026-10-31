@@ -1,0 +1,458 @@
+{
+  "warning": "Breakdown of prior same-data fitted median metric, no runtime/temporal validation. Per-channel roots are hypothetical scoring choices, not separate RGB controls.",
+  "epsilon": 0.008791791791791792,
+  "mode": "positive_active",
+  "sampling": "full raw FP32 captured edit; no FP16 quantization in this prior metric",
+  "meaning": "Coverage is count(E_channel > epsilon)/count(E_channel > 0). A ratio scales only positive captured edit.",
+  "independent_targets": "For each model/channel: max coverage across all supplied clear/bad frames; accept strictly above.",
+  "files": [
+    {
+      "file": "game1-cnn-ghosting.dds",
+      "model": "cnn",
+      "ghosting": true,
+      "coverage_rgb": [
+        0.7988535992813496,
+        0.6576129832724306,
+        0.8390083340356022
+      ],
+      "parent_common_target": 0.9332132657027457,
+      "gain_by_each_channel_at_parent_target": [
+        3.5305078288074583,
+        4.707343918504193,
+        2.0767692539375275
+      ],
+      "parent_median_gain": 3.5305078288074583,
+      "median_channel": "R",
+      "independent_channel_targets": [
+        0.9320762667115542,
+        0.9332132657027457,
+        0.9527245460463251
+      ],
+      "independent_channel_gains": [
+        3.5305078288074583,
+        4.707343918504193,
+        2.824406210333109
+      ]
+    },
+    {
+      "file": "game1-cnn-ghosting2.dds",
+      "model": "cnn",
+      "ghosting": true,
+      "coverage_rgb": [
+        0.7406454778289351,
+        0.8136486776780599,
+        0.8304840406939649
+      ],
+      "parent_common_target": 0.9332132657027457,
+      "gain_by_each_channel_at_parent_target": [
+        3.000931598478928,
+        2.4007452786900103,
+        2.182495707878843
+      ],
+      "parent_median_gain": 2.4007452786900103,
+      "median_channel": "G",
+      "independent_channel_targets": [
+        0.9320762667115542,
+        0.9332132657027457,
+        0.9527245460463251
+      ],
+      "independent_channel_gains": [
+        3.000931598478928,
+        2.4007452786900103,
+        2.8808943345211446
+      ]
+    },
+    {
+      "file": "game1-cnn-noghosting.dds",
+      "model": "cnn",
+      "ghosting": false,
+      "coverage_rgb": [
+        0.9240745284987045,
+        0.8810744484473605,
+        0.942290508317016
+      ],
+      "parent_common_target": 0.9332132657027457,
+      "gain_by_each_channel_at_parent_target": [
+        1.1542045034002513,
+        1.7313067549839616,
+        0.879393940558657
+      ],
+      "parent_median_gain": 1.1542045034002513,
+      "median_channel": "R",
+      "independent_channel_targets": [
+        0.9320762667115542,
+        0.9332132657027457,
+        0.9527245460463251
+      ],
+      "independent_channel_gains": [
+        1.1542045034002513,
+        1.7313067549839616,
+        1.2043872789945453
+      ]
+    },
+    {
+      "file": "game1-cnn-noghosting2.dds",
+      "model": "cnn",
+      "ghosting": false,
+      "coverage_rgb": [
+        0.8895584218423165,
+        0.9332132657027457,
+        0.9527245460463251
+      ],
+      "parent_common_target": 0.9332132657027457,
+      "gain_by_each_channel_at_parent_target": [
+        1.5004657993558794,
+        1.0003105329815298,
+        0.750232899794355
+      ],
+      "parent_median_gain": 1.0003105329815298,
+      "median_channel": "G",
+      "independent_channel_targets": [
+        0.9320762667115542,
+        0.9332132657027457,
+        0.9527245460463251
+      ],
+      "independent_channel_gains": [
+        1.4404471672605723,
+        1.0003105329815298,
+        1.0003105329815298
+      ]
+    },
+    {
+      "file": "game1-transformer-ghosting.dds",
+      "model": "transformer",
+      "ghosting": true,
+      "coverage_rgb": [
+        0.89505990495936,
+        0.8429688205660141,
+        0.9256096186514136
+      ],
+      "parent_common_target": 0.9734622296021654,
+      "gain_by_each_channel_at_parent_target": [
+        4.501397397601977,
+        5.144454168621451,
+        2.5722270843107253
+      ],
+      "parent_median_gain": 4.501397397601977,
+      "median_channel": "R",
+      "independent_channel_targets": [
+        0.9771079940192999,
+        0.971224395902197,
+        0.9890455390127819
+      ],
+      "independent_channel_gains": [
+        5.144454168621451,
+        4.501397397601977,
+        6.001863196725026
+      ]
+    },
+    {
+      "file": "game1-transformer-ghosting2.dds",
+      "model": "transformer",
+      "ghosting": true,
+      "coverage_rgb": [
+        0.8949733216687705,
+        0.9393794245632267,
+        0.9770218832178051
+      ],
+      "parent_common_target": 0.9734622296021654,
+      "gain_by_each_channel_at_parent_target": [
+        3.6011179180350155,
+        2.000621065730229,
+        0.8574090281035751
+      ],
+      "parent_median_gain": 2.000621065730229,
+      "median_channel": "G",
+      "independent_channel_targets": [
+        0.9771079940192999,
+        0.971224395902197,
+        0.9890455390127819
+      ],
+      "independent_channel_gains": [
+        4.236609315266833,
+        1.800558959133923,
+        1.895325219957158
+      ]
+    },
+    {
+      "file": "game1-transformer-noghosting.dds",
+      "model": "transformer",
+      "ghosting": false,
+      "coverage_rgb": [
+        0.9734622296021654,
+        0.971224395902197,
+        0.9890455390127819
+      ],
+      "parent_common_target": 0.9734622296021654,
+      "gain_by_each_channel_at_parent_target": [
+        1.0020502032712102,
+        1.0288908337242901,
+        0.4236609316430986
+      ],
+      "parent_median_gain": 1.0020502032712102,
+      "median_channel": "R",
+      "independent_channel_targets": [
+        0.9771079940192999,
+        0.971224395902197,
+        0.9890455390127819
+      ],
+      "independent_channel_gains": [
+        1.2003726393450052,
+        1.0020502032712102,
+        1.0020502032712102
+      ]
+    },
+    {
+      "file": "game1-transformer-noghosting2.dds",
+      "model": "transformer",
+      "ghosting": false,
+      "coverage_rgb": [
+        0.9771079940192999,
+        0.9598528567098449,
+        0.7579547757034081
+      ],
+      "parent_common_target": 0.9734622296021654,
+      "gain_by_each_channel_at_parent_target": [
+        0.8574090281035751,
+        1.3850453530903906,
+        9.002794794971123
+      ],
+      "parent_median_gain": 1.3850453530903906,
+      "median_channel": "G",
+      "independent_channel_targets": [
+        0.9771079940192999,
+        0.971224395902197,
+        0.9890455390127819
+      ],
+      "independent_channel_gains": [
+        1.0003105329815298,
+        1.286113542271778,
+        18.005589589709416
+      ]
+    },
+    {
+      "file": "game2-cnn-ghosting1.dds",
+      "model": "cnn",
+      "ghosting": true,
+      "coverage_rgb": [
+        0.8394990524456616,
+        0.8028563608212189,
+        0.7402293585305814
+      ],
+      "parent_common_target": 0.9332132657027457,
+      "gain_by_each_channel_at_parent_target": [
+        2.0492917178198695,
+        2.6944391918368638,
+        3.1374600641429424
+      ],
+      "parent_median_gain": 2.6944391918368638,
+      "median_channel": "G",
+      "independent_channel_targets": [
+        0.9320762667115542,
+        0.9332132657027457,
+        0.9527245460463251
+      ],
+      "independent_channel_gains": [
+        2.0208293937612325,
+        2.6944391918368638,
+        4.2951943683438
+      ]
+    },
+    {
+      "file": "game2-cnn-ghosting2.dds",
+      "model": "cnn",
+      "ghosting": true,
+      "coverage_rgb": [
+        0.9197373772966436,
+        0.9054248089016619,
+        0.8908645133277958
+      ],
+      "parent_common_target": 0.9332132657027457,
+      "gain_by_each_channel_at_parent_target": [
+        1.1253493495751172,
+        1.1253493495751172,
+        1.1253493495751172
+      ],
+      "parent_median_gain": 1.1253493495751172,
+      "median_channel": "R/G/B",
+      "independent_channel_targets": [
+        0.9320762667115542,
+        0.9332132657027457,
+        0.9527245460463251
+      ],
+      "independent_channel_gains": [
+        1.1253493495751172,
+        1.1253493495751172,
+        1.2003726393450052
+      ]
+    },
+    {
+      "file": "game2-cnn-noghosting1.dds",
+      "model": "cnn",
+      "ghosting": false,
+      "coverage_rgb": [
+        0.9310265318897536,
+        0.9100177982213921,
+        0.8832361836482635
+      ],
+      "parent_common_target": 0.9332132657027457,
+      "gain_by_each_channel_at_parent_target": [
+        1.0343274832703173,
+        1.3324149411637336,
+        1.7054910282604396
+      ],
+      "parent_median_gain": 1.3324149411637336,
+      "median_channel": "G",
+      "independent_channel_targets": [
+        0.9320762667115542,
+        0.9332132657027457,
+        0.9527245460463251
+      ],
+      "independent_channel_gains": [
+        1.018766833934933,
+        1.3324149411637336,
+        2.398346876958385
+      ]
+    },
+    {
+      "file": "game2-cnn-noghosting2.dds",
+      "model": "cnn",
+      "ghosting": false,
+      "coverage_rgb": [
+        0.9320762667115542,
+        0.9090018696766152,
+        0.9345091160447777
+      ],
+      "parent_common_target": 0.9332132657027457,
+      "gain_by_each_channel_at_parent_target": [
+        1.1253493495751172,
+        1.1253493495751172,
+        0.8184358906000853
+      ],
+      "parent_median_gain": 1.1253493495751172,
+      "median_channel": "R/G",
+      "independent_channel_targets": [
+        0.9320762667115542,
+        0.9332132657027457,
+        0.9527245460463251
+      ],
+      "independent_channel_gains": [
+        1.0003105329815298,
+        1.1253493495751172,
+        1.1253493495751172
+      ]
+    },
+    {
+      "file": "game2-transformer-ghosting1.dds",
+      "model": "transformer",
+      "ghosting": true,
+      "coverage_rgb": [
+        0.9161060100414342,
+        0.8957010447050539,
+        0.8704775774762891
+      ],
+      "parent_common_target": 0.9734622296021654,
+      "gain_by_each_channel_at_parent_target": [
+        3.000931598478928,
+        3.6011179180350155,
+        4.501397397601977
+      ],
+      "parent_median_gain": 3.6011179180350155,
+      "median_channel": "G",
+      "independent_channel_targets": [
+        0.9771079940192999,
+        0.971224395902197,
+        0.9890455390127819
+      ],
+      "independent_channel_gains": [
+        3.4296361124143004,
+        3.2737435619346797,
+        10.28890833701007
+      ]
+    },
+    {
+      "file": "game2-transformer-ghosting2.dds",
+      "model": "transformer",
+      "ghosting": true,
+      "coverage_rgb": [
+        0.9378223319142568,
+        0.9202867198567999,
+        0.9398690565877538
+      ],
+      "parent_common_target": 0.9734622296021654,
+      "gain_by_each_channel_at_parent_target": [
+        1.1253493495751172,
+        2.250698698917404,
+        1.1253493495751172
+      ],
+      "parent_median_gain": 1.1253493495751172,
+      "median_channel": "R/B",
+      "independent_channel_targets": [
+        0.9771079940192999,
+        0.971224395902197,
+        0.9890455390127819
+      ],
+      "independent_channel_gains": [
+        1.5004657993558794,
+        2.250698698917404,
+        2.250698698917404
+      ]
+    },
+    {
+      "file": "game2-transformer-noghosting1.dds",
+      "model": "transformer",
+      "ghosting": false,
+      "coverage_rgb": [
+        0.9744693072492858,
+        0.9694551682819526,
+        0.9626092979344786
+      ],
+      "parent_common_target": 0.9734622296021654,
+      "gain_by_each_channel_at_parent_target": [
+        0.971804280532524,
+        1.1661650885362178,
+        1.3719589177053422
+      ],
+      "parent_median_gain": 1.1661650885362178,
+      "median_channel": "G",
+      "independent_channel_targets": [
+        0.9771079940192999,
+        0.971224395902197,
+        0.9890455390127819
+      ],
+      "independent_channel_gains": [
+        1.1106334635987878,
+        1.0601500449702144,
+        3.217007182072848
+      ]
+    },
+    {
+      "file": "game2-transformer-noghosting2.dds",
+      "model": "transformer",
+      "ghosting": false,
+      "coverage_rgb": [
+        0.9332892081561329,
+        0.9223301479855139,
+        0.9842219683997744
+      ],
+      "parent_common_target": 0.9734622296021654,
+      "gain_by_each_channel_at_parent_target": [
+        1.1253493495751172,
+        1.1253493495751172,
+        0.5626746749039739
+      ],
+      "parent_median_gain": 1.1253493495751172,
+      "median_channel": "R/G",
+      "independent_channel_targets": [
+        0.9771079940192999,
+        0.971224395902197,
+        0.9890455390127819
+      ],
+      "independent_channel_gains": [
+        1.1253493495751172,
+        1.1253493495751172,
+        1.1253493495751172
+      ]
+    }
+  ]
+}

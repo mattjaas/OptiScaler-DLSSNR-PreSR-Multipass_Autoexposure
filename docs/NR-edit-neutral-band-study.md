@@ -29,7 +29,7 @@ Sprawdzono min, medianę, średnią, średnią geometryczną, RMS i max trzech o
 
 Cel dla rodziny leży ponad wszystkimi wynikami złymi i pierwszymi dobrymi. Liczone są względne propozycje mnożnika przy niezmienionej jasności NR i bazowym edicie. Dopuszczamy wyłącznie zapas w górę; nie potrzeba od użytkownika liczbowych ustawień dawnych suwaków. Testy nie zakładają, która para zmieniała jasność, a która mnożnik.
 
-## Najlepszy sprawdzony kandydat per kanał
+## Poprzedni kandydat per kanał: mediana RGB
 
 Pełnoobrazowa weryfikacja trzech wybranych epsilon wskazała `positive_active/median`, epsilon **0,0087917918**. Jest to mediana trzech odsetków, nie mediana jasności/pikseli. Jeden cel na CNN i jeden na transformer:
 
@@ -66,3 +66,9 @@ python tools/analyze_nr_edit_channel_coverage.py `
 Domyślne uruchomienie bez `--full`, `--epsilon`, `--modes` i `--aggregations` odtwarza szerokie przeszukiwanie. Pominięto rounding FP16; górny clamp nie został osiągnięty przez omawianego kandydata. To analiza CPU, bez zmian produkcyjnych shaderów, konfiguracji i kosztu domyślnego renderowania. Niezależne kontrole potwierdziły niezmienność kanałów ujemnych i monotoniczność odległości RGB oraz osiąganie progów dla przypadków stałej ujemnej składowej.
 
 Do sprawdzenia hipotezy w odniesieniu do faktycznych obiektów i ruchu przygotowano [zapis editu wraz z depth/MV](NR-object-contrast-study.md). DLL Release dla `f6e99081` przeszła pełny build, profile, polityki, ABI/shadery i testy GPU WARP; lokalnie testy GPU przeszły też na RTX 4090. Niniejsza dalsza analiza nie zmienia tej DLL.
+
+Dalsze badanie na prośbę użytkownika: [wszystkie bieżące algorytmy ekspozycji na 16 editach](NR-edit-exposure-study.md), z wykonaniem rzeczywistych PSO, osobnymi R/G/B i audytem mnożnika. Nie zmienia produkcyjnego transportu ani DLL.
+
+Rozpiska wcześniejszych +33–39% na R/G/B, porównanie trzech oddzielnych progów oraz dodatkowe pasma pojedynczych kanałów: [NR-edit-channel-breakdown.md](NR-edit-channel-breakdown.md).
+
+Dalsza propozycja użytkownika: [średnia odsetków R/G oraz dwóch wybranych kanałów](NR-edit-rg-mean-study.md), z oddzielnym wyjaśnieniem średniej gotowych propozycji mnożnika.

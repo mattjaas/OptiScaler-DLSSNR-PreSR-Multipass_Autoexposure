@@ -1,0 +1,175 @@
+{
+  "warning": "Hypothetical arithmetic averages of prior channel gain roots; no image/channel controls are modified.",
+  "files": [
+    {
+      "file": "game1-cnn-ghosting.dds",
+      "model": "cnn",
+      "ghosting": true,
+      "rg_gain_mean": 4.118925873655826,
+      "lowest_two_gain_mean": 2.803638541372493
+    },
+    {
+      "file": "game1-cnn-ghosting2.dds",
+      "model": "cnn",
+      "ghosting": true,
+      "rg_gain_mean": 2.7008384385844693,
+      "lowest_two_gain_mean": 2.2916204932844266
+    },
+    {
+      "file": "game1-cnn-noghosting.dds",
+      "model": "cnn",
+      "ghosting": false,
+      "rg_gain_mean": 1.4427556291921064,
+      "lowest_two_gain_mean": 1.0167992219794542
+    },
+    {
+      "file": "game1-cnn-noghosting2.dds",
+      "model": "cnn",
+      "ghosting": false,
+      "rg_gain_mean": 1.2503881661687046,
+      "lowest_two_gain_mean": 0.8752717163879424
+    },
+    {
+      "file": "game1-transformer-ghosting.dds",
+      "model": "transformer",
+      "ghosting": true,
+      "rg_gain_mean": 4.822925783111714,
+      "lowest_two_gain_mean": 3.536812240956351
+    },
+    {
+      "file": "game1-transformer-ghosting2.dds",
+      "model": "transformer",
+      "ghosting": true,
+      "rg_gain_mean": 2.8008694918826222,
+      "lowest_two_gain_mean": 1.429015046916902
+    },
+    {
+      "file": "game1-transformer-noghosting.dds",
+      "model": "transformer",
+      "ghosting": false,
+      "rg_gain_mean": 1.0154705184977502,
+      "lowest_two_gain_mean": 0.7128555674571544
+    },
+    {
+      "file": "game1-transformer-noghosting2.dds",
+      "model": "transformer",
+      "ghosting": false,
+      "rg_gain_mean": 1.1212271905969828,
+      "lowest_two_gain_mean": 1.1212271905969828
+    },
+    {
+      "file": "game2-cnn-ghosting1.dds",
+      "model": "cnn",
+      "ghosting": true,
+      "rg_gain_mean": 2.3718654548283666,
+      "lowest_two_gain_mean": 2.3718654548283666
+    },
+    {
+      "file": "game2-cnn-ghosting2.dds",
+      "model": "cnn",
+      "ghosting": true,
+      "rg_gain_mean": 1.1253493495751172,
+      "lowest_two_gain_mean": 1.1253493495751172
+    },
+    {
+      "file": "game2-cnn-noghosting1.dds",
+      "model": "cnn",
+      "ghosting": false,
+      "rg_gain_mean": 1.1833712122170255,
+      "lowest_two_gain_mean": 1.1833712122170255
+    },
+    {
+      "file": "game2-cnn-noghosting2.dds",
+      "model": "cnn",
+      "ghosting": false,
+      "rg_gain_mean": 1.1253493495751172,
+      "lowest_two_gain_mean": 0.9718926200876012
+    },
+    {
+      "file": "game2-transformer-ghosting1.dds",
+      "model": "transformer",
+      "ghosting": true,
+      "rg_gain_mean": 3.301024758256972,
+      "lowest_two_gain_mean": 3.301024758256972
+    },
+    {
+      "file": "game2-transformer-ghosting2.dds",
+      "model": "transformer",
+      "ghosting": true,
+      "rg_gain_mean": 1.6880240242462605,
+      "lowest_two_gain_mean": 1.1253493495751172
+    },
+    {
+      "file": "game2-transformer-noghosting1.dds",
+      "model": "transformer",
+      "ghosting": false,
+      "rg_gain_mean": 1.068984684534371,
+      "lowest_two_gain_mean": 1.068984684534371
+    },
+    {
+      "file": "game2-transformer-noghosting2.dds",
+      "model": "transformer",
+      "ghosting": false,
+      "rg_gain_mean": 1.1253493495751172,
+      "lowest_two_gain_mean": 0.8440120122395456
+    }
+  ],
+  "summary": {
+    "cnn": {
+      "rg_gain_mean": {
+        "clear_range": [
+          1.1253493495751172,
+          1.4427556291921064
+        ],
+        "bad_range": [
+          1.1253493495751172,
+          4.118925873655826
+        ],
+        "clear_below_one": 0,
+        "minimum_one_sided_scale": 0.8886129452845523,
+        "maximum_scaled_clear": 1.282051328982265
+      },
+      "lowest_two_gain_mean": {
+        "clear_range": [
+          0.8752717163879424,
+          1.1833712122170255
+        ],
+        "bad_range": [
+          1.1253493495751172,
+          2.803638541372493
+        ],
+        "clear_below_one": 2,
+        "minimum_one_sided_scale": 1.1425023581554585,
+        "maximum_scaled_clear": 1.352004400531235
+      }
+    },
+    "transformer": {
+      "rg_gain_mean": {
+        "clear_range": [
+          1.0154705184977502,
+          1.1253493495751172
+        ],
+        "bad_range": [
+          1.6880240242462605,
+          4.822925783111714
+        ],
+        "clear_below_one": 0,
+        "minimum_one_sided_scale": 0.9847651721877296,
+        "maximum_scaled_clear": 1.10820484600569
+      },
+      "lowest_two_gain_mean": {
+        "clear_range": [
+          0.7128555674571544,
+          1.1212271905969828
+        ],
+        "bad_range": [
+          1.1253493495751172,
+          3.536812240956351
+        ],
+        "clear_below_one": 2,
+        "minimum_one_sided_scale": 1.402808711401562,
+        "maximum_scaled_clear": 1.572867270429747
+      }
+    }
+  }
+}
