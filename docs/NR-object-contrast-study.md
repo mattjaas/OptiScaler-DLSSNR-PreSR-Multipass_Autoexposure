@@ -48,3 +48,7 @@ Syntetyczny pomiar samych kopii: RTX 4090, sterownik 616.56, rezydentne procedur
 | 2496×1404 | 2,131104 (2,127552–2,234570) | 3,810000 (3,794803–4,007818) | +1,678896 |
 
 [Surowe timestampy](validation/edit-dump-guides-timing.csv), odtwarzanie: kompilacja `tests/nr_gpu/edit_dump_copy_timing.cpp` z MSVC C++17, d3d12.lib i dxgi.lib. Jest to koszt jednorazowej diagnostyki, nie koszt metryki ani automatu. Nie mierzono kosztu całego toru ani poprawy ghostingu w grze. Brak aktywnej gry podczas prac uniemożliwia taki pomiar; należy porównać zapis zwykły i rozszerzony w tej samej scenie po rozgrzewce, timestampami GPU, z wieloma oknami ABBA.
+
+## Dalszy test pasma wokół 0,5 i osobnych kanałów
+
+Na prośbę użytkownika sprawdzono też odsetki wartości oddalonych od 0,5 oraz oddzielne odsetki R/G/B, z ujemnym editem pozostawionym bez zmian. [Wyniki, korekta pomylenia Y z pojedynczym kanałem i ograniczenia regulatora](NR-edit-neutral-band-study.md). To dalsza analiza CPU; produkcyjny transport mnożnika pozostaje per kanał i nie podnosi składowych poniżej 0,5.

@@ -1,0 +1,206 @@
+{
+  "warning": "Post-hoc same-data screening; no FP16 rounding, upper cap or temporal validation.",
+  "input_mode": "plain residual around 0.5; only positive gain changes",
+  "sampling": "full",
+  "epsilons": [
+    0.02136842075012243,
+    0.2972362794946059
+  ],
+  "candidates": [
+    {
+      "metric": "all_channels",
+      "epsilon": 0.2972362794946059,
+      "worst": 2.1210449491461776,
+      "families": {
+        "cnn": {
+          "target_coverage_lower_bound": 0.0036171835050040177,
+          "first_clear_gain_ratios": [
+            1.6174835655488184,
+            1.8253070476910134,
+            1.4393650788583396,
+            1.0012169414555148
+          ],
+          "worst": 1.8253070476910134,
+          "clear_files": [
+            "game1-cnn-noghosting.dds",
+            "game1-cnn-noghosting2.dds",
+            "game2-cnn-noghosting1.dds",
+            "game2-cnn-noghosting2.dds"
+          ],
+          "clear_coverage": [
+            0.001585103978300181,
+            0.002401319507233273,
+            0.002571350628241654,
+            0.0036171835050040177
+          ],
+          "bad_coverage": [
+            0.001425816568716094,
+            0.0014657267179023507,
+            0.0022857084155161076,
+            0.001440766765285996
+          ],
+          "labels_separable": false
+        },
+        "transformer": {
+          "target_coverage_lower_bound": 0.07859403254972876,
+          "first_clear_gain_ratios": [
+            1.0001468621282263,
+            2.1210449491461776,
+            1.4990934321939644,
+            2.11368020973942
+          ],
+          "worst": 2.1210449491461776,
+          "clear_files": [
+            "game1-transformer-noghosting.dds",
+            "game1-transformer-noghosting2.dds",
+            "game2-transformer-noghosting1.dds",
+            "game2-transformer-noghosting2.dds"
+          ],
+          "clear_coverage": [
+            0.07859403254972876,
+            0.009306481690777578,
+            0.02738170246183067,
+            0.006308669369566805
+          ],
+          "bad_coverage": [
+            0.0015579085669077757,
+            0.016259677328209765,
+            0.00286583890349916,
+            0.003558114635838995
+          ],
+          "labels_separable": false
+        }
+      }
+    },
+    {
+      "metric": "luma_abs",
+      "epsilon": 0.2972362794946059,
+      "worst": 2.8396030339589644,
+      "families": {
+        "cnn": {
+          "target_coverage_lower_bound": 0.017446432811016144,
+          "first_clear_gain_ratios": [
+            1.9485523421426496,
+            2.8396030339589644,
+            1.395597780208936,
+            1.0012169414555148
+          ],
+          "worst": 2.8396030339589644,
+          "clear_files": [
+            "game1-cnn-noghosting.dds",
+            "game1-cnn-noghosting2.dds",
+            "game2-cnn-noghosting1.dds",
+            "game2-cnn-noghosting2.dds"
+          ],
+          "clear_coverage": [
+            0.0019880905289330923,
+            0.002752034358047016,
+            0.016211122981956316,
+            0.017446432811016144
+          ],
+          "bad_coverage": [
+            0.0016398479882459313,
+            0.0014660799050632911,
+            0.015267733216451165,
+            0.007858727810650888
+          ],
+          "labels_separable": false
+        },
+        "transformer": {
+          "target_coverage_lower_bound": 0.13201924163652803,
+          "first_clear_gain_ratios": [
+            1.000015493975474,
+            2.571235059788608,
+            1.4828832246267272,
+            2.3058329560793673
+          ],
+          "worst": 2.571235059788608,
+          "clear_files": [
+            "game1-transformer-noghosting.dds",
+            "game1-transformer-noghosting2.dds",
+            "game2-transformer-noghosting1.dds",
+            "game2-transformer-noghosting2.dds"
+          ],
+          "clear_coverage": [
+            0.13201924163652803,
+            0.009838028367992767,
+            0.05164388377529403,
+            0.008596089926218131
+          ],
+          "bad_coverage": [
+            0.002091927554249548,
+            0.0173810465641953,
+            0.014528658959748704,
+            0.01866576265614727
+          ],
+          "labels_separable": false
+        }
+      }
+    },
+    {
+      "metric": "luma_abs",
+      "epsilon": 0.02136842075012243,
+      "worst": 15.411368308409227,
+      "families": {
+        "cnn": {
+          "target_coverage_lower_bound": 0.7873027042698517,
+          "first_clear_gain_ratios": [
+            2.100600380162433,
+            1.1009440426729746,
+            1.3123843789493688,
+            1.0002863016285883
+          ],
+          "worst": 2.100600380162433,
+          "clear_files": [
+            "game1-cnn-noghosting.dds",
+            "game1-cnn-noghosting2.dds",
+            "game2-cnn-noghosting1.dds",
+            "game2-cnn-noghosting2.dds"
+          ],
+          "clear_coverage": [
+            0.6609057131555154,
+            0.7674686369801085,
+            0.7374066312367594,
+            0.7873027042698517
+          ],
+          "bad_coverage": [
+            0.46322014862115735,
+            0.4213123728526221,
+            0.5924145299145299,
+            0.7535643924866682
+          ],
+          "labels_separable": false
+        },
+        "transformer": {
+          "target_coverage_lower_bound": 0.8536554871157324,
+          "first_clear_gain_ratios": [
+            1.0000726127318886,
+            15.411368308409227,
+            1.0777392992918704,
+            2.156771904010448
+          ],
+          "worst": 15.411368308409227,
+          "clear_files": [
+            "game1-transformer-noghosting.dds",
+            "game1-transformer-noghosting2.dds",
+            "game2-transformer-noghosting1.dds",
+            "game2-transformer-noghosting2.dds"
+          ],
+          "clear_coverage": [
+            0.8536554871157324,
+            0.8522441512206148,
+            0.8490174022024983,
+            0.798499536580466
+          ],
+          "bad_coverage": [
+            0.6001444535488246,
+            0.8033199593128391,
+            0.7163900988019578,
+            0.8032978121119146
+          ],
+          "labels_separable": false
+        }
+      }
+    }
+  ]
+}
