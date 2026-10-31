@@ -1,0 +1,615 @@
+{
+  "warning": "One static scene, seeded depth masks. Numerical carrier contrast is not a ghosting forecast.",
+  "sha256": {
+    "nr-edit.dds": "e26366a0807b2ae042fa01676fe716edbba7aa8499a31a0d6e5bc2a45a21443b",
+    "nr-edit.depth.dds": "9ed9d4ac25a3abb7a6567b9c3987c880296b7855127dd7750cea2c224a15f476",
+    "nr-edit.json": "fb451653cc0ecc3376446d68595b13577f9137bc6c823d29a5863689b2ca0415"
+  },
+  "user_observation": "Ghosting on water during camera rotation; this capture only overlaps water with the head.",
+  "mask_description": {
+    "floor": {
+      "seed_roi": [
+        0.2,
+        0.62,
+        0.4,
+        0.88
+      ],
+      "coefficients_xy1": [
+        -2.727674382322956e-05,
+        0.03703781580518381,
+        -0.011959950139738156
+      ],
+      "median_retained_depth_error": 1.0144017500990365e-09,
+      "retained_fraction": 1.0
+    },
+    "water": {
+      "seed_roi": [
+        0.65,
+        0.36,
+        0.9,
+        0.42
+      ],
+      "coefficients_xy1": [
+        -4.577320952901606e-06,
+        0.012177015670101106,
+        -0.003937704349243952
+      ],
+      "median_retained_depth_error": 1.1672851120310412e-06,
+      "retained_fraction": 0.649896978021978
+    },
+    "object_seed_uv": [
+      0.48,
+      0.55
+    ],
+    "object_seed_depth": 0.022663502022624016,
+    "object_roi": [
+      0.4,
+      0.33,
+      0.58,
+      0.93
+    ],
+    "character_pixels": 91747,
+    "character_bbox_xyxy": [
+      1103,
+      519,
+      1395,
+      1277
+    ],
+    "head_upper_fraction": 0.12,
+    "head_cutoff_y": 609.96,
+    "head_pixels": 6548,
+    "water_pixels": 400684,
+    "warning": "ROIs and upper-head cutoff are scene-specific, visually checked priors, not semantic depth recognition."
+  },
+  "numerical_luma_weights": [
+    0.2126,
+    0.7152,
+    0.0722
+  ],
+  "measurement_stage": "Private DLSS FP16 carrier before NGX, no clipping at 1 and no exposure/normalization.",
+  "head_interior_pixels": 6111,
+  "nearby_water_pixels": 18171,
+  "region_statistics": [
+    {
+      "gain": 2.25,
+      "head": {
+        "rgb_mean": [
+          0.4023244137109311,
+          0.4735628582806619,
+          0.5168700332903781
+        ],
+        "numerical_luma_mean": 0.4615443430008386
+      },
+      "nearby_water": {
+        "rgb_mean": [
+          0.5242292406169171,
+          0.5603502028042623,
+          0.587676217642466
+        ],
+        "numerical_luma_mean": 0.554643824514551
+      },
+      "difference_of_luma_means": 0.09309948151371239,
+      "michelson_of_luma_means": 0.09161638020381933
+    },
+    {
+      "gain": 6.0,
+      "head": {
+        "rgb_mean": [
+          0.40553112151755033,
+          0.4883309890080388,
+          0.5631976245448781
+        ],
+        "numerical_luma_mean": 0.4761331082653208
+      },
+      "nearby_water": {
+        "rgb_mean": [
+          0.5823139377304496,
+          0.6687428629409499,
+          0.7383440754670905
+        ],
+        "numerical_luma_mean": 0.6553932809855847
+      },
+      "difference_of_luma_means": 0.1792601727202639,
+      "michelson_of_luma_means": 0.15842332483198907
+    }
+  ],
+  "local_pairs": [
+    {
+      "erosion_pixels": 2,
+      "maximum_pair_distance": 16,
+      "pairs": 213,
+      "distinct_water_pixels": 115,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.06704759252127347,
+          "mean_pair_michelson": 0.061119554262511526,
+          "mean_absolute_rgb_difference": [
+            0.049401225058685445,
+            0.07502109008215962,
+            0.08979102479460094
+          ],
+          "mean_absolute_rg_difference": 0.06221115757042254,
+          "first_luma_mean": 0.555477821944689,
+          "second_luma_mean": 0.5161849196742958
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.16506877200704223,
+          "mean_pair_michelson": 0.12748620443722683,
+          "mean_absolute_rgb_difference": [
+            0.10120488556338028,
+            0.1846207453051643,
+            0.23315544307511737
+          ],
+          "mean_absolute_rg_difference": 0.1429128154342723,
+          "first_luma_mean": 0.6625134114583334,
+          "second_luma_mean": 0.5520301056338028
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.4619641928927978,
+        "mean_pair_michelson": 2.085849708420111,
+        "mean_absolute_rg_difference": 2.2972216080772347
+      }
+    },
+    {
+      "erosion_pixels": 2,
+      "maximum_pair_distance": 32,
+      "pairs": 213,
+      "distinct_water_pixels": 115,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.06704759252127347,
+          "mean_pair_michelson": 0.061119554262511526,
+          "mean_absolute_rgb_difference": [
+            0.049401225058685445,
+            0.07502109008215962,
+            0.08979102479460094
+          ],
+          "mean_absolute_rg_difference": 0.06221115757042254,
+          "first_luma_mean": 0.555477821944689,
+          "second_luma_mean": 0.5161849196742958
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.16506877200704223,
+          "mean_pair_michelson": 0.12748620443722683,
+          "mean_absolute_rgb_difference": [
+            0.10120488556338028,
+            0.1846207453051643,
+            0.23315544307511737
+          ],
+          "mean_absolute_rg_difference": 0.1429128154342723,
+          "first_luma_mean": 0.6625134114583334,
+          "second_luma_mean": 0.5520301056338028
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.4619641928927978,
+        "mean_pair_michelson": 2.085849708420111,
+        "mean_absolute_rg_difference": 2.2972216080772347
+      }
+    },
+    {
+      "erosion_pixels": 2,
+      "maximum_pair_distance": 64,
+      "pairs": 213,
+      "distinct_water_pixels": 115,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.06704759252127347,
+          "mean_pair_michelson": 0.061119554262511526,
+          "mean_absolute_rgb_difference": [
+            0.049401225058685445,
+            0.07502109008215962,
+            0.08979102479460094
+          ],
+          "mean_absolute_rg_difference": 0.06221115757042254,
+          "first_luma_mean": 0.555477821944689,
+          "second_luma_mean": 0.5161849196742958
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.16506877200704223,
+          "mean_pair_michelson": 0.12748620443722683,
+          "mean_absolute_rgb_difference": [
+            0.10120488556338028,
+            0.1846207453051643,
+            0.23315544307511737
+          ],
+          "mean_absolute_rg_difference": 0.1429128154342723,
+          "first_luma_mean": 0.6625134114583334,
+          "second_luma_mean": 0.5520301056338028
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.4619641928927978,
+        "mean_pair_michelson": 2.085849708420111,
+        "mean_absolute_rg_difference": 2.2972216080772347
+      }
+    },
+    {
+      "erosion_pixels": 4,
+      "maximum_pair_distance": 16,
+      "pairs": 206,
+      "distinct_water_pixels": 92,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.054914093313865285,
+          "mean_pair_michelson": 0.05248057660079087,
+          "mean_absolute_rgb_difference": [
+            0.053805749393203886,
+            0.060461544296116505,
+            0.07572862939927184
+          ],
+          "mean_absolute_rg_difference": 0.05713364684466019,
+          "first_luma_mean": 0.519279310148665,
+          "second_luma_mean": 0.5188657003754552
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.12379104027609221,
+          "mean_pair_michelson": 0.10400563709000811,
+          "mean_absolute_rgb_difference": [
+            0.08866808252427184,
+            0.13564737560679613,
+            0.19194667779126215
+          ],
+          "mean_absolute_rg_difference": 0.11215772906553398,
+          "first_luma_mean": 0.5785028329793689,
+          "second_luma_mean": 0.5597374943112864
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.254267216405741,
+        "mean_pair_michelson": 1.9817929570621517,
+        "mean_absolute_rg_difference": 1.9630766677729838
+      }
+    },
+    {
+      "erosion_pixels": 4,
+      "maximum_pair_distance": 32,
+      "pairs": 209,
+      "distinct_water_pixels": 92,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.05419130952825957,
+          "mean_pair_michelson": 0.05179322469405514,
+          "mean_absolute_rgb_difference": [
+            0.0530614533492823,
+            0.059647409539473686,
+            0.07504345469497607
+          ],
+          "mean_absolute_rg_difference": 0.05635443144437799,
+          "first_luma_mean": 0.5189780764055023,
+          "second_luma_mean": 0.5185049468264055
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.12212749700956935,
+          "mean_pair_michelson": 0.10262658598194803,
+          "mean_absolute_rgb_difference": [
+            0.087423370215311,
+            0.13375401839114834,
+            0.19025680322966507
+          ],
+          "mean_absolute_rg_difference": 0.11058869430322966,
+          "first_luma_mean": 0.5773994056519138,
+          "second_luma_mean": 0.5587900642942583
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.253636202422504,
+        "mean_pair_michelson": 1.9814673943970045,
+        "mean_absolute_rg_difference": 1.9623779615695542
+      }
+    },
+    {
+      "erosion_pixels": 4,
+      "maximum_pair_distance": 64,
+      "pairs": 209,
+      "distinct_water_pixels": 92,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.05419130952825957,
+          "mean_pair_michelson": 0.05179322469405514,
+          "mean_absolute_rgb_difference": [
+            0.0530614533492823,
+            0.059647409539473686,
+            0.07504345469497607
+          ],
+          "mean_absolute_rg_difference": 0.05635443144437799,
+          "first_luma_mean": 0.5189780764055023,
+          "second_luma_mean": 0.5185049468264055
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.12212749700956935,
+          "mean_pair_michelson": 0.10262658598194803,
+          "mean_absolute_rgb_difference": [
+            0.087423370215311,
+            0.13375401839114834,
+            0.19025680322966507
+          ],
+          "mean_absolute_rg_difference": 0.11058869430322966,
+          "first_luma_mean": 0.5773994056519138,
+          "second_luma_mean": 0.5587900642942583
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.253636202422504,
+        "mean_pair_michelson": 1.9814673943970045,
+        "mean_absolute_rg_difference": 1.9623779615695542
+      }
+    },
+    {
+      "erosion_pixels": 8,
+      "maximum_pair_distance": 16,
+      "pairs": 75,
+      "distinct_water_pixels": 37,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.05608578125,
+          "mean_pair_michelson": 0.054096826698350725,
+          "mean_absolute_rgb_difference": [
+            0.07701171875,
+            0.055123697916666665,
+            0.06649088541666667
+          ],
+          "mean_absolute_rg_difference": 0.06606770833333334,
+          "first_luma_mean": 0.49737627213541674,
+          "second_luma_mean": 0.5369041315104167
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.11490375,
+          "mean_pair_michelson": 0.09753381153325362,
+          "mean_absolute_rgb_difference": [
+            0.108359375,
+            0.12223307291666667,
+            0.16716145833333335
+          ],
+          "mean_absolute_rg_difference": 0.11529622395833333,
+          "first_luma_mean": 0.5305252552083334,
+          "second_luma_mean": 0.6039618072916668
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.0487144413273195,
+        "mean_pair_michelson": 1.8029488509023244,
+        "mean_absolute_rg_difference": 1.7451221915648403
+      }
+    },
+    {
+      "erosion_pixels": 8,
+      "maximum_pair_distance": 32,
+      "pairs": 200,
+      "distinct_water_pixels": 71,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.06858856542968748,
+          "mean_pair_michelson": 0.06629046821957106,
+          "mean_absolute_rgb_difference": [
+            0.08506103515625,
+            0.067083740234375,
+            0.06114013671875
+          ],
+          "mean_absolute_rg_difference": 0.0760723876953125,
+          "first_luma_mean": 0.48395078759765625,
+          "second_luma_mean": 0.5406677338867187
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.13952094531250003,
+          "mean_pair_michelson": 0.1189847962058256,
+          "mean_absolute_rgb_difference": [
+            0.1277978515625,
+            0.146610107421875,
+            0.1503955078125
+          ],
+          "mean_absolute_rg_difference": 0.1372039794921875,
+          "first_luma_mean": 0.49950340624999995,
+          "second_luma_mean": 0.61585458203125
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.0341720874090563,
+        "mean_pair_michelson": 1.7949005249399865,
+        "mean_absolute_rg_difference": 1.8035976475685391
+      }
+    },
+    {
+      "erosion_pixels": 8,
+      "maximum_pair_distance": 64,
+      "pairs": 200,
+      "distinct_water_pixels": 71,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.06858856542968748,
+          "mean_pair_michelson": 0.06629046821957106,
+          "mean_absolute_rgb_difference": [
+            0.08506103515625,
+            0.067083740234375,
+            0.06114013671875
+          ],
+          "mean_absolute_rg_difference": 0.0760723876953125,
+          "first_luma_mean": 0.48395078759765625,
+          "second_luma_mean": 0.5406677338867187
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.13952094531250003,
+          "mean_pair_michelson": 0.1189847962058256,
+          "mean_absolute_rgb_difference": [
+            0.1277978515625,
+            0.146610107421875,
+            0.1503955078125
+          ],
+          "mean_absolute_rg_difference": 0.1372039794921875,
+          "first_luma_mean": 0.49950340624999995,
+          "second_luma_mean": 0.61585458203125
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.0341720874090563,
+        "mean_pair_michelson": 1.7949005249399865,
+        "mean_absolute_rg_difference": 1.8035976475685391
+      }
+    }
+  ],
+  "head_cutoff_sensitivity": [
+    {
+      "upper_fraction": 0.12,
+      "cutoff_y": 609.96,
+      "pairs": 213,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.06704759252127347,
+          "mean_pair_michelson": 0.061119554262511526,
+          "mean_absolute_rgb_difference": [
+            0.049401225058685445,
+            0.07502109008215962,
+            0.08979102479460094
+          ],
+          "mean_absolute_rg_difference": 0.06221115757042254,
+          "first_luma_mean": 0.555477821944689,
+          "second_luma_mean": 0.5161849196742958
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.16506877200704223,
+          "mean_pair_michelson": 0.12748620443722683,
+          "mean_absolute_rgb_difference": [
+            0.10120488556338028,
+            0.1846207453051643,
+            0.23315544307511737
+          ],
+          "mean_absolute_rg_difference": 0.1429128154342723,
+          "first_luma_mean": 0.6625134114583334,
+          "second_luma_mean": 0.5520301056338028
+        }
+      ],
+      "absolute_luma_difference_ratio": 2.4619641928927978
+    },
+    {
+      "upper_fraction": 0.15,
+      "cutoff_y": 632.7,
+      "pairs": 272,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.06736827392578124,
+          "mean_pair_michelson": 0.06197316505512586,
+          "mean_absolute_rgb_difference": [
+            0.05917717428768382,
+            0.07257259593290441,
+            0.08092005112591912
+          ],
+          "mean_absolute_rg_difference": 0.06587488511029412,
+          "first_luma_mean": 0.5430829442641314,
+          "second_luma_mean": 0.5221167333266313
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.16279016687729775,
+          "mean_pair_michelson": 0.12808606510574247,
+          "mean_absolute_rgb_difference": [
+            0.12560676125919118,
+            0.17551197725183823,
+            0.20839197495404413
+          ],
+          "mean_absolute_rg_difference": 0.15055936925551472,
+          "first_luma_mean": 0.6317030273437498,
+          "second_luma_mean": 0.5674074391084559
+        }
+      ],
+      "absolute_luma_difference_ratio": 2.4164218168427705
+    }
+  ],
+  "within_water_contrast": [
+    {
+      "offset_pixels": 1,
+      "pairs": 35750,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.01557141085008741,
+          "mean_pair_michelson": 0.014329949365982912,
+          "mean_absolute_rgb_difference": [
+            0.013780717329545455,
+            0.01623560423951049,
+            0.016225729348776224
+          ],
+          "mean_absolute_rg_difference": 0.015008160784527972,
+          "first_luma_mean": 0.555188261404611,
+          "second_luma_mean": 0.555181432973667
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.03634858597027971,
+          "mean_pair_michelson": 0.028722379051491848,
+          "mean_absolute_rgb_difference": [
+            0.028838068181818183,
+            0.0386100305944056,
+            0.040274366258741257
+          ],
+          "mean_absolute_rg_difference": 0.03372404938811189,
+          "first_luma_mean": 0.6568359487980768,
+          "second_luma_mean": 0.6565242044471153
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.3343155170859595,
+        "mean_pair_michelson": 2.004360121444277,
+        "mean_absolute_rg_difference": 2.247047447871046
+      }
+    },
+    {
+      "offset_pixels": 4,
+      "pairs": 34190,
+      "statistics": [
+        {
+          "gain": 2.25,
+          "mean_absolute_luma_difference": 0.025441754570620975,
+          "mean_pair_michelson": 0.023104783530116878,
+          "mean_absolute_rgb_difference": [
+            0.02281345971044165,
+            0.026280156615603976,
+            0.026636377710039485
+          ],
+          "mean_absolute_rg_difference": 0.024546808163022814,
+          "first_luma_mean": 0.5566386721406341,
+          "second_luma_mean": 0.5559722989006746
+        },
+        {
+          "gain": 6.0,
+          "mean_absolute_luma_difference": 0.06023194712680972,
+          "mean_pair_michelson": 0.04630008239709974,
+          "mean_absolute_rgb_difference": [
+            0.0489345214700936,
+            0.06330255785682948,
+            0.06673149472616262
+          ],
+          "mean_absolute_rg_difference": 0.05611853966346154,
+          "first_luma_mean": 0.6606591995386534,
+          "second_luma_mean": 0.6583881970868217
+        }
+      ],
+      "ratios_6_over_2_25": {
+        "mean_absolute_luma_difference": 2.367444704319369,
+        "mean_pair_michelson": 2.0039176015974354,
+        "mean_absolute_rg_difference": 2.2861847980707415
+      }
+    }
+  ]
+}

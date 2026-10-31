@@ -77,3 +77,8 @@ Narzędzie CPU sprawdza syntetycznie: stały duży MV i płynny gradient nie two
 W folderach starych 16 zapisów nie ma odpowiadających im plików `game*-*.motion.dds`, więc nie zweryfikowano tej selekcji na ich etykietach ani osobno na CNN. Nie ma nowego potwierdzonego regulatora. Różnica MV jest sensownym kandydatem na wybór obszaru pomiaru, nie dowodem ghostingu; 6x pozostaje wyłącznie obserwacją tej sceny. Progów i DLL nie zmieniono.
 
 Odtworzenie: `python tools/analyze_nr_motion_boundaries.py <nr-edit.json> --observed-plateau-gain 6 --output <report.json> --preview <local.png>`. NumPy jest wymagane, Pillow tylko do opcjonalnej ilustracji. Nie jest potrzebne GPU.
+
+
+## Fragment głowy na tle wody
+
+Po doprecyzowaniu użytkownika, że ghosting występował na wodzie, sprawdzono [kontrast głowy i pobliskiej wody](NR-edit-head-water-contrast.md) po wydzieleniu masek z głębi i wizualnie wskazanych obszarów. Różnica średnich Y rośnie 0,0931→0,1793. Lokalna różnica przy obrysie głowy rośnie 0,0670→0,1651 (2,46x), a kontrast samej wody także rośnie (około 2,33x dla różnicy sąsiadów). To osobna analiza wejścia, bez dowodu przyczyny ghostingu lub nowego progu automatu.
