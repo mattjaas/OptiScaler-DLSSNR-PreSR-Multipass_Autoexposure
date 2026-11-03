@@ -1,6 +1,7 @@
 #pragma once
 #include "DlssNr_GainPreview.h"
 #include "DlssNr_DepthTransport.h"
+#include "DlssNr_GhostRejection.h"
 #include <cmath>
 #include <cstdint>
 #include <iomanip>
@@ -58,6 +59,7 @@ struct Metadata
     bool previewEnabledAtRequest = false, previewEnabledAtCapture = false;
     uint32_t privatePresetAtRequest = 0;
     uint32_t cnnPresetOverride = 0, transformerPresetOverride = 0, transformer2PresetOverride = 0;
+    DlssNr::GhostRejection::Settings ghostRejection;
     bool residentCnnEnabled = false;
     uint32_t activePrivatePreset = 0, residentPrivateInstances = 1;
     bool lowMotionResetEnabled = false, lowMotionResetRequested = false, lowMotionSharedProbe = false;
@@ -178,6 +180,10 @@ inline std::string MetadataJson(const Metadata& m)
     value("depth_colour_strength", m.depthStrength);
     value("full_nr_answer", m.fullNrAnswer);
     value("private_preset", m.privatePreset);
+    value("ghost_rejection_enabled", m.ghostRejection.enabled);
+    value("ghost_rejection_threshold", m.ghostRejection.threshold);
+    value("ghost_rejection_softness", m.ghostRejection.softness);
+    value("ghost_rejection_strength", m.ghostRejection.strength);
     value("resident_cnn_e_enabled", m.residentCnnEnabled);
     value("active_private_preset", m.activePrivatePreset);
     value("resident_private_instances", m.residentPrivateInstances);

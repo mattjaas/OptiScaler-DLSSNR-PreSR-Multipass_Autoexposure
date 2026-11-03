@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "../../OptiScaler/shaders/dlssnr/superior/Fields.h"
 #include "interpass_fixture.h"
 #include "../../OptiScaler/dlssnr/DlssNr_PrivateExposure.h"
 #include <cmath>
@@ -84,7 +85,7 @@ struct Fixture
         }
         return t;
     }
-    void dispatch(ID3D12PipelineState* ps, const DlssNrConstants& c, ID3D12Resource* source,
+    void dispatch(ID3D12PipelineState* ps, const DlssNr::Superior::DlssNrConstants& c, ID3D12Resource* source,
                   ID3D12Resource* model, ID3D12Resource* target, UINT gx, UINT gy, ID3D12Resource* depth = nullptr,
                   ID3D12Resource* rawProxy = nullptr, ID3D12Resource* rawAnswer = nullptr)
     {
@@ -151,7 +152,7 @@ struct Fixture
         auto previous = texture(1, 1, &state, DXGI_FORMAT_R32G32_FLOAT),
              sums = texture((sw + 31) / 32, (sh + 31) / 32, nullptr, DXGI_FORMAT_R32_FLOAT),
              output = texture(1, 1, nullptr, DXGI_FORMAT_R32G32_FLOAT);
-        DlssNrConstants c {};
+        DlssNr::Superior::DlssNrConstants c {};
         c.Mode = 40; c.Width = sw; c.Height = sh; c.ExposureMode = method; c.PreExposure = pre;
         c.ExposureSourceWidth = w; c.ExposureSourceHeight = h;
         c.ResidualMotionBaseX = ox; c.ResidualMotionBaseY = oy;
@@ -191,7 +192,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
              depth = f.texture(w, h, &b, DXGI_FORMAT_R32_FLOAT);
         auto proxy = f.texture(w, h, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT),
              answer = f.texture(w, h, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT);
-        DlssNrConstants seed {}; seed.Mode = 37; seed.Width = w; seed.Height = h; seed.WhitePoint = 1;
+        DlssNr::Superior::DlssNrConstants seed {}; seed.Mode = 37; seed.Width = w; seed.Height = h; seed.WhitePoint = 1;
         f.dispatch(f.carrier.Get(), seed, in.Get(), in.Get(), proxy.Get(), (w + 7) / 8, (h + 7) / 8);
         f.dispatch(f.carrier.Get(), seed, in.Get(), model.Get(), answer.Get(), (w + 7) / 8, (h + 7) / 8);
         r.barrier(proxy.Get(), UAV, SRV); r.barrier(answer.Get(), UAV, SRV);
@@ -218,7 +219,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
         };
         table(0, proxy.Get(), answer.Get(), encoded.Get()); table(8, encoded.Get(), previous.Get(), sums.Get());
         table(16, sums.Get(), previous.Get(), output.Get()); table(24, encoded.Get(), fullAnswer ? proxy.Get() : previous.Get(), decoded.Get());
-        auto constants = [&](const DlssNrConstants& c)
+        auto constants = [&](const DlssNr::Superior::DlssNrConstants& c)
         {
             auto cb = r.buffer(256, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
             void* p; check(cb->Map(0, nullptr, &p)); std::memcpy(p, &c, 256); cb->Unmap(0, nullptr); return cb;
@@ -227,10 +228,10 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
         {
             if ((measureExtract || measureBlend) && method != PE::Native)
                 continue;
-            DlssNrConstants extraction = seed;
+            DlssNr::Superior::DlssNrConstants extraction = seed;
             extraction.Mode = 43;
             auto extractCb = constants(extraction);
-            DlssNrConstants c = seed; c.WhitePoint = gain; c.MaxRatio = saturation; c.DirectDetailMode = fullAnswer ? 1u : 0u;
+            DlssNr::Superior::DlssNrConstants c = seed; c.WhitePoint = gain; c.MaxRatio = saturation; c.DirectDetailMode = fullAnswer ? 1u : 0u;
             c.ResidualScale = depthStrength; c.ResidualBlend = 1.f;
             c.DirectResolveUpscaler = depthFlags;
             c.ExposureAnchors[0] = .125f; c.ExposureAnchors[1] = .75f;
@@ -311,11 +312,18 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
     std::cout << "Synthetic ABBA GPU stage timings written to " << csvPath << '\n';
 }
 
+#include "private_ghost_quality.inl"
+
 int main(int argc, char** argv)
 {
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc > 1 && std::string(argv[1]) == "--ghost-timing")
+        {
+            GhostTiming(f);
+            return 0;
+        }
         if (argc > 1 && std::string(argv[1]) == "--fade-timing")
         {
             Timing(f, "", 1.f, 0.f, false, 1.f, 0, false, true);
@@ -350,7 +358,7 @@ int main(int argc, char** argv)
             for (UINT mode : {37u, 38u}) for (float gain : {1.f, 16.f, 1024.f})
                 for (bool half : {false, true}) for (int fixture = 0; fixture < 4; ++fixture)
                 {
-                    DlssNrConstants c {}; c.Mode = mode; c.Width = 65; c.Height = 37; c.WhitePoint = gain; c.MaxRatio = 1;
+                    DlssNr::Superior::DlssNrConstants c {}; c.Mode = mode; c.Width = 65; c.Height = 37; c.WhitePoint = gain; c.MaxRatio = 1;
                     if (f.r.run(old.Get(), 65, 37, 65, 37, c, fixture, half) !=
                         f.r.run(f.carrier.Get(), 65, 37, 65, 37, c, fixture, half))
                         throw std::runtime_error("Disabled colour transport changed previous shader output");
@@ -358,6 +366,7 @@ int main(int argc, char** argv)
                 }
             std::cout << "Disabled colour transport bit parity PASS: " << cases << " cases\n"; return 0;
         }
+        GhostQuality(f);
         unsigned checks = 0;
         for (bool full : { false, true })
         for (float rawWeight : { 0.f, .25f, .5f, 1.f })
@@ -369,7 +378,7 @@ int main(int argc, char** argv)
                 for (unsigned ch=0;ch<3;++ch)filtered[ch]+=proxy[ch]-.5f;
             f.r.begin();
             auto p=f.texture(1,1,&proxy),a=f.texture(1,1,&answer),input=f.texture(1,1,&filtered),out=f.texture(1,1);
-            DlssNrConstants c {};
+            DlssNr::Superior::DlssNrConstants c {};
             c.Mode=38;c.Width=c.Height=1;c.WhitePoint=2;c.MaxRatio=1;c.DirectDetailMode=full;
             std::memcpy(&c.ExposurePadding,&rawWeight,4);
             f.dispatch(f.carrier.Get(),c,input.Get(),p.Get(),out.Get(),1,1,nullptr,p.Get(),a.Get());
@@ -391,7 +400,7 @@ int main(int argc, char** argv)
             f.r.begin();
             auto source = f.texture(2, 1, &proxy), model = f.texture(2, 1, &answer);
             auto edit = f.texture(2, 1, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT);
-            DlssNrConstants c {};
+            DlssNr::Superior::DlssNrConstants c {};
             c.Mode = 43;
             c.Width = 2;
             c.Height = 1;
@@ -486,7 +495,7 @@ int main(int argc, char** argv)
         {
             f.r.begin(); std::vector<float> dummy(4, 1.f);
             auto in = f.texture(1, 1, &dummy), out = f.texture(1, 1, nullptr, DXGI_FORMAT_R32_FLOAT);
-            DlssNrConstants c {}; c.Mode = 42; c.WhitePoint = value;
+            DlssNr::Superior::DlssNrConstants c {}; c.Mode = 42; c.WhitePoint = value;
             f.dispatch(f.meter.Get(), c, in.Get(), in.Get(), out.Get(), 1, 1);
             Near(f.read(out.Get())[0], std::isfinite(value) && value > 0 ? value : 1.f, "manual exposure"); ++checks;
         }
@@ -499,7 +508,7 @@ int main(int argc, char** argv)
             for (size_t i = 0; i < answer.size(); ++i)
                 answer[i] = i % 4 == 0 ? .25f : i % 4 == 1 ? .125f : i % 4 == 2 ? .5f : -2.f;
             f.r.begin(); auto p = f.texture(17, 9, &proxy), a = f.texture(17, 9, &answer), out = f.texture(17, 9);
-            DlssNrConstants c {}; c.Mode = 37; c.Width = 17; c.Height = 9; c.WhitePoint = gain;
+            DlssNr::Superior::DlssNrConstants c {}; c.Mode = 37; c.Width = 17; c.Height = 9; c.WhitePoint = gain;
             f.dispatch(f.carrier.Get(), c, p.Get(), a.Get(), out.Get(), 3, 2);
             auto encoded = f.read(out.Get());
             for (size_t i = 0; i < encoded.size(); i += 4)
@@ -545,7 +554,7 @@ int main(int argc, char** argv)
                     answer[i + 3] = 1.f;
                 }
                 f.r.begin(); auto p = f.texture(width, height, &proxy), a = f.texture(width, height, &answer), out = f.texture(width, height);
-                DlssNrConstants c {}; c.Mode = 37; c.Width = width; c.Height = height; c.WhitePoint = gain; c.MaxRatio = saturation;
+                DlssNr::Superior::DlssNrConstants c {}; c.Mode = 37; c.Width = width; c.Height = height; c.WhitePoint = gain; c.MaxRatio = saturation;
                 f.dispatch(f.carrier.Get(), c, p.Get(), a.Get(), out.Get(), 3, 2);
                 const auto encoded = f.read(out.Get());
                 std::vector<std::array<double, 3>> references(width * height);
@@ -616,7 +625,7 @@ int main(int argc, char** argv)
                             f.r.begin(); auto p = f.texture(w, h, &proxy), a = f.texture(w, h, &answer),
                                 d = f.texture(w, h, &depth, DXGI_FORMAT_R32_FLOAT),
                                 out = f.texture(w, h, nullptr, halfCarrier ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R32G32B32A32_FLOAT);
-                            DlssNrConstants c {}; c.Mode = 37; c.Width = w; c.Height = h; c.WhitePoint = gain;
+                            DlssNr::Superior::DlssNrConstants c {}; c.Mode = 37; c.Width = w; c.Height = h; c.WhitePoint = gain;
                             c.MaxRatio = saturation; c.ResidualScale = strength; c.ResidualBlend = curve;
                             c.SkinProtection = pair; c.Passthrough = inverted;
                             f.dispatch(f.carrier.Get(), c, p.Get(), a.Get(), out.Get(), 3, 2, d.Get());
@@ -692,7 +701,7 @@ int main(int argc, char** argv)
             f.r.begin(); auto p = f.texture(w, h, &proxy), a = f.texture(w, h, &answer),
                 d = f.texture(w, h, &depth, DXGI_FORMAT_R32_FLOAT),
                 out = f.texture(w, h, nullptr, halfCarrier ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R32G32B32A32_FLOAT);
-            DlssNrConstants c {}; c.Mode = 37; c.Width = w; c.Height = h; c.WhitePoint = gain; c.MaxRatio = saturation;
+            DlssNr::Superior::DlssNrConstants c {}; c.Mode = 37; c.Width = w; c.Height = h; c.WhitePoint = gain; c.MaxRatio = saturation;
             c.DirectDetailMode = 1; c.ResidualScale = strength; c.ResidualBlend = 1; c.SkinProtection = pair; c.Passthrough = inverted;
             f.dispatch(f.carrier.Get(), c, p.Get(), a.Get(), out.Get(), 3, 2, d.Get());
             auto encoded = f.read(out.Get());
@@ -755,7 +764,7 @@ int main(int argc, char** argv)
                 answer[i] = i % 7 == 0 ? .25f : i % 7 == 1 ? -.5f : i % 7 == 2 ? 8.f :
                             i % 7 == 3 ? NAN : i % 7 == 4 ? INFINITY : i % 7 == 5 ? .5f : .125f;
             f.r.begin(); auto p = f.texture(w, h, &proxy), a = f.texture(w, h, &answer), out = f.texture(w, h);
-            DlssNrConstants c {}; c.Mode = 43; c.Width = w; c.Height = h; c.WhitePoint = gain;
+            DlssNr::Superior::DlssNrConstants c {}; c.Mode = 43; c.Width = w; c.Height = h; c.WhitePoint = gain;
             c.DirectDetailMode = fullAnswer; c.MaxRatio = 64; c.ResidualScale = 16; // must not affect the snapshot
             f.dispatch(f.carrier.Get(), c, p.Get(), a.Get(), out.Get(), 3, 2);
             const auto values = f.read(out.Get());
@@ -812,7 +821,7 @@ int main(int argc, char** argv)
             };
             f.r.begin(); auto p=f.texture(w,h,&proxy),a=f.texture(w,h,&answer),d=f.texture(w,h,&depth,DXGI_FORMAT_R32_FLOAT),
                 out=f.texture(w,h,nullptr,halfCarrier?DXGI_FORMAT_R16G16B16A16_FLOAT:DXGI_FORMAT_R32G32B32A32_FLOAT);
-            DlssNrConstants c{};c.Mode=37;c.Width=w;c.Height=h;c.WhitePoint=float(peak);c.MaxRatio=saturation;
+            DlssNr::Superior::DlssNrConstants c{};c.Mode=37;c.Width=w;c.Height=h;c.WhitePoint=float(peak);c.MaxRatio=saturation;
             c.DirectDetailMode=fullAnswer;c.Passthrough=inverted;c.DirectResolveUpscaler=flags;
             c.ExposureAnchors[0]=float(nearLimit);c.ExposureAnchors[1]=float(farLimit);
             c.ExposureAnchors[2]=float(curve);c.ExposureAnchors[3]=float(lift);

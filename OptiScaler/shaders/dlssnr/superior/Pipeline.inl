@@ -578,6 +578,7 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         m.width = job->width; m.height = job->height;
         m.gain = gain; m.saturation = g.editSaturation; m.depthStrength = g.depthStrength;
         m.fullNrAnswer = g.filterNrAnswer; m.privatePreset = g.preset;
+        m.ghostRejection = DlssNr::GhostRejection::Read(cfg);
         m.residentCnnEnabled = g.residentCnn && g.residentCnn->ready;
         m.activePrivatePreset = m.residentCnnEnabled && g.residentSwitch.idle ? 5u : g.preset;
         m.residentPrivateInstances = 1u + (g.residentCnn && g.residentCnn->feature ? 1u : 0u);
@@ -1309,9 +1310,11 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     Fields::SetCarrierNrAnswer(decode, filterNrAnswer);
     Fields::SetCarrierDepthBrightness(decode, depthTransport);
     Fields::SetUnfilteredEditWeight(decode, 1.f - mix);
+    Fields::SetCarrierGhostRejection(decode, DlssNr::GhostRejection::Read(cfg));
+    const bool needsRawEdit = mix < 1.f || Fields::CarrierGhostRejection(decode);
     if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), filterNrAnswer ? proxy : nullptr,
-                  mix < 1.f ? proxy : nullptr, depthStrength > 0 || depthActive ? temporalDepth : nullptr,
-                  mix < 1.f ? answer : nullptr, nullptr, g.carrier))
+                  needsRawEdit ? proxy : nullptr, depthStrength > 0 || depthActive ? temporalDepth : nullptr,
+                  needsRawEdit ? answer : nullptr, nullptr, g.carrier))
         return nullptr;
     g.reset = false;
     return g.carrier.Get();

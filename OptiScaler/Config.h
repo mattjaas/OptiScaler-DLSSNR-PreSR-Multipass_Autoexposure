@@ -486,6 +486,10 @@ class Config
     CustomOptional<bool> DlssNrSuperiorOriginalGuides { false };
     CustomOptional<float> DlssNrSuperiorEditSaturation { 1.0f };
     CustomOptional<bool> DlssNrSuperiorFilterNrAnswer { false };
+    CustomOptional<bool> DlssNrSuperiorGhostRejection { false };
+    CustomOptional<float> DlssNrSuperiorGhostThreshold { .01f };
+    CustomOptional<float> DlssNrSuperiorGhostSoftness { .02f };
+    CustomOptional<float> DlssNrSuperiorGhostStrength { 1.f };
     CustomOptional<bool> DlssNrSuperiorDepthColour { false };
     CustomOptional<float> DlssNrSuperiorDepthColourStrength { 1.0f };
     CustomOptional<float> DlssNrSuperiorDepthColourCurve { 1.0f };

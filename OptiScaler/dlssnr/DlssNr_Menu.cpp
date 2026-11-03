@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "DlssNr_PrivateExposure.h"
+#include "DlssNr_GhostRejection.h"
 #include "DlssNrFeature_Vk.h"
 
 #include "DlssNr.h"
@@ -4236,6 +4237,30 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "around 0.5. With multiplier 1x, saturation 1x and depth colour off, the full NR answer is "
                        "fed directly to DLSS. Other transport controls can also be combined with this mode. "
                        "DLSS may alter picture detail as well as NR's edit; temporal behaviour can change.");
+            ImGui::BeginDisabled(nr.vulkan || noDlss);
+            auto ghost = DlssNr::GhostRejection::Read(*config);
+            if (ImGui::Checkbox("Experimental DLSS ghost rejection", &ghost.enabled))
+                config->DlssNrSuperiorGhostRejection = ghost.enabled;
+            HelpMarker("Replaces unsupported private-DLSS edits with the current unfiltered NR edit. Compares the "
+                       "restored RGB edit with NR's current 3x3 neighbourhood, after undoing transport controls. "
+                       "Works with every private model and full NR answer mode. This is a heuristic: may remove "
+                       "valid temporal detail, cannot detect every trail or repair ghosting already present in NR. "
+                       "Adds neighbourhood reads to decode; no extra pass or history reset.");
+            ImGui::BeginDisabled(!ghost.enabled);
+            if (ImGui::SliderFloat("Ghost rejection threshold", &ghost.threshold, 0.f, .25f, "%.4f"))
+                config->DlssNrSuperiorGhostThreshold = ghost.threshold;
+            HelpMarker("Allowed RGB distance outside the local edit range, before the positive transport multiplier. "
+                       "Lower values reject more aggressively. Default 0.01; independent of DLSS exposure.");
+            if (ImGui::SliderFloat("Ghost rejection softness", &ghost.softness, .0001f, .25f, "%.4f"))
+                config->DlssNrSuperiorGhostSoftness = ghost.softness;
+            HelpMarker(
+                "Distance over which the replacement mask rises smoothly from zero to full strength. Default 0.02.");
+            if (ImGui::SliderFloat("Ghost rejection strength", &ghost.strength, 0.f, 1.f, "%.2f"))
+                config->DlssNrSuperiorGhostStrength = ghost.strength;
+            HelpMarker("1 replaces fully rejected pixels with the exact current NR edit; 0 bypasses rejection. "
+                       "Later frequency shaping and guided reconstruction still apply normally.");
+            ImGui::EndDisabled();
+            ImGui::EndDisabled();
             const bool previewInputSupported =
                 !filterNrAnswer &&
                 DlssNr::PrivateExposure::EditSaturation(config->DlssNrSuperiorEditSaturation.value_or_default()) ==

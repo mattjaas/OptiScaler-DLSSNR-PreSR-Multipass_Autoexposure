@@ -3,6 +3,9 @@
 #include "PositiveCarrier.hlsli"
 #include "DepthCarrier.hlsli"
 #include "DepthBrightness.hlsli"
+#ifdef DLSSNR_GHOST_REJECTION
+#include "GhostRejection.hlsli"
+#endif
 
 [numthreads(8, 8, 1)]
 void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
@@ -58,6 +61,9 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
                 bias == 0.0 ? float3(0.5, 0.5, 0.5) : 0.5 + depthColour + bias);
             edit = DecodePositiveCarrier(filtered - depthColour - bias, gain, gMaxRatio);
         }
+#ifdef DLSSNR_GHOST_REJECTION
+        edit = RejectUnsupportedEdit(edit, int2(id.xy));
+#endif
         const float weightRaw = asfloat(gExposurePadding);
         [branch] if (isfinite(weightRaw) && weightRaw > 0.0)
         {

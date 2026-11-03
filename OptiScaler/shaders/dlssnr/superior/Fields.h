@@ -4,6 +4,7 @@
 #include <cstring>
 #include "Constants.h"
 #include "../../../dlssnr/DlssNr_DepthTransport.h"
+#include "../../../dlssnr/DlssNr_GhostRejection.h"
 #include "../DlssNr_Common.h"
 
 // Superior passes reuse constant-buffer fields named for other modes (the v59 shader ABI and the shared resolve's
@@ -41,6 +42,19 @@ inline void SetUnfilteredEditWeight(DlssNrConstants& c, float weight)
     std::memcpy(&c.ExposurePadding, &weight, sizeof(weight));
 }
 static_assert(offsetof(DlssNrConstants, ExposurePadding) == 172);
+
+// Decode only: the optional PSO compares the restored edit against current NR's 3x3 range.
+inline void SetCarrierGhostRejection(DlssNrConstants& c, DlssNr::GhostRejection::Settings settings)
+{
+    const auto s = DlssNr::GhostRejection::Sanitize(settings);
+    c.GuideWidth = s.enabled && s.strength > 0.f ? 1u : 0u;
+    c.ColourStrength = s.threshold;
+    c.TransferStrength = s.softness;
+    c.CompareSplit = s.strength;
+}
+inline bool CarrierGhostRejection(const DlssNrConstants& c) { return c.Mode == 38u && c.GuideWidth == 1u; }
+static_assert(offsetof(DlssNrConstants, GuideWidth) == 44 && offsetof(DlssNrConstants, ColourStrength) == 20 &&
+              offsetof(DlssNrConstants, TransferStrength) == 16 && offsetof(DlssNrConstants, CompareSplit) == 56);
 
 static_assert(offsetof(DlssNrConstants, WhitePoint) == 4);
 // Private carrier modes do not use composition's MaxRatio; HLSL reads it as edit saturation.

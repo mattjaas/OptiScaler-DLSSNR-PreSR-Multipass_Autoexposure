@@ -20,6 +20,7 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/dlssnr_superior_resolve_Shader.h"
 #include "precompile/dlssnr_superior_sdr_Shader.h"
 #include "precompile/private_carrier_Shader.h"
+#include "precompile/private_carrier_ghost_Shader.h"
 #include "precompile/private_exposure_Shader.h"
 } // namespace DlssNr::Superior::Bytecode
 
@@ -123,7 +124,8 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
                                        ID3D12Resource* OutKeep, uint32_t* immutableSlot)
 {
     using namespace DlssNr::Superior::Bytecode;
-    ID3D12PipelineState* pipeline = SuperiorPipeline(InConstants, InSource);
+    const bool ghostRejection = DlssNr::Superior::Fields::CarrierGhostRejection(InConstants);
+    ID3D12PipelineState* pipeline = ghostRejection ? nullptr : SuperiorPipeline(InConstants, InSource);
     const auto get = [&](unsigned index, const void* blob, size_t size)
     {
         if (!_superiorAttempted[index])
@@ -133,6 +135,8 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
         }
         return _superiorPipeline[index];
     };
+    if (ghostRejection)
+        pipeline = get(17u, private_carrier_ghost_cso, sizeof(private_carrier_ghost_cso));
     if (!pipeline && (InConstants.Mode == 37u || InConstants.Mode == 38u || InConstants.Mode == 39u || InConstants.Mode == 43u))
         return false;
     const bool privateExposure = InConstants.Mode >= 40u && InConstants.Mode <= 42u;

@@ -1158,6 +1158,10 @@ void Config::ReadDlssNr()
     DlssNrSuperiorOriginalGuides.set_from_config(readBool("DlssNr", "SuperiorOriginalGuides"));
     DlssNrSuperiorEditSaturation.set_from_config(readFloat("DlssNr", "SuperiorEditSaturation"));
     DlssNrSuperiorFilterNrAnswer.set_from_config(readBool("DlssNr", "SuperiorFilterNrAnswer"));
+    DlssNrSuperiorGhostRejection.set_from_config(readBool("DlssNr", "SuperiorGhostRejection"));
+    DlssNrSuperiorGhostThreshold.set_from_config(readFloat("DlssNr", "SuperiorGhostThreshold"));
+    DlssNrSuperiorGhostSoftness.set_from_config(readFloat("DlssNr", "SuperiorGhostSoftness"));
+    DlssNrSuperiorGhostStrength.set_from_config(readFloat("DlssNr", "SuperiorGhostStrength"));
     DlssNrSuperiorDepthColour.set_from_config(readBool("DlssNr", "SuperiorDepthColour"));
     DlssNrSuperiorDepthColourStrength.set_from_config(readFloat("DlssNr", "SuperiorDepthColourStrength"));
     DlssNrSuperiorDepthColourCurve.set_from_config(readFloat("DlssNr", "SuperiorDepthColourCurve"));
@@ -1472,6 +1476,14 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetFloatValue(c.DlssNrSuperiorEditSaturation.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorFilterNrAnswer",
                  GetBoolValue(c.DlssNrSuperiorFilterNrAnswer.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostRejection",
+                 GetBoolValue(c.DlssNrSuperiorGhostRejection.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostThreshold",
+                 GetFloatValue(c.DlssNrSuperiorGhostThreshold.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostSoftness",
+                 GetFloatValue(c.DlssNrSuperiorGhostSoftness.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostStrength",
+                 GetFloatValue(c.DlssNrSuperiorGhostStrength.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorDepthColour", GetBoolValue(c.DlssNrSuperiorDepthColour.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorDepthColourStrength",
                  GetFloatValue(c.DlssNrSuperiorDepthColourStrength.value_for_config()).c_str());
@@ -1886,6 +1898,10 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorOriginalGuides", DlssNrSuperiorOriginalGuides),
         NR_PROFILE_FIELD("SuperiorEditSaturation", DlssNrSuperiorEditSaturation),
         NR_PROFILE_FIELD("SuperiorFilterNrAnswer", DlssNrSuperiorFilterNrAnswer),
+        NR_PROFILE_FIELD("SuperiorGhostRejection", DlssNrSuperiorGhostRejection),
+        NR_PROFILE_FIELD("SuperiorGhostThreshold", DlssNrSuperiorGhostThreshold),
+        NR_PROFILE_FIELD("SuperiorGhostSoftness", DlssNrSuperiorGhostSoftness),
+        NR_PROFILE_FIELD("SuperiorGhostStrength", DlssNrSuperiorGhostStrength),
         NR_PROFILE_FIELD("SuperiorDepthColour", DlssNrSuperiorDepthColour),
         NR_PROFILE_FIELD("SuperiorDepthColourStrength", DlssNrSuperiorDepthColourStrength),
         NR_PROFILE_FIELD("SuperiorDepthColourCurve", DlssNrSuperiorDepthColourCurve),

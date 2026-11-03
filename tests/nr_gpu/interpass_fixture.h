@@ -96,7 +96,7 @@ struct Runner
         ComPtr<ID3D12PipelineState> p; check(device->CreateComputePipelineState(&d,IID_PPV_ARGS(&p))); return p;
     }
     std::vector<uint32_t> run(ID3D12PipelineState* pso, UINT nw, UINT nh, UINT ww, UINT wh,
-                              const DlssNrConstants& constants, int fixture, bool half, UINT groupWidth = 8,
+                              const DlssNr::Superior::DlssNrConstants& constants, int fixture, bool half, UINT groupWidth = 8,
                               UINT sourceW = 0, UINT sourceH = 0, double* gpuMs = nullptr, int pattern = 0,
                               const std::vector<uint32_t>* lowWords = nullptr, UINT lowW = 0, UINT lowH = 0,
                               UINT groupHeight = 8, ID3D12Resource* metadata = nullptr,
