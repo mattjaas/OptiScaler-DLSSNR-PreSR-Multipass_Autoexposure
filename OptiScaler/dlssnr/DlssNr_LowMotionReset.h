@@ -10,7 +10,7 @@ namespace DlssNr::LowMotionReset
 struct Settings
 {
     bool enabled = false;
-    float threshold = .25f, seconds = 2.f;
+    float threshold = .25f, seconds = 2.f; // pixels at 1080p reference height / frame; seconds of quiet
 };
 inline Settings Sanitize(Settings s)
 {

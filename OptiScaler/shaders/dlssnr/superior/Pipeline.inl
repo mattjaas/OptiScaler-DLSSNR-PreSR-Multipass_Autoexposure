@@ -895,6 +895,26 @@ ID3D12Resource* PrivateExposureTexture(Generation& g, DlssNr_Dx12& shader, ID3D1
     return h.state[next].Get();
 }
 
+DlssNr::GainPreview::Status ObserveScreenMotion(
+    Generation& g, ID3D12GraphicsCommandList* cmd, ID3D12Resource* proxy, ID3D12Resource* answer,
+    ID3D12Resource* motion, const DlssNr::GuideRegions& regions, const DlssNrFrameInfo& frame,
+    bool hold, double now)
+{
+    auto& watch = GetState().motionWatch;
+    if (hold)
+    {
+        watch.Pause("Low-motion probe paused: frame held.");
+        return {};
+    }
+    const auto region = DlssNr::SuperiorScaling::ScreenMotionRegion(regions.motion, frame);
+    const auto context = DlssNr::SuperiorScaling::ScreenMotionContext(region);
+    auto sample = watch.MatchesContext(g.device.Get(), context) ? watch.GetMotionStatus() : DlssNr::GainPreview::Status {};
+    Record(cmd);
+    watch.Record(g.device.Get(), cmd, Util::RealObjectIdentity(cmd), proxy, answer, motion,
+                 g.workWidth, g.workHeight, false, context, now, nullptr, false, 0, &region);
+    return sample;
+}
+
 ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Resource* proxy,
                           ID3D12Resource* answer, ID3D12Resource* originalDepth, ID3D12Resource* originalMotion, const DlssNr::GuideRegions& regions,
                           const DlssNrFrameInfo& frame, bool reset, bool hold, ID3D12Resource* packedDepth,
@@ -1099,36 +1119,20 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
                            g.workWidth, g.workHeight, DlssNr::SuperiorScaling::TransformerPreset(g.preset), context, now, temporalDepth, g.inverted, packedDepthPrecision);
         }
     }
-    if(!g_viewSecondary)
+    if (!g_viewSecondary)
     {
-        const bool shared = measurementRequested && supported && !hold &&
-            (measurementSettings.method==DlssNr::GainPreview::Coverage || measurementSettings.boundaryMotionGate);
         DlssNr::GainPreview::Status motionSample;
-        if (lowMotionSettings.enabled && transitionMotion)
-            motionSample = *transitionMotion;
-        else if(lowMotionSettings.enabled)
+        if (lowMotionSettings.enabled)
+            motionSample = transitionMotion ? *transitionMotion :
+                ObserveScreenMotion(g, cmd, proxy, answer, originalMotion, regions, frame, hold, now);
+        const auto region = DlssNr::SuperiorScaling::ScreenMotionRegion(regions.motion, frame);
+        const auto motionContext = DlssNr::SuperiorScaling::ScreenMotionContext(region);
+        if (g.lowMotion.Update(lowMotionSettings, motionSample, now, motionContext, reset || g.reset || hold,
+                               transitionMotion != nullptr))
         {
-            if(shared)
-            {
-                if(runtime.preview.MatchesContext(g.device.Get(),context)) motionSample=runtime.preview.GetMotionStatus();
-            }
-            else if(!hold)
-            {
-                if(runtime.motionWatch.MatchesContext(g.device.Get(),baseContext)) motionSample=runtime.motionWatch.GetMotionStatus();
-                const DlssNr::GainPreview::MotionRegion region = useOriginal ?
-                    DlssNr::GainPreview::MotionRegion{mx,my,regions.motion.width,regions.motion.height,dlssMvX,dlssMvY} :
-                    DlssNr::GainPreview::MotionRegion{0,0,g.workWidth,g.workHeight,1,1};
-                Record(cmd);
-                runtime.motionWatch.Record(g.device.Get(),cmd,Util::RealObjectIdentity(cmd),proxy,answer,dlssMotion,
-                    g.workWidth,g.workHeight,false,baseContext,now,nullptr,false,0,&region);
-            }
-            else runtime.motionWatch.Pause("Low-motion probe paused: frame held.");
-        }
-        if(g.lowMotion.Update(lowMotionSettings,motionSample,now,baseContext ^ (transitionMotion ? (1ull << 62) : shared ? (1ull << 63) : 0),
-                              reset || g.reset || hold, shared && !transitionMotion))
-        {
-            g.reset=true;
-            for(auto& h:g.exposure)h.initialized=false;
+            g.reset = true;
+            for (auto& h : g.exposure)
+                h.initialized = false;
         }
     }
     RecordEditDump(g, shader, cmd, proxy, answer, gain, temporalDepth, g.temporalMotion.Get(), frame,
@@ -1193,24 +1197,6 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         return nullptr;
     g.reset = false;
     return g.carrier.Get();
-}
-
-DlssNr::GainPreview::Status ObserveTransitionMotion(
-    Generation& g, ID3D12GraphicsCommandList* cmd, ID3D12Resource* proxy, ID3D12Resource* answer,
-    ID3D12Resource* motion, float scaleX, float scaleY, bool hold, double now, uint64_t context)
-{
-    auto& watch = GetState().motionWatch;
-    if (hold)
-    {
-        watch.Pause("Low-motion probe paused: frame held.");
-        return {};
-    }
-    auto sample = watch.MatchesContext(g.device.Get(), context) ? watch.GetMotionStatus() : DlssNr::GainPreview::Status {};
-    const DlssNr::GainPreview::MotionRegion region { 0, 0, g.workWidth, g.workHeight, scaleX, scaleY };
-    Record(cmd);
-    watch.Record(g.device.Get(), cmd, Util::RealObjectIdentity(cmd), proxy, answer, motion,
-                 g.workWidth, g.workHeight, false, context, now, nullptr, false, 0, &region);
-    return sample;
 }
 
 ID3D12Resource* ExtractEdit(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd,

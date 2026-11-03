@@ -4047,7 +4047,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "history reset before the first evaluation, at full mix weight. Background keeps evaluating "
                 "with continuous history and fades back in when motion returns. Missing or stale MV restores DLSS.");
             const auto transitionStatus = DlssNr::SuperiorScaling::TransitionStatus();
-            ImGui::Text("Private DLSS mix: %.0f%% | MV: %.3f px | low motion: %.2f s",
+            ImGui::Text("Private DLSS mix: %.0f%% | MV: %.3f px@1080p | low motion: %.2f s",
                         transitionStatus.contribution * 100.f, transitionStatus.peak, transitionStatus.quietSeconds);
             if (transitionStatus.sleeping)
                 ImGui::TextDisabled("Private DLSS evaluations paused.");
@@ -4128,11 +4128,12 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             HelpMarker("Optional: reset private DLSS history after all 576 sampled MV stay below "
                        "the threshold for the configured time. The timer restarts after each reset, so sustained "
                        "low motion causes repeated resets. Motion above the threshold clears the timer. "
-                       "Uses working pixels per frame. A small moving object can fall between samples. "
+                       "Uses reference pixels at 1080p image height per frame, independent of NR scale and output "
+                       "resolution. A small moving object can fall between samples. "
                        "Independent of automatic gain; does not reset NR or the game's own DLSS.");
             ImGui::BeginDisabled(!lowReset.enabled && transition.mode == DlssNr::PrivateTransition::Off);
-            if (ImGui::SliderFloat("Low-motion reset MV threshold", &lowReset.threshold, .001f, 2.f, "%.3f px",
-                                   ImGuiSliderFlags_Logarithmic))
+            if (ImGui::SliderFloat("Low-motion MV threshold (1080p reference)", &lowReset.threshold, .001f, 2.f,
+                                   "%.3f px", ImGuiSliderFlags_Logarithmic))
                 config->DlssNrSuperiorLowMotionResetThreshold = lowReset.threshold;
             if (ImGui::InputFloat("Exact low-motion MV threshold", &lowReset.threshold, .01f, .1f, "%.4f"))
                 config->DlssNrSuperiorLowMotionResetThreshold = DlssNr::LowMotionReset::Sanitize(lowReset).threshold;
@@ -4144,8 +4145,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             if (lowReset.enabled)
             {
                 const auto status = DlssNr::SuperiorScaling::LowMotionResetStatus();
-                ImGui::Text("Maximum sampled MV: %.3f px | low motion: %.2f s | resets requested: %llu", status.peak,
-                            status.quietSeconds, static_cast<unsigned long long>(status.requests));
+                ImGui::Text("Maximum sampled MV: %.3f px@1080p | low motion: %.2f s | resets requested: %llu",
+                            status.peak, status.quietSeconds, static_cast<unsigned long long>(status.requests));
                 ImGui::TextWrapped("%s", status.text.c_str());
             }
             ImGui::EndDisabled();

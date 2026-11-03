@@ -171,6 +171,7 @@ int main(int argc, char** argv)
     assert(motion.find("\"low_motion_reset_requested\": true")!=std::string::npos);
     assert(motion.find("\"low_motion_reset_shared_probe\": true")!=std::string::npos);
     assert(motion.find("\"low_motion_reset_requests\": 7")!=std::string::npos);
+    assert(motion.find("\"low_motion_reset_units\": \"pixels_at_1080p_height_per_frame\"")!=std::string::npos);
     assert(motion.find("\"automatic_gain_changes_reset_private_history\": false")!=std::string::npos);
     const auto noPreview = MetadataJson({});
     assert(noPreview.find("\"preview_request_suggested_gain\": null") != std::string::npos);

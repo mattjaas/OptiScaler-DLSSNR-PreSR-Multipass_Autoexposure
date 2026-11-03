@@ -165,6 +165,32 @@ int main() {
                 1274.f / 1440.f); // missing declared reference uses valid source, not allocation/depth
         require(MotionScale(1920, 2496, 0, 1920) == 2496);
         require(MotionScale(1,1274,0)==1); // unspecified game reference
+        {
+            struct Frame
+            {
+                unsigned OutputWidth, OutputHeight, RenderSubrectWidth, RenderSubrectHeight;
+                float MvScaleX, MvScaleY;
+                bool MotionVectorsLowResolution;
+            };
+            for (unsigned height : { 720u, 1080u, 1440u, 2160u, 4320u })
+            for (bool low : { false, true })
+            for (bool uv : { false, true })
+            {
+                const unsigned width=height*16/9;
+                Frame frame { width,height,width/2,height/2,1.f,1.f,low };
+                DlssNr::GuideRegion source { 7,9,low?width/2:width,low?height/2:height };
+                if (uv) { frame.MvScaleX=float(source.width);frame.MvScaleY=float(source.height); }
+                const auto region=ScreenMotionRegion(source,frame);
+                const double rawX=uv?.001:.001*source.width, rawY=uv?-.002:-.002*source.height;
+                require(std::abs(rawX*region.scaleX-1.92)<1e-5);
+                require(std::abs(rawY*region.scaleY+2.16)<1e-5);
+                require(region.x==7 && region.y==9);
+            }
+            Frame invalid {1920,0,960,540,960,540,true};
+            require(ScreenMotionRegion(DlssNr::GuideRegion{0,0,960,540},invalid).width==0);
+            invalid.OutputHeight=1080;invalid.MvScaleX=NAN;
+            require(ScreenMotionRegion(DlssNr::GuideRegion{0,0,960,540},invalid).width==0);
+        }
         for(unsigned i=0;i<30;++i)require(Preset(i)==(i==12u || i==13u ? 13u : i==11u ? 11u : 1u));
         require(Preset(UINT32_MAX)==1u);
         require(std::abs(GuidedRange(.25f) - .015f) < 1e-9f);

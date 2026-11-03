@@ -247,6 +247,35 @@ inline float MotionScale(float gameScale, unsigned motionExtent, unsigned refere
     return referenceExtent ? gameScale * (float(motionExtent) / float(referenceExtent)) : gameScale;
 }
 
+// Normalize screen displacement to pixels at a reference image height of 1080.
+// Read the game's unwarped MV so nonlinear NR compression cannot change the motion metric.
+template <class R, class F> inline GainPreview::MotionRegion ScreenMotionRegion(const R& region, const F& frame)
+{
+    if (!region.valid() || !frame.OutputWidth || !frame.OutputHeight || !std::isfinite(frame.MvScaleX) ||
+        !std::isfinite(frame.MvScaleY) || frame.MvScaleX == 0.f || frame.MvScaleY == 0.f)
+        return {};
+    const unsigned referenceW = frame.MotionVectorsLowResolution ? frame.RenderSubrectWidth : frame.OutputWidth;
+    const unsigned referenceH = frame.MotionVectorsLowResolution ? frame.RenderSubrectHeight : frame.OutputHeight;
+    const float normalization = 1080.f / float(frame.OutputHeight);
+    return { region.x,
+             region.y,
+             region.width,
+             region.height,
+             MotionScale(frame.MvScaleX, frame.OutputWidth, referenceW, region.width) * normalization,
+             MotionScale(frame.MvScaleY, frame.OutputHeight, referenceH, region.height) * normalization };
+}
+
+inline uint64_t ScreenMotionContext(const GainPreview::MotionRegion& region)
+{
+    uint64_t hash = 0xcbf29ce484222325ull;
+    uint32_t sx, sy;
+    std::memcpy(&sx, &region.scaleX, sizeof(sx));
+    std::memcpy(&sy, &region.scaleY, sizeof(sy));
+    for (uint32_t part : { region.x, region.y, region.width, region.height, sx, sy })
+        hash = (hash ^ part) * 0x100000001b3ull;
+    return hash;
+}
+
 template <class C> inline bool InputEncode(const C& c, uint64_t sourceWidth, uint32_t sourceHeight)
 {
     return c.Mode == 0u && c.DirectResolveFlags == ShaderFlag && c.Passthrough <= 1u && c.ReversibleMode <= 4u &&

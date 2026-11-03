@@ -6221,11 +6221,10 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
             {
                 const double now =
                     std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
-                const uint64_t context = (1ull << 63) | uint64_t(g.workWidth) | (uint64_t(g.workHeight) << 16) |
-                                         (uint64_t(g.preset) << 32) | (uint64_t(g.packed) << 40);
-                transitionMotion = SuperiorRun::ObserveTransitionMotion(
-                    g, cmdList, shapingProxy, shapingAnswer, g.packed ? EdgeCompression::motion : g.motion.Get(),
-                    g.packed ? 1.f : evalMvScaleX, g.packed ? 1.f : evalMvScaleY, g_nr.heldActive, now, context);
+                const auto screenRegion = DlssNr::SuperiorScaling::ScreenMotionRegion(guides.motion, frame);
+                const auto context = DlssNr::SuperiorScaling::ScreenMotionContext(screenRegion);
+                transitionMotion = SuperiorRun::ObserveScreenMotion(g, cmdList, shapingProxy, shapingAnswer, motionIn,
+                                                                    guides, frame, g_nr.heldActive, now);
                 const bool wasSleeping = g.motionFade.sleeping;
                 g.motionFade.Update(privateTransition, DlssNr::LowMotionReset::Read(cfg), transitionMotion, now,
                                     context, g_nr.heldActive);

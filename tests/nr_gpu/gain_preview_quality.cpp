@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "interpass_fixture.h"
 #include "../../OptiScaler/dlssnr/DlssNr_GainPreview_Dx12.h"
+#include "../../OptiScaler/dlssnr/DlssNr_SuperiorScaling.h"
+#include "../../OptiScaler/shaders/dlssnr/DlssNr_Guides.h"
 #include <chrono>
 #include <DirectXPackedVector.h>
 #include <numeric>
@@ -443,6 +445,26 @@ void MotionWatchQuality(bool hardware)
         Require(got.validMotion==count&&got.gate==(count==576?1u:0u),"Motion-only validity reference");
         Require(std::abs(double(got.peakSquared)-expected)<=std::max(1e-7,expected*2e-6),"Motion-only max magnitude numeric reference");
         Require(got.serial==0x00000007deadbeefull,"Motion-only 64-bit serial");
+        ++cases;
+    }
+    // Sampling points and output units depend on source guides, not the NR/packed lattice.
+    for (unsigned outputHeight : { 1080u,2160u })
+    for (unsigned workWidth : { 128u,2496u,3840u })
+    {
+        struct Frame
+        {
+            unsigned OutputWidth,OutputHeight,RenderSubrectWidth,RenderSubrectHeight;
+            float MvScaleX,MvScaleY;
+            bool MotionVectorsLowResolution;
+        } frame { outputHeight*16/9,outputHeight,400,240,400,240,true };
+        const auto screen=DlssNr::SuperiorScaling::ScreenMotionRegion(DlssNr::GuideRegion{3,5,400,240},frame);
+        std::fill(f.values[2].begin(),f.values[2].end(),.001f);
+        f.r.begin();f.Upload(2);f.r.finish();f.uploads.clear();
+        Constants c;c.width=workWidth;c.height=workWidth/2;SetMotionRegion(c,screen);
+        const auto result=f.Run(c);
+        const double expected=1.92*1.92+1.08*1.08;
+        Require(result.validMotion==576 && std::abs(result.peakSquared-expected)<1e-5,
+                "1080p reference motion must be independent of output and NR grid size");
         ++cases;
     }
     Constants invalid;invalid.width=100;invalid.height=100;SetMotionRegion(invalid,{500,0,30,10,1,1});

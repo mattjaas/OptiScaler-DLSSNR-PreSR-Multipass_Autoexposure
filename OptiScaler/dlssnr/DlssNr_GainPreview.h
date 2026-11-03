@@ -124,7 +124,7 @@ template <class C> inline Settings Read(const C& c)
                       c.DlssNrSuperiorGainPreviewBoundaryMotionGate.value_or_default(),
                       c.DlssNrSuperiorGainPreviewBoundaryMinPairs.value_or_default(),
                       PrivateModel::FromPreference(c.DlssNrSuperiorScalingPreset.value_or_default()),
-                      c.DlssNrSuperiorLowMotionReset.value_or_default() });
+                      false }); // Screen-normalized low-motion detection uses the independent motion-only observer.
 }
 inline uint64_t Context(uint64_t base, Settings s)
 {

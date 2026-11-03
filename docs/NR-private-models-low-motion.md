@@ -12,7 +12,7 @@ Automatyczne zmiany dodatniego mnożnika nie ustawiają Reset prywatnego NGX ani
 
 ## Powtarzany reset przy małym ruchu
 
-Opcja **Reset private DLSS after sustained low motion** jest domyślnie wyłączona i niezależna od Auto/preview. **Low-motion reset MV threshold** ustala próg maksymalnej długości próbkowanego MV w pikselach roboczych na klatkę (domyślnie 0,25); **Low-motion reset delay** czas (domyślnie 2 s). Dokładne pola pozwalają na 0,001..64 px oraz 0,05..60 s.
+Opcja **Reset private DLSS after sustained low motion** jest domyślnie wyłączona i niezależna od Auto/preview. **Low-motion MV threshold (1080p reference)** ustala próg maksymalnej długości próbkowanego MV w pikselach odniesienia przy wysokości obrazu 1080p na klatkę (domyślnie 0,25); **Low-motion reset delay** czas (domyślnie 2 s). Dokładne pola pozwalają na 0,001..64 px oraz 0,05..60 s.
 
 Gdy wszystkie 576 punktów stałej siatki 32×18 są poprawne i poniżej progu przez zadany czas, resetowana jest prywatna historia DLSS oraz meteringu ekspozycji. Licznik czasu od razu zaczyna kolejny okres. Przy ciągle małym ruchu reset powtarza się co zadany okres, z dokładnością częstotliwości próbkowania i opóźnienia odczytu. Nie wymaga wcześniejszego wzrostu MV. Ruch powyżej progu zeruje odliczanie. Hold, zewnętrzny reset, zmiana kontekstu, niepoprawne dane lub brak świeżego wyniku przez 0,5 s również przerywają okres. Wielokrotne odczytanie tego samego wyniku nie przyspiesza zegara. W UI widać maksymalne MV, bieżący czas i liczbę żądań resetu. NR oraz DLSS gry nie dostają tego resetu.
 
@@ -20,7 +20,7 @@ Jest to próbkowany warunek spokoju: drobny ruch może ominąć punkty siatki. N
 
 ## Koszt i czas życia GPU
 
-Jeśli aktywny miernik coverage lub boundary z globalnym MV gate już dostarcza 576 wektorów, na CPU obliczamy ich maksimum; nie dodajemy kolejnego dispatchu/odczytu. W pozostałych przypadkach opcja uruchamia małą niezależną sondę MV najwyżej 8 razy/s: jeden dispatch 256 wątków, 576 odczytów MV i wynik 2×1 RGBA32_UINT (32 B danych, readback z wyrównaniem D3D12). Sonda korzysta z asynchronicznego runtime/puli oraz odroczonego zwalniania; bez oczekiwania CPU na GPU. Czyta rzeczywiste MV prywatnego DLSS, z uwzględnieniem subrect/origin i skali jednostek. Nie wykonuje dodatkowego przeskalowania pełnego obrazu. Po rozgrzaniu używa puli; wyłączona opcja nie tworzy PSO ani zasobów sondy.
+Detektor niskiego ruchu uruchamia małą niezależną sondę MV najwyżej 8 razy/s: jeden dispatch 256 wątków, 576 odczytów MV i wynik 2×1 RGBA32_UINT (32 B danych, readback z wyrównaniem D3D12). Sonda korzysta z asynchronicznego runtime/puli oraz odroczonego zwalniania; bez oczekiwania CPU na GPU. Czyta oryginalne MV gry, z uwzględnieniem subrect/origin, jednostek wektorów, render-resolution MV i docelowego rozmiaru obrazu. Nie wykonuje dodatkowego przeskalowania pełnego obrazu. Po rozgrzaniu używa puli; wyłączona opcja nie tworzy PSO ani zasobów sondy.
 
 Pomiar syntetyczny, NVIDIA GeForce RTX 4090, D3D12, syntetyczne MV, Off vs osobna sonda, 16 par rozgrzewki, następnie 16 ABBA / 32 próbki na wariant, GPU timestamps obejmujące dispatch, bariery i kopię wyniku:
 
@@ -29,7 +29,7 @@ Pomiar syntetyczny, NVIDIA GeForce RTX 4090, D3D12, syntetyczne MV, Off vs osobn
 | 2240×1264 | 0,000416 ± 0,000503 | 0,006441 ± 0,000281 | +0,006025 |
 | 2496×1404 | 0,000672 ± 0,000486 | 0,006379 ± 0,000286 | +0,005707 |
 
-[Surowe próbki](validation/private-low-motion-watch-timing.csv). To koszt pojedynczego pomiaru w osobnym harnessie, bez NGX i pozostałych etapów gry; nie dowodzi kosztu całego toru. Shared probe nie dodaje pracy GPU do istniejącego miernika. Weryfikacja całego toru: ta sama scena, rozdzielczość i preset, rozgrzane ABBA Off/On oraz GPU timestamps NR+DLSS+composition. Nie uruchomiono testu NGX w grze dla tych zmian.
+[Surowe próbki](validation/private-low-motion-watch-timing.csv). To koszt pojedynczego pomiaru w osobnym harnessie, bez NGX i pozostałych etapów gry; nie dowodzi kosztu całego toru. Automat wygaszania i reset współdzielą pojedynczą sondę. Włączenie samego resetu korzysta również z tej sondy. Weryfikacja całego toru: ta sama scena, rozdzielczość i preset, rozgrzane ABBA Off/On oraz GPU timestamps NR+DLSS+composition. Nie uruchomiono testu NGX w grze dla tych zmian.
 
 ## Konfiguracja i weryfikacja
 
@@ -67,7 +67,7 @@ Po wygaszeniu instancja jest odraczana do bezpiecznego zwolnienia przez tracker 
 - **Stop evaluations at low motion** po wygaszeniu wstrzymuje ewaluacje NGX, zachowując instancję i alokacje. Po powrocie ruchu pierwsza ewaluacja otrzymuje Reset przed zapisem wyniku. Dopiero jej nowy wynik trafia do decode i rekonstrukcji, z pełną wagą. Historia ekspozycji prywatnej instancji również zaczyna od nowa.
 - **Keep DLSS running in background** zachowuje ewaluacje i temporalną historię przy wadze 0. Powrót ruchu płynnie zwiększa udział do 100%, z tą samą długością przejścia co wygaszanie.
 
-Automat używa progu **Low-motion reset MV threshold** i czasu **Low-motion reset delay**. Działają także przy wyłączonym checkboxie resetu historii. Używany jest ten sam kontroler czasu i shader sondy 576 MV co w low-motion reset, najwyżej 8 pomiarów/s, asynchronicznie. Przy aktywnym automacie wynik tej sondy jest również używany przez opcjonalny reset, co zapobiega drugiemu odczytowi sondy. Podczas wstrzymania NGX sonda nadal obserwuje pole MV NR w jednostkach pikseli roboczych na klatkę. Brak świeżych poprawnych MV przywraca DLSS. Dodatkowe widoki korzystają z ręcznego sterowania, automat zasila główny widok.
+Automat używa progu **Low-motion MV threshold (1080p reference)** i czasu **Low-motion reset delay**. Działają także przy wyłączonym checkboxie resetu historii. Używany jest ten sam kontroler czasu i shader sondy 576 MV co w low-motion reset, najwyżej 8 pomiarów/s, asynchronicznie. Przy aktywnym automacie wynik tej sondy jest również używany przez opcjonalny reset, co zapobiega drugiemu odczytowi sondy. Podczas wstrzymania NGX sonda nadal obserwuje oryginalne pole MV gry w jednostkach pikseli odniesienia 1080p na klatkę. Brak świeżych poprawnych MV przywraca DLSS. Dodatkowe widoki korzystają z ręcznego sterowania, automat zasila główny widok.
 
 UI pokazuje **Private DLSS mix**, maksymalne próbkowane MV, czas niskiego ruchu oraz stan wstrzymania/pracy w tle. Czas powrotu po ruchu obejmuje częstotliwość sondy i opóźnienie asynchronicznego odczytu. Mały obiekt może ominąć punkty siatki. Włączenie osobnego automatycznego resetu historii pozostaje dodatkową przyczyną resetów również w trybie pracy w tle.
 
@@ -85,3 +85,15 @@ SuperiorMotionMode ma wartości 0=Off, 1=Stop evaluations, 2=Background. Prefere
 Weryfikacja obejmuje CPU dla dokładnych końców przejścia, zegara czasu, niskiego ruchu, natychmiastowego powrotu po wstrzymaniu i płynnego powrotu w tle. Na WARP porównano blend z niezależną referencją dla obu sposobów transportu NR. Łącznie test ekspozycji/carrier obejmuje 1507 przypadków. Przy wadze 100% 48 przypadków ma identyczne bity jak poprzedni shader. Pozostałe shadery Superior, guide i interpass zachowują dotychczasowe bloby.
 
 Pomiar GPU timestamp na RTX 4090, syntetyczne FP16 wejścia, 64 próby rozgrzewki na wariant i 128 próbek/variant w ABBA porównał encode+decode. Dla mieszania 50% względem 100% przy 1920×1080 mediana wyniosła 0,033792/0,033792 ms, przy 3840×2160 0,166400/0,201728 ms. Średnie ± SD to odpowiednio 0,381560 ± 2,500499 / 0,391160 ± 2,432035 ms oraz 0,968840 ± 3,568383 / 1,650344 ± 4,982462 ms. Tak duży rozrzut uniemożliwia wiarygodne określenie kosztu na podstawie tej sesji. [Surowy pomiar mieszania](validation/private-fade-timing.csv) oraz [porównanie starego i nowego shadera przy 100%](validation/private-fade-default-timing.csv) zachowują wszystkie próbki, także długie odstępstwa. Potrzebne jest rozgrzane ABBA całego toru w grze, osobno dla 100%, mieszania, pracy w tle i wstrzymania. Testy syntetyczne nie potwierdzają jakości przejść ani działania NGX w grze.
+
+## Niezależność progu od rozdzielczości
+
+Próg jest teraz proporcją wysokości końcowego obrazu, prezentowaną jako piksele przy 1080p. Dla danego punktu liczymy `MV_final = MV_game × game_scale × final_extent/reference_extent`, a następnie obie osie mnożymy przez `1080/final_height`. Referencja źródła to render subrect dla low-resolution MV albo output dla high-resolution MV. Przy brakującym rozmiarze referencyjnym używana jest poprawna wielkość aktywnego regionu. Brak końcowego rozmiaru obrazu lub niepoprawna skala daje nieważny wynik i przywraca aktywność DLSS.
+
+Przykładowe 0,25 px@1080p odpowiada 0,25 końcowego piksela w 1080p, 0,3333 piksela w 1440p i 0,5 piksela w 4K. Stanowi zawsze około 0,02315% wysokości obrazu na klatkę. Próg pozostaje metryką na klatkę, więc FPS wpływa na odpowiadającą mu prędkość na sekundę. Skala NR 65%/100%, kształt packed grid i nierówne skale obu osi nie uczestniczą w tej konwersji.
+
+Siatka 32×18 zawsze wybiera względne pozycje w aktywnym regionie oryginalnego bufora MV. Zapobiega to zależności od nieliniowego upakowania wektorów przy kompresji. Guides wykorzystywane przez NR i prywatny DLSS nadal powstają swoim dotychczasowym torem. Sonda służy tylko decyzji o ruchu. Coverage i depth-boundary używane do doboru mnożnika zachowują własne dotychczasowe jednostki i algorytmy.
+
+Nazwy kluczy INI pozostają takie same, jednak stara liczba progu jest teraz interpretowana jako px@1080p. Może wymagać ponownego dostrojenia. JSON zawiera `low_motion_reset_units=pixels_at_1080p_height_per_frame`. Maksymalny wynik w UI ma oznaczenie px@1080p.
+
+Test CPU obejmuje pięć rozdzielczości 720p..8K, render/output MV, wejściowe wektory UV i pikselowe, origins oraz brakujące/niepoprawne metadane. Sonda WARP porównuje ten sam ruch przy wyjściu 1080p i 4K oraz trzech różnych siatkach NR z niezależnym wynikiem liczbowym. Łącznie ma 24 przypadki origin/jednostek/poprawności. HLSL i bloby nie zmieniają się. W dotychczasowym wariancie współdzielenia z coverage sam reset mógł korzystać wyłącznie z istniejącego readbacku. W tej wersji reset i automat ruchu korzystają wspólnie z osobnej sondy dla spójności jednostek. Koszt pojedynczej sondy z wcześniejszego testu syntetycznego wynosił około 0,006 ms na RTX 4090 przy częstotliwości najwyżej 8 Hz; nie jest to nowy pomiar całego toru w grze.

@@ -180,6 +180,7 @@ inline std::string MetadataJson(const Metadata& m)
     value("low_motion_reset_enabled", m.lowMotionResetEnabled);
     value("low_motion_reset_requested", m.lowMotionResetRequested);
     value("low_motion_reset_threshold", m.lowMotionThreshold);
+    out << "\n  \"low_motion_reset_units\": \"pixels_at_1080p_height_per_frame\",";
     value("low_motion_reset_delay", m.lowMotionDelay);
     value("low_motion_reset_peak_mv", m.lowMotionPeak);
     value("low_motion_reset_quiet_seconds", m.lowMotionSeconds);
