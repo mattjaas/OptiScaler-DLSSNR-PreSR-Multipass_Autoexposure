@@ -4015,6 +4015,44 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 config->DlssNrSuperiorKeepNrHistory = keepNrHistory;
             HelpMarker(
                 "Keeps the NR model history when changing the private DLSS preset or switching to or from No DLSS.");
+            auto transition = DlssNr::PrivateTransition::Read(*config);
+            bool timedFade = transition.timed;
+            if (ImGui::Checkbox("Use time for private DLSS fades", &timedFade))
+                config->DlssNrSuperiorFadeByTime = timedFade;
+            if (timedFade)
+            {
+                float seconds = transition.seconds;
+                if (ImGui::SliderFloat("Private DLSS fade duration", &seconds, 0.f, 2.f, "%.3f s"))
+                    config->DlssNrSuperiorFadeSeconds = seconds;
+                if (ImGui::InputFloat("Exact private DLSS fade seconds", &seconds, .01f, .1f, "%.3f"))
+                    config->DlssNrSuperiorFadeSeconds = std::isfinite(seconds) ? std::clamp(seconds, 0.f, 10.f) : .15f;
+            }
+            else
+            {
+                int frames = int(transition.frames);
+                if (ImGui::SliderInt("Private DLSS fade frames", &frames, 0, 240))
+                    config->DlssNrSuperiorFadeFrames = uint32_t(frames);
+            }
+            HelpMarker("Fades the current private DLSS edit toward the current NR edit before switching presets or "
+                       "selecting No DLSS. The next preset starts after the previous instance is released. "
+                       "Zero makes the switch immediate. Background mode uses the same duration when restoring DLSS.");
+            int motionMode = int(transition.mode);
+            static const char* motionModes[] = { "Off", "Stop evaluations at low motion",
+                                                 "Keep DLSS running in background" };
+            if (ImGui::Combo("Private DLSS low-motion action", &motionMode, motionModes, IM_ARRAYSIZE(motionModes)))
+                config->DlssNrSuperiorMotionMode = uint32_t(motionMode);
+            HelpMarker(
+                "Uses the low-motion MV threshold and delay below. After low motion persists, fades DLSS out. "
+                "Stop evaluations pauses GPU evaluation and keeps its allocation. Motion resumes it with a "
+                "history reset before the first evaluation, at full mix weight. Background keeps evaluating "
+                "with continuous history and fades back in when motion returns. Missing or stale MV restores DLSS.");
+            const auto transitionStatus = DlssNr::SuperiorScaling::TransitionStatus();
+            ImGui::Text("Private DLSS mix: %.0f%% | MV: %.3f px | low motion: %.2f s",
+                        transitionStatus.contribution * 100.f, transitionStatus.peak, transitionStatus.quietSeconds);
+            if (transitionStatus.sleeping)
+                ImGui::TextDisabled("Private DLSS evaluations paused.");
+            else if (transitionStatus.background)
+                ImGui::TextDisabled("Private DLSS running in background.");
             ImGui::EndDisabled();
 
             const bool noDlss = preset == 0;
@@ -4092,7 +4130,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "low motion causes repeated resets. Motion above the threshold clears the timer. "
                        "Uses working pixels per frame. A small moving object can fall between samples. "
                        "Independent of automatic gain; does not reset NR or the game's own DLSS.");
-            ImGui::BeginDisabled(!lowReset.enabled);
+            ImGui::BeginDisabled(!lowReset.enabled && transition.mode == DlssNr::PrivateTransition::Off);
             if (ImGui::SliderFloat("Low-motion reset MV threshold", &lowReset.threshold, .001f, 2.f, "%.3f px",
                                    ImGuiSliderFlags_Logarithmic))
                 config->DlssNrSuperiorLowMotionResetThreshold = lowReset.threshold;

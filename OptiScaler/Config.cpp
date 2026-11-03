@@ -1110,6 +1110,10 @@ void Config::ReadDlssNr()
     DlssNrTransfer.set_from_config(readUInt("DlssNr", "Transfer"));
     DlssNrSuperiorScalingPreset.set_from_config(readUInt("DlssNr", "SuperiorScalingPreset"));
     DlssNrSuperiorKeepNrHistory.set_from_config(readBool("DlssNr", "SuperiorKeepNrHistory"));
+    DlssNrSuperiorFadeByTime.set_from_config(readBool("DlssNr", "SuperiorFadeByTime"));
+    DlssNrSuperiorFadeFrames.set_from_config(readUInt("DlssNr", "SuperiorFadeFrames"));
+    DlssNrSuperiorFadeSeconds.set_from_config(readFloat("DlssNr", "SuperiorFadeSeconds"));
+    DlssNrSuperiorMotionMode.set_from_config(readUInt("DlssNr", "SuperiorMotionMode"));
     DlssNrSuperiorScalingDisableIsHDR.set_from_config(readBool("DlssNr", "SuperiorScalingDisableIsHDR"));
     DlssNrSuperiorScalingDisableAutoExposure.set_from_config(readBool("DlssNr", "SuperiorScalingDisableAutoExposure"));
     DlssNrSuperiorPositiveEditGain.set_from_config(readFloat("DlssNr", "SuperiorPositiveEditGain"));
@@ -1390,6 +1394,11 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetIntValue(c.DlssNrSuperiorScalingPreset.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorKeepNrHistory",
                  GetBoolValue(c.DlssNrSuperiorKeepNrHistory.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorFadeByTime", GetBoolValue(c.DlssNrSuperiorFadeByTime.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorFadeFrames", GetIntValue(c.DlssNrSuperiorFadeFrames.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorFadeSeconds",
+                 GetFloatValue(c.DlssNrSuperiorFadeSeconds.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorMotionMode", GetIntValue(c.DlssNrSuperiorMotionMode.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorScalingDisableIsHDR",
                  GetBoolValue(c.DlssNrSuperiorScalingDisableIsHDR.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorScalingDisableAutoExposure",
@@ -1829,6 +1838,10 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("Transfer", DlssNrTransfer),
         NR_PROFILE_FIELD("SuperiorScalingPreset", DlssNrSuperiorScalingPreset),
         NR_PROFILE_FIELD("SuperiorKeepNrHistory", DlssNrSuperiorKeepNrHistory),
+        NR_PROFILE_FIELD("SuperiorFadeByTime", DlssNrSuperiorFadeByTime),
+        NR_PROFILE_FIELD("SuperiorFadeFrames", DlssNrSuperiorFadeFrames),
+        NR_PROFILE_FIELD("SuperiorFadeSeconds", DlssNrSuperiorFadeSeconds),
+        NR_PROFILE_FIELD("SuperiorMotionMode", DlssNrSuperiorMotionMode),
         NR_PROFILE_FIELD("SuperiorScalingDisableIsHDR", DlssNrSuperiorScalingDisableIsHDR),
         NR_PROFILE_FIELD("SuperiorScalingDisableAutoExposure", DlssNrSuperiorScalingDisableAutoExposure),
         NR_PROFILE_FIELD("SuperiorPositiveEditGain", DlssNrSuperiorPositiveEditGain),

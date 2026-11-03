@@ -85,12 +85,14 @@ struct Fixture
         return t;
     }
     void dispatch(ID3D12PipelineState* ps, const DlssNrConstants& c, ID3D12Resource* source,
-                  ID3D12Resource* model, ID3D12Resource* target, UINT gx, UINT gy, ID3D12Resource* depth = nullptr)
+                  ID3D12Resource* model, ID3D12Resource* target, UINT gx, UINT gy, ID3D12Resource* depth = nullptr,
+                  ID3D12Resource* rawProxy = nullptr, ID3D12Resource* rawAnswer = nullptr)
     {
         auto cpu = r.heap->GetCPUDescriptorHandleForHeapStart();
         for (UINT i = 0; i < 6; ++i)
         {
-            auto* input = i == 3 && depth ? depth : i == 1 ? model : source;
+            auto* input = i == 3 && depth ? depth : i == 2 && rawProxy ? rawProxy :
+                          i == 4 && rawAnswer ? rawAnswer : i == 1 ? model : source;
             D3D12_SHADER_RESOURCE_VIEW_DESC d {};
             d.Format = input->GetDesc().Format;
             d.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -166,7 +168,7 @@ struct Fixture
 };
 
 void Timing(Fixture& f, const std::string& saturationBaseline = "", float saturation = 1.f, float depthStrength = 0.f,
-            bool fullAnswer = false, float gain = 16.f, unsigned depthFlags = 0, bool measureExtract = false)
+            bool fullAnswer = false, float gain = 16.f, unsigned depthFlags = 0, bool measureExtract = false, bool measureBlend = false)
 {
     // Synthetic changed stages only: no NR model, NGX evaluate, game scene or final composition.
     // Resident FP16 carrier and GPU timestamps, warmup and ABBA. No allocation/upload/fence in a window.
@@ -174,7 +176,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
     auto baseline = saturationBaseline.empty()
         ? r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", "dlssnr_superior_carrier")
         : r.pipeline(saturationBaseline, "private_carrier");
-    const std::string csvPath = measureExtract ? "artifacts/validation/no-dlss-extract-timing.csv" : saturationBaseline.empty() ? "artifacts/private-exposure-timing.csv"
+    const std::string csvPath = measureBlend ? "artifacts/validation/private-fade-timing.csv" : measureExtract ? "artifacts/validation/no-dlss-extract-timing.csv" : saturationBaseline.empty() ? "artifacts/private-exposure-timing.csv"
         : "artifacts/private-" + std::string(fullAnswer ? "answer-" : "transport-") + "g" + std::to_string(int(gain)) +
             "-s" + std::to_string(int(saturation)) + "-d" + std::to_string(int(depthStrength)) + "-flags" + std::to_string(depthFlags) + "-timing.csv";
     std::ofstream csv(csvPath);
@@ -204,7 +206,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
             auto cpu = r.heap->GetCPUDescriptorHandleForHeapStart();
             for (UINT i = 0; i < 6; ++i)
             {
-                auto* input = i == 3 ? depth.Get() : i == 1 ? modelTex : source;
+                auto* input = i == 3 ? depth.Get() : i == 2 ? proxy.Get() : i == 4 ? answer.Get() : i == 1 ? modelTex : source;
                 D3D12_SHADER_RESOURCE_VIEW_DESC d {}; d.Format = input->GetDesc().Format;
                 d.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D; d.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
                 d.Texture2D.MipLevels = 1;
@@ -223,7 +225,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
         };
         for (UINT method : { PE::Native, PE::LegacyCNN, PE::Transformer2 })
         {
-            if (measureExtract && method != PE::Native)
+            if ((measureExtract || measureBlend) && method != PE::Native)
                 continue;
             DlssNrConstants extraction = seed;
             extraction.Mode = 43;
@@ -234,6 +236,9 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
             c.ExposureAnchors[0] = .125f; c.ExposureAnchors[1] = .75f;
             c.ExposureAnchors[2] = .25f; c.ExposureAnchors[3] = .25f;
             auto encodeCb = constants(c); c.Mode = 38; auto decodeCb = constants(c);
+            const float blendWeight=.5f;
+            std::memcpy(&c.ExposurePadding,&blendWeight,4);
+            auto blendCb=constants(c);
             c = {}; c.Mode = 40; c.Width = sw; c.Height = sh; c.ExposureMode = method; c.PreExposure = 1;
             c.ExposureSourceWidth = w; c.ExposureSourceHeight = h;
             auto meterCb = constants(c); c.Mode = 41; c.Width = bx; c.Height = by; c.DebugView = 1; c.ApplyModel = 1;
@@ -260,7 +265,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
                     }
                     return;
                 }
-                bind(candidate ? f.carrier.Get() : baseline.Get(), encodeCb.Get(), 0, (w + 7) / 8, (h + 7) / 8);
+                bind(candidate || measureBlend ? f.carrier.Get() : baseline.Get(), encodeCb.Get(), 0, (w + 7) / 8, (h + 7) / 8);
                 r.barrier(encoded.Get(), UAV, SRV);
                 if ((candidate || !saturationBaseline.empty()) && method != PE::Native)
                 {
@@ -268,7 +273,8 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
                     bind(f.meter.Get(), reduceCb.Get(), 16, 1, 1); r.barrier(sums.Get(), SRV, UAV);
                     r.barrier(output.Get(), UAV, SRV); r.barrier(output.Get(), SRV, UAV);
                 }
-                bind(candidate ? f.carrier.Get() : baseline.Get(), decodeCb.Get(), 24, (w + 7) / 8, (h + 7) / 8);
+                bind(candidate || measureBlend ? f.carrier.Get() : baseline.Get(),
+                     measureBlend && candidate ? blendCb.Get() : decodeCb.Get(), 24, (w + 7) / 8, (h + 7) / 8);
                 r.barrier(encoded.Get(), SRV, UAV);
                 D3D12_RESOURCE_BARRIER barrier {}; barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
                 barrier.UAV.pResource = decoded.Get(); r.list->ResourceBarrier(1, &barrier);
@@ -310,6 +316,11 @@ int main(int argc, char** argv)
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc > 1 && std::string(argv[1]) == "--fade-timing")
+        {
+            Timing(f, "", 1.f, 0.f, false, 1.f, 0, false, true);
+            return 0;
+        }
         if (argc > 1 && std::string(argv[1]) == "--extract-timing")
         {
             Timing(f, "", 1.f, 0.f, false, 1.f, 0, true);
@@ -348,6 +359,31 @@ int main(int argc, char** argv)
             std::cout << "Disabled colour transport bit parity PASS: " << cases << " cases\n"; return 0;
         }
         unsigned checks = 0;
+        for (bool full : { false, true })
+        for (float rawWeight : { 0.f, .25f, .5f, 1.f })
+        {
+            std::vector<float> proxy { .5f, .25f, .75f, 1.f };
+            std::vector<float> answer { .75f, .125f, 1.f, 1.f };
+            std::vector<float> filtered { .6f, .4f, .5f, 1.f };
+            if (full)
+                for (unsigned ch=0;ch<3;++ch)filtered[ch]+=proxy[ch]-.5f;
+            f.r.begin();
+            auto p=f.texture(1,1,&proxy),a=f.texture(1,1,&answer),input=f.texture(1,1,&filtered),out=f.texture(1,1);
+            DlssNrConstants c {};
+            c.Mode=38;c.Width=c.Height=1;c.WhitePoint=2;c.MaxRatio=1;c.DirectDetailMode=full;
+            std::memcpy(&c.ExposurePadding,&rawWeight,4);
+            f.dispatch(f.carrier.Get(),c,input.Get(),p.Get(),out.Get(),1,1,nullptr,p.Get(),a.Get());
+            const auto actual=f.read(out.Get());
+            for(unsigned ch=0;ch<3;++ch)
+            {
+                const double v=filtered[ch]-(full?proxy[ch]:.5);
+                const double decoded=v>0?v/2:v;
+                Near(actual[ch],float((1-rawWeight)*decoded+rawWeight*(answer[ch]-proxy[ch])),
+                     "Private DLSS fade independent reference");
+            }
+            ++checks;
+        }
+
         // No DLSS uses mode 43 at unit gain and writes the signed edit to FP16.
         {
             const std::vector<float> proxy { .5f, .5f, .5f, 1.f, .25f, .5f, .5f, 1.f };

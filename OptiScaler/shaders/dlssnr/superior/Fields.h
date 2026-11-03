@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include "Constants.h"
 #include "../../../dlssnr/DlssNr_DepthTransport.h"
 #include "../DlssNr_Common.h"
@@ -34,6 +35,13 @@ inline bool InterPassLowField(const DlssNrConstants& c) { return c.GuideWidth !=
 
 // Private carrier only: WhitePoint is unused by its encode/decode modes.
 inline void SetPositiveCarrierGain(DlssNrConstants& c, float gain) { c.WhitePoint = gain; }
+// Carrier decode only: the otherwise unused exposure padding stores the raw-edit blend weight as float bits.
+inline void SetUnfilteredEditWeight(DlssNrConstants& c, float weight)
+{
+    std::memcpy(&c.ExposurePadding, &weight, sizeof(weight));
+}
+static_assert(offsetof(DlssNrConstants, ExposurePadding) == 172);
+
 static_assert(offsetof(DlssNrConstants, WhitePoint) == 4);
 // Private carrier modes do not use composition's MaxRatio; HLSL reads it as edit saturation.
 inline void SetCarrierSaturation(DlssNrConstants& c, float saturation) { c.MaxRatio = saturation; }

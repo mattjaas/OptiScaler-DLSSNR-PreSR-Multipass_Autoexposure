@@ -4,7 +4,7 @@
 #include <vector>
 #include "../OptiScaler/dlssnr/DlssNr_GainPreview.h"
 #include "../OptiScaler/dlssnr/DlssNr_AutoGain.h"
-#include "../OptiScaler/dlssnr/DlssNr_LowMotionReset.h"
+#include "../OptiScaler/dlssnr/DlssNr_PrivateTransition.h"
 using namespace DlssNr::GainPreview;
 Reading Signal(float value)
 {
@@ -77,6 +77,53 @@ void AutomaticGainChecks()
 int main()
 {
     AutomaticGainChecks();
+    {
+        namespace T = DlssNr::PrivateTransition;
+        T::Settings frames { 6, .3f, false, T::Background };
+        T::Fade fade;
+        for (int i = 0; i < 6; ++i)
+            fade.Advance(false, frames, i / 60.);
+        assert(fade.value == 0.f);
+        for (int i = 0; i < 6; ++i)
+            fade.Advance(true, frames, (6+i) / 60.);
+        assert(fade.value == 1.f);
+        T::Settings timed { 6, 1.f, true, T::Background };
+        T::Fade clock;
+        clock.Advance(true, timed, 10.);
+        clock.Advance(false, timed, 10.25);
+        assert(std::abs(clock.value-.75f) < 1e-6);
+        clock.Advance(false, timed, 11.);
+        assert(clock.value == 0.f);
+        T::Motion motion;
+        DlssNr::LowMotionReset::Settings gate { true, .25f, .5f };
+        DlssNr::GainPreview::Status mv;
+        mv.valid = true; mv.paused = false; mv.raw = 0.f;
+        T::Settings sleep { 2, .1f, false, T::Sleep };
+        for (unsigned i = 0; i <= 7; ++i)
+        {
+            mv.measuredAt=i*.125;mv.measurements=i+1;
+            motion.Update(sleep,gate,mv,mv.measuredAt,1,false);
+        }
+        assert(motion.sleeping && motion.fade.value == 0.f);
+        mv.raw=2.f;mv.measuredAt=1.;++mv.measurements;
+        motion.Update(sleep,gate,mv,1.,1,false);
+        assert(!motion.sleeping && motion.fade.value == 1.f);
+        motion={};
+        for (unsigned i = 0; i <= 7; ++i)
+        {
+            mv.raw=0;mv.measuredAt=i*.125;mv.measurements=i+1;
+            motion.Update(frames,gate,mv,mv.measuredAt,1,false);
+        }
+        assert(motion.hiding && !motion.sleeping);
+        const float hidden=motion.fade.value;
+        mv.raw=2;mv.measuredAt=1; ++mv.measurements;
+        motion.Update(frames,gate,mv,1,1,false);
+        assert(motion.fade.value>hidden && motion.fade.value<1);
+        mv.valid=false;
+        for (unsigned i=0;i<6;++i)motion.Update(frames,gate,mv,2+i*.125,1,false);
+        assert(motion.fade.value==1);
+    }
+
     // Independent sorted weighted distribution: unequal positive counts in R and G
     // must still contribute equal total weights. Conservative bin edge must bracket
     // the exact inverse threshold, with at most one 3.125% histogram interval.

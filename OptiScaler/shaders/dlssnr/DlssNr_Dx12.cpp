@@ -3430,21 +3430,24 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
         if (!cfg.DlssNrSuperiorKeepNrHistory.value_or_default())
             g_nr.reset = true;
     }
+    const bool privateActive = privateDlss || (superiorState.current && superiorState.current->temporal);
     const auto previewSettings = DlssNr::GainPreview::Read(cfg);
-    if ((!cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default() || !superiorSelected || !privateDlss ||
+    if ((!cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default() || !superiorSelected || !privateActive ||
          !superiorState.unavailable.empty()) &&
         superiorState.automaticGain.state.enabled)
         superiorState.automaticGain.Reset();
     superiorState.preview.Configure((cfg.DlssNrSuperiorGainPreview.value_or_default() ||
                                      cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default()) &&
-                                        superiorSelected && privateDlss && superiorState.unavailable.empty(),
+                                        superiorSelected && privateActive && superiorState.unavailable.empty(),
                                     previewSettings);
     superiorState.preview.Collect();
     DlssNr::GainPreview::Settings observerSettings;
     observerSettings.method = DlssNr::GainPreview::MotionWatch;
     observerSettings.trackMotion = true;
-    superiorState.motionWatch.Configure(cfg.DlssNrSuperiorLowMotionReset.value_or_default() && superiorSelected &&
-                                            privateDlss && superiorState.unavailable.empty(),
+    const auto privateTransition = DlssNr::PrivateTransition::Read(cfg);
+    superiorState.motionWatch.Configure((cfg.DlssNrSuperiorLowMotionReset.value_or_default() ||
+                                         privateTransition.mode != DlssNr::PrivateTransition::Off) &&
+                                            superiorSelected && privateActive && superiorState.unavailable.empty(),
                                         observerSettings);
     superiorState.motionWatch.Collect();
     if (superiorState.editDump)
@@ -6210,14 +6213,50 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
             auto* shapingProxy = g.packed ? modelInput : superiorGuided ? ordinaryProxy : resolveProxy;
             auto* shapingAnswer = g.packed ? finalAnswer : superiorGuided ? ordinaryAnswer : resolveAnswer;
             auto* residual = shapingAnswer;
-            if (g.temporal && !superiorSpatialFallback)
+            DlssNr::GainPreview::Status transitionMotion;
+            const bool transitionObserver = g.temporal && !superiorSpatialFallback && g.presetFade.value == 1.f &&
+                                            !g_viewSecondary &&
+                                            privateTransition.mode != DlssNr::PrivateTransition::Off;
+            if (transitionObserver)
+            {
+                const double now =
+                    std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+                const uint64_t context = (1ull << 63) | uint64_t(g.workWidth) | (uint64_t(g.workHeight) << 16) |
+                                         (uint64_t(g.preset) << 32) | (uint64_t(g.packed) << 40);
+                transitionMotion = SuperiorRun::ObserveTransitionMotion(
+                    g, cmdList, shapingProxy, shapingAnswer, g.packed ? EdgeCompression::motion : g.motion.Get(),
+                    g.packed ? 1.f : evalMvScaleX, g.packed ? 1.f : evalMvScaleY, g_nr.heldActive, now, context);
+                const bool wasSleeping = g.motionFade.sleeping;
+                g.motionFade.Update(privateTransition, DlssNr::LowMotionReset::Read(cfg), transitionMotion, now,
+                                    context, g_nr.heldActive);
+                if (wasSleeping && !g.motionFade.sleeping)
+                {
+                    // Clear the stale private history before the first resumed EvaluateFeature.
+                    g.reset = true;
+                    for (auto& exposure : g.exposure)
+                        exposure.initialized = false;
+                }
+            }
+            else if (privateTransition.mode == DlssNr::PrivateTransition::Off && g.motionFade.fade.value < 1.f)
+                g.motionFade = {};
+
+            if (g.temporal && !superiorSpatialFallback && !g.motionFade.sleeping)
                 residual = SuperiorRun::Stabilize(
                     g, *this, cmdList, shapingProxy, shapingAnswer, depthIn, motionIn, guides, frame, superiorReset,
                     g_nr.heldActive, g.packed ? EdgeCompression::depth : nullptr,
                     g.packed ? EdgeCompression::motion : nullptr,
-                    { spatialGuideLayout.modelW, spatialGuideLayout.modelH }, SuperiorDepthPrecision(guideDesc.Format));
+                    { spatialGuideLayout.modelW, spatialGuideLayout.modelH }, SuperiorDepthPrecision(guideDesc.Format),
+                    g.presetFade.value * g.motionFade.fade.value, transitionObserver ? &transitionMotion : nullptr);
             else if (superiorGuided)
+            {
+                if (g.motionFade.sleeping && !g.reset)
+                {
+                    g.reset = true;
+                    for (auto& exposure : g.exposure)
+                        exposure.initialized = false;
+                }
                 residual = SuperiorRun::ExtractEdit(g, *this, cmdList, shapingProxy, shapingAnswer);
+            }
             const auto gains = DlssNr::SuperiorScaling::BlockGains(cfg, superiorCovered, superiorCompleted,
                                                                    superiorGainScales, g_nr.superiorMainOnlyGains);
             auto* low = residual && (gains.high != 1.0f || gains.low != 1.0f)
@@ -7579,6 +7618,24 @@ DlssNr::LowMotionReset::Status DlssNr::SuperiorScaling::LowMotionResetStatus()
     return status;
 }
 
+DlssNr::PrivateTransition::Status DlssNr::SuperiorScaling::TransitionStatus()
+{
+    std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
+    DlssNr::PrivateTransition::Status status;
+    const auto& g = SuperiorRun::GetState().current;
+    if (!g || !g->temporal || !g->feature || g->waitedFrames != UINT_MAX)
+    {
+        status.contribution = 0.f;
+        return status;
+    }
+    status.contribution = g->presetFade.value * g->motionFade.fade.value;
+    status.peak = g->motionFade.quiet.state.peak;
+    status.quietSeconds = g->motionFade.quiet.state.quietSeconds;
+    status.sleeping = g->motionFade.sleeping;
+    status.background = g->motionFade.hiding && !status.sleeping && status.contribution == 0.f;
+    return status;
+}
+
 void DlssNr::SuperiorScaling::ResetGainPreview()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
@@ -7589,11 +7646,7 @@ void DlssNr::SuperiorScaling::RetryPrivatePreset()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     auto& s = SuperiorRun::GetState();
-    if (!Config::Instance()->DlssNrSuperiorKeepNrHistory.value_or_default())
-    {
-        SuperiorRun::Drop();
-        g_nr.reset = true;
-    }
+    // Begin owns preset changes so it can finish fading the active instance first.
     s.unavailable.clear();
     s.srUnavailable = false;
     s.rejectedPresetOptions = 0;

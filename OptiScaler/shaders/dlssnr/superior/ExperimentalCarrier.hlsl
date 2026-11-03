@@ -43,13 +43,28 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
             gKeep[id.xy] = float4(all(isfinite(mv)) ? mv : float2(0, 0), 0, 1);
         }
     }
-    else if (gDirectDetailMode != 0u)
-    {
-        const float3 proxy = SanitizeFinite3(gModel.Load(p).rgb, 0.0);
-        const float3 filtered = SanitizeFinite3(gSource.Load(p).rgb, proxy + depthColour + bias) - depthColour - bias;
-        gTarget[id.xy] = float4(DecodeNrAnswer(filtered, proxy, gain, gMaxRatio), 1.0);
-    }
     else
-        gTarget[id.xy] = float4(DecodePositiveCarrier(SanitizeFinite3(gSource.Load(p).rgb, bias == 0.0 ? float3(0.5, 0.5, 0.5) : 0.5 + depthColour + bias) - depthColour - bias,
-                                                     gain, gMaxRatio), 1.0);
+    {
+        float3 edit;
+        if (gDirectDetailMode != 0u)
+        {
+            const float3 proxy = SanitizeFinite3(gModel.Load(p).rgb, 0.0);
+            const float3 filtered = SanitizeFinite3(gSource.Load(p).rgb, proxy + depthColour + bias) - depthColour - bias;
+            edit = DecodeNrAnswer(filtered, proxy, gain, gMaxRatio);
+        }
+        else
+        {
+            const float3 filtered = SanitizeFinite3(gSource.Load(p).rgb,
+                bias == 0.0 ? float3(0.5, 0.5, 0.5) : 0.5 + depthColour + bias);
+            edit = DecodePositiveCarrier(filtered - depthColour - bias, gain, gMaxRatio);
+        }
+        const float weightRaw = asfloat(gExposurePadding);
+        [branch] if (isfinite(weightRaw) && weightRaw > 0.0)
+        {
+            const float3 proxy = SanitizeFinite3(gOriginal.Load(p).rgb, 0.0);
+            const float3 rawEdit = SanitizeFinite3(gAux.Load(p).rgb, proxy) - proxy;
+            edit = weightRaw >= 1.0 ? rawEdit : lerp(edit, rawEdit, weightRaw);
+        }
+        gTarget[id.xy] = float4(edit, 1.0);
+    }
 }

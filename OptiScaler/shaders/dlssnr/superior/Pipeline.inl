@@ -47,6 +47,8 @@ struct Generation
     bool inverted = false, beforeSr = false, reset = true;
     bool temporal = false, packed = false;
     DlssNr::LowMotionReset::Controller lowMotion;
+    DlssNr::PrivateTransition::Fade presetFade;
+    DlssNr::PrivateTransition::Motion motionFade;
     bool exactPresetOverride = false;
     bool disableIsHDR = false; // creation identity, independent of the game's HDR and AutoExposure
     uint32_t exposureMode = DlssNr::PrivateExposure::Native;
@@ -180,6 +182,7 @@ struct State
     DlssNr::GainPreview::Runtime motionWatch;
     DlssNr::AutoGain::Controller automaticGain;
     std::shared_ptr<Generation> current;
+    std::weak_ptr<Generation> retiringPrivateDlss;
     bool wasSelected = false, wasActive = false;
     std::string status;
     std::string unavailable;   // why Superior is not running this session; empty while it runs
@@ -287,6 +290,8 @@ void Drop()
     auto& s = GetState();
     if (!s.current)
         return;
+    if (s.current->feature)
+        s.retiringPrivateDlss = s.current;
     auto old = std::move(s.current);
     s.lifetime.Retire([old] {});
     s.lifetime.BeginGeneration();
@@ -694,7 +699,8 @@ Created CreateTemporal(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommand
     const auto w = g.workWidth, h = g.workHeight;
     if (!Ensure(g.carrier, g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, w, h) ||
         !Ensure(g.temporalOutput, g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, w, h) ||
-        !Ensure(g.temporalMotion, g.device.Get(), DXGI_FORMAT_R32G32_FLOAT, w, h) || !CreateWarp(g, shader, cmd) ||
+        !Ensure(g.temporalMotion, g.device.Get(), DXGI_FORMAT_R32G32_FLOAT, w, h) ||
+        (g.packed && !g.warp.Get() && !CreateWarp(g, shader, cmd)) ||
         !Ensure(g.unit, g.device.Get(), DXGI_FORMAT_R32_FLOAT, 1, 1))
         return Created::ResourcesFailed;
     Constants unit {};
@@ -893,7 +899,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
                           ID3D12Resource* answer, ID3D12Resource* originalDepth, ID3D12Resource* originalMotion, const DlssNr::GuideRegions& regions,
                           const DlssNrFrameInfo& frame, bool reset, bool hold, ID3D12Resource* packedDepth,
                           ID3D12Resource* packedMotion, DlssNr::GuideExtent packedGuideExtent,
-                          float packedDepthPrecision)
+                          float packedDepthPrecision, float mix,
+                          const DlssNr::GainPreview::Status* transitionMotion)
 {
     if (!g.feature || !g.parameters || !NgxAlive(g.ngxEpoch))
         return nullptr;
@@ -1097,7 +1104,9 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         const bool shared = measurementRequested && supported && !hold &&
             (measurementSettings.method==DlssNr::GainPreview::Coverage || measurementSettings.boundaryMotionGate);
         DlssNr::GainPreview::Status motionSample;
-        if(lowMotionSettings.enabled)
+        if (lowMotionSettings.enabled && transitionMotion)
+            motionSample = *transitionMotion;
+        else if(lowMotionSettings.enabled)
         {
             if(shared)
             {
@@ -1115,7 +1124,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
             }
             else runtime.motionWatch.Pause("Low-motion probe paused: frame held.");
         }
-        if(g.lowMotion.Update(lowMotionSettings,motionSample,now,baseContext ^ (shared?(1ull<<63):0),reset||g.reset||hold,shared))
+        if(g.lowMotion.Update(lowMotionSettings,motionSample,now,baseContext ^ (transitionMotion ? (1ull << 62) : shared ? (1ull << 63) : 0),
+                              reset || g.reset || hold, shared && !transitionMotion))
         {
             g.reset=true;
             for(auto& h:g.exposure)h.initialized=false;
@@ -1176,11 +1186,31 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     Fields::SetCarrierDepthColour(decode, depthStrength, depthCurve, depthPair, g.inverted);
     Fields::SetCarrierNrAnswer(decode, filterNrAnswer);
     Fields::SetCarrierDepthBrightness(decode, depthTransport);
-    if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), filterNrAnswer ? proxy : nullptr, nullptr,
-                  depthStrength > 0 || depthActive ? temporalDepth : nullptr, nullptr, nullptr, g.carrier))
+    Fields::SetUnfilteredEditWeight(decode, 1.f - mix);
+    if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), filterNrAnswer ? proxy : nullptr,
+                  mix < 1.f ? proxy : nullptr, depthStrength > 0 || depthActive ? temporalDepth : nullptr,
+                  mix < 1.f ? answer : nullptr, nullptr, g.carrier))
         return nullptr;
     g.reset = false;
     return g.carrier.Get();
+}
+
+DlssNr::GainPreview::Status ObserveTransitionMotion(
+    Generation& g, ID3D12GraphicsCommandList* cmd, ID3D12Resource* proxy, ID3D12Resource* answer,
+    ID3D12Resource* motion, float scaleX, float scaleY, bool hold, double now, uint64_t context)
+{
+    auto& watch = GetState().motionWatch;
+    if (hold)
+    {
+        watch.Pause("Low-motion probe paused: frame held.");
+        return {};
+    }
+    auto sample = watch.MatchesContext(g.device.Get(), context) ? watch.GetMotionStatus() : DlssNr::GainPreview::Status {};
+    const DlssNr::GainPreview::MotionRegion region { 0, 0, g.workWidth, g.workHeight, scaleX, scaleY };
+    Record(cmd);
+    watch.Record(g.device.Get(), cmd, Util::RealObjectIdentity(cmd), proxy, answer, motion,
+                 g.workWidth, g.workHeight, false, context, now, nullptr, false, 0, &region);
+    return sample;
 }
 
 ID3D12Resource* ExtractEdit(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd,
@@ -1274,7 +1304,21 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         const bool workGridChanged = previous->workWidth != workWidth || previous->workHeight != workHeight;
         const bool selectionChanged = previous->temporal != temporal ||
             DlssNr::SuperiorScaling::PrivatePresetChanged(previous->preset, preset) || previous->exactPresetOverride != exactOverride;
-        if (ngxGone || geometryChanged || privateSettingsChanged || layoutChanged || workGridChanged || selectionChanged)
+        const bool compatible = !ngxGone && !geometryChanged && !privateSettingsChanged && !layoutChanged && !workGridChanged;
+        const auto transition = DlssNr::PrivateTransition::Read(cfg);
+        const double fadeNow =
+            std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+        if (compatible && previous->temporal && previous->feature && previous->waitedFrames == UINT_MAX)
+        {
+            const bool visible = !selectionChanged;
+            const float fade = previous->presetFade.Advance(visible, transition, fadeNow);
+            if (selectionChanged && fade > 0.f && previous->motionFade.fade.value > 0.f)
+            {
+                Record(cmd);
+                return Began::Run;
+            }
+        }
+        if (!compatible || selectionChanged)
         {
             // Only the private resolve grid changes when bypassing a packed private DLSS.
             // NR validates its own model dimensions independently.
@@ -1309,7 +1353,8 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         g.exactPresetOverride = exactOverride;
     }
     auto& g = *state.current;
-    if (!temporal && g.packed)
+    const bool retiring = temporal && !state.retiringPrivateDlss.expired();
+    if (g.packed && (!temporal || retiring))
     {
         const auto identity = Util::RealObjectIdentity(cmd);
         if (!g.creation)
@@ -1325,6 +1370,15 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         else if (!g.creationSubmitted && g.creation != identity)
             return Began::Wait;
     }
+    if (retiring)
+    {
+        Say("Finishing old private DLSS GPU work; using current NR edit.");
+        Record(cmd);
+        return Began::SpatialFallback;
+    }
+    if (temporal && !g.feature && g.packed && g.creation && !g.creationSubmitted &&
+        g.creation != Util::RealObjectIdentity(cmd))
+        return Began::Wait;
     if (temporal && !g.feature)
     {
         switch (CreateTemporal(g, shader, cmd))

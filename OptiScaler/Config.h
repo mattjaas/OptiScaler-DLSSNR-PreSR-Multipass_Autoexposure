@@ -444,6 +444,10 @@ class Config
     // Private SR family preference: No DLSS=0, CNN=1 (A/E), Transformer=11 (K), Transformer 2-gen=13 (M).
     CustomOptional<uint32_t> DlssNrSuperiorScalingPreset { 1 };
     CustomOptional<bool> DlssNrSuperiorKeepNrHistory { false };
+    CustomOptional<bool> DlssNrSuperiorFadeByTime { false };
+    CustomOptional<uint32_t> DlssNrSuperiorFadeFrames { 6 };
+    CustomOptional<float> DlssNrSuperiorFadeSeconds { .15f };
+    CustomOptional<uint32_t> DlssNrSuperiorMotionMode { 0 };
     // Independent private residual DLSS creation flags and experimental carrier/exposure settings.
     CustomOptional<bool> DlssNrSuperiorScalingDisableIsHDR { false };
     CustomOptional<bool> DlssNrSuperiorScalingDisableAutoExposure { false };

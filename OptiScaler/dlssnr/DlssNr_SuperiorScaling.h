@@ -7,7 +7,7 @@
 #include "DlssNr_GainPreview.h"
 #include "DlssNr_DepthTransport.h"
 #include "DlssNr_AutoGain.h"
-#include "DlssNr_LowMotionReset.h"
+#include "DlssNr_PrivateTransition.h"
 #include "DlssNr_GuidedShaping.h"
 #include "DlssNr_InterPassSchedule.h"
 
@@ -29,6 +29,7 @@ std::string EditDumpStatus();
 DlssNr::GainPreview::Status GainPreviewStatus();
 DlssNr::AutoGain::Status AutomaticGainStatus();
 DlssNr::LowMotionReset::Status LowMotionResetStatus();
+DlssNr::PrivateTransition::Status TransitionStatus();
 void ResetGainPreview();
 // The game's NGX D3D12 runtime is shutting down: every NGX handle is about to be destroyed by NGX itself.
 void NgxDx12Shutdown();
