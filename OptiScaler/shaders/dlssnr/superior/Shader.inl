@@ -255,8 +255,8 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorResolvePipeline(const DlssNrConstants&
 {
     using namespace DlssNr::Superior::HostBytecode;
     // Every packed PSO fixes gGuideHeight to 0 (precompile/dlssnr.hlsl, DLSSNR_SUPERIOR_HOST_RESOLVE): it adds the
-    // decoded signed DLSS residual to the proxy. A raw NR answer there would be added as if it were a residual. A
-    // packed generation is always temporal (NeedsTemporal), so this only guards that invariant: no PSO, game frame kept.
+    // signed edit to the proxy. A packed generation always supplies a signed edit, either extracted directly or
+    // decoded from the private DLSS output. A raw NR answer here would be added as if it were an edit.
     if (packed && rawAnswer)
     {
         static std::once_flag once;

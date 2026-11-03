@@ -364,12 +364,12 @@ void ResetRecording(ID3D12CommandList* cmd)
         EditDumpListDestroyed(s.editDump->commands);
     }
     Forget(cmd);
-    // The private DLSS creation was recorded on a list that is being reset without ever being submitted:
-    // those creation commands never run, so the feature must be built again.
-    if (s.current && s.current->feature && s.current->creation == cmd && !s.current->creationSubmitted)
+    // A discarded recording may contain private DLSS creation or the immutable packed warp upload.
+    if (s.current && s.current->creation == cmd && !s.current->creationSubmitted)
     {
+        const bool resetNr = s.current->temporal && !Config::Instance()->DlssNrSuperiorKeepNrHistory.value_or_default();
         Drop();
-        if (!Config::Instance()->DlssNrSuperiorKeepNrHistory.value_or_default())
+        if (resetNr)
             g_nr.reset = true;
     }
 }
@@ -1183,6 +1183,20 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     return g.carrier.Get();
 }
 
+ID3D12Resource* ExtractEdit(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd,
+                             ID3D12Resource* proxy, ID3D12Resource* answer)
+{
+    if (!Ensure(g.carrier, g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, g.workWidth, g.workHeight))
+        return nullptr;
+    Constants c {};
+    c.Mode = 43u; // signed answer minus proxy, with unit positive gain and no carrier transforms
+    c.Width = g.workWidth;
+    c.Height = g.workHeight;
+    Fields::SetPositiveCarrierGain(c, 1.0f);
+    return Dispatch(shader, cmd, c, proxy, answer, nullptr, nullptr, nullptr, nullptr, g.carrier) ? g.carrier.Get()
+                                                                                               : nullptr;
+}
+
 // The private preset Begin picks (PrivatePresetChoice): kept for the session so a moving Auto scale does not recreate
 // the private DLSS and reset history; NR and NGX shutdown clear it, so a new device or runtime picks again.
 DlssNr::SuperiorScaling::PrivatePresetChoice& PresetChoice()
@@ -1294,6 +1308,22 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         g.exactPresetOverride = exactOverride;
     }
     auto& g = *state.current;
+    if (!temporal && g.packed)
+    {
+        const auto identity = Util::RealObjectIdentity(cmd);
+        if (!g.creation)
+        {
+            Record(cmd);
+            if (!CreateWarp(g, shader, cmd))
+            {
+                GiveUp("its packed warp could not be created", false);
+                return Began::Unavailable;
+            }
+            g.creation = identity;
+        }
+        else if (!g.creationSubmitted && g.creation != identity)
+            return Began::Wait;
+    }
     if (temporal && !g.feature)
     {
         switch (CreateTemporal(g, shader, cmd))

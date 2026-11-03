@@ -166,7 +166,7 @@ struct Fixture
 };
 
 void Timing(Fixture& f, const std::string& saturationBaseline = "", float saturation = 1.f, float depthStrength = 0.f,
-            bool fullAnswer = false, float gain = 16.f, unsigned depthFlags = 0)
+            bool fullAnswer = false, float gain = 16.f, unsigned depthFlags = 0, bool measureExtract = false)
 {
     // Synthetic changed stages only: no NR model, NGX evaluate, game scene or final composition.
     // Resident FP16 carrier and GPU timestamps, warmup and ABBA. No allocation/upload/fence in a window.
@@ -174,12 +174,13 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
     auto baseline = saturationBaseline.empty()
         ? r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", "dlssnr_superior_carrier")
         : r.pipeline(saturationBaseline, "private_carrier");
-    const std::string csvPath = saturationBaseline.empty() ? "artifacts/private-exposure-timing.csv"
+    const std::string csvPath = measureExtract ? "artifacts/validation/no-dlss-extract-timing.csv" : saturationBaseline.empty() ? "artifacts/private-exposure-timing.csv"
         : "artifacts/private-" + std::string(fullAnswer ? "answer-" : "transport-") + "g" + std::to_string(int(gain)) +
             "-s" + std::to_string(int(saturation)) + "-d" + std::to_string(int(depthStrength)) + "-flags" + std::to_string(depthFlags) + "-timing.csv";
     std::ofstream csv(csvPath);
     csv << "width,height,method,block,position,variant,ms\n";
-    for (auto size : { std::pair<UINT, UINT>{1920, 1080}, {3840, 2160} })
+    const std::pair<UINT, UINT> first = measureExtract ? std::pair<UINT, UINT>{2496, 1404} : std::pair<UINT, UINT>{1920, 1080};
+    for (auto size : { first, {3840, 2160} })
     {
         const UINT w = size.first, h = size.second, sw = w / 2, sh = h / 2, bx = (sw + 31) / 32, by = (sh + 31) / 32;
         std::vector<float> a(size_t(w) * h * 4, .5f), b(a.size());
@@ -222,6 +223,11 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
         };
         for (UINT method : { PE::Native, PE::LegacyCNN, PE::Transformer2 })
         {
+            if (measureExtract && method != PE::Native)
+                continue;
+            DlssNrConstants extraction = seed;
+            extraction.Mode = 43;
+            auto extractCb = constants(extraction);
             DlssNrConstants c = seed; c.WhitePoint = gain; c.MaxRatio = saturation; c.DirectDetailMode = fullAnswer ? 1u : 0u;
             c.ResidualScale = depthStrength; c.ResidualBlend = 1.f;
             c.DirectResolveUpscaler = depthFlags;
@@ -244,6 +250,16 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
             };
             auto draw = [&](bool candidate)
             {
+                if (measureExtract)
+                {
+                    if (candidate)
+                    {
+                        bind(f.carrier.Get(), extractCb.Get(), 0, (w + 7) / 8, (h + 7) / 8);
+                        r.barrier(encoded.Get(), UAV, SRV);
+                        r.barrier(encoded.Get(), SRV, UAV);
+                    }
+                    return;
+                }
                 bind(candidate ? f.carrier.Get() : baseline.Get(), encodeCb.Get(), 0, (w + 7) / 8, (h + 7) / 8);
                 r.barrier(encoded.Get(), UAV, SRV);
                 if ((candidate || !saturationBaseline.empty()) && method != PE::Native)
@@ -294,6 +310,11 @@ int main(int argc, char** argv)
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc > 1 && std::string(argv[1]) == "--extract-timing")
+        {
+            Timing(f, "", 1.f, 0.f, false, 1.f, 0, true);
+            return 0;
+        }
         if (argc > 1 && std::string(argv[1]) == "--timing") { Timing(f); return 0; }
         if (argc == 4 && std::string(argv[1]) == "--saturation-timing")
         {
@@ -327,6 +348,26 @@ int main(int argc, char** argv)
             std::cout << "Disabled colour transport bit parity PASS: " << cases << " cases\n"; return 0;
         }
         unsigned checks = 0;
+        // No DLSS uses mode 43 at unit gain and writes the signed edit to FP16.
+        {
+            const std::vector<float> proxy { .5f, .5f, .5f, 1.f, .25f, .5f, .5f, 1.f };
+            const std::vector<float> answer { .125f, .5f, .75f, 1.f, 1.5f, NAN, INFINITY, 1.f };
+            f.r.begin();
+            auto source = f.texture(2, 1, &proxy), model = f.texture(2, 1, &answer);
+            auto edit = f.texture(2, 1, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT);
+            DlssNrConstants c {};
+            c.Mode = 43;
+            c.Width = 2;
+            c.Height = 1;
+            c.WhitePoint = 1.f;
+            f.dispatch(f.carrier.Get(), c, source.Get(), model.Get(), edit.Get(), 1, 1);
+            const auto actual = f.read(edit.Get());
+            const std::vector<float> expected { -.375f, 0.f, .25f, 1.f, 1.25f, 0.f, 0.f, 1.f };
+            if (actual != expected)
+                throw std::runtime_error("Direct signed NR edit differs from expected FP16 output");
+            ++checks;
+        }
+
         for (UINT method : { PE::LegacyCNN, PE::LegacyK, PE::Transformer2 })
             for (float value : { 0.f, .00001f, .05f, .1f, .18f, .5f, 1.f, 2.f, 20000.f })
                 for (float pre : { 1.f, 4.f })
