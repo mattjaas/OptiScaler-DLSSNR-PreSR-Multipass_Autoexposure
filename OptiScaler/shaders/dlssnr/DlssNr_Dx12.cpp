@@ -52,6 +52,7 @@
 #include "DlssNr_ExposureFoundBlend.h"
 #include "DlssNr_ExposureMeter.h"
 #include "DlssNr_FinishedReady.h"
+#include "DlssNr_FinishedCommands.h"
 #include <dlssnr/DlssNr_GameDefaults.h>
 
 #include "../../dlssnr/DlssNr_EditDumpFiles.h"

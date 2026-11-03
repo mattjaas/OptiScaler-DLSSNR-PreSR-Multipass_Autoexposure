@@ -113,8 +113,15 @@ void Cancel()
 {
     // Submitted copies may still be in flight; their fences still protect reuse.
     for (auto& slot : slots)
+    {
         if (slot.submitted)
             slot.pending = false;
+        // These lists are ours and will never be replayed after cancellation. Leaving them
+        // closed but alive keeps Superior's old NGX generation retained indefinitely when
+        // switching to After SR. Poll only: never wait for GPU work on the present thread.
+        if (!slot.pending)
+            ReleaseFinishedPictureCommands(slot.commands, slot.fence.Get(), slot.done);
+    }
     reset = true;
 }
 
@@ -170,8 +177,9 @@ Slot* Acquire(ID3D12GraphicsCommandList* cmd)
     auto& slot = *next;
     if (!slot.commands)
     {
-        if (FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&slot.fence))) ||
-            FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&slot.allocator))) ||
+        if ((!slot.fence && FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&slot.fence)))) ||
+            (!slot.allocator &&
+             FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&slot.allocator)))) ||
             FAILED(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, slot.allocator.Get(), nullptr,
                                             IID_PPV_ARGS(&slot.commands))) || FAILED(slot.commands->Close()))
         {

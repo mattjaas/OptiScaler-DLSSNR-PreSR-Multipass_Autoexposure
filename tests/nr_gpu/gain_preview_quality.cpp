@@ -3,6 +3,7 @@
 #include "../../OptiScaler/dlssnr/DlssNr_GainPreview_Dx12.h"
 #include "../../OptiScaler/dlssnr/DlssNr_SuperiorScaling.h"
 #include "../../OptiScaler/shaders/dlssnr/DlssNr_Guides.h"
+#include "../../OptiScaler/shaders/dlssnr/DlssNr_FinishedCommands.h"
 #include <chrono>
 #include <DirectXPackedVector.h>
 #include <numeric>
@@ -491,6 +492,51 @@ void MotionWatchQuality(bool hardware)
     Require(f.Run(invalid).validMotion==0,"Motion-only bounds guard");
     std::cout<<"Motion-only numeric/origin/units validation PASS: "<<cases<<" cases\n";
 }
+void FinishedPictureRetirement(bool hardware)
+{
+    Runner r(hardware);
+    DlssNr::GpuLifetime lifetime;
+    // Switching Finished picture -> After SR -> Finished picture -> After SR must
+    // retire both old generations, even when the owned lists will never be Reset.
+    for (unsigned cycle = 0; cycle < 2; ++cycle)
+    {
+        ComPtr<ID3D12GraphicsCommandList> commands;
+        check(r.allocator->Reset());
+        check(r.device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, r.allocator.Get(), nullptr,
+                                         IID_PPV_ARGS(&commands)));
+        auto generation = std::make_shared<int>(int(cycle));
+        std::weak_ptr<int> retiring = generation;
+        lifetime.Record(commands.Get());
+        check(commands->Close());
+        ComPtr<ID3D12Fence> gate;
+        check(r.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&gate)));
+        check(r.queue->Wait(gate.Get(), 1));
+        ID3D12CommandList* lists[] { commands.Get() };
+        r.queue->ExecuteCommandLists(1, lists);
+        lifetime.Submitted(r.queue.Get(), 1, lists);
+        const auto done = ++r.serial;
+        check(r.queue->Signal(r.fence.Get(), done));
+        lifetime.Retire([old = std::move(generation)] {});
+        lifetime.BeginGeneration();
+        const bool releasedEarly = DlssNr::ReleaseFinishedPictureCommands(commands, r.fence.Get(), done);
+        lifetime.Collect();
+        const bool retainedInFlight = !retiring.expired();
+        // Always unblock the queue before asserting, including on a regression.
+        check(gate->Signal(1));
+        Wait(r);
+        Require(!releasedEarly && retainedInFlight, "Canceled finished-picture list must retain in-flight GPU work");
+        lifetime.Collect();
+        Require(!retiring.expired(), "Completed replayable list reproduces private DLSS replacement blockage");
+        Require(!DlssNr::ReleaseFinishedPictureCommands(commands, nullptr, done), "Missing fence cannot release list");
+        Require(DlssNr::ReleaseFinishedPictureCommands(commands, r.fence.Get(), done),
+                "Canceled owned list released after completion without a GPU wait");
+        lifetime.Collect();
+        Require(retiring.expired(), "Old private generation released; After SR can create its replacement");
+        Require(!DlssNr::ReleaseFinishedPictureCommands(commands, r.fence.Get(), done), "Repeated cancellation is harmless");
+    }
+    std::cout << "Finished-picture cancellation: in-flight safety and repeated private generation retirement passed\n";
+}
+
 void RuntimeQuality(bool hardware, bool boundary = false, bool depthOnly = false, bool watchOnly = false)
 {
     Fixture f(hardware, 128, 72, false, boundary,watchOnly);
@@ -734,6 +780,7 @@ int main(int argc, char** argv)
         }
         Quality(hardware, false);
         Quality(hardware, true);
+        FinishedPictureRetirement(hardware);
         RuntimeQuality(hardware);
         RuntimeQuality(hardware,true);
         RuntimeQuality(hardware,true,true);

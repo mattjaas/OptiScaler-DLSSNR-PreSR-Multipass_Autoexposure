@@ -2,6 +2,14 @@
 
 Aktualizacja 2026-10-31. W **DLSS to temporally stabilize NR** dostępne są CNN, Transformer oraz **Transformer 2-gen (L/M)**. Ta ostatnia ma **Private Transformer 2-gen preset override**: Automatic M, L, M. Numery L=12 i M=13 są kontrolowane względem SDK. Wskazówki presetów dotyczą prywatnego SR/DLAA; sukces tworzenia NGX nie potwierdza faktycznie użytego wewnętrznego modelu. Jawny override nie przechodzi po błędzie na Default. Automatic zachowuje istniejący fallback. Zmiana rodziny/override odtwarza prywatną instancję przez dotychczasowy mechanizm bezpiecznego zwalniania GPU. Wybór jest zachowany podczas DRS, a latch instancji czyszczony podczas shutdown NR/NGX.
 
+## Przejście z Finished picture na After SR
+
+W logu Spider-Man 2 z sesji 2026-11-03 przejścia o 23:55:09 i 23:56:35 zatrzymywały prywatny DLSS na `Finishing old private DLSS GPU work; using current NR edit.` Powrót do Finished picture o 23:56:32 umożliwiał ponowne tworzenie instancji. NR nadal pracował w After SR, ale używał rekonstrukcji bieżącego editu bez prywatnego DLSS.
+
+Przyczyną były własne listy poleceń Finished picture pozostawione przy życiu po anulowaniu trybu. Tracker poprawnie zatrzymywał zasoby i NGX tak długo, jak zapis mógł zostać ponownie wykonany; samo zakończenie GPU nie zamyka takiego zapisu. Powrót do Finished picture resetował te listy, dlatego odblokowywał zwolnienie. `Cancel` zwalnia teraz własne, anulowane listy po sprawdzeniu istniejącego fence. Lista w toku lub oczekująca na zgłoszenie pozostaje chroniona. Fence i allocator są zachowane do ponownego użycia, a powrót do Finished picture odtwarza tylko brakującą listę. Listy należące do gry zachowują dotychczasowe zasady obsługi replay.
+
+Zmiana nie dodaje dispatchy, kopii, sygnałów ani oczekiwania CPU/GPU. Sprawdzanie fence trwa tylko do zwolnienia listy. Test WARP korzystający z produkcyjnego GpuLifetime i tego samego helpera zwalniania sprawdza dwukrotne przejście, wymuszone polecenia GPU w toku, brak przedwczesnego zwolnienia, blokowanie przez ukończony zapis możliwy do replay oraz zwolnienie starej generacji po anulowaniu. Nie tworzy instancji NGX; uruchomienie prywatnego DLSS po przełączeniu wymaga potwierdzenia w grze.
+
 ## Osobny cel kontrastu
 
 **Depth-boundary contrast target** i **Exact boundary contrast target** zapisują wartość tylko dla wybranej rodziny: CNN (A/C/D/E), Transformer (J/K) lub Transformer 2-gen (L/M). Przełączenie przywraca jej własny cel. Nie ma nowych kalibracji jakości dla L/M: początkowa wartość to dotychczasowe 0,1429128154. Stary niestandardowy `SuperiorGainPreviewBoundaryTarget` jest fallbackiem dla każdej jeszcze nieustawionej rodziny. Ustawienie jednej nie nadpisuje pozostałych. Metoda coverage zachowuje dotychczasową klasyfikację CNN/Transformer; L/M używają dotychczasowej kalibracji Transformer bez potwierdzenia jakości w grze.
