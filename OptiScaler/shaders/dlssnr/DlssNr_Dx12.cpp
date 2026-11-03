@@ -5383,7 +5383,9 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
         auto& g = *superiorGeneration;
         if (!g.haveSchedule || g.expectedMask != superiorSchedule.expectedMask || g.previousPasses != effectivePasses)
         {
-            g_nr.reset = true;
+            // A new private generation has no schedule snapshot yet. NR keeps its own history across that switch.
+            if (g.haveSchedule || !cfg.DlssNrSuperiorKeepNrHistory.value_or_default())
+                g_nr.reset = true;
             g.reset = true;
             g.haveSchedule = true;
             g.expectedMask = superiorSchedule.expectedMask;
