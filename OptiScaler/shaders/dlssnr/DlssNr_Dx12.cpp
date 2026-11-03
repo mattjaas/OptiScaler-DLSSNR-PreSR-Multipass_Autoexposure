@@ -4236,21 +4236,21 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
 
     const bool superiorGuided = superior && DlssNr::SuperiorScaling::NeedsTemporal(width, height, workWidth, workHeight,
                                                                                    spatial, modelWidth, modelHeight);
+    bool superiorSpatialFallback = false;
     if (superior)
     {
         ResTrack_Dx12::HookLateNrQueue(device);
         const bool temporal = privateDlss && superiorGuided;
-        // Wait: the private DLSS was just created, its first evaluate waits for a later submission (one frame, like
-        // the NR feature's own creation). Unavailable: given up for this session (logged once); this frame is skipped
-        // and from the next one the ordinary path runs with Matched residual.
-        if (SuperiorRun::Begin(*this, cmdList, device, colourFormat, width, height,
-                               superiorPacked ? modelWidth : workWidth, superiorPacked ? modelHeight : workHeight,
-                               workScale, frame, temporal, depth && guides.depth.valid(),
-                               superiorPacked ? &EdgeCompression::Layout() : nullptr) != SuperiorRun::Began::Run)
+        const auto began = SuperiorRun::Begin(
+            *this, cmdList, device, colourFormat, width, height, superiorPacked ? modelWidth : workWidth,
+            superiorPacked ? modelHeight : workHeight, workScale, frame, temporal, depth && guides.depth.valid(),
+            superiorPacked ? &EdgeCompression::Layout() : nullptr);
+        if (began == SuperiorRun::Began::Wait || began == SuperiorRun::Began::Unavailable)
         {
             device->Release();
             return;
         }
+        superiorSpatialFallback = began == SuperiorRun::Began::SpatialFallback;
     }
 
     // The upscaler has just written this, so it is a UAV. The model needs it readable.
@@ -6210,7 +6210,7 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
             auto* shapingProxy = g.packed ? modelInput : superiorGuided ? ordinaryProxy : resolveProxy;
             auto* shapingAnswer = g.packed ? finalAnswer : superiorGuided ? ordinaryAnswer : resolveAnswer;
             auto* residual = shapingAnswer;
-            if (g.temporal)
+            if (g.temporal && !superiorSpatialFallback)
                 residual = SuperiorRun::Stabilize(
                     g, *this, cmdList, shapingProxy, shapingAnswer, depthIn, motionIn, guides, frame, superiorReset,
                     g_nr.heldActive, g.packed ? EdgeCompression::depth : nullptr,
@@ -6234,7 +6234,10 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
                        DispatchPass(cmdList, resolveParams, shapingProxy, residual, resolveOriginal,
                                     g.packed ? (g.warpCache.Get() ? g.warpCache.Get() : g.warp.Get()) : motionIn,
                                     exposureTex, resolveTarget, nullptr, low, pso);
-            SuperiorRun::Say(composed ? "" : "Superior reconstruction failed; keeping the game frame.");
+            if (!composed)
+                SuperiorRun::Say("Superior reconstruction failed; keeping the game frame.");
+            else if (!superiorSpatialFallback)
+                SuperiorRun::Say("");
         }
         else
         {

@@ -1207,13 +1207,14 @@ DlssNr::SuperiorScaling::PrivatePresetChoice& PresetChoice()
 
 enum class Began
 {
-    Run,        // record Superior this frame
-    Wait,       // private DLSS creation recorded; skip NR until its submission epoch has passed (one frame)
-    Unavailable // Superior cannot run: GiveUp() was called, skip this frame, the next one runs the ordinary path
+    Run,             // record the selected Superior path
+    SpatialFallback, // private DLSS is pending; reconstruct the current NR edit directly
+    Wait,            // packed warp upload is pending on a different command list
+    Unavailable      // GiveUp() was called; the next frame runs the ordinary path
 };
 
-// Called before janblade records its normal input/exposure path. Only private DLSS
-// creation gets a submission-only frame, exactly like NR feature creation above it.
+// Called before the normal input/exposure path. While private DLSS creation is pending,
+// Superior can still compose the current NR edit using its guided reconstruction.
 Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* device, DXGI_FORMAT format,
             unsigned width, unsigned height, unsigned workWidth, unsigned workHeight, float modelScale,
             const DlssNrFrameInfo& frame, bool temporal, bool haveDepth, const DlssNr::Spatial::Layout* layout)
@@ -1331,8 +1332,8 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         case Created::Ok:
             g.createEpoch = frame.SubmissionEpoch;
             g.waitedFrames = 0;
-            Say("Waiting for private DLSS creation submission.");
-            return Began::Wait;
+            Say("Waiting for private DLSS creation submission; using current NR edit.");
+            return Began::SpatialFallback;
         case Created::ResourcesFailed:
             GiveUp("its surfaces or passes could not be created", false);
             return Began::Unavailable;
@@ -1352,14 +1353,20 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
     // the submission epoch must have moved on, as for the NR feature itself.
     if (temporal && g.waitedFrames != UINT_MAX)
     {
-        if (frame.SubmissionEpoch == g.createEpoch)
+        // The creating list can use its own warp upload. Another list must not read it before submission.
+        const bool warpPendingElsewhere =
+            g.packed && !g.creationSubmitted && g.creation != Util::RealObjectIdentity(cmd);
+        if (frame.SubmissionEpoch == g.createEpoch || warpPendingElsewhere)
         {
             if (++g.waitedFrames > kCreationWaitFrames)
             {
                 GiveUp("the private DLSS creation was never submitted", false);
                 return Began::Unavailable;
             }
-            return Began::Wait;
+            if (warpPendingElsewhere)
+                return Began::Wait;
+            Record(cmd);
+            return Began::SpatialFallback;
         }
         g.waitedFrames = UINT_MAX; // ready
         Say("");
