@@ -340,7 +340,8 @@ class Runtime
     bool Record(ID3D12Device* device, ID3D12GraphicsCommandList* cmd, const void* identity, ID3D12Resource* proxy,
                 ID3D12Resource* answer, ID3D12Resource* motion, unsigned width, unsigned height, bool transformer,
                 uint64_t context, double time, ID3D12Resource* depth = nullptr, bool inverted = false,
-                float depthPrecision = 0, const MotionRegion* sourceMotionRegion = nullptr)
+                float depthPrecision = 0, const MotionRegion* sourceMotionRegion = nullptr,
+                float screenMotionThreshold = .25f)
     {
         if (!enabled)
             return false;
@@ -420,7 +421,10 @@ class Runtime
         SetBoundaryDepth(c, inverted, depthPrecision);
         SetBoundaryOptions(c, settings);
         if (settings.method == MotionWatch)
+        {
             SetMotionRegion(c, region);
+            SetMotionMagnitudeThreshold(c, screenMotionThreshold);
+        }
         c.serialLow = uint32_t(nextId + 1);
         c.serialHigh = uint32_t((nextId + 1) >> 32);
         void* mapped = nullptr;

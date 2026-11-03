@@ -39,6 +39,26 @@ struct Texture
 // block itself, so after it (or after a restart) the handle is dropped rather than released or evaluated.
 bool NgxAlive(uint64_t epoch) { return NVNGXProxy::IsDx12Inited() && NVNGXProxy::Dx12Epoch() == epoch; }
 
+struct ResidentCnn
+{
+    uint64_t ngxEpoch = 0, createEpoch = 0;
+    NVSDK_NGX_Parameter* parameters = nullptr;
+    NVSDK_NGX_Handle* feature = nullptr;
+    const void* creation = nullptr;
+    unsigned waitedFrames = 0;
+    bool submitted = false, ready = false;
+    void DropNgx() { parameters = nullptr; feature = nullptr; }
+    ~ResidentCnn()
+    {
+        if (!NgxAlive(ngxEpoch))
+            return;
+        if (feature && NVNGXProxy::D3D12_ReleaseFeature())
+            NVNGXProxy::D3D12_ReleaseFeature()(feature);
+        if (parameters && NVNGXProxy::D3D12_DestroyParameters())
+            NVNGXProxy::D3D12_DestroyParameters()(parameters);
+    }
+};
+
 struct Generation
 {
     ComPtr<ID3D12Device> device;
@@ -49,6 +69,10 @@ struct Generation
     DlssNr::LowMotionReset::Controller lowMotion;
     DlssNr::PrivateTransition::Fade presetFade;
     DlssNr::PrivateTransition::Motion motionFade;
+    std::shared_ptr<ResidentCnn> residentCnn;
+    DlssNr::PrivateTransition::ResidentSwitch residentSwitch;
+    bool residentAttempted = false;
+    std::string residentStatus;
     bool exactPresetOverride = false;
     bool disableIsHDR = false; // creation identity, independent of the game's HDR and AutoExposure
     uint32_t exposureMode = DlssNr::PrivateExposure::Native;
@@ -95,6 +119,8 @@ struct Generation
     {
         feature = nullptr;
         parameters = nullptr;
+        if (residentCnn)
+            residentCnn->DropNgx();
     }
     ~Generation()
     {
@@ -345,6 +371,10 @@ void Submitted(ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* 
                 s.editDumpStatus = "Snapshot submitted; waiting for capture GPU fence.";
                 break;
             }
+    if (s.current && s.current->residentCnn && s.current->residentCnn->creation)
+        for (UINT i = 0; i < count; ++i)
+            if (Util::RealObjectIdentity(lists[i]) == s.current->residentCnn->creation)
+                s.current->residentCnn->submitted = true;
     // The hook stopped watching these lists after this submission. A list whose recording is still open can be
     // submitted again (replayed) and is still to be Reset, so it stays watched until then; others are forgotten.
     if (s.current && s.current->creation)
@@ -369,6 +399,13 @@ void ResetRecording(ID3D12CommandList* cmd)
         EditDumpListDestroyed(s.editDump->commands);
     }
     Forget(cmd);
+    if (s.current && s.current->residentCnn && s.current->residentCnn->creation == cmd &&
+        !s.current->residentCnn->submitted)
+    {
+        auto old = std::move(s.current->residentCnn);
+        s.lifetime.Retire([old] {});
+        s.current->residentStatus = "CNN E creation recording was discarded; toggle the resident option to retry.";
+    }
     // A discarded recording may contain private DLSS creation or the immutable packed warp upload.
     if (s.current && s.current->creation == cmd && !s.current->creationSubmitted)
     {
@@ -541,11 +578,17 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         m.width = job->width; m.height = job->height;
         m.gain = gain; m.saturation = g.editSaturation; m.depthStrength = g.depthStrength;
         m.fullNrAnswer = g.filterNrAnswer; m.privatePreset = g.preset;
+        m.residentCnnEnabled = g.residentCnn && g.residentCnn->ready;
+        m.activePrivatePreset = m.residentCnnEnabled && g.residentSwitch.idle ? 5u : g.preset;
+        m.residentPrivateInstances = 1u + (g.residentCnn && g.residentCnn->feature ? 1u : 0u);
         const auto resetSettings=DlssNr::LowMotionReset::Read(cfg);
         m.lowMotionResetEnabled=resetSettings.enabled; m.lowMotionThreshold=resetSettings.threshold;m.lowMotionDelay=resetSettings.seconds;
         m.lowMotionResetRequested=g.lowMotion.state.triggered;m.lowMotionPeak=g.lowMotion.state.peak;
         m.lowMotionSeconds=g.lowMotion.state.quietSeconds;m.lowMotionRequests=g.lowMotion.state.requests;
         m.lowMotionSharedProbe=g.lowMotion.state.sharedProbe;
+        m.minimumMovingPercent=resetSettings.minimumMovingPercent;
+        m.movingSamplePercent=g.motionFade.quiet.state.enabled
+            ? g.motionFade.quiet.state.movingPercent : g.lowMotion.state.movingPercent;
         m.transformer2PresetOverride=DlssNr::SuperiorScaling::Transformer2PresetOverride(cfg.DlssNrSuperiorScalingTransformer2PresetOverride.value_or_default());
         m.nrPresetSetting = cfg.DlssNrPreset.value_or_default();
         m.cnnPresetOverride = DlssNr::SuperiorScaling::CnnPresetOverride(cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default());
@@ -679,9 +722,9 @@ enum class Created
     SrUnavailable    // the NGX DLSS SR runtime: not here on this machine/runtime
 };
 
-NVSDK_NGX_Result CreateFeature(Generation& g, ID3D12GraphicsCommandList* cmd, unsigned preset)
+NVSDK_NGX_Result CreateFeature(NVSDK_NGX_Parameter* p, NVSDK_NGX_Handle** feature,
+                                ID3D12GraphicsCommandList* cmd, unsigned preset)
 {
-    auto* p = g.parameters;
     for (const char* key :
          { NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_DLAA, NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Quality,
            NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_Balanced,
@@ -689,8 +732,24 @@ NVSDK_NGX_Result CreateFeature(Generation& g, ID3D12GraphicsCommandList* cmd, un
            NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraPerformance,
            NVSDK_NGX_Parameter_DLSS_Hint_Render_Preset_UltraQuality })
         p->Set(key, preset);
-    g.feature = nullptr;
-    return NVNGXProxy::D3D12_CreateFeature()(cmd, NVSDK_NGX_Feature_SuperSampling, p, &g.feature);
+    *feature = nullptr;
+    return NVNGXProxy::D3D12_CreateFeature()(cmd, NVSDK_NGX_Feature_SuperSampling, p, feature);
+}
+
+void SetPrivateCreationParameters(const Generation& g, NVSDK_NGX_Parameter* p)
+{
+    p->Set(NVSDK_NGX_Parameter_Width, g.workWidth);
+    p->Set(NVSDK_NGX_Parameter_Height, g.workHeight);
+    p->Set(NVSDK_NGX_Parameter_OutWidth, g.workWidth);
+    p->Set(NVSDK_NGX_Parameter_OutHeight, g.workHeight);
+    p->Set(NVSDK_NGX_Parameter_CreationNodeMask, 1u);
+    p->Set(NVSDK_NGX_Parameter_VisibilityNodeMask, 1u);
+    p->Set(NVSDK_NGX_Parameter_PerfQualityValue, (int) NVSDK_NGX_PerfQuality_Value_DLAA);
+    const unsigned flags = (!g.originalGuides || g.originalMvLowRes ? NVSDK_NGX_DLSS_Feature_Flags_MVLowRes : 0u) |
+                           (g.exposureMode == DlssNr::PrivateExposure::Native ? NVSDK_NGX_DLSS_Feature_Flags_AutoExposure : 0u) |
+                           (g.disableIsHDR ? 0u : NVSDK_NGX_DLSS_Feature_Flags_IsHDR) |
+                           (g.inverted ? NVSDK_NGX_DLSS_Feature_Flags_DepthInverted : 0u);
+    p->Set(NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags, flags);
 }
 
 Created CreateTemporal(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd)
@@ -720,23 +779,11 @@ Created CreateTemporal(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommand
         g.parameters = nullptr;
         return Created::SrUnavailable;
     }
-    auto* p = g.parameters;
-    p->Set(NVSDK_NGX_Parameter_Width, w);
-    p->Set(NVSDK_NGX_Parameter_Height, h);
-    p->Set(NVSDK_NGX_Parameter_OutWidth, w);
-    p->Set(NVSDK_NGX_Parameter_OutHeight, h);
-    p->Set(NVSDK_NGX_Parameter_CreationNodeMask, 1u);
-    p->Set(NVSDK_NGX_Parameter_VisibilityNodeMask, 1u);
-    p->Set(NVSDK_NGX_Parameter_PerfQualityValue, (int) NVSDK_NGX_PerfQuality_Value_DLAA);
-    const unsigned flags = (!g.originalGuides || g.originalMvLowRes ? NVSDK_NGX_DLSS_Feature_Flags_MVLowRes : 0u) |
-                           (g.exposureMode == DlssNr::PrivateExposure::Native ? NVSDK_NGX_DLSS_Feature_Flags_AutoExposure : 0u) |
-                           (g.disableIsHDR ? 0u : NVSDK_NGX_DLSS_Feature_Flags_IsHDR) |
-                           (g.inverted ? NVSDK_NGX_DLSS_Feature_Flags_DepthInverted : 0u);
-    p->Set(NVSDK_NGX_Parameter_DLSS_Feature_Create_Flags, flags);
+    SetPrivateCreationParameters(g, g.parameters);
     LOG_INFO("Superior Scaling: creating private DLSS preset {}, IsHDR {}, exposure mode {}", g.preset,
              !g.disableIsHDR, g.exposureMode);
     Record(cmd);
-    auto result = CreateFeature(g, cmd, g.preset);
+    auto result = CreateFeature(g.parameters, &g.feature, cmd, g.preset);
     if (result != NVSDK_NGX_Result_Success || !g.feature)
     {
         if (g.exactPresetOverride) return Created::PresetUnavailable;
@@ -745,10 +792,78 @@ Created CreateTemporal(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommand
         std::call_once(once, [&]
                        { LOG_WARN("Superior Scaling: private DLSS preset {} unavailable ({:X}); using the runtime's "
                                   "default preset", g.preset, (unsigned) result); });
-        result = CreateFeature(g, cmd, NVSDK_NGX_DLSS_Hint_Render_Preset_Default);
+        result = CreateFeature(g.parameters, &g.feature, cmd, NVSDK_NGX_DLSS_Hint_Render_Preset_Default);
     }
     g.creation = Util::RealObjectIdentity(cmd);
     return result == NVSDK_NGX_Result_Success && g.feature ? Created::Ok : Created::SrUnavailable;
+}
+
+void UpdateResidentCnn(Generation& g, ID3D12GraphicsCommandList* cmd, const DlssNrFrameInfo& frame)
+{
+    const auto& cfg = *Config::Instance();
+    const auto settings = DlssNr::PrivateTransition::Read(cfg);
+    const bool wanted = g.temporal && DlssNr::PrivateTransition::ResidentCnnEligible(
+        g.preset, settings.mode, cfg.DlssNrSuperiorMotionCnnIdleE.value_or_default());
+    if (!wanted)
+    {
+        if (g.residentCnn)
+        {
+            auto old = std::move(g.residentCnn);
+            GetState().lifetime.Retire([old] {});
+            if (g.residentSwitch.idle)
+                g.reset = true;
+        }
+        g.residentSwitch = {};
+        g.residentAttempted = false;
+        g.residentStatus.clear();
+        return;
+    }
+    if (!g.residentAttempted)
+    {
+        g.residentAttempted = true;
+        auto slot = std::make_shared<ResidentCnn>();
+        slot->ngxEpoch = g.ngxEpoch;
+        if (NVNGXProxy::D3D12_AllocateParameters()(&slot->parameters) != NVSDK_NGX_Result_Success || !slot->parameters)
+        {
+            g.residentStatus = "CNN E parameter allocation failed; keeping the main preset active.";
+            return;
+        }
+        SetPrivateCreationParameters(g, slot->parameters);
+        slot->parameters->Set(NVSDK_NGX_Parameter_FreeMemOnReleaseFeature, 1);
+        Record(cmd);
+        const auto result = CreateFeature(slot->parameters, &slot->feature, cmd, 5u);
+        // Never own/release the primary handle twice if a runtime aliases identical features.
+        if (slot->feature == g.feature)
+            slot->feature = nullptr;
+        slot->creation = Util::RealObjectIdentity(cmd);
+        slot->createEpoch = frame.SubmissionEpoch;
+        g.residentCnn = slot;
+        if (result != NVSDK_NGX_Result_Success || !slot->feature)
+        {
+            g.residentStatus = "NGX rejected resident CNN E; keeping the main preset active.";
+            LOG_WARN("Superior Scaling: resident CNN E creation rejected ({:X})", (unsigned) result);
+            auto old = std::move(g.residentCnn);
+            GetState().lifetime.Retire([old] {});
+            return;
+        }
+        g.residentStatus = "CNN E allocated; waiting for creation submission.";
+        LOG_INFO("Superior Scaling: resident CNN E allocated beside main preset {}; inactive instances skip evaluation", g.preset);
+    }
+    if (g.residentCnn && !g.residentCnn->ready)
+    {
+        auto& slot = *g.residentCnn;
+        if (slot.submitted && frame.SubmissionEpoch != slot.createEpoch)
+        {
+            slot.ready = true;
+            g.residentStatus = "CNN E resident and ready.";
+        }
+        else if (++slot.waitedFrames > kCreationWaitFrames)
+        {
+            auto old = std::move(g.residentCnn);
+            GetState().lifetime.Retire([old] {});
+            g.residentStatus = "CNN E creation submission timed out; toggle the resident option to retry.";
+        }
+    }
 }
 
 static_assert(unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_A) == 1u &&
@@ -907,11 +1022,12 @@ DlssNr::GainPreview::Status ObserveScreenMotion(
         return {};
     }
     const auto region = DlssNr::SuperiorScaling::ScreenMotionRegion(regions.motion, frame);
-    const auto context = DlssNr::SuperiorScaling::ScreenMotionContext(region);
+    const float threshold = DlssNr::LowMotionReset::Read(*Config::Instance()).threshold;
+    const auto context = DlssNr::SuperiorScaling::ScreenMotionContext(region, threshold);
     auto sample = watch.MatchesContext(g.device.Get(), context) ? watch.GetMotionStatus() : DlssNr::GainPreview::Status {};
     Record(cmd);
     watch.Record(g.device.Get(), cmd, Util::RealObjectIdentity(cmd), proxy, answer, motion,
-                 g.workWidth, g.workHeight, false, context, now, nullptr, false, 0, &region);
+                 g.workWidth, g.workHeight, false, context, now, nullptr, false, 0, &region, threshold);
     return sample;
 }
 
@@ -1126,7 +1242,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
             motionSample = transitionMotion ? *transitionMotion :
                 ObserveScreenMotion(g, cmd, proxy, answer, originalMotion, regions, frame, hold, now);
         const auto region = DlssNr::SuperiorScaling::ScreenMotionRegion(regions.motion, frame);
-        const auto motionContext = DlssNr::SuperiorScaling::ScreenMotionContext(region);
+        const auto motionContext = DlssNr::SuperiorScaling::ScreenMotionContext(region, lowMotionSettings.threshold);
         if (g.lowMotion.Update(lowMotionSettings, motionSample, now, motionContext, reset || g.reset || hold,
                                transitionMotion != nullptr))
         {
@@ -1145,7 +1261,9 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         return nullptr;
     }
     g.temporalOutput.To(cmd, Uav);
-    auto* p = g.parameters;
+    const bool idle = g.residentCnn && g.residentCnn->ready && g.residentSwitch.idle;
+    auto* p = idle ? g.residentCnn->parameters : g.parameters;
+    auto* feature = idle ? g.residentCnn->feature : g.feature;
     p->Set(NVSDK_NGX_Parameter_Color, g.carrier.Get());
     p->Set(NVSDK_NGX_Parameter_Output, g.temporalOutput.Get());
     p->Set(NVSDK_NGX_Parameter_Depth, dlssDepth);
@@ -1167,7 +1285,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     p->Set(NVSDK_NGX_Parameter_DLSS_Pre_Exposure, 1.0f);
     p->Set(NVSDK_NGX_Parameter_DLSS_Exposure_Scale, 1.0f);
     p->Set(NVSDK_NGX_Parameter_Sharpness, 0.0f);
-    if (NVNGXProxy::D3D12_EvaluateFeature()(cmd, g.feature, p, nullptr) != NVSDK_NGX_Result_Success)
+    if (NVNGXProxy::D3D12_EvaluateFeature()(cmd, feature, p, nullptr) != NVSDK_NGX_Result_Success)
     {
         g.reset = true;
         if (useOriginal)
@@ -1298,7 +1416,8 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         {
             const bool visible = !selectionChanged;
             const float fade = previous->presetFade.Advance(visible, transition, fadeNow);
-            if (selectionChanged && fade > 0.f && previous->motionFade.fade.value > 0.f)
+            if (selectionChanged && fade > 0.f && (previous->residentCnn && previous->residentCnn->ready
+                    ? previous->residentSwitch.fade.value : previous->motionFade.fade.value) > 0.f)
             {
                 Record(cmd);
                 return Began::Run;
@@ -1411,6 +1530,7 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         g.waitedFrames = UINT_MAX; // ready
         Say("");
     }
+    UpdateResidentCnn(g, cmd, frame);
     Record(cmd);
     return Began::Run;
 }

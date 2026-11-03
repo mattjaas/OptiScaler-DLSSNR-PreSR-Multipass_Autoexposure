@@ -4047,8 +4047,27 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "history reset before the first evaluation, at full mix weight. Background keeps evaluating "
                 "with continuous history and fades back in when motion returns. Missing or stale MV restores DLSS.");
             const auto transitionStatus = DlssNr::SuperiorScaling::TransitionStatus();
-            ImGui::Text("Private DLSS mix: %.0f%% | MV: %.3f px@1080p | low motion: %.2f s",
-                        transitionStatus.contribution * 100.f, transitionStatus.peak, transitionStatus.quietSeconds);
+            bool idleCnnE = config->DlssNrSuperiorMotionCnnIdleE.value_or_default();
+            const bool mainIsE = DlssNr::SuperiorScaling::CnnPresetOverride(
+                                     config->DlssNrSuperiorScalingCnnPresetOverride.value_or_default()) == 5u ||
+                                 (preset == 1 && transitionStatus.mainPreset == 5u);
+            ImGui::BeginDisabled(preset != 1 || mainIsE || motionMode != int(DlssNr::PrivateTransition::Sleep));
+            if (ImGui::Checkbox("Use resident CNN E at low motion", &idleCnnE))
+                config->DlssNrSuperiorMotionCnnIdleE = idleCnnE;
+            HelpMarker("With CNN A/C/D and Stop evaluations selected, keeps a second CNN E instance in VRAM. "
+                       "Low motion fades the active preset toward raw NR and switches to E. Motion returns to the "
+                       "main preset. Only the selected instance evaluates. Each resumed instance resets history "
+                       "before its first evaluation. Initial creation can stutter once. Turning this option off "
+                       "releases E after its GPU work finishes. Main preset E uses one instance.");
+            ImGui::EndDisabled();
+            if (!transitionStatus.residentStatus.empty())
+                ImGui::TextWrapped("%s", transitionStatus.residentStatus.c_str());
+            if (idleCnnE && preset == 1 && !mainIsE)
+                ImGui::Text("Private DLSS instances: %u | selected preset: %u", transitionStatus.residentCount,
+                            transitionStatus.activePreset);
+            ImGui::Text("Private DLSS mix: %.0f%% | moving samples: %.1f%% | low motion: %.2f s",
+                        transitionStatus.contribution * 100.f, transitionStatus.movingPercent,
+                        transitionStatus.quietSeconds);
             if (transitionStatus.sleeping)
                 ImGui::TextDisabled("Private DLSS evaluations paused.");
             else if (transitionStatus.background)
@@ -4125,18 +4144,25 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             auto lowReset = DlssNr::LowMotionReset::Read(*config);
             if (ImGui::Checkbox("Reset private DLSS after sustained low motion", &lowReset.enabled))
                 config->DlssNrSuperiorLowMotionReset = lowReset.enabled;
-            HelpMarker("Optional: reset private DLSS history after all 576 sampled MV stay below "
-                       "the threshold for the configured time. The timer restarts after each reset, so sustained "
-                       "low motion causes repeated resets. Motion above the threshold clears the timer. "
-                       "Uses reference pixels at 1080p image height per frame, independent of NR scale and output "
-                       "resolution. A small moving object can fall between samples. "
-                       "Independent of automatic gain; does not reset NR or the game's own DLSS.");
+            HelpMarker(
+                "Optional: reset private DLSS history while fewer than the required fraction of MV samples exceed "
+                "the threshold for the configured time. The timer restarts after each reset, so sustained "
+                "low motion causes repeated resets. Motion above the threshold clears the timer. "
+                "Uses reference pixels at 1080p image height per frame, independent of NR scale and output "
+                "resolution. A small moving object can fall between samples. "
+                "Independent of automatic gain; does not reset NR or the game's own DLSS.");
             ImGui::BeginDisabled(!lowReset.enabled && transition.mode == DlssNr::PrivateTransition::Off);
             if (ImGui::SliderFloat("Low-motion MV threshold (1080p reference)", &lowReset.threshold, .001f, 2.f,
                                    "%.3f px", ImGuiSliderFlags_Logarithmic))
                 config->DlssNrSuperiorLowMotionResetThreshold = lowReset.threshold;
             if (ImGui::InputFloat("Exact low-motion MV threshold", &lowReset.threshold, .01f, .1f, "%.4f"))
                 config->DlssNrSuperiorLowMotionResetThreshold = DlssNr::LowMotionReset::Sanitize(lowReset).threshold;
+            int minimumMovingPercent = int(lowReset.minimumMovingPercent);
+            if (ImGui::SliderInt("Moving samples required for camera motion", &minimumMovingPercent, 1, 100, "%d%%"))
+                config->DlssNrSuperiorLowMotionMinimumPercent = uint32_t(minimumMovingPercent);
+            HelpMarker("Default 75%: camera motion is estimated when at least three quarters of the 576 sampled points "
+                       "exceed the per-point MV threshold. Ignores smaller animated areas. This is a motion-coverage "
+                       "estimate; large moving objects can trigger it and camera motion can affect fewer samples.");
             if (ImGui::SliderFloat("Low-motion reset delay", &lowReset.seconds, .1f, 10.f, "%.2f s"))
                 config->DlssNrSuperiorLowMotionResetSeconds = lowReset.seconds;
             if (ImGui::InputFloat("Exact low-motion reset delay", &lowReset.seconds, .1f, 1.f, "%.3f"))
@@ -4145,8 +4171,9 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             if (lowReset.enabled)
             {
                 const auto status = DlssNr::SuperiorScaling::LowMotionResetStatus();
-                ImGui::Text("Maximum sampled MV: %.3f px@1080p | low motion: %.2f s | resets requested: %llu",
-                            status.peak, status.quietSeconds, static_cast<unsigned long long>(status.requests));
+                ImGui::Text("Moving samples: %.1f%% | low motion: %.2f s | resets requested: %llu",
+                            status.movingPercent, status.quietSeconds,
+                            static_cast<unsigned long long>(status.requests));
                 ImGui::TextWrapped("%s", status.text.c_str());
             }
             ImGui::EndDisabled();

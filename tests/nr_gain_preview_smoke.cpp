@@ -79,6 +79,26 @@ int main()
     AutomaticGainChecks();
     {
         namespace T = DlssNr::PrivateTransition;
+        for (unsigned main : {0u,1u,3u,4u,5u,10u,11u,12u,13u})
+        {
+            assert(T::ResidentCnnEligible(main,T::Sleep,true)==(main==1||main==3||main==4));
+            assert(!T::ResidentCnnEligible(main,T::Sleep,false));
+            assert(!T::ResidentCnnEligible(main,T::Background,true));
+            assert(!T::ResidentCnnEligible(main,T::Off,true));
+        }
+        T::Settings switchSettings { 3, .3f, false, T::Sleep };
+        T::ResidentSwitch selection;
+        assert(!selection.Update(true,switchSettings,0));
+        assert(!selection.Update(true,switchSettings,.01));
+        assert(selection.Update(true,switchSettings,.02) && selection.idle && selection.fade.value==1);
+        for(unsigned frame=0;frame<120;++frame)
+            assert(!selection.Update(true,switchSettings,frame*.01+.03) && selection.idle);
+        assert(!selection.Update(false,switchSettings,2));
+        assert(!selection.Update(false,switchSettings,2.01));
+        assert(selection.Update(false,switchSettings,2.02) && !selection.idle && selection.fade.value==1);
+        assert(!selection.Update(true,switchSettings,3));
+        assert(!selection.Update(false,switchSettings,3.01) && !selection.idle);
+        assert(selection.fade.value==1); // cancellation restores the current instance without a reset
         T::Settings frames { 6, .3f, false, T::Background };
         T::Fade fade;
         for (int i = 0; i < 6; ++i)
@@ -124,6 +144,32 @@ int main()
         assert(motion.fade.value==1);
     }
 
+    {
+        DlssNr::LowMotionReset::Settings settings { true,.25f,.5f,75 };
+        DlssNr::GainPreview::Status camera;
+        camera.method=MotionWatch;camera.valid=true;camera.paused=false;camera.raw=10.f;
+        for (unsigned moving : {0u,1u,431u,432u,576u})
+        {
+            camera.motionPercent=100.f*moving/576;
+            assert(DlssNr::LowMotionReset::BelowMotionThreshold(settings,camera)==(moving<432));
+        }
+        DlssNr::LowMotionReset::Controller coverageTimer;
+        camera.motionPercent=100.f/576; // one moving point cannot hold the camera active
+        for (unsigned frame=0;frame<5;++frame)
+        {
+            camera.measuredAt=frame*.125;camera.measurements=frame+1;
+            const bool fired=coverageTimer.Update(settings,camera,camera.measuredAt,77,false,false);
+            assert(fired==(frame==4));
+        }
+        camera.motionPercent=75;camera.measuredAt=.625;camera.measurements=6;
+        assert(!coverageTimer.Update(settings,camera,.625,77,false,false));
+        assert(coverageTimer.state.quietSeconds==0);
+        camera.motionPercent=NAN;
+        assert(!DlssNr::LowMotionReset::BelowMotionThreshold(settings,camera));
+        settings.minimumMovingPercent=1;
+        camera.motionPercent=100.f/576;
+        assert(DlssNr::LowMotionReset::BelowMotionThreshold(settings,camera));
+    }
     // Independent sorted weighted distribution: unequal positive counts in R and G
     // must still contribute equal total weights. Conservative bin edge must bracket
     // the exact inverse threshold, with at most one 3.125% histogram interval.

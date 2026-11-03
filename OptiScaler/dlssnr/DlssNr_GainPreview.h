@@ -58,6 +58,14 @@ inline void SetMotionRegion(Constants& c, const MotionRegion& r)
 }
 static_assert(offsetof(Constants, phaseX) == 8 && offsetof(Constants, motionThreshold) == 16 &&
               offsetof(Constants, gridX) == 40);
+// Motion-only probe reuses the unused first reduction word for the per-point magnitude threshold.
+inline void SetMotionMagnitudeThreshold(Constants& c, float threshold)
+{
+    threshold = std::isfinite(threshold) && threshold > 0.f && threshold <= 64.f ? threshold : .25f;
+    std::memcpy(&c.minMoving, &threshold, sizeof(threshold));
+}
+static_assert(offsetof(Constants, minMoving) == 48);
+
 struct Settings
 {
     float slowSeconds = 1.5f, fastSeconds = .25f, motionThreshold = .1f;
@@ -233,6 +241,7 @@ inline Reading UnpackMotionWatch(const void* data, size_t rowPitch)
     std::memcpy(&s.peakSquared, a, 4);
     s.validMotion = a[1];
     s.samples = a[2];
+    s.moving = b[0];
     s.gate = b[1];
     s.serial = uint64_t(a[3]) | (uint64_t(b[3]) << 32);
     return s;
@@ -312,9 +321,11 @@ inline Status MotionStatus(const Reading& reading, double time, bool compact)
                 peak = std::max(peak, x * x + y * y);
             }
         }
-    status.valid = valid == MotionSamples && reading.validMotion == MotionSamples && std::isfinite(peak) && peak >= 0;
+    status.valid = valid == MotionSamples && reading.validMotion == MotionSamples && std::isfinite(peak) && peak >= 0 &&
+                   (!compact || reading.moving <= MotionSamples);
     status.paused = !status.valid;
     status.raw = status.smoothed = status.valid ? float(std::sqrt(peak)) : 0;
+    status.motionPercent = compact ? 100.f * float(reading.moving) / MotionSamples : 0.f;
     status.text = status.valid ? "Motion sample ready." : "Waiting for valid motion samples.";
     return status;
 }

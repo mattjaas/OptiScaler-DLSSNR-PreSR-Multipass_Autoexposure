@@ -1114,6 +1114,7 @@ void Config::ReadDlssNr()
     DlssNrSuperiorFadeFrames.set_from_config(readUInt("DlssNr", "SuperiorFadeFrames"));
     DlssNrSuperiorFadeSeconds.set_from_config(readFloat("DlssNr", "SuperiorFadeSeconds"));
     DlssNrSuperiorMotionMode.set_from_config(readUInt("DlssNr", "SuperiorMotionMode"));
+    DlssNrSuperiorMotionCnnIdleE.set_from_config(readBool("DlssNr", "SuperiorMotionCnnIdleE"));
     DlssNrSuperiorScalingDisableIsHDR.set_from_config(readBool("DlssNr", "SuperiorScalingDisableIsHDR"));
     DlssNrSuperiorScalingDisableAutoExposure.set_from_config(readBool("DlssNr", "SuperiorScalingDisableAutoExposure"));
     DlssNrSuperiorPositiveEditGain.set_from_config(readFloat("DlssNr", "SuperiorPositiveEditGain"));
@@ -1140,6 +1141,7 @@ void Config::ReadDlssNr()
     DlssNrSuperiorLowMotionReset.set_from_config(readBool("DlssNr", "SuperiorLowMotionReset"));
     DlssNrSuperiorLowMotionResetThreshold.set_from_config(readFloat("DlssNr", "SuperiorLowMotionResetThreshold"));
     DlssNrSuperiorLowMotionResetSeconds.set_from_config(readFloat("DlssNr", "SuperiorLowMotionResetSeconds"));
+    DlssNrSuperiorLowMotionMinimumPercent.set_from_config(readUInt("DlssNr", "SuperiorLowMotionMinimumPercent"));
     DlssNrSuperiorGainPreview.set_from_config(readBool("DlssNr", "SuperiorGainPreview"));
     DlssNrSuperiorAutoPositiveEditGain.set_from_config(readBool("DlssNr", "SuperiorAutoPositiveEditGain"));
     DlssNrSuperiorGainPreviewChangingMotion.set_from_config(readBool("DlssNr", "SuperiorGainPreviewChangingMotion"));
@@ -1399,6 +1401,8 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
     out.SetValue("DlssNr", "SuperiorFadeSeconds",
                  GetFloatValue(c.DlssNrSuperiorFadeSeconds.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorMotionMode", GetIntValue(c.DlssNrSuperiorMotionMode.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorMotionCnnIdleE",
+                 GetBoolValue(c.DlssNrSuperiorMotionCnnIdleE.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorScalingDisableIsHDR",
                  GetBoolValue(c.DlssNrSuperiorScalingDisableIsHDR.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorScalingDisableAutoExposure",
@@ -1435,6 +1439,8 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetFloatValue(c.DlssNrSuperiorLowMotionResetThreshold.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorLowMotionResetSeconds",
                  GetFloatValue(c.DlssNrSuperiorLowMotionResetSeconds.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorLowMotionMinimumPercent",
+                 GetIntValue(c.DlssNrSuperiorLowMotionMinimumPercent.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGainPreview", GetBoolValue(c.DlssNrSuperiorGainPreview.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorAutoPositiveEditGain",
                  GetBoolValue(c.DlssNrSuperiorAutoPositiveEditGain.value_for_config()).c_str());
@@ -1842,6 +1848,7 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorFadeFrames", DlssNrSuperiorFadeFrames),
         NR_PROFILE_FIELD("SuperiorFadeSeconds", DlssNrSuperiorFadeSeconds),
         NR_PROFILE_FIELD("SuperiorMotionMode", DlssNrSuperiorMotionMode),
+        NR_PROFILE_FIELD("SuperiorMotionCnnIdleE", DlssNrSuperiorMotionCnnIdleE),
         NR_PROFILE_FIELD("SuperiorScalingDisableIsHDR", DlssNrSuperiorScalingDisableIsHDR),
         NR_PROFILE_FIELD("SuperiorScalingDisableAutoExposure", DlssNrSuperiorScalingDisableAutoExposure),
         NR_PROFILE_FIELD("SuperiorPositiveEditGain", DlssNrSuperiorPositiveEditGain),
@@ -1862,6 +1869,7 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorLowMotionReset", DlssNrSuperiorLowMotionReset),
         NR_PROFILE_FIELD("SuperiorLowMotionResetThreshold", DlssNrSuperiorLowMotionResetThreshold),
         NR_PROFILE_FIELD("SuperiorLowMotionResetSeconds", DlssNrSuperiorLowMotionResetSeconds),
+        NR_PROFILE_FIELD("SuperiorLowMotionMinimumPercent", DlssNrSuperiorLowMotionMinimumPercent),
         NR_PROFILE_FIELD("SuperiorGainPreview", DlssNrSuperiorGainPreview),
         NR_PROFILE_FIELD("SuperiorAutoPositiveEditGain", DlssNrSuperiorAutoPositiveEditGain),
         NR_PROFILE_FIELD("SuperiorGainPreviewChangingMotion", DlssNrSuperiorGainPreviewChangingMotion),

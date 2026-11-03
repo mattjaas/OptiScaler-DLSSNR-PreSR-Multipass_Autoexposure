@@ -11,23 +11,34 @@ struct Settings
 {
     bool enabled = false;
     float threshold = .25f, seconds = 2.f; // pixels at 1080p reference height / frame; seconds of quiet
+    uint32_t minimumMovingPercent = 75;
 };
 inline Settings Sanitize(Settings s)
 {
     s.threshold = std::isfinite(s.threshold) ? std::clamp(s.threshold, .001f, 64.f) : .25f;
     s.seconds = std::isfinite(s.seconds) ? std::clamp(s.seconds, .05f, 60.f) : 2.f;
+    s.minimumMovingPercent = std::clamp(s.minimumMovingPercent, 1u, 100u);
     return s;
 }
 template <class C> inline Settings Read(const C& c)
 {
     return Sanitize({ c.DlssNrSuperiorLowMotionReset.value_or_default(),
                       c.DlssNrSuperiorLowMotionResetThreshold.value_or_default(),
-                      c.DlssNrSuperiorLowMotionResetSeconds.value_or_default() });
+                      c.DlssNrSuperiorLowMotionResetSeconds.value_or_default(),
+                      c.DlssNrSuperiorLowMotionMinimumPercent.value_or_default() });
 }
+inline bool BelowMotionThreshold(const Settings& settings, const GainPreview::Status& sample)
+{
+    if (sample.method == GainPreview::MotionWatch)
+        return std::isfinite(sample.motionPercent) && sample.motionPercent >= 0.f &&
+               sample.motionPercent < float(settings.minimumMovingPercent);
+    return sample.raw <= settings.threshold; // legacy vector-magnitude samples used by standalone controller callers
+}
+
 struct Status
 {
     bool enabled = false, triggered = false, sharedProbe = false;
-    float peak = 0, quietSeconds = 0;
+    float peak = 0, quietSeconds = 0, movingPercent = 0;
     uint64_t requests = 0;
     std::string text = "Low-motion reset disabled.";
 };
@@ -53,7 +64,8 @@ class Controller
         state.triggered = false;
         state.sharedProbe = shared;
         if (!configured || context != key || previous.enabled != settings.enabled ||
-            previous.threshold != settings.threshold || previous.seconds != settings.seconds)
+            previous.threshold != settings.threshold || previous.seconds != settings.seconds ||
+            previous.minimumMovingPercent != settings.minimumMovingPercent)
         {
             BreakQuiet();
             lastSample = 0;
@@ -86,7 +98,8 @@ class Controller
             return false;
         lastSample = sample.measurements;
         state.peak = sample.raw;
-        if (sample.raw > settings.threshold)
+        state.movingPercent = sample.motionPercent;
+        if (!BelowMotionThreshold(settings, sample))
         {
             BreakQuiet();
             state.text = "Motion above threshold; low-motion timer cleared.";

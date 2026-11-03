@@ -47,10 +47,31 @@ struct Fade
     }
 };
 
+inline bool ResidentCnnEligible(unsigned mainPreset, MotionMode mode, bool requested)
+{
+    return requested && mode == Sleep && (mainPreset == 1 || mainPreset == 3 || mainPreset == 4);
+}
+
+struct ResidentSwitch
+{
+    Fade fade;
+    bool idle = false;
+    bool Update(bool wantIdle, const Settings& settings, double now)
+    {
+        if (fade.Advance(wantIdle == idle, settings, now) > 0.f)
+            return false;
+        idle = wantIdle;
+        fade.value = 1.f;
+        return true; // the selected instance must reset before its first resumed evaluation
+    }
+};
+
 struct Status
 {
-    float contribution = 1.f, peak = 0.f, quietSeconds = 0.f;
-    bool sleeping = false, background = false;
+    float contribution = 1.f, peak = 0.f, quietSeconds = 0.f, movingPercent = 0.f;
+    bool sleeping = false, background = false, residentReady = false;
+    unsigned mainPreset = 0, activePreset = 0, residentCount = 0;
+    std::string residentStatus;
 };
 
 struct Motion
@@ -66,8 +87,8 @@ struct Motion
         gate.enabled = settings.mode != Off;
         gate = LowMotionReset::Sanitize(gate);
         const bool low = gate.enabled && !hold && sample.valid && !sample.paused && std::isfinite(sample.raw) &&
-                         sample.raw >= 0.f && sample.raw <= gate.threshold && now >= sample.measuredAt &&
-                         now - sample.measuredAt <= .5;
+                         sample.raw >= 0.f && LowMotionReset::BelowMotionThreshold(gate, sample) &&
+                         now >= sample.measuredAt && now - sample.measuredAt <= .5;
         if (!low)
             hiding = false;
         if (quiet.Update(gate, sample, now, context, hold, false))

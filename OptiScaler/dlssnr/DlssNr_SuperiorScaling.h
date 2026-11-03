@@ -265,13 +265,14 @@ template <class R, class F> inline GainPreview::MotionRegion ScreenMotionRegion(
              MotionScale(frame.MvScaleY, frame.OutputHeight, referenceH, region.height) * normalization };
 }
 
-inline uint64_t ScreenMotionContext(const GainPreview::MotionRegion& region)
+inline uint64_t ScreenMotionContext(const GainPreview::MotionRegion& region, float threshold = .25f)
 {
     uint64_t hash = 0xcbf29ce484222325ull;
-    uint32_t sx, sy;
+    uint32_t sx, sy, magnitude;
     std::memcpy(&sx, &region.scaleX, sizeof(sx));
     std::memcpy(&sy, &region.scaleY, sizeof(sy));
-    for (uint32_t part : { region.x, region.y, region.width, region.height, sx, sy })
+    std::memcpy(&magnitude, &threshold, sizeof(magnitude));
+    for (uint32_t part : { region.x, region.y, region.width, region.height, sx, sy, magnitude })
         hash = (hash ^ part) * 0x100000001b3ull;
     return hash;
 }

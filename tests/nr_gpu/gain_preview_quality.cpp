@@ -467,6 +467,26 @@ void MotionWatchQuality(bool hardware)
                 "1080p reference motion must be independent of output and NR grid size");
         ++cases;
     }
+    for (unsigned moving : { 0u,1u,431u,432u,576u })
+    {
+        std::fill(f.values[2].begin(),f.values[2].end(),0.f);
+        MotionRegion region {3,5,400,240,1,1};
+        for (unsigned i=0;i<moving;++i)
+        {
+            const unsigned x=region.x+((i%32*2+1)*region.width)/64;
+            const unsigned y=region.y+((i/32*2+1)*region.height)/36;
+            f.values[2][(size_t(y)*f.w+x)*2]=.5f;
+        }
+        f.r.begin();f.Upload(2);f.r.finish();f.uploads.clear();
+        Constants c;c.width=2496;c.height=1404;SetMotionRegion(c,region);SetMotionMagnitudeThreshold(c,.25f);
+        const auto result=f.Run(c);
+        Require(result.validMotion==576 && result.moving==moving,"Camera-motion sample count independent reference");
+        const auto status=MotionStatus(result,1,true);
+        DlssNr::LowMotionReset::Settings gate {true,.25f,.5f,75};
+        Require(DlssNr::LowMotionReset::BelowMotionThreshold(gate,status)==(moving<432),
+                "75 percent camera-motion boundary");
+        ++cases;
+    }
     Constants invalid;invalid.width=100;invalid.height=100;SetMotionRegion(invalid,{500,0,30,10,1,1});
     Require(f.Run(invalid).validMotion==0,"Motion-only bounds guard");
     std::cout<<"Motion-only numeric/origin/units validation PASS: "<<cases<<" cases\n";
@@ -614,7 +634,7 @@ void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false, unsign
         raw << "width,height,comparison,quartet,window,variant,gpu_ms\n";
     raw << std::setprecision(10);
     auto single = boundary || watchOnly ? f.pso : f.r.pipeline("artifacts/validation/gain-preview", "single");
-    auto baseline=baselineDir.empty()?f.pso:f.r.pipeline(baselineDir,"private_boundary_gain_preview");
+    auto baseline=baselineDir.empty()?f.pso:f.r.pipeline(baselineDir,watchOnly?"private_motion_watch":"private_boundary_gain_preview");
     D3D12_QUERY_HEAP_DESC desc {};
     desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
     desc.Count = 2;
@@ -629,7 +649,11 @@ void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false, unsign
         c.width = w;
         c.height = h;
         c.reserved0 = mode==5 ? 1 : 1|options;
-        if(watchOnly)SetMotionRegion(c,{0,0,w,h,1,1});
+        if(watchOnly)
+        {
+            SetMotionRegion(c,{0,0,w,h,1,1});
+            SetMotionMagnitudeThreshold(c,.25f);
+        }
         c.requireChange = false;
         c.motionThreshold = mode == 1 ? 10.f : .1f;
         if (boundary && mode == 1) c.minMoving = 576;
@@ -684,7 +708,8 @@ void Timing(bool hardware, unsigned w, unsigned h, bool boundary = false, unsign
         };
         auto base = stats(a), variant = stats(b);
         std::cout << std::fixed << std::setprecision(6) << "TIMING," << w << ',' << h << ','
-                  << (mode == 1   ? "off-v-motion"
+                  << (!baselineDir.empty() ? "baseline-v-candidate"
+                      : mode == 1   ? "off-v-motion"
                       : mode == 2 ? "off-v-full"
                                   : "single-v-eight")
                   << ",n=" << b.size() << ",off_ms=" << base.first << ",off_sd=" << base.second
@@ -697,6 +722,12 @@ int main(int argc, char** argv)
     try
     {
         const bool hardware = argc <= 1 || std::string(argv[1]) != "--warp";
+        if (argc==3 && std::string(argv[1])=="--camera-motion-timing")
+        {
+            Timing(true,2240,1264,false,0,argv[2],true);
+            Timing(true,2496,1404,false,0,argv[2],true);
+            return 0;
+        }
         if ((argc==4||argc==5) && (std::string(argv[1])=="--boundary-capture" || std::string(argv[1])=="--boundary-capture-warp"))
         {
             BoundaryCapture(std::string(argv[1])!="--boundary-capture-warp",argv[2],std::stod(argv[3]),argc==5?unsigned(std::stoul(argv[4])):0);return 0;

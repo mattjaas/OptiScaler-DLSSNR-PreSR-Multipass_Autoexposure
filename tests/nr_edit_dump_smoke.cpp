@@ -164,10 +164,15 @@ int main(int argc, char** argv)
     metadata.lowMotionResetEnabled=true;metadata.lowMotionResetRequested=true;
     metadata.lowMotionSharedProbe=true;metadata.lowMotionRequests=7;
     metadata.lowMotionThreshold=.25f;metadata.lowMotionDelay=2;
+    metadata.residentCnnEnabled=true;metadata.activePrivatePreset=5;metadata.residentPrivateInstances=2;
     const auto motion=MetadataJson(metadata);
     assert(motion.find("\"gain_preview_model_family_at_capture\": 2")!=std::string::npos);
     assert(motion.find("\"private_transformer2_preset_override\": 12")!=std::string::npos);
     assert(motion.find("\"low_motion_reset_enabled\": true")!=std::string::npos);
+    assert(motion.find("\"resident_cnn_e_enabled\": true")!=std::string::npos);
+    assert(motion.find("\"active_private_preset\": 5")!=std::string::npos);
+    assert(motion.find("\"resident_private_instances\": 2")!=std::string::npos);
+    assert(motion.find("\"camera_motion_required_sample_percent\": 75")!=std::string::npos);
     assert(motion.find("\"low_motion_reset_requested\": true")!=std::string::npos);
     assert(motion.find("\"low_motion_reset_shared_probe\": true")!=std::string::npos);
     assert(motion.find("\"low_motion_reset_requests\": 7")!=std::string::npos);

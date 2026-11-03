@@ -448,6 +448,7 @@ class Config
     CustomOptional<uint32_t> DlssNrSuperiorFadeFrames { 6 };
     CustomOptional<float> DlssNrSuperiorFadeSeconds { .15f };
     CustomOptional<uint32_t> DlssNrSuperiorMotionMode { 0 };
+    CustomOptional<bool> DlssNrSuperiorMotionCnnIdleE { false };
     // Independent private residual DLSS creation flags and experimental carrier/exposure settings.
     CustomOptional<bool> DlssNrSuperiorScalingDisableIsHDR { false };
     CustomOptional<bool> DlssNrSuperiorScalingDisableAutoExposure { false };
@@ -466,6 +467,7 @@ class Config
     CustomOptional<bool> DlssNrSuperiorLowMotionReset { false };
     CustomOptional<float> DlssNrSuperiorLowMotionResetThreshold { .25f };
     CustomOptional<float> DlssNrSuperiorLowMotionResetSeconds { 2.f };
+    CustomOptional<uint32_t> DlssNrSuperiorLowMotionMinimumPercent { 75 };
     CustomOptional<bool> DlssNrSuperiorGainPreview { false };
     CustomOptional<uint32_t> DlssNrSuperiorGainPreviewMethod { 0 };
     CustomOptional<float> DlssNrSuperiorGainPreviewBoundaryTarget { .1429128154342723f };

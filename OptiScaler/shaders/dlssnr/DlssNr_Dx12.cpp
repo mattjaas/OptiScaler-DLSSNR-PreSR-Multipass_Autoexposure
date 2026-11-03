@@ -6222,13 +6222,29 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
                 const double now =
                     std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
                 const auto screenRegion = DlssNr::SuperiorScaling::ScreenMotionRegion(guides.motion, frame);
-                const auto context = DlssNr::SuperiorScaling::ScreenMotionContext(screenRegion);
+                const auto context = DlssNr::SuperiorScaling::ScreenMotionContext(
+                    screenRegion, DlssNr::LowMotionReset::Read(cfg).threshold);
                 transitionMotion = SuperiorRun::ObserveScreenMotion(g, cmdList, shapingProxy, shapingAnswer, motionIn,
                                                                     guides, frame, g_nr.heldActive, now);
+                const bool residentReady = g.residentCnn && g.residentCnn->ready;
+                const bool residentWanted = DlssNr::PrivateTransition::ResidentCnnEligible(
+                    g.preset, privateTransition.mode, cfg.DlssNrSuperiorMotionCnnIdleE.value_or_default());
+                auto motionSettings = privateTransition;
+                if (residentWanted && !residentReady)
+                    motionSettings.mode = DlssNr::PrivateTransition::Off;
                 const bool wasSleeping = g.motionFade.sleeping;
-                g.motionFade.Update(privateTransition, DlssNr::LowMotionReset::Read(cfg), transitionMotion, now,
-                                    context, g_nr.heldActive);
-                if (wasSleeping && !g.motionFade.sleeping)
+                g.motionFade.Update(motionSettings, DlssNr::LowMotionReset::Read(cfg), transitionMotion, now, context,
+                                    g_nr.heldActive);
+                bool changedResident = false;
+                if (residentReady)
+                {
+                    changedResident = g.residentSwitch.Update(g.motionFade.hiding, privateTransition, now);
+                    g.motionFade.sleeping = false;
+                }
+                if (changedResident)
+                    LOG_INFO("Superior Scaling: resident CNN switched to preset {}; resetting before evaluation",
+                             g.residentSwitch.idle ? 5u : g.preset);
+                if (changedResident || (wasSleeping && !g.motionFade.sleeping))
                 {
                     // Clear the stale private history before the first resumed EvaluateFeature.
                     g.reset = true;
@@ -6245,7 +6261,9 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
                     g_nr.heldActive, g.packed ? EdgeCompression::depth : nullptr,
                     g.packed ? EdgeCompression::motion : nullptr,
                     { spatialGuideLayout.modelW, spatialGuideLayout.modelH }, SuperiorDepthPrecision(guideDesc.Format),
-                    g.presetFade.value * g.motionFade.fade.value, transitionObserver ? &transitionMotion : nullptr);
+                    g.presetFade.value *
+                        (g.residentCnn && g.residentCnn->ready ? g.residentSwitch.fade.value : g.motionFade.fade.value),
+                    transitionObserver ? &transitionMotion : nullptr);
             else if (superiorGuided)
             {
                 if (g.motionFade.sleeping && !g.reset)
@@ -7627,8 +7645,16 @@ DlssNr::PrivateTransition::Status DlssNr::SuperiorScaling::TransitionStatus()
         status.contribution = 0.f;
         return status;
     }
-    status.contribution = g->presetFade.value * g->motionFade.fade.value;
+    const bool residentReady = g->residentCnn && g->residentCnn->ready;
+    status.contribution =
+        g->presetFade.value * (residentReady ? g->residentSwitch.fade.value : g->motionFade.fade.value);
+    status.residentReady = residentReady;
+    status.mainPreset = g->preset;
+    status.activePreset = residentReady && g->residentSwitch.idle ? 5u : g->preset;
+    status.residentCount = 1u + (g->residentCnn && g->residentCnn->feature ? 1u : 0u);
+    status.residentStatus = g->residentStatus;
     status.peak = g->motionFade.quiet.state.peak;
+    status.movingPercent = g->motionFade.quiet.state.movingPercent;
     status.quietSeconds = g->motionFade.quiet.state.quietSeconds;
     status.sleeping = g->motionFade.sleeping;
     status.background = g->motionFade.hiding && !status.sleeping && status.contribution == 0.f;

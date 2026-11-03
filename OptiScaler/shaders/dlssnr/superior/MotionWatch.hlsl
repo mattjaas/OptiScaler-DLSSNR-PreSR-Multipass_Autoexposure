@@ -24,6 +24,9 @@ void MotionWatchMain(uint lane:SV_GroupIndex)
         if(lane==0) {Result[uint2(0,0)]=uint4(0,0,576,SerialLow);Result[uint2(1,0)]=uint4(0,0,0,SerialHigh);}
         return;
     }
+    const float suppliedThreshold=asfloat(Unused2.x);
+    const float threshold=isfinite(suppliedThreshold) && suppliedThreshold>0.0 && suppliedThreshold<=64.0
+        ? suppliedThreshold : 0.25;
     float peak=0;uint count=0;
     for(uint i=lane;i<576;i+=256)
     {
@@ -31,7 +34,13 @@ void MotionWatchMain(uint lane:SV_GroupIndex)
         uint2 at=((cell*2+1)*uint2(RegionWidth,RegionHeight))/uint2(64,36)+uint2(OriginX,OriginY);
         float2 value=Motion.Load(int3(at,0))*float2(ScaleX,ScaleY);
         bool valid=all(isfinite(value)) && all(abs(value)<1e6);
-        if(valid) {++count;peak=max(peak,dot(value,value));}
+        if(valid)
+        {
+            const float squared=dot(value,value);
+            ++count;
+            if(squared>threshold*threshold)count+=65536u;
+            peak=max(peak,squared);
+        }
     }
     Peak[lane]=peak;Valid[lane]=count;
     GroupMemoryBarrierWithGroupSync();
@@ -42,7 +51,8 @@ void MotionWatchMain(uint lane:SV_GroupIndex)
     }
     if(lane==0)
     {
-        Result[uint2(0,0)]=uint4(asuint(Peak[0]),Valid[0],576,SerialLow);
-        Result[uint2(1,0)]=uint4(0,Valid[0]==576?1:0,0,SerialHigh);
+        const uint validCount=Valid[0]&65535u, movingCount=Valid[0]>>16u;
+        Result[uint2(0,0)]=uint4(asuint(Peak[0]),validCount,576,SerialLow);
+        Result[uint2(1,0)]=uint4(movingCount,validCount==576?1:0,0,SerialHigh);
     }
 }
