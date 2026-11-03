@@ -369,7 +369,8 @@ void ResetRecording(ID3D12CommandList* cmd)
     if (s.current && s.current->feature && s.current->creation == cmd && !s.current->creationSubmitted)
     {
         Drop();
-        g_nr.reset = true;
+        if (!Config::Instance()->DlssNrSuperiorKeepNrHistory.value_or_default())
+            g_nr.reset = true;
     }
 }
 
@@ -1226,13 +1227,16 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
     const auto exposureMode = cfg.DlssNrSuperiorScalingDisableAutoExposure.value_or_default()
                                   ? std::max(uint32_t(DlssNr::PrivateExposure::Unit), selectedExposure)
                                   : uint32_t(DlssNr::PrivateExposure::Native);
-    const unsigned preset = PresetChoice().Select(cfg.DlssNrSuperiorScalingPreset.value_or_default(),
-                                                  cfg.DlssNrModelResolutionAuto.value_or_default(),
-                                                  cfg.DlssNrWorkingScale.value_or_default(), modelScale,
-                                                  cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default(),
-                                                  cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default(),
-                cfg.DlssNrSuperiorScalingTransformer2PresetOverride.value_or_default());
-    const bool exactOverride = PresetChoice().exactOverride != 0;
+    const auto preference = cfg.DlssNrSuperiorScalingPreset.value_or_default();
+    const bool privateDlss = DlssNr::PrivateModel::Enabled(preference);
+    unsigned preset = DlssNr::PrivateModel::NoDlss;
+    if (privateDlss)
+        preset = PresetChoice().Select(preference, cfg.DlssNrModelResolutionAuto.value_or_default(),
+                                      cfg.DlssNrWorkingScale.value_or_default(), modelScale,
+                                      cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default(),
+                                      cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default(),
+                                      cfg.DlssNrSuperiorScalingTransformer2PresetOverride.value_or_default());
+    const bool exactOverride = privateDlss && PresetChoice().exactOverride != 0;
     if (auto* previous = state.current.get())
     {
         // Handles from a runtime NGX has since shut down are gone already: never evaluate or release them.
@@ -1241,18 +1245,29 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
             previous->DropNgx();
         // The game's queue is not part of the key: NGX records on the given list and the lifetime tracker follows
         // the lists to whichever queue runs them.
-        if (ngxGone || previous->device.Get() != device || previous->width != width || previous->height != height ||
-            previous->workWidth != workWidth || previous->workHeight != workHeight || previous->format != format ||
-            previous->inverted != frame.DepthInverted || previous->beforeSr != frame.BeforeUpscale ||
-            previous->temporal != temporal || previous->packed != (layout != nullptr) ||
-            (temporal && (previous->disableIsHDR != disableIsHDR || previous->exposureMode != exposureMode ||
-                          previous->originalGuides != originalGuides ||
-                          (originalGuides && previous->originalMvLowRes != frame.MotionVectorsLowResolution))) ||
-            (layout && previous->layout != *layout) ||
-            DlssNr::SuperiorScaling::PrivatePresetChanged(previous->preset, preset) || previous->exactPresetOverride != exactOverride)
+        const bool togglingNoDlss = (previous->preset == DlssNr::PrivateModel::NoDlss) != !privateDlss;
+        const bool geometryChanged =
+            previous->device.Get() != device || previous->width != width || previous->height != height ||
+            previous->format != format || previous->inverted != frame.DepthInverted ||
+            previous->beforeSr != frame.BeforeUpscale || (previous->packed && layout && previous->layout != *layout);
+        const bool privateSettingsChanged =
+            previous->temporal && temporal &&
+            (previous->disableIsHDR != disableIsHDR || previous->exposureMode != exposureMode ||
+             previous->originalGuides != originalGuides ||
+             (originalGuides && previous->originalMvLowRes != frame.MotionVectorsLowResolution));
+        const bool layoutChanged = previous->packed != (layout != nullptr);
+        const bool workGridChanged = previous->workWidth != workWidth || previous->workHeight != workHeight;
+        const bool selectionChanged = previous->temporal != temporal ||
+            DlssNr::SuperiorScaling::PrivatePresetChanged(previous->preset, preset) || previous->exactPresetOverride != exactOverride;
+        if (ngxGone || geometryChanged || privateSettingsChanged || layoutChanged || workGridChanged || selectionChanged)
         {
+            // Only the private resolve grid changes when bypassing a packed private DLSS.
+            // NR validates its own model dimensions independently.
+            if (ngxGone || geometryChanged || privateSettingsChanged ||
+                ((layoutChanged || workGridChanged) && !togglingNoDlss) ||
+                !cfg.DlssNrSuperiorKeepNrHistory.value_or_default())
+                g_nr.reset = true;
             Drop();
-            g_nr.reset = true;
         }
     }
     if (!state.current)

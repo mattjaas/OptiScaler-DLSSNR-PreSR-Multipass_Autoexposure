@@ -3988,15 +3988,18 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
 
         if (superior)
         {
-            static const char* presets[] = { "CNN - higher performance",
+            static const char* presets[] = { "No DLSS", "CNN - higher performance",
                                              "Transformer - slower, more stable NR in motion",
                                              "Transformer 2-gen (L/M)" };
-            int preset =
-                int(DlssNr::PrivateModel::FromPreference(config->DlssNrSuperiorScalingPreset.value_or_default()));
+            int preset = DlssNr::PrivateModel::Enabled(config->DlssNrSuperiorScalingPreset.value_or_default())
+                             ? 1 + int(DlssNr::PrivateModel::FromPreference(
+                                       config->DlssNrSuperiorScalingPreset.value_or_default()))
+                             : 0;
 
             if (ImGui::Combo("DLSS to temporally stabilize NR", &preset, presets, IM_ARRAYSIZE(presets)))
             {
-                config->DlssNrSuperiorScalingPreset = preset == 2 ? 13u : preset == 1 ? 11u : 1u;
+                static constexpr unsigned preferences[] = { DlssNr::PrivateModel::NoDlss, 1, 11, 13 };
+                config->DlssNrSuperiorScalingPreset = preferences[preset];
                 DlssNr::SuperiorScaling::RetryPrivatePreset();
             }
 
@@ -4006,6 +4009,16 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "Automatic CNN chooses A/E from guided range sigma. Transformer defaults to K; 2-gen defaults to M. "
                 "Preset availability depends on the installed DLSS runtime.");
 
+            ImGui::BeginDisabled(nr.vulkan);
+            bool keepNrHistory = config->DlssNrSuperiorKeepNrHistory.value_or_default();
+            if (ImGui::Checkbox("Keep NR history when switching private DLSS", &keepNrHistory))
+                config->DlssNrSuperiorKeepNrHistory = keepNrHistory;
+            HelpMarker(
+                "Keeps the NR model history when changing the private DLSS preset or switching to or from No DLSS.");
+            ImGui::EndDisabled();
+
+            const bool noDlss = preset == 0;
+            --preset; // Family indices exclude the No DLSS entry.
             ImGui::BeginDisabled(nr.vulkan);
             if (preset == 0)
             {
@@ -4037,7 +4050,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     DlssNr::SuperiorScaling::RetryPrivatePreset();
                 }
             }
-            else
+            else if (preset == 2)
             {
                 static const char* choices[] = { "Automatic M", "L", "M" };
                 const auto value = DlssNr::SuperiorScaling::Transformer2PresetOverride(
@@ -4060,6 +4073,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "Coverage calibration for J/C/D/L/M has not been validated.");
 
             const auto unavailable = DlssNr::SuperiorScaling::Unavailable();
+            ImGui::BeginDisabled(noDlss);
             ImGui::BeginDisabled(nr.vulkan || !unavailable.empty());
             bool disableIsHDR = config->DlssNrSuperiorScalingDisableIsHDR.value_or_default();
             if (ImGui::Checkbox("Disable DLSS IsHDR flag", &disableIsHDR))
@@ -4439,6 +4453,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             ImGui::EndDisabled();
             ImGui::EndDisabled();
 
+            ImGui::EndDisabled();
             if (nr.vulkan)
                 ImGui::TextWrapped("Superior Scaling needs DirectX 12 or a DirectX 12 bridge; Matched residual is "
                                    "used here.");
@@ -4446,6 +4461,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 ImGui::TextWrapped("Superior Scaling is not running (%s); Matched residual is used. Select it again "
                                    "to retry.",
                                    unavailable.c_str());
+            else if (noDlss)
+                ImGui::TextWrapped("NR edit is applied directly with spatial reconstruction where needed.");
             else if (const auto status = DlssNr::SuperiorScaling::Status(); !status.empty())
                 ImGui::TextWrapped("%s", status.c_str());
         }

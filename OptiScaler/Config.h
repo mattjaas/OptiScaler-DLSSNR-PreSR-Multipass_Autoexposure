@@ -441,8 +441,9 @@ class Config
     // How a model that worked below the frame's size is brought back. 0 classic, 1 matched
     // residual. Only has an effect when Model resolution is under 100%.
     CustomOptional<uint32_t> DlssNrTransfer { 1 }; // 11: Superior Scaling
-    // Private SR family preference: CNN=1 (A/E), Transformer=11 (K), Transformer 2-gen=13 (M).
+    // Private SR family preference: No DLSS=0, CNN=1 (A/E), Transformer=11 (K), Transformer 2-gen=13 (M).
     CustomOptional<uint32_t> DlssNrSuperiorScalingPreset { 1 };
+    CustomOptional<bool> DlssNrSuperiorKeepNrHistory { false };
     // Independent private residual DLSS creation flags and experimental carrier/exposure settings.
     CustomOptional<bool> DlssNrSuperiorScalingDisableIsHDR { false };
     CustomOptional<bool> DlssNrSuperiorScalingDisableAutoExposure { false };

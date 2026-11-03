@@ -3,6 +3,9 @@
 
 namespace DlssNr::PrivateModel
 {
+constexpr unsigned NoDlss = 0;
+inline bool Enabled(unsigned preference) { return preference != NoDlss; }
+
 enum Family : uint32_t
 {
     Cnn = 0,

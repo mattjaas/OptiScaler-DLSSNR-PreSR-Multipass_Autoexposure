@@ -3414,39 +3414,43 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
     // ordinary path runs, with Matched residual in its place. Selecting it again retries.
     const bool superiorSelected = DlssNr::SuperiorScaling::Enabled(cfg);
     auto& superiorState = SuperiorRun::GetState();
-    if (superiorState.rejectedPresetOptions &&
-        superiorState.rejectedPresetOptions !=
-            DlssNr::SuperiorScaling::PrivatePresetOptionsKey(
-                cfg.DlssNrSuperiorScalingPreset.value_or_default(),
-                cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default(),
-                cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default(),
-                cfg.DlssNrSuperiorScalingTransformer2PresetOverride.value_or_default()))
+    const bool privateDlss = DlssNr::PrivateModel::Enabled(cfg.DlssNrSuperiorScalingPreset.value_or_default());
+    if ((!privateDlss && superiorState.srUnavailable) ||
+        (superiorState.rejectedPresetOptions &&
+         superiorState.rejectedPresetOptions !=
+             DlssNr::SuperiorScaling::PrivatePresetOptionsKey(
+                 cfg.DlssNrSuperiorScalingPreset.value_or_default(),
+                 cfg.DlssNrSuperiorScalingCnnPresetOverride.value_or_default(),
+                 cfg.DlssNrSuperiorScalingTransformerPresetOverride.value_or_default(),
+                 cfg.DlssNrSuperiorScalingTransformer2PresetOverride.value_or_default())))
     {
         superiorState.unavailable.clear();
         superiorState.srUnavailable = false;
         superiorState.rejectedPresetOptions = 0;
-        g_nr.reset = true; // profile/INI changes can retry too, without relying on a menu callback
+        if (!cfg.DlssNrSuperiorKeepNrHistory.value_or_default())
+            g_nr.reset = true;
     }
     const auto previewSettings = DlssNr::GainPreview::Read(cfg);
-    if ((!cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default() || !superiorSelected ||
+    if ((!cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default() || !superiorSelected || !privateDlss ||
          !superiorState.unavailable.empty()) &&
         superiorState.automaticGain.state.enabled)
         superiorState.automaticGain.Reset();
     superiorState.preview.Configure((cfg.DlssNrSuperiorGainPreview.value_or_default() ||
                                      cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default()) &&
-                                        superiorSelected && superiorState.unavailable.empty(),
+                                        superiorSelected && privateDlss && superiorState.unavailable.empty(),
                                     previewSettings);
     superiorState.preview.Collect();
     DlssNr::GainPreview::Settings observerSettings;
     observerSettings.method = DlssNr::GainPreview::MotionWatch;
     observerSettings.trackMotion = true;
     superiorState.motionWatch.Configure(cfg.DlssNrSuperiorLowMotionReset.value_or_default() && superiorSelected &&
-                                            superiorState.unavailable.empty(),
+                                            privateDlss && superiorState.unavailable.empty(),
                                         observerSettings);
     superiorState.motionWatch.Collect();
     if (superiorState.editDump)
         SuperiorRun::CollectEditDump();
-    if ((!superiorSelected || !superiorState.unavailable.empty()) && !superiorState.pendingEditDump.empty())
+    if ((!superiorSelected || !privateDlss || !superiorState.unavailable.empty()) &&
+        !superiorState.pendingEditDump.empty())
     {
         superiorState.pendingEditDump.clear();
         superiorState.pendingEditDumpGuides = false;
@@ -3751,7 +3755,7 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
         g_nr.reset = true;
 
     bool superiorPacked =
-        superior && spatial &&
+        superior && privateDlss && spatial &&
         DlssNr::SuperiorScaling::NeedsTemporal(width, height, workWidth, workHeight, true,
                                                EdgeCompression::Layout().modelW, EdgeCompression::Layout().modelH);
     // Exposure calibration alone still needs the original unpacked proxy. Normal Superior rendering bypasses it.
@@ -4233,8 +4237,9 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
     if (superior)
     {
         ResTrack_Dx12::HookLateNrQueue(device);
-        const bool temporal = DlssNr::SuperiorScaling::NeedsTemporal(width, height, workWidth, workHeight, spatial,
-                                                                     modelWidth, modelHeight);
+        const bool temporal =
+            privateDlss && DlssNr::SuperiorScaling::NeedsTemporal(width, height, workWidth, workHeight, spatial,
+                                                                  modelWidth, modelHeight);
         // Wait: the private DLSS was just created, its first evaluate waits for a later submission (one frame, like
         // the NR feature's own creation). Unavailable: given up for this session (logged once); this frame is skipped
         // and from the next one the ordinary path runs with Matched residual.
@@ -7577,11 +7582,14 @@ void DlssNr::SuperiorScaling::RetryPrivatePreset()
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     auto& s = SuperiorRun::GetState();
-    SuperiorRun::Drop();
+    if (!Config::Instance()->DlssNrSuperiorKeepNrHistory.value_or_default())
+    {
+        SuperiorRun::Drop();
+        g_nr.reset = true;
+    }
     s.unavailable.clear();
     s.srUnavailable = false;
     s.rejectedPresetOptions = 0;
-    g_nr.reset = true;
 }
 
 std::string DlssNr::SuperiorScaling::OriginalGuideStatus()

@@ -61,7 +61,9 @@ inline unsigned ExactPresetOverride(unsigned family, unsigned cnn, unsigned tran
 }
 inline uint32_t PrivatePresetOptionsKey(unsigned family, unsigned cnn, unsigned transformer, unsigned transformer2 = 0)
 {
-    return Preset(family) | (ExactPresetOverride(family, cnn, transformer, transformer2) << 8);
+    return PrivateModel::Enabled(family)
+               ? Preset(family) | (ExactPresetOverride(family, cnn, transformer, transformer2) << 8)
+               : PrivateModel::NoDlss;
 }
 inline float GuidedRange(float scale)
 {

@@ -209,6 +209,9 @@ int main() {
             require(TransformerPreset(value));
         }
         require(!TransformerPreset(3)&&CnnPresetOverride(2)==0&&TransformerPresetOverride(5)==0);
+        require(!DlssNr::PrivateModel::Enabled(DlssNr::PrivateModel::NoDlss));
+        require(PrivatePresetOptionsKey(0, 3, 10, 12) == 0);
+        require(PrivatePresetOptionsKey(1, 3, 10, 12) != 0);
         require(PrivatePresetOptionsKey(1,3,10)==PrivatePresetOptionsKey(1,3,11));
         require(PrivatePresetOptionsKey(1,3,0)!=PrivatePresetOptionsKey(1,4,0));
         require(PrivatePresetOptionsKey(11,3,10)==PrivatePresetOptionsKey(11,5,10));
