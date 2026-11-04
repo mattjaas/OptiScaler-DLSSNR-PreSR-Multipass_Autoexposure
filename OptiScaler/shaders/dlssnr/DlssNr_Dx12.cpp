@@ -6272,7 +6272,8 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
                         (g.residentCnn && g.residentCnn->ready ? g.residentSwitch.fade.value : g.motionFade.fade.value),
                     transitionObserver ? &transitionMotion : nullptr);
                 const auto ghost = DlssNr::GhostRejection::Read(cfg);
-                ghostMaskAvailable = residual && ghost.enabled && ghost.strength > 0.f && ghost.showMask;
+                ghostMaskAvailable =
+                    residual && g.ghostMaskWritten && ghost.enabled && ghost.strength > 0.f && ghost.showMask;
             }
             else if (superiorGuided)
             {

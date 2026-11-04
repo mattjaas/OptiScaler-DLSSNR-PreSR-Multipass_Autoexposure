@@ -1160,6 +1160,15 @@ void Config::ReadDlssNr()
     DlssNrSuperiorFilterNrAnswer.set_from_config(readBool("DlssNr", "SuperiorFilterNrAnswer"));
     DlssNrSuperiorGhostRejection.set_from_config(readBool("DlssNr", "SuperiorGhostRejection"));
     DlssNrSuperiorShowGhostMask.set_from_config(readBool("DlssNr", "SuperiorShowGhostMask"));
+    DlssNrSuperiorGhostMethod.set_from_config(readUInt("DlssNr", "SuperiorGhostMethod"));
+    DlssNrSuperiorGhostHistoryFrames.set_from_config(readUInt("DlssNr", "SuperiorGhostHistoryFrames"));
+    DlssNrSuperiorGhostHistoryFade.set_from_config(readUInt("DlssNr", "SuperiorGhostHistoryFade"));
+    DlssNrSuperiorGhostHistoryDepth.set_from_config(readFloat("DlssNr", "SuperiorGhostHistoryDepth"));
+    DlssNrSuperiorGhostGuidedThreshold.set_from_config(readFloat("DlssNr", "SuperiorGhostGuidedThreshold"));
+    DlssNrSuperiorGhostGuidedSoftness.set_from_config(readFloat("DlssNr", "SuperiorGhostGuidedSoftness"));
+    DlssNrSuperiorGhostRadius.set_from_config(readFloat("DlssNr", "SuperiorGhostRadius"));
+    DlssNrSuperiorGhostDepthRatio.set_from_config(readFloat("DlssNr", "SuperiorGhostDepthRatio"));
+    DlssNrSuperiorGhostMotionGate.set_from_config(readFloat("DlssNr", "SuperiorGhostMotionGate"));
     DlssNrSuperiorGhostThreshold.set_from_config(readFloat("DlssNr", "SuperiorGhostThreshold"));
     DlssNrSuperiorGhostSoftness.set_from_config(readFloat("DlssNr", "SuperiorGhostSoftness"));
     DlssNrSuperiorGhostStrength.set_from_config(readFloat("DlssNr", "SuperiorGhostStrength"));
@@ -1481,6 +1490,23 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetBoolValue(c.DlssNrSuperiorGhostRejection.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorShowGhostMask",
                  GetBoolValue(c.DlssNrSuperiorShowGhostMask.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostMethod", GetIntValue(c.DlssNrSuperiorGhostMethod.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostHistoryFrames",
+                 GetIntValue(c.DlssNrSuperiorGhostHistoryFrames.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostHistoryFade",
+                 GetIntValue(c.DlssNrSuperiorGhostHistoryFade.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostHistoryDepth",
+                 GetFloatValue(c.DlssNrSuperiorGhostHistoryDepth.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostGuidedThreshold",
+                 GetFloatValue(c.DlssNrSuperiorGhostGuidedThreshold.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostGuidedSoftness",
+                 GetFloatValue(c.DlssNrSuperiorGhostGuidedSoftness.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostRadius",
+                 GetFloatValue(c.DlssNrSuperiorGhostRadius.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostDepthRatio",
+                 GetFloatValue(c.DlssNrSuperiorGhostDepthRatio.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostMotionGate",
+                 GetFloatValue(c.DlssNrSuperiorGhostMotionGate.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostThreshold",
                  GetFloatValue(c.DlssNrSuperiorGhostThreshold.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostSoftness",
@@ -1903,6 +1929,15 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorFilterNrAnswer", DlssNrSuperiorFilterNrAnswer),
         NR_PROFILE_FIELD("SuperiorGhostRejection", DlssNrSuperiorGhostRejection),
         NR_PROFILE_FIELD("SuperiorShowGhostMask", DlssNrSuperiorShowGhostMask),
+        NR_PROFILE_FIELD("SuperiorGhostMethod", DlssNrSuperiorGhostMethod),
+        NR_PROFILE_FIELD("SuperiorGhostHistoryFrames", DlssNrSuperiorGhostHistoryFrames),
+        NR_PROFILE_FIELD("SuperiorGhostHistoryFade", DlssNrSuperiorGhostHistoryFade),
+        NR_PROFILE_FIELD("SuperiorGhostHistoryDepth", DlssNrSuperiorGhostHistoryDepth),
+        NR_PROFILE_FIELD("SuperiorGhostGuidedThreshold", DlssNrSuperiorGhostGuidedThreshold),
+        NR_PROFILE_FIELD("SuperiorGhostGuidedSoftness", DlssNrSuperiorGhostGuidedSoftness),
+        NR_PROFILE_FIELD("SuperiorGhostRadius", DlssNrSuperiorGhostRadius),
+        NR_PROFILE_FIELD("SuperiorGhostDepthRatio", DlssNrSuperiorGhostDepthRatio),
+        NR_PROFILE_FIELD("SuperiorGhostMotionGate", DlssNrSuperiorGhostMotionGate),
         NR_PROFILE_FIELD("SuperiorGhostThreshold", DlssNrSuperiorGhostThreshold),
         NR_PROFILE_FIELD("SuperiorGhostSoftness", DlssNrSuperiorGhostSoftness),
         NR_PROFILE_FIELD("SuperiorGhostStrength", DlssNrSuperiorGhostStrength),

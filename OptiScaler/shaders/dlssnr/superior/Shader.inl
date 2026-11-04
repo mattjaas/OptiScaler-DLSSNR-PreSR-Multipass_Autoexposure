@@ -21,6 +21,11 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/dlssnr_superior_sdr_Shader.h"
 #include "precompile/private_carrier_Shader.h"
 #include "precompile/private_carrier_ghost_Shader.h"
+#include "precompile/private_carrier_guided_ghost_Shader.h"
+#include "precompile/private_carrier_temporal_ghost_Shader.h"
+#include "precompile/private_ghost_clear_Shader.h"
+#include "precompile/private_ghost_scatter_Shader.h"
+#include "precompile/private_ghost_history_Shader.h"
 #include "precompile/private_exposure_Shader.h"
 } // namespace DlssNr::Superior::Bytecode
 
@@ -136,7 +141,21 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
         return _superiorPipeline[index];
     };
     if (ghostRejection)
-        pipeline = get(17u, private_carrier_ghost_cso, sizeof(private_carrier_ghost_cso));
+        pipeline = DlssNr::Superior::Fields::TemporalGhostRejection(InConstants)
+                       ? get(22u, private_carrier_temporal_ghost_cso, sizeof(private_carrier_temporal_ghost_cso))
+                   : DlssNr::Superior::Fields::GuidedGhostRejection(InConstants)
+                       ? get(18u, private_carrier_guided_ghost_cso, sizeof(private_carrier_guided_ghost_cso))
+                       : get(17u, private_carrier_ghost_cso, sizeof(private_carrier_ghost_cso));
+    if (InConstants.Mode >= 44u && InConstants.Mode <= 46u)
+    {
+        const void* blobs[] = { private_ghost_clear_cso, private_ghost_scatter_cso, private_ghost_history_cso };
+        const size_t sizes[] = { sizeof(private_ghost_clear_cso), sizeof(private_ghost_scatter_cso),
+                                 sizeof(private_ghost_history_cso) };
+        const unsigned stage = InConstants.Mode - 44u;
+        pipeline = get(19u + stage, blobs[stage], sizes[stage]);
+        if (!pipeline)
+            return false;
+    }
     if (!pipeline && (InConstants.Mode == 37u || InConstants.Mode == 38u || InConstants.Mode == 39u || InConstants.Mode == 43u))
         return false;
     const bool privateExposure = InConstants.Mode >= 40u && InConstants.Mode <= 42u;

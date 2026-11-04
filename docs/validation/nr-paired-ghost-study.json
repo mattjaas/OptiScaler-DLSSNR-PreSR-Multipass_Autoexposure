@@ -1,0 +1,155 @@
+{
+  "note": "RGB disagreement and mask coverage are not labelled ghost precision/recall. Separated captures cannot validate temporal visibility history.",
+  "samples": [
+    {
+      "sample": "nr-edit-001",
+      "width": 2496,
+      "height": 1404,
+      "capture_frame": 8334,
+      "rgb_absolute_difference_mean": [
+        0.008070781678124559,
+        0.007086557962675369,
+        0.006481887137298143
+      ],
+      "max_channel_difference_quantiles": [
+        0.00390625,
+        0.01322965882718563,
+        0.046142578125
+      ],
+      "sha256": {
+        ".raw.dds": "f90b68c028b81d8624140204f51196e10002365a6559a0b9d4c1ed91985fe2e2",
+        ".after.dds": "d6af82d4b8dbc3bfca895ff6c58022d20dd1de24a41ebc7b31f080d009c1fba1",
+        ".depth.dds": "b1bb7ba959169e1db599abb38bd7bdb39b1fbca13c3537038cd6e1800d4185fb",
+        ".motion.dds": "c43563133624ac604acd7dbae2ffe9ed8fa7aa3eb9f7aee4cba6d1a27ac2c33c",
+        ".json": "f5e1c83b994fcb73b77c5a69fa770e2996b6a884316b7178e237be98a8643f71"
+      },
+      "guided_mask_mean": 0.015470335980842008,
+      "guided_mask_above_half_percent": 1.5100799455767404
+    },
+    {
+      "sample": "nr-edit-002",
+      "width": 2496,
+      "height": 1404,
+      "capture_frame": 8641,
+      "rgb_absolute_difference_mean": [
+        0.007314517926767894,
+        0.006531566381764011,
+        0.006402596665718438
+      ],
+      "max_channel_difference_quantiles": [
+        0.004293188452720642,
+        0.01025390625,
+        0.03212521970272064
+      ],
+      "sha256": {
+        ".raw.dds": "7853bfa2bd000274c315fa342caf7cea96c053d7ce3b3a7613a49f112660f229",
+        ".after.dds": "2f273a0d25aa7494298aaa8ff0a3dd42fdbee68166b1a1d072972e137eb84761",
+        ".depth.dds": "3a8acda52c8c6e2495252735a5f0839be20905d124f6484eb2e2fa86ffbc1858",
+        ".motion.dds": "90ddab002a20b7725708cf4f7c6481b80f40bb0e06b95fc4e12c8e72dee7abc2",
+        ".json": "6ab60a4827734ceddb000e4df61c685908fe6ade8083f87dd04d43b2a1c2b8a6"
+      },
+      "guided_mask_mean": 0.0172914137020675,
+      "guided_mask_above_half_percent": 1.6850607695960262
+    },
+    {
+      "sample": "nr-edit-003",
+      "width": 2496,
+      "height": 1404,
+      "capture_frame": 8783,
+      "rgb_absolute_difference_mean": [
+        0.006962136620298435,
+        0.006213823377530489,
+        0.006021801557852574
+      ],
+      "max_channel_difference_quantiles": [
+        0.003662109375,
+        0.009664283134043217,
+        0.034606611914931355
+      ],
+      "sha256": {
+        ".raw.dds": "97a5d74378959962d226a35970ee1b6f888ec6927fa9447a1f9dc6ed9a7de27b",
+        ".after.dds": "f9f291fda89e4d30ee0f0aa666add2d050f9df8513cece6827712587145a2356",
+        ".depth.dds": "00ea7904191bc48bcfa0e6f6c8be5eba0a0703de820b3098902add21de497c08",
+        ".motion.dds": "fd120b967c298cd3854231956293af122e9710107800dbfe4584743761952993",
+        ".json": "5504c3f5d66683abdc887d9fbff2438ad127763cfd1474e2db4544db0665746a"
+      },
+      "guided_mask_mean": 0.01711791072908778,
+      "guided_mask_above_half_percent": 1.6720770326539558
+    },
+    {
+      "sample": "nr-edit-004",
+      "width": 2496,
+      "height": 1404,
+      "capture_frame": 10298,
+      "rgb_absolute_difference_mean": [
+        0.008645571547757755,
+        0.007931508273295121,
+        0.007688419381154889
+      ],
+      "max_channel_difference_quantiles": [
+        0.005126953125,
+        0.013671875,
+        0.041748046875
+      ],
+      "sha256": {
+        ".raw.dds": "73f19129b148ed035fbc90de255f73b597b83b3ff9a9f3f341b3d64aa64a6c9b",
+        ".after.dds": "689d0e68e2f7fa167d11fe793b6fbbede42e31e0e8abe47896ab895d56d4d9f3",
+        ".depth.dds": "a77446b17c4ce6fef94f302697f306d9bef728d71d4115d2eb722633d3e045f5",
+        ".motion.dds": "128251d90ca84c00b653c6d34e731394c7d64d60dc6ac865ee878f0fc80eaf26",
+        ".json": "c1f9bb5589b657e99abf2327483930c48e36e46cba7d54c9cb9cd48e4100514e"
+      },
+      "guided_mask_mean": 0.019768399134068894,
+      "guided_mask_above_half_percent": 1.9228771732778143
+    },
+    {
+      "sample": "nr-edit-005",
+      "width": 2496,
+      "height": 1404,
+      "capture_frame": 10745,
+      "rgb_absolute_difference_mean": [
+        0.005882956897924128,
+        0.00562373944572492,
+        0.005654514302645567
+      ],
+      "max_channel_difference_quantiles": [
+        0.002685546875,
+        0.008162591606378555,
+        0.035400390625
+      ],
+      "sha256": {
+        ".raw.dds": "67498ecd3476512e7e1757f7cae022113249252100375deedfcd65f02c7b3c77",
+        ".after.dds": "d47814169477b5d103fad7d6fee580a69cd61432f0f1eb55fb93b35dc830172d",
+        ".depth.dds": "37a981daca4391ccad81fd596c373a63e220a3ea92b444a0c993008608e665fc",
+        ".motion.dds": "3e9371cde9cc193b176855453b6453472469c27fd0a3166785046408130423c4",
+        ".json": "d8831ea05633075845f7e1cb6f7c5ad0bcab0ceb16b71420622fa0ddcc88b4d5"
+      },
+      "guided_mask_mean": 0.013837821934414527,
+      "guided_mask_above_half_percent": 1.3408062586748486
+    },
+    {
+      "sample": "nr-edit-006",
+      "width": 2496,
+      "height": 1404,
+      "capture_frame": 10854,
+      "rgb_absolute_difference_mean": [
+        0.007077942749403491,
+        0.006717706839784093,
+        0.0067379216253587
+      ],
+      "max_channel_difference_quantiles": [
+        0.003924676217138767,
+        0.011239681392908096,
+        0.039836376905441284
+      ],
+      "sha256": {
+        ".raw.dds": "0b44e5dc2463fcc4b2e78baecbd77115bdbee593bf23426a156911b5e380de5b",
+        ".after.dds": "1968dc15bbd12741b71e808db5cfcdc813fd1af03b355be3aa09f6df3fa4df36",
+        ".depth.dds": "881dc9b7fc6a05df70ae06ec3e935369bd6b43f3eead77d89bf7e2aef06fadd6",
+        ".motion.dds": "984c78c5c7f600edf63c6b99b3d5868469d3c9482c4a05d0cffc433a7290b8e2",
+        ".json": "d375063ee5f03b721fe16fb5840aa539e101e5c53f1d34127c0b42a857f007a6"
+      },
+      "guided_mask_mean": 0.024992014764028746,
+      "guided_mask_above_half_percent": 2.3750821827744906
+    }
+  ]
+}

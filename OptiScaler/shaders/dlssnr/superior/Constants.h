@@ -26,7 +26,10 @@ enum DlssNrMode : uint32_t
     DlssNrMode_PrivateExposureMeter = 40,
     DlssNrMode_PrivateExposureReduce = 41,
     DlssNrMode_PrivateExposureManual = 42,
-    DlssNrMode_PrivateEditDump = 43
+    DlssNrMode_PrivateEditDump = 43,
+    DlssNrMode_PrivateGhostClear = 44,
+    DlssNrMode_PrivateGhostScatter = 45,
+    DlssNrMode_PrivateGhostHistory = 46
 };
 
 struct alignas(256) DlssNrConstants

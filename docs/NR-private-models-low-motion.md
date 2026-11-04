@@ -137,7 +137,9 @@ Wynik pozostaje 32-bajtowy, a rozmiar siatki i częstotliwość sondy są te sam
 WARP sprawdza 29 przypadków sondy, w tym 0/1/431/432/576 ruchomych punktów, granicę 75%, rozdzielczości 1080p/4K i różne siatki NR. Kontroler CPU sprawdza także timer z jednym ruchomym punktem i przerwanie przy 75%. Na RTX 4090 pomiar starej sondy vs nowa przy syntetycznym polu MV, 16 par rozgrzewki i 16 ABBA / 32 próbki na wariant, wyniósł 0,007539 ± 0,000484 vs 0,007449 ± 0,000564 ms przy 2240×1264 oraz 0,007367 ± 0,000579 vs 0,007372 ± 0,000631 ms przy 2496×1404. Różnice -0,000090 i +0,000005 ms są mniejsze od rozrzutu. Nie jest to pomiar całego toru gry. [Surowe próbki starej i nowej sondy](validation/camera-motion-coverage-timing.csv).
 
 
-## Eksperymentalne lokalne odrzucanie ghostingu prywatnego DLSS
+## Eksperymentalne lokalne odrzucanie ghostingu: metoda legacy 3×3
+
+Poniższy opis dotyczy **Ghost rejection method = Local range 3x3 (legacy)**. Nowe metody opisano na końcu dokumentu; samo odrzucanie pozostaje domyślnie wyłączone.
 
 **Experimental DLSS ghost rejection** jest domyślnie wyłączone. Działa w D3D12 z prywatnym CNN, Transformer i 2-gen, zarówno na edicie, jak i pełnej odpowiedzi NR. Przy No DLSS i Vulkanie kontrolka jest wyszarzona. **Ghost rejection threshold** (default 0.01, zakres 0..0.25), **Ghost rejection softness** (0.02, 0.0001..0.25) oraz **Ghost rejection strength** (1, 0..1) sterują maską. Niższy próg odrzuca więcej różnic, większa miękkość rozciąga przejście, a siła 1 w pełni zastępuje odrzucone piksele bieżącym editem NR. Siła 0 wybiera zwykły shader.
 
@@ -182,3 +184,49 @@ Przycisk wymaga prywatnego DLSS oraz wyłączonego eksperymentu Original guides,
 Bez żądania nie ma nowych dispatchy, tekstur, kopii, barier ani odczytów GPU. Zapis jednorazowy ma dwa dodatkowe dispatchy względem edit+guides i dwie dodatkowe kopie do readbacku. Limit snapshots + readback + wcześniej zachowane snapshots wynosi 1 GiB dla pary; starsze zrzuty zachowują 512 MiB. W 4K pliki DDS zajmują łącznie około 498 MB, a pamięć przejściowa około 996 MB, plus wyrównania. Przy braku pamięci lub przekroczeniu limitu UI zgłasza błąd. GPU, mapowanie i zapis na dysk mogą chwilowo przyciąć obraz; kosztu całej operacji w grze nie zmierzono. Porównanie wymaga timestampów GPU dla klatki bez żądania i z żądaniem, z osobnym pomiarem czasu zapisu CPU; nie traktować tego jako stałego kosztu renderowania.
 
 Testy WARP rozszerzają produkcyjny ReadbackCopy do 1/3/5 różnych tekstur na DIRECT i COMPUTE, sprawdzają formaty i payload DDS, zakończenie bez resetowania listy, ponowny replay z innymi danymi i niezmienność readbacków. Testy CPU obejmują rezerwację wspólnej nazwy, osierocone pliki par, rollback oraz JSON. Istniejące niezależne testy carrier/decode obejmują unit gain przed DLSS i cofanie transformacji po DLSS bez maski. Weryfikacja nie zawiera prywatnego NGX w grze; poprawność i jakość próbki należy potwierdzić z nowej DLL.
+
+## Dysokluzje z historią MV i alternatywa przestrzenna
+
+**Ghost rejection method** ma trzy warianty. Nowym domyślnym wyborem pola jest **Recent disocclusion window (temporal MV)**, ale **Experimental DLSS ghost rejection** pozostaje domyślnie wyłączone. Progi legacy są zachowane przy powrocie do **Local range 3x3 (legacy)**. Wszystkie warianty działają po odwróceniu transportu, przed globalnym wygaszaniem, frequency shaping i guided reconstruction. **Ghost rejection strength** jest wspólne; przy 1 pełna maska daje bieżący `answer - proxy`. **Show DLSS ghost rejection mask** pokazuje faktyczną maskę na zielono. Błąd przygotowania historii omija odrzucanie i nie pokazuje fikcyjnej maski. Funkcja nie resetuje historii NR ani NGX.
+
+### Recent disocclusion window (temporal MV)
+
+Ta metoda szacuje, czy obecnie widoczna powierzchnia była wcześniej zasłonięta. Nie porównuje kolorów editu i nie rozpoznaje postaci. Tymczasowo oddaje odsłonięty fragment czystemu NR, również gdy DLSS działałby na nim poprawnie: to świadomy kompromis stabilności i odrzucania smug, nie pewny klasyfikator ghostingu.
+
+- **Disocclusion masking window (frames)**: 1–120, default 16. Liczy aktywne ewaluacje prywatnego DLSS, nie czas ani klatki FG. Licznik nowej dysokluzji jest przenoszony MV razem z powierzchnią i maleje o jeden na ewaluację.
+- **Disocclusion return fade (frames)**: 0–N, default 3. Przywraca DLSS podczas ostatnich klatek okna. Zero oznacza pełną maskę do wygaśnięcia; nie maskuje powierzchni z zerowym licznikiem.
+- **Disocclusion depth separation**: 0.001–0.5, default 0.05. Separacja względna w dodatniej domenie bliskości NDC, z marginesem kwantyzacji; nie metry. Niższy próg zwiększa czułość i ryzyko fałszywego maskowania.
+- **Ghost relative motion gate (1080p)**: 0.1–16, default 2 px przy wysokości 1080, skalowane do siatki pracy. Dotyczy pomocniczego wykrywania warstw ruchu przy małej różnicy głębi; nie jest obowiązkowym warunkiem głównego testu dysokluzji.
+
+Trzy przebiegi na połowie wymiarów siatki NR: zerowanie R32_UINT, rozrzucenie bieżącej bliskości do współrzędnych poprzedniej klatki przez current→previous MV (`InterlockedMax`), aktualizacja historii. Każdy punkt wybiera najbliższy poprawny depth z 2×2 i jego MV. Rekonstrukcja poprzednich współrzędnych używa głębi tej samej bieżącej klatki, aby ograniczyć mylenie zmian NDC od kamery z zasłanianiem. Ogólną technikę opisuje m.in. [dokumentacja FSR temporal, Reconstruct & dilate / Depth clip](https://gpuopen.com/manuals/fidelityfx_sdk/techniques/super-resolution-temporal/); tutaj jest osobnym shaderem, bez integracji FSR.
+
+Dodatkowe próby poprzedniej warstwy MV i bliższej głębi wykrywają część kontaktów but–podłoże i znikający occluder. Wymagają sąsiedniej warstwy pasującej do bieżącego ruchu **i głębi**, więc sama zmiana prędkości nie wystarcza. Nowy wyraźnie bliższy obiekt zeruje licznik zamiast przejmować maskę tła. Decode pobiera biliniowo licznik z zgodnej powierzchni, uwzględniając także sąsiadów z zerowym wiekiem, i miesza wynik z czystym editem. Nowa historia zaczyna bez maski. Reset NGX/NR lub nowa generacja czyści jej ważność. Odrzucona niezgłoszona lista powoduje odtworzenie zasobów zamiast użycia niezrealizowanych przejść.
+
+Dwa RGBA32F (bliskość, wiek, MV.xy) i R32_UINT na siatce ceil(work/2) zajmują nominalnie około 9 bajtów/piksel pracy: 30.1 MiB przy 2496×1404, 71.2 MiB przy 3840×2160, plus wyrównania. Powstają na żądanie i mają odroczone zwolnienie po wyłączeniu/zmianie metody. Bez funkcji nie ma tych alokacji ani trzech dispatchy, kopii czy readbacków. Zwykłe dopasowane guides nie wymagają osobnego przebiegu przygotowania. Eksperyment Original guides nadal przekazuje oryginalne guides do NGX, ale maska wymaga równocześnie dopasowanych guides na siatce NR. Packed korzysta z dopasowanej siatki i jej jednostek MV.
+
+Bez macierzy kamery i historii identyfikatorów powierzchni jest to estymacja. Warstwy o niemal identycznej głębi i ruchu są niejednoznaczne; cienkie elementy mogą zniknąć przy połowie wymiarów. Szybkie zmiany głębi kamery, niepoprawne MV, przezroczystości i odbicia mogą dać błędną decyzję. Wejście z brzegu obrazu bez dowodu wcześniejszego zasłonięcia nie jest automatycznie dysokluzją. Niepoprawne/brakujące dane nie uruchamiają maski. Funkcja nie usuwa ghostingu już obecnego w NR ani w DLSS gry. Nie gwarantuje zamaskowania wszystkich butów ani braku false positives.
+
+### Depth + motion + coherent foreground match
+
+Alternatywa przestrzenna bez historii i dodatkowych dispatchy. W decode szuka bliższego obiektu o innym MV i zgodnego wkładu jego koloru w różnicę `DLSS edit - raw edit`. Spójność tej różnicy na krzyżu pięciu punktów oraz lokalna amplituda raw ograniczają odrzucanie zwykłego odszumiania. Do 24 prób depth/MV wzdłuż ruchu i w wachlarzu, z wczesnym odrzuceniem. Przy małym MV bieżącego punktu wyszukuje również ruchomy foreground, więc nie wymaga ruchu kamery.
+
+**Ghost search radius (1080p reference)**: 8–512, default 192; **Ghost foreground depth ratio**: 1.02–4, default 1.2; **Ghost relative motion gate (1080p)** jest wspólne z temporal. **Ghost rejection threshold / softness** mają tu osobne wartości 0.004 / 0.01. Bliższy aktualny obiekt nie jest odrzucany na podstawie dalszego kandydata. Metoda może przegapić smugi o innym kolorze, małej separacji głębi lub poza próbkowanymi kierunkami. W sześciu zapisach zmniejsza część powielonych sylwetek, ale nadal zostawia widoczne smugi przy butach; nie przedstawiamy jej jako rozwiązania tego problemu.
+
+### Weryfikacja i koszt nowych metod
+
+WARP: 16 przypadków przestrzennych (wstrzyknięta kopia foreground, nieruchoma kamera/ruchomy obiekt, ta sama głębia, ten sam MV, poprawne tłumienie szumu, dalszy kandydat, niepoprawne guides; obie konwencje Z). Temporal: 75 kontroli znanego odsłonięcia, ochrony occludera, dokładnego N i przenoszenia licznika MV, resetu, NaN/Inf, przyspieszenia kamery, kwantyzacji D16/D24 przed wejściem R32F, obu konwencji Z, 1×1/nieparzystych wymiarów oraz niezależnej referencji biliniowego decode, zerowych sąsiadów, fade=0/2, siły, gain=0.5/6 i trybu editu/pełnej odpowiedzi. Zachowane 456 przypadków legacy, 56 zielonego podglądu i 1507 dotychczasowych przypadków ekspozycji/transportu. To nie ewaluacja NGX w grze.
+
+[Raport sześciu sparowanych zapisów](validation/nr-paired-ghost-study.json) zawiera hashe i pochodne statystyki, bez obrazów. `tools/analyze_nr_paired_ghost.py` nie utożsamia różnicy RGB z ghostingiem. Pokrycie maski przestrzennej >0.5 wynosi 1.34–2.38% obrazu; to nie precyzja/recall. Zapisy dzieli kilkaset klatek i **nie weryfikują historii temporal**. Test numeryczny nie zastępuje obserwacji postaci i butów w grze.
+
+Timestampy GPU: RTX 4090, 2496×1404, dane scen nr-edit-001 / 004, FP32, podpisany edit w znormalizowanej domenie, pełna odpowiedź z zerowym proxy, gain/saturation 1, bez pozostałych transformacji, podglądu i fade. 16 par rozgrzewki, 16 ABBA (32 próbki/wariant). Średnia ± odchylenie standardowe:
+
+| Próba | Sam decode [ms] | 3 etapy temporal + decode [ms] | Różnica [ms] |
+| --- | ---: | ---: | ---: |
+| 001 | 0.146112 ± 0.001411 | 0.286880 ± 0.003442 | +0.140768 |
+| 004 | 0.146112 ± 0.001570 | 0.301856 ± 0.004110 | +0.155744 |
+
+Pomiar obejmuje bariery między etapami i decode UAV→SRV, bez alokacji w interwale GPU. Guides są powtarzane: wynik mierzy koszt, nie jakość czasową. [ABBA 001](validation/private-ghost-temporal-001-timing.csv), [004](validation/private-ghost-temporal-004-timing.csv). Powtórzenie: `private_exposure_quality.exe --temporal-ghost-timing <capture stem>`. Spatial na tych samych wejściach (sam dispatch decode): 001 0.145760±0.002618 → 0.269824±0.001379 (+0.124064 ms); 004 0.145088±0.001502 → 0.286048±0.000606 (+0.140960 ms). Względem legacy przy tych samych progach 0.004/0.01: +0.046656 / +0.063072 ms. [Spatial ABBA 001](validation/private-ghost-guided-001-timing.csv), [004](validation/private-ghost-guided-004-timing.csv). Nie porównywać bezpośrednio z wcześniejszym syntetycznym benchmarkiem FP16 legacy.
+
+Całego toru NR+NGX+kompozycja w grze nie zmierzono. Weryfikacja: ta sama scena i ruch kamery, GPU, rozdzielczość, presety/transport, osobna rozgrzewka, Off/temporal w ABBA, następnie spatial/legacy; timestampy całego toru i etapów, średnia i zmienność, bez zrzutów podczas pomiaru. Osobno ocenić false positives na poprawnie stabilizowanych powierzchniach i pozostałe smugi przy stopach, z podglądem i bez niego.
+
+Nowe klucze INI mają read/write, reset/apply i kKeptKeys profili: `SuperiorGhostMethod`, `SuperiorGhostGuidedThreshold`, `SuperiorGhostGuidedSoftness`, `SuperiorGhostRadius`, `SuperiorGhostDepthRatio`, `SuperiorGhostMotionGate`, `SuperiorGhostHistoryFrames`, `SuperiorGhostHistoryFade`, `SuperiorGhostHistoryDepth`. JSON dopisuje metodę, promień, separację i parametry okna. Parametry mają sanitizację CPU i fallback HLSL oraz asercje ABI. Zwykłe bloby carrier, kompozycji i legacy pozostają identyczne bajtowo.

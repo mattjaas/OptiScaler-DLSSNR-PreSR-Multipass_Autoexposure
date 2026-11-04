@@ -59,6 +59,15 @@ struct ResidentCnn
     }
 };
 
+struct GhostHistory
+{
+    Texture state[2], reconstructed;
+    unsigned index = 0;
+    bool initialized = false, submitted = false;
+    uint64_t epoch = 0;
+    const void* commands = nullptr;
+};
+
 struct Generation
 {
     ComPtr<ID3D12Device> device;
@@ -66,6 +75,8 @@ struct Generation
     DXGI_FORMAT format = DXGI_FORMAT_UNKNOWN;
     bool inverted = false, beforeSr = false, reset = true;
     bool temporal = false, packed = false;
+    GhostHistory ghostHistory;
+    bool ghostMaskWritten = false;
     DlssNr::LowMotionReset::Controller lowMotion;
     DlssNr::PrivateTransition::Fade presetFade;
     DlssNr::PrivateTransition::Motion motionFade;
@@ -379,6 +390,10 @@ void Submitted(ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* 
         for (UINT i = 0; i < count; ++i)
             if (Util::RealObjectIdentity(lists[i]) == s.current->residentCnn->creation)
                 s.current->residentCnn->submitted = true;
+    if (s.current && s.current->ghostHistory.commands)
+        for (UINT i = 0; i < count; ++i)
+            if (Util::RealObjectIdentity(lists[i]) == s.current->ghostHistory.commands)
+                s.current->ghostHistory.submitted = true;
     // The hook stopped watching these lists after this submission. A list whose recording is still open can be
     // submitted again (replayed) and is still to be Reset, so it stays watched until then; others are forgotten.
     if (s.current && s.current->creation)
@@ -403,6 +418,15 @@ void ResetRecording(ID3D12CommandList* cmd)
         EditDumpListDestroyed(s.editDump->commands);
     }
     Forget(cmd);
+    if (s.current && s.current->ghostHistory.commands == Util::RealObjectIdentity(cmd) &&
+        !s.current->ghostHistory.submitted)
+    {
+        // The discarded recording also contained transitions. Recreate these textures rather
+        // than trusting their recorded states to match GPU state after an unsubmitted Reset.
+        auto old = std::make_shared<GhostHistory>(std::move(s.current->ghostHistory));
+        s.current->ghostHistory = {};
+        s.lifetime.Retire([old] {});
+    }
     if (s.current && s.current->residentCnn && s.current->residentCnn->creation == cmd &&
         !s.current->residentCnn->submitted)
     {
@@ -1100,6 +1124,61 @@ DlssNr::GainPreview::Status ObserveScreenMotion(
     return sample;
 }
 
+Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Resource* depth,
+                           ID3D12Resource* motion, const DlssNrFrameInfo& frame, bool reset,
+                           const DlssNr::GhostRejection::Settings& settings, float precision)
+{
+    auto& h = g.ghostHistory;
+    const auto identity = Util::RealObjectIdentity(cmd);
+    if (h.initialized && !reset && h.epoch == frame.SubmissionEpoch && (h.commands == identity || h.submitted))
+        return &h.state[h.index];
+    const unsigned w = (g.workWidth + 1) / 2, ht = (g.workHeight + 1) / 2;
+    bool previous = h.initialized && h.submitted && !reset;
+    if (h.state[0].resource && (h.state[0].Get()->GetDesc().Width != w || h.state[0].Get()->GetDesc().Height != ht))
+        previous = false;
+    if (!depth || !motion || !Ensure(h.reconstructed, g.device.Get(), DXGI_FORMAT_R32_UINT, w, ht) ||
+        !Ensure(h.state[0], g.device.Get(), DXGI_FORMAT_R32G32B32A32_FLOAT, w, ht) ||
+        !Ensure(h.state[1], g.device.Get(), DXGI_FORMAT_R32G32B32A32_FLOAT, w, ht))
+    {
+        h.initialized = false;
+        return nullptr;
+    }
+    auto* old = previous ? h.state[h.index].Get() : depth;
+    const unsigned next = previous ? 1 - h.index : 0;
+    Constants c {};
+    Fields::SetGhostVisibility(c, w, ht, g.workWidth, g.workHeight, settings, g.inverted, previous, precision);
+    Record(cmd);
+    if (previous)
+    {
+        c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostClear;
+        if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed))
+        {
+            h.initialized = false;
+            return nullptr;
+        }
+        c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostScatter;
+        if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed))
+        {
+            h.initialized = false;
+            return nullptr;
+        }
+    }
+    c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostHistory;
+    h.reconstructed.To(cmd, Srv);
+    if (!Dispatch(shader, cmd, c, depth, motion, old, h.reconstructed.Get(), nullptr, nullptr, h.state[next],
+                  &h.state[next]))
+    {
+        h.initialized = false;
+        return nullptr;
+    }
+    h.index = next;
+    h.epoch = frame.SubmissionEpoch;
+    h.commands = identity;
+    h.submitted = false;
+    h.initialized = true;
+    return &h.state[next];
+}
+
 ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Resource* proxy,
                           ID3D12Resource* answer, ID3D12Resource* originalDepth, ID3D12Resource* originalMotion, const DlssNr::GuideRegions& regions,
                           const DlssNrFrameInfo& frame, bool reset, bool hold, ID3D12Resource* packedDepth,
@@ -1118,6 +1197,17 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     const uint32_t depthPair = depthStrength > 0 ? DlssNr::PrivateExposure::DepthPair(cfg.DlssNrSuperiorDepthColourPair.value_or_default()) : 0u;
     const auto depthTransport = DlssNr::DepthTransport::Effective(DlssNr::DepthTransport::Read(cfg));
     const bool depthActive = DlssNr::DepthTransport::Flags(depthTransport) != 0;
+    const auto ghostSettings = DlssNr::GhostRejection::Read(cfg);
+    const bool guidedGhost = ghostSettings.enabled && ghostSettings.strength > 0.f && ghostSettings.method != 0u;
+    const bool temporalGhost = guidedGhost && ghostSettings.method == 2u;
+    g.ghostMaskWritten = false;
+    if (!temporalGhost && (g.ghostHistory.state[0].resource || g.ghostHistory.state[1].resource ||
+                           g.ghostHistory.reconstructed.resource))
+    {
+        auto old = std::make_shared<GhostHistory>(std::move(g.ghostHistory));
+        g.ghostHistory = {};
+        GetState().lifetime.Retire([old] {});
+    }
     const bool filterNrAnswer = cfg.DlssNrSuperiorFilterNrAnswer.value_or_default();
     const bool autoRequested = cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
     const bool measurementRequested = cfg.DlssNrSuperiorGainPreview.value_or_default() || autoRequested;
@@ -1283,10 +1373,10 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     }
     else g.originalGuideStatus = cfg.DlssNrSuperiorOriginalGuides.value_or_default() ?
         "Matched guides: original-guide experiment unavailable with edge compression." : "Matched guides (original-guide experiment off).";
-    encode.Mode = useOriginal ? 37u : 39u; // Raw NGX motion needs no converted-motion write.
-    if (!prepared &&
-        !Dispatch(shader, cmd, encode, proxy, answer, motion, depthStrength > 0 || depthActive ? temporalDepth : nullptr,
-                  nullptr, nullptr, g.carrier, useOriginal ? nullptr : &g.temporalMotion))
+    encode.Mode = useOriginal && !guidedGhost ? 37u : 39u; // The guided detector always needs matched pixel MV.
+    if (!prepared && !Dispatch(shader, cmd, encode, proxy, answer, motion,
+                               depthStrength > 0 || depthActive ? temporalDepth : nullptr, nullptr, nullptr, g.carrier,
+                               useOriginal && !guidedGhost ? nullptr : &g.temporalMotion))
         return nullptr;
     // The estimate samples raw NR differences, independent of the manually selected gain.
     // Secondary views do not feed a different image into the primary-view smoother.
@@ -1382,12 +1472,25 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     RecordAfterEditDump(pairedDump, g, shader, cmd, decode, proxy,
                         depthStrength > 0 || depthActive ? temporalDepth : nullptr);
     Fields::SetUnfilteredEditWeight(decode, 1.f - mix);
-    Fields::SetCarrierGhostRejection(decode, DlssNr::GhostRejection::Read(cfg));
+    auto effectiveGhost = ghostSettings;
+    auto* history = temporalGhost ? TemporalGhostMask(g, shader, cmd, temporalDepth, g.temporalMotion.Get(), frame,
+                                                      reset || g.reset, ghostSettings, packedDepthPrecision)
+                                  : nullptr;
+    if (temporalGhost && !history)
+        effectiveGhost.enabled = false;
+    Fields::SetCarrierGhostRejection(decode, effectiveGhost);
+    Fields::SetGhostDepthPrecision(decode, packedDepthPrecision);
     const bool needsRawEdit = mix < 1.f || Fields::CarrierGhostRejection(decode);
     if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), filterNrAnswer ? proxy : nullptr,
-                  needsRawEdit ? proxy : nullptr, depthStrength > 0 || depthActive ? temporalDepth : nullptr,
-                  needsRawEdit ? answer : nullptr, nullptr, g.carrier))
+                  needsRawEdit ? proxy : nullptr,
+                  depthStrength > 0 || depthActive || guidedGhost ? temporalDepth : nullptr,
+                  needsRawEdit ? answer : nullptr,
+                  history       ? history->Get()
+                  : guidedGhost ? g.temporalMotion.Get()
+                                : nullptr,
+                  g.carrier))
         return nullptr;
+    g.ghostMaskWritten = Fields::CarrierGhostRejection(decode);
     g.reset = false;
     return g.carrier.Get();
 }

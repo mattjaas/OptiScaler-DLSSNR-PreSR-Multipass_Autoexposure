@@ -488,6 +488,15 @@ class Config
     CustomOptional<bool> DlssNrSuperiorFilterNrAnswer { false };
     CustomOptional<bool> DlssNrSuperiorGhostRejection { false };
     CustomOptional<bool> DlssNrSuperiorShowGhostMask { false };
+    CustomOptional<uint32_t> DlssNrSuperiorGhostMethod { 2 };
+    CustomOptional<uint32_t> DlssNrSuperiorGhostHistoryFrames { 16 };
+    CustomOptional<uint32_t> DlssNrSuperiorGhostHistoryFade { 3 };
+    CustomOptional<float> DlssNrSuperiorGhostHistoryDepth { .05f };
+    CustomOptional<float> DlssNrSuperiorGhostGuidedThreshold { .004f };
+    CustomOptional<float> DlssNrSuperiorGhostGuidedSoftness { .01f };
+    CustomOptional<float> DlssNrSuperiorGhostRadius { 192.f };
+    CustomOptional<float> DlssNrSuperiorGhostDepthRatio { 1.2f };
+    CustomOptional<float> DlssNrSuperiorGhostMotionGate { 2.f };
     CustomOptional<float> DlssNrSuperiorGhostThreshold { .01f };
     CustomOptional<float> DlssNrSuperiorGhostSoftness { .02f };
     CustomOptional<float> DlssNrSuperiorGhostStrength { 1.f };

@@ -43,16 +43,53 @@ inline void SetUnfilteredEditWeight(DlssNrConstants& c, float weight)
 }
 static_assert(offsetof(DlssNrConstants, ExposurePadding) == 172);
 
-// Decode only: the optional PSO compares the restored edit against current NR's 3x3 range.
+// Decode only: select the rejection PSO; anchors 0..3 remain the carrier's depth transport.
 inline void SetCarrierGhostRejection(DlssNrConstants& c, DlssNr::GhostRejection::Settings settings)
 {
     const auto s = DlssNr::GhostRejection::Sanitize(settings);
     c.GuideWidth = s.enabled && s.strength > 0.f ? 1u : 0u;
+    c.GuideHeight = s.method;
     c.ColourStrength = s.threshold;
     c.TransferStrength = s.softness;
     c.CompareSplit = s.strength;
+    c.ExposureAnchors[4] = s.radius;
+    c.ExposureAnchors[5] = s.depthRatio;
+    c.ExposureAnchors[6] = s.motionGate;
+    c.ExposureAnchors[8] = float(s.historyFrames);
+    c.ExposureAnchors[9] = float(s.historyFade);
+    c.ExposureAnchors[10] = s.historyDepth;
 }
 inline bool CarrierGhostRejection(const DlssNrConstants& c) { return c.Mode == 38u && c.GuideWidth == 1u; }
+inline bool GuidedGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 1u; }
+inline bool TemporalGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 2u; }
+inline void SetGhostDepthPrecision(DlssNrConstants& c, float precision)
+{
+    c.ExposureAnchors[7] =
+        std::isfinite(precision) && precision >= 0.f && precision <= .001f ? precision : 1.f / 65535.f;
+}
+static_assert(offsetof(DlssNrConstants, ExposureAnchors) + 4 * 4 == 192 &&
+              offsetof(DlssNrConstants, GuideHeight) == 48);
+// Visibility stages reinterpret the first 52 bytes, matching TemporalGhost.hlsl's Params.
+inline void SetGhostVisibility(DlssNrConstants& c, unsigned width, unsigned height, unsigned fullWidth,
+                               unsigned fullHeight, DlssNr::GhostRejection::Settings settings, bool inverted,
+                               bool previous, float precision)
+{
+    const auto s = DlssNr::GhostRejection::Sanitize(settings);
+    c.Width = width;
+    c.Height = height;
+    c.GuideWidth = fullWidth;
+    c.GuideHeight = fullHeight;
+    c.WhitePoint = float(s.historyFrames);
+    c.TransferStrength = float(s.historyFade);
+    c.ColourStrength = s.historyDepth;
+    c.MaxRatio = s.motionGate;
+    c.Passthrough = inverted ? 1u : 0u;
+    c.DebugView = previous ? 1u : 0u;
+    c.MvScaleX = std::isfinite(precision) && precision >= 0 && precision <= .001f ? precision : 1.f / 65535.f;
+}
+static_assert(offsetof(DlssNrConstants, Width) == 8 && offsetof(DlssNrConstants, Height) == 12 &&
+              offsetof(DlssNrConstants, DebugView) == 24 && offsetof(DlssNrConstants, Passthrough) == 32 &&
+              offsetof(DlssNrConstants, MvScaleX) == 36);
 // Final composition only: bit 0 retains the existing skin-mask preview; bit 1 selects the green ghost overlay PSO.
 inline void SetGhostMaskPreview(::DlssNrConstants& c, bool enabled)
 {

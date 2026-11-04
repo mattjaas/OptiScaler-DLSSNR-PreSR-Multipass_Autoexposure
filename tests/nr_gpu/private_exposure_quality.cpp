@@ -49,6 +49,9 @@ struct Fixture
 {
     Runner r;
     ComPtr<ID3D12PipelineState> meter, carrier;
+    ComPtr<ID3D12QueryHeap> timingQueries;
+    ComPtr<ID3D12Resource> timingReadback;
+    UINT64 timingFrequency = 0;
     std::vector<ComPtr<ID3D12Resource>> uploads;
     Fixture(bool hardware) : r(hardware, 32)
     {
@@ -89,13 +92,20 @@ struct Fixture
     }
     void dispatch(ID3D12PipelineState* ps, const DlssNr::Superior::DlssNrConstants& c, ID3D12Resource* source,
                   ID3D12Resource* model, ID3D12Resource* target, UINT gx, UINT gy, ID3D12Resource* depth = nullptr,
-                  ID3D12Resource* rawProxy = nullptr, ID3D12Resource* rawAnswer = nullptr)
+                  ID3D12Resource* rawProxy = nullptr, ID3D12Resource* rawAnswer = nullptr,
+                  ID3D12Resource* guideMotion = nullptr, double* gpuMs = nullptr, UINT tableSlot = 0,
+                  bool submit = true)
     {
         auto cpu = r.heap->GetCPUDescriptorHandleForHeapStart();
+        cpu.ptr += SIZE_T(tableSlot) * 8 * r.stride;
         for (UINT i = 0; i < 6; ++i)
         {
-            auto* input = i == 3 && depth ? depth : i == 2 && rawProxy ? rawProxy :
-                          i == 4 && rawAnswer ? rawAnswer : i == 1 ? model : source;
+            auto* input = i == 5 && guideMotion ? guideMotion
+                          : i == 3 && depth     ? depth
+                          : i == 2 && rawProxy  ? rawProxy
+                          : i == 4 && rawAnswer ? rawAnswer
+                          : i == 1              ? model
+                                                : source;
             D3D12_SHADER_RESOURCE_VIEW_DESC d {};
             d.Format = input->GetDesc().Format;
             d.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -111,11 +121,45 @@ struct Fixture
         void* p; check(b->Map(0, nullptr, &p)); std::memcpy(p, &c, 256); b->Unmap(0, nullptr);
         r.list->SetComputeRootSignature(r.root.Get());
         ID3D12DescriptorHeap* heaps[] { r.heap.Get() }; r.list->SetDescriptorHeaps(1, heaps);
-        r.list->SetComputeRootDescriptorTable(0, r.heap->GetGPUDescriptorHandleForHeapStart());
+        auto gpu = r.heap->GetGPUDescriptorHandleForHeapStart();
+        gpu.ptr += UINT64(tableSlot) * 8 * r.stride;
+        r.list->SetComputeRootDescriptorTable(0, gpu);
         r.list->SetComputeRootConstantBufferView(1, b->GetGPUVirtualAddress());
-        r.list->SetPipelineState(ps); r.list->Dispatch(gx, gy, 1);
+        r.list->SetPipelineState(ps);
+        if (!submit)
+        {
+            if (gpuMs)
+                throw std::runtime_error("Batch timestamps belong to the caller");
+            uploads.push_back(b);
+            r.list->Dispatch(gx, gy, 1);
+            return;
+        }
+        if (gpuMs && !timingQueries)
+        {
+            D3D12_QUERY_HEAP_DESC q {};
+            q.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+            q.Count = 2;
+            check(r.device->CreateQueryHeap(&q, IID_PPV_ARGS(&timingQueries)));
+            timingReadback = r.buffer(16, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST);
+            check(r.queue->GetTimestampFrequency(&timingFrequency));
+        }
+        if (gpuMs)
+            r.list->EndQuery(timingQueries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
+        r.list->Dispatch(gx, gy, 1);
+        if (gpuMs)
+        {
+            r.list->EndQuery(timingQueries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
+            r.list->ResolveQueryData(timingQueries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, timingReadback.Get(), 0);
+        }
         // Finish before rewriting this fixture's descriptor table (the host uses a ring).
         r.finish(); uploads.clear(); r.begin();
+        if (gpuMs)
+        {
+            UINT64* times;
+            check(timingReadback->Map(0, nullptr, reinterpret_cast<void**>(&times)));
+            *gpuMs = double(times[1] - times[0]) * 1000 / timingFrequency;
+            timingReadback->Unmap(0, nullptr);
+        }
     }
     std::vector<float> read(ID3D12Resource* t)
     {
@@ -315,12 +359,24 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 }
 
 #include "private_ghost_quality.inl"
+#include "guided_ghost_quality.inl"
+#include "temporal_ghost_quality.inl"
 
 int main(int argc, char** argv)
 {
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc == 3 && std::string(argv[1]) == "--temporal-ghost-timing")
+        {
+            TemporalGhostTiming(f, argv[2]);
+            return 0;
+        }
+        if ((argc == 3 || argc == 4) && std::string(argv[1]) == "--guided-ghost-capture")
+        {
+            GuidedGhostCapture(f, argv[2], argc == 4);
+            return 0;
+        }
         if (argc > 1 && std::string(argv[1]) == "--ghost-mask-timing")
         {
             GhostTiming(f,true);
@@ -374,6 +430,8 @@ int main(int argc, char** argv)
             std::cout << "Disabled colour transport bit parity PASS: " << cases << " cases\n"; return 0;
         }
         GhostQuality(f);
+        GuidedGhostQuality(f);
+        TemporalGhostQuality(f);
         GhostMaskQuality(f);
         unsigned checks = 0;
         for (bool full : { false, true })

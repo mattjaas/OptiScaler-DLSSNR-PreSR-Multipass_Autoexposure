@@ -1,4 +1,5 @@
 #include <cassert>
+#include "../OptiScaler/dlssnr/DlssNr_GhostRejection.h"
 #include "../OptiScaler/shaders/dlssnr/DlssNr_Guides.h"
 #include <cmath>
 #include <limits>
@@ -7,6 +8,17 @@
 
 int main()
 {
+    DlssNr::GhostRejection::Settings ghost {};
+    ghost.method = 999;
+    ghost.radius = NAN;
+    ghost.depthRatio = INFINITY;
+    ghost.motionGate = -1;
+    ghost.historyFrames = 0;
+    ghost.historyFade = 999;
+    ghost.historyDepth = NAN;
+    ghost = DlssNr::GhostRejection::Sanitize(ghost);
+    assert(ghost.method == 2 && ghost.radius == 192 && ghost.depthRatio == 1.2f && ghost.motionGate == .1f);
+    assert(ghost.historyFrames == 1 && ghost.historyFade == 1 && ghost.historyDepth == .05f);
     namespace DT = DlssNr::DepthTransport;
     DT::Settings ds;
     assert(DT::Flags(ds) == 0 && DT::Weight(.5f, false, ds) == 0);

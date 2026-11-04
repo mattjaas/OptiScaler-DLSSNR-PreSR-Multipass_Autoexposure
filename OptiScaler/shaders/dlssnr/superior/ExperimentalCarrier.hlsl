@@ -5,6 +5,12 @@
 #include "DepthBrightness.hlsli"
 #ifdef DLSSNR_GHOST_REJECTION
 #include "GhostRejection.hlsli"
+#ifdef DLSSNR_GUIDED_GHOST
+#include "GuidedGhostRejection.hlsli"
+#endif
+#ifdef DLSSNR_TEMPORAL_GHOST
+#include "TemporalGhostDecode.hlsli"
+#endif
 #endif
 
 [numthreads(8, 8, 1)]
@@ -63,7 +69,13 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
         }
 #ifdef DLSSNR_GHOST_REJECTION
         float rejectionMask;
+#ifdef DLSSNR_TEMPORAL_GHOST
+        edit = RejectTemporalGhost(edit, int2(id.xy), rejectionMask);
+#elif defined(DLSSNR_GUIDED_GHOST)
+        edit = RejectGuidedGhost(edit, int2(id.xy), rejectionMask);
+#else
         edit = RejectUnsupportedEdit(edit, int2(id.xy), rejectionMask);
+#endif
 #endif
         const float weightRaw = asfloat(gExposurePadding);
         [branch] if (isfinite(weightRaw) && weightRaw > 0.0)

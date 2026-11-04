@@ -109,6 +109,12 @@ try {
     Build (Join-Path $shaders "superior/RawLow.hlsl") "RawLowMain" @() "host_low_raw"
     Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @() 'private_carrier'
     Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @('-D', 'DLSSNR_GHOST_REJECTION=1') 'private_carrier_ghost'
+    Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @('-D', 'DLSSNR_GHOST_REJECTION=1', '-D', 'DLSSNR_GUIDED_GHOST=1') 'private_carrier_guided_ghost'
+    Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @('-D', 'DLSSNR_GHOST_REJECTION=1', '-D', 'DLSSNR_TEMPORAL_GHOST=1') 'private_carrier_temporal_ghost'
+    $ghostStages=@('clear','scatter','history')
+    for($stage=0;$stage -lt $ghostStages.Count;++$stage) {
+        Build (Join-Path $shaders 'superior/TemporalGhost.hlsl') 'TemporalGhostMain' @('-D',"DLSSNR_TEMPORAL_GHOST_STAGE=$stage") "private_ghost_$($ghostStages[$stage])"
+    }
     Build (Join-Path $shaders 'superior/PrivateExposure.hlsl') 'PrivateExposureMain' @() 'private_exposure'
     Build (Join-Path $shaders 'superior/GainPreview.hlsl') 'GainPreviewMain' @() 'private_gain_preview'
     Build (Join-Path $shaders 'superior/MotionWatch.hlsl') 'MotionWatchMain' @() 'private_motion_watch'

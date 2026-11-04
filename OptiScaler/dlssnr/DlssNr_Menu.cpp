@@ -4241,12 +4241,29 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             auto ghost = DlssNr::GhostRejection::Read(*config);
             if (ImGui::Checkbox("Experimental DLSS ghost rejection", &ghost.enabled))
                 config->DlssNrSuperiorGhostRejection = ghost.enabled;
-            HelpMarker("Replaces unsupported private-DLSS edits with the current unfiltered NR edit. Compares the "
-                       "restored RGB edit with NR's current 3x3 neighbourhood, after undoing transport controls. "
+            HelpMarker("Replaces suspected private-DLSS trails with the current unfiltered NR edit after undoing "
+                       "transport controls. "
                        "Works with every private model and full NR answer mode. This is a heuristic: may remove "
                        "valid temporal detail, cannot detect every trail or repair ghosting already present in NR. "
-                       "Adds neighbourhood reads to decode; no extra pass or history reset.");
+                       "Temporal MV adds three half-resolution passes and visibility buffers. Other methods add "
+                       "neighbourhood reads to decode. Does not reset DLSS history.");
             ImGui::BeginDisabled(!ghost.enabled);
+            static const char* ghostMethods[] = { "Local range 3x3 (legacy)",
+                                                  "Depth + motion + coherent foreground match",
+                                                  "Recent disocclusion window (temporal MV)" };
+            int ghostMethod = int(ghost.method);
+            if (ImGui::Combo("Ghost rejection method", &ghostMethod, ghostMethods, IM_ARRAYSIZE(ghostMethods)))
+            {
+                config->DlssNrSuperiorGhostMethod = uint32_t(ghostMethod);
+                ghost = DlssNr::GhostRejection::Read(*config);
+            }
+            HelpMarker("Temporal MV tracks recently uncovered surfaces for a configurable number of evaluations. "
+                       "The timer follows the surface through MV; a new occluding surface clears it. "
+                       "Depth + motion requires a closer surface with a different motion vector and a compatible "
+                       "foreground-colour contribution. Coherent disagreement must exceed local detail/noise. "
+                       "Protects current foreground and equal-depth smoothing; may miss trails without this evidence. "
+                       "No recognition of people and no guarantee of zero false positives. Thresholds are separate "
+                       "from legacy.");
             ImGui::BeginDisabled(ghost.strength <= 0.f);
             if (ImGui::Checkbox("Show DLSS ghost rejection mask", &ghost.showMask))
                 config->DlssNrSuperiorShowGhostMask = ghost.showMask;
@@ -4255,18 +4272,71 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "or reset history. Only shown while private DLSS is evaluated; normal image debug views "
                        "take precedence.");
             ImGui::EndDisabled();
+            ImGui::BeginDisabled(ghost.method == 2);
             if (ImGui::SliderFloat("Ghost rejection threshold", &ghost.threshold, 0.f, .25f, "%.4f"))
-                config->DlssNrSuperiorGhostThreshold = ghost.threshold;
-            HelpMarker("Allowed RGB distance outside the local edit range, before the positive transport multiplier. "
-                       "Lower values reject more aggressively. Default 0.01; independent of DLSS exposure.");
+            {
+                if (ghost.method == 1)
+                    config->DlssNrSuperiorGhostGuidedThreshold = ghost.threshold;
+                else
+                    config->DlssNrSuperiorGhostThreshold = ghost.threshold;
+            }
+            HelpMarker("Allowed signed RGB disagreement after local detail/noise allowance (guided), or outside "
+                       "the local edit range (legacy), before positive transport. Lower values reject more. "
+                       "Guided default 0.004; legacy default 0.01. Independent of DLSS exposure.");
             if (ImGui::SliderFloat("Ghost rejection softness", &ghost.softness, .0001f, .25f, "%.4f"))
-                config->DlssNrSuperiorGhostSoftness = ghost.softness;
+            {
+                if (ghost.method == 1)
+                    config->DlssNrSuperiorGhostGuidedSoftness = ghost.softness;
+                else
+                    config->DlssNrSuperiorGhostSoftness = ghost.softness;
+            }
             HelpMarker(
-                "Distance over which the replacement mask rises smoothly from zero to full strength. Default 0.02.");
+                "Distance over which the replacement mask rises smoothly from zero to full strength. "
+                "Guided default 0.01, legacy 0.02. Temporal MV uses visibility age instead of edit differences.");
+            ImGui::EndDisabled();
             if (ImGui::SliderFloat("Ghost rejection strength", &ghost.strength, 0.f, 1.f, "%.2f"))
                 config->DlssNrSuperiorGhostStrength = ghost.strength;
             HelpMarker("1 replaces fully rejected pixels with the exact current NR edit; 0 bypasses rejection. "
                        "Later frequency shaping and guided reconstruction still apply normally.");
+            if (ghost.method == 1)
+            {
+                if (ImGui::SliderFloat("Ghost search radius (1080p reference)", &ghost.radius, 8.f, 512.f, "%.0f px"))
+                    config->DlssNrSuperiorGhostRadius = ghost.radius;
+                HelpMarker("Maximum search distance at 1080p image height; scales with the NR raster. "
+                           "Default 192. At most 24 guide probes, with early rejection. Packed grids use local packed "
+                           "pixels.");
+                if (ImGui::SliderFloat("Ghost foreground depth ratio", &ghost.depthRatio, 1.02f, 4.f, "%.2fx"))
+                    config->DlssNrSuperiorGhostDepthRatio = ghost.depthRatio;
+                HelpMarker("Minimum near-depth ratio of the possible contaminating surface. Default 1.2. "
+                           "One-sided: the current nearer object is protected from farther background candidates. NDC, "
+                           "not metres.");
+            }
+            if (ghost.method == 2)
+            {
+                int frames = int(ghost.historyFrames), fade = int(ghost.historyFade);
+                if (ImGui::SliderInt("Disocclusion masking window (frames)", &frames, 1, 120))
+                    config->DlssNrSuperiorGhostHistoryFrames = uint32_t(frames);
+                HelpMarker("Keep the current raw NR edit on newly uncovered surfaces for this many private DLSS "
+                           "evaluations. Default 16. A continuing occluder remains eligible for DLSS. "
+                           "Uses a half-working-resolution visibility history; no history transfer into NGX.");
+                if (ImGui::SliderInt("Disocclusion return fade (frames)", &fade, 0, frames))
+                    config->DlssNrSuperiorGhostHistoryFade = uint32_t(fade);
+                HelpMarker("Gradually restore DLSS during the last frames of the window. Default 3; zero keeps a "
+                           "hard mask until the timer expires. Counter is carried by MV rather than screen position.");
+                if (ImGui::SliderFloat("Disocclusion depth separation", &ghost.historyDepth, .001f, .5f, "%.3f"))
+                    config->DlssNrSuperiorGhostHistoryDepth = ghost.historyDepth;
+                HelpMarker("Relative separation required by reconstructed-depth clipping. Default 0.05. "
+                           "Previous motion-layer boundaries also handle close-depth contacts such as feet. "
+                           "Missing/invalid guides cannot prove visibility. Projection matrices are unavailable; "
+                           "this remains an experimental visibility estimate.");
+            }
+            if (ghost.method != 0)
+            {
+                if (ImGui::SliderFloat("Ghost relative motion gate (1080p)", &ghost.motionGate, .1f, 16.f, "%.2f px"))
+                    config->DlssNrSuperiorGhostMotionGate = ghost.motionGate;
+                HelpMarker("Requires different motion on the two layers, in pixels at 1080p height per frame. "
+                           "Default 2. Matched depth/MV are used even with the Original guides experiment.");
+            }
             ImGui::EndDisabled();
             ImGui::EndDisabled();
             const bool previewInputSupported =

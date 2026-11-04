@@ -179,7 +179,9 @@ int main(int argc, char** argv)
     metadata.lowMotionSharedProbe=true;metadata.lowMotionRequests=7;
     metadata.lowMotionThreshold=.25f;metadata.lowMotionDelay=2;
     metadata.residentCnnEnabled=true;metadata.activePrivatePreset=5;metadata.residentPrivateInstances=2;
-    metadata.ghostRejection={true,.015f,.025f,.75f,true};
+    metadata.ghostRejection = { true, .015f, .025f, .75f, true, 2 };
+    metadata.ghostRejection.historyFrames = 23;
+    metadata.ghostRejection.historyFade = 4;
     const auto motion=MetadataJson(metadata);
     assert(motion.find("\"gain_preview_model_family_at_capture\": 2")!=std::string::npos);
     assert(motion.find("\"private_transformer2_preset_override\": 12")!=std::string::npos);
@@ -188,6 +190,9 @@ int main(int argc, char** argv)
     assert(motion.find("\"ghost_rejection_enabled\": true")!=std::string::npos);
     assert(motion.find("\"show_ghost_rejection_mask\": true")!=std::string::npos);
     assert(motion.find("\"ghost_rejection_strength\": 0.75")!=std::string::npos);
+    assert(motion.find("\"ghost_rejection_method\": 2") != std::string::npos);
+    assert(motion.find("\"ghost_disocclusion_window_frames\": 23") != std::string::npos);
+    assert(motion.find("\"ghost_disocclusion_return_frames\": 4") != std::string::npos);
     assert(motion.find("\"active_private_preset\": 5")!=std::string::npos);
     assert(motion.find("\"resident_private_instances\": 2")!=std::string::npos);
     assert(motion.find("\"camera_motion_required_sample_percent\": 75")!=std::string::npos);
