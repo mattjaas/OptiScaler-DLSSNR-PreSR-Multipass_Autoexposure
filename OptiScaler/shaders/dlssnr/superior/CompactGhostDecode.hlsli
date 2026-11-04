@@ -22,11 +22,13 @@ float3 RejectCompactGhost(float3 filtered, int2 pixel, out float mask)
                           ? max(1e-6, gExposureAnchors[1].w * 2)
                           : 2.0 / 65535;
     float fade = isfinite(gExposureAnchors[2].y) ? clamp(gExposureAnchors[2].y, 0, 120) : 3;
+    // Gather at the centre of the known footprint, independent of sampler subtexel precision.
+    // Gather order is BL, BR, TR, TL; restore the original TL, TR, BL, BR accumulation order.
+    uint4 footprint = gCompactGhost.GatherRed(gLinear, (float2(base) + 1.0) / float2(w, h)).wzxy;
     [unroll] for (int y = 0; y < 2; ++y)[unroll] for (int x = 0; x < 2; ++x)
     {
-        int2 q = clamp(base + int2(x, y), int2(0, 0), int2(w, h) - 1);
-        uint2 packed = gCompactGhost.Load(int3(q, 0));
-        float z = asfloat(packed.x & 0xffffff80u), age = float(packed.x & 127u);
+        uint packed = footprint[y * 2 + x];
+        float z = asfloat(packed & 0xffffff80u), age = float(packed & 127u);
         if (!isfinite(z) || z <= 0)
             continue;
         float margin = max(precision, max(z, nearZ) * (1.0 / 65536.0));

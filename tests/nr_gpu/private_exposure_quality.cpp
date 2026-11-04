@@ -385,9 +385,16 @@ int main(int argc, char** argv)
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc == 3 && std::string(argv[1]) == "--compact-revision-timing")
+        {
+            CompactGhostTiming(f, argv[2], true);
+            CompactGhostTiming(f, argv[2], true, true);
+            return 0;
+        }
         if (argc == 3 && std::string(argv[1]) == "--compact-ghost-timing")
         {
             CompactGhostTiming(f, argv[2]);
+            CompactGhostTiming(f, argv[2], false, true);
             return 0;
         }
         if (argc == 3 && std::string(argv[1]) == "--temporal-ghost-timing")
@@ -456,6 +463,7 @@ int main(int argc, char** argv)
         GuidedGhostQuality(f);
         TemporalGhostQuality(f);
         CompactGhostQuality(f);
+        CompactTransportQuality(f);
         GhostMaskQuality(f);
         unsigned checks = 0;
         for (bool full : { false, true })

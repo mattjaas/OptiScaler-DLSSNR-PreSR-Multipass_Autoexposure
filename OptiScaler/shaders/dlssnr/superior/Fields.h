@@ -67,6 +67,12 @@ inline bool TemporalGhostRejection(const DlssNrConstants& c)
     return CarrierGhostRejection(c) && (c.GuideHeight == 2u || c.GuideHeight == 3u);
 }
 inline bool CompactGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 3u; }
+// A specialization of the same native-FP16 decode: only omit controls whose effective values are identity.
+inline bool SimpleCompactGhost(const DlssNrConstants& c)
+{
+    return CompactGhostRejection(c) && c.MaxRatio == 1.f && c.ResidualScale == 0.f &&
+           (c.DirectResolveUpscaler & 3u) == 0u;
+}
 inline void SetGhostDepthPrecision(DlssNrConstants& c, float precision)
 {
     c.ExposureAnchors[7] =

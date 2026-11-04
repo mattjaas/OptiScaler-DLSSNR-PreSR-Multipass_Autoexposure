@@ -1,0 +1,61 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "width": 2496,
+  "height": 1404,
+  "colour_format": "FP16",
+  "old_commit": "d419c5e7032f0c8b37aa274fc831f3d1471849bb",
+  "warmup_pairs": 16,
+  "abba_blocks": 64,
+  "samples_per_variant": 128,
+  "settings": "unit positive gain, saturation 1, depth colour/brightness off, ghost window 16, return 3, soft expansion .5, no green preview/global fade",
+  "measurements": [
+    {
+      "sample": "001",
+      "mode": "answer",
+      "old_ms": 0.104176,
+      "new_ms": 0.09816,
+      "old_std_ms": 0.0021976798646303267,
+      "new_std_ms": 0.001883058794938929,
+      "delta_ms": -0.006016,
+      "paired_delta_std_ms": 0.0019840163849809828,
+      "history_and_fp16_output_bit_exact": true,
+      "percent_less": 5.7748425741053655
+    },
+    {
+      "sample": "001",
+      "mode": "edit",
+      "old_ms": 0.099512,
+      "new_ms": 0.091832,
+      "old_std_ms": 0.001287812379350906,
+      "new_std_ms": 0.0025472564707070744,
+      "delta_ms": -0.007679999999999998,
+      "paired_delta_std_ms": 0.0015454523969087857,
+      "history_and_fp16_output_bit_exact": true,
+      "percent_less": 7.717662191494501
+    },
+    {
+      "sample": "004",
+      "mode": "answer",
+      "old_ms": 0.112752,
+      "new_ms": 0.107104,
+      "old_std_ms": 0.0022266056225621086,
+      "new_std_ms": 0.0017165488174006856,
+      "delta_ms": -0.0056480000000000054,
+      "paired_delta_std_ms": 0.0017499278896707777,
+      "history_and_fp16_output_bit_exact": true,
+      "percent_less": 5.009223783170147
+    },
+    {
+      "sample": "004",
+      "mode": "edit",
+      "old_ms": 0.10716,
+      "new_ms": 0.099336,
+      "old_std_ms": 0.001623363282342156,
+      "new_std_ms": 0.0014164271787691363,
+      "delta_ms": -0.007824,
+      "paired_delta_std_ms": 0.0011483823266900117,
+      "history_and_fp16_output_bit_exact": true,
+      "percent_less": 7.301231802911545
+    }
+  ]
+}

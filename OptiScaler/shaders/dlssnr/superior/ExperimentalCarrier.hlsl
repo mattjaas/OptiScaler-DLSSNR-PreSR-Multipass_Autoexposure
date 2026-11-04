@@ -5,6 +5,17 @@
 #include "precompile/dlssnr.hlsl"
 #ifdef DLSSNR_COMPACT_GHOST
 #undef gAux2
+// The host selects this PSO only for Mode 38; keep the general carrier unchanged.
+#define gMode 38u
+#ifdef DLSSNR_COMPACT_SIMPLE
+#define gMaxRatio 1.0
+#define gResidualScale 0.0
+#define gDirectResolveUpscaler 0u
+#ifndef DLSSNR_COMPACT_NR_ANSWER
+#define DLSSNR_COMPACT_NR_ANSWER 0
+#endif
+#define gDirectDetailMode DLSSNR_COMPACT_NR_ANSWER
+#endif
 #endif
 #include "PositiveCarrier.hlsli"
 #include "DepthCarrier.hlsli"

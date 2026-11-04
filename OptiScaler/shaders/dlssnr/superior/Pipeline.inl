@@ -461,7 +461,8 @@ bool Ensure(Texture& t, ID3D12Device* device, DXGI_FORMAT format, unsigned w, un
 
 bool Dispatch(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, const Constants& c, ID3D12Resource* source,
               ID3D12Resource* model, ID3D12Resource* original, ID3D12Resource* motion, ID3D12Resource* previous,
-              ID3D12Resource* low, Texture& output, Texture* keep = nullptr, uint32_t* immutableSlot = nullptr)
+              ID3D12Resource* low, Texture& output, Texture* keep = nullptr, uint32_t* immutableSlot = nullptr,
+              bool outputStaysUav = false, bool keepStaysUav = false)
 {
     output.To(cmd, Uav);
     if (keep)
@@ -469,9 +470,21 @@ bool Dispatch(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, const Constan
     if (!shader.DispatchSuperiorPass(cmd, c, source, model, original, motion, previous, low, output.Get(),
                                      keep ? keep->Get() : nullptr, immutableSlot))
         return false;
-    output.To(cmd, Srv);
-    if (keep)
-        keep->To(cmd, Srv);
+    const auto finish = [&](Texture& texture, bool staysUav)
+    {
+        if (staysUav)
+        {
+            D3D12_RESOURCE_BARRIER barrier {};
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            barrier.UAV.pResource = texture.Get();
+            cmd->ResourceBarrier(1, &barrier);
+        }
+        else
+            texture.To(cmd, Srv);
+    };
+    finish(output, outputStaysUav);
+    if (keep && keep != &output)
+        finish(*keep, keepStaysUav);
     return true;
 }
 
@@ -1152,10 +1165,14 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
     Constants c {};
     Fields::SetGhostVisibility(c, w, ht, g.workWidth, g.workHeight, settings, g.inverted, previous, precision);
     Record(cmd);
+    // A discarded recording must also invalidate transitions from a partially failed preparation.
+    h.commands = identity;
+    h.submitted = false;
     if (previous)
     {
         c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostClear;
-        if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed))
+        if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed, nullptr, nullptr,
+                      compact))
         {
             h.initialized = false;
             return nullptr;
@@ -1163,7 +1180,7 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
         c.Mode = compact ? DlssNr::Superior::DlssNrMode_PrivateGhostCompactScatter
                          : DlssNr::Superior::DlssNrMode_PrivateGhostScatter;
         if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed,
-                      compact ? &h.state[next] : nullptr))
+                      compact ? &h.state[next] : nullptr, nullptr, false, compact))
         {
             h.initialized = false;
             return nullptr;
@@ -1173,7 +1190,8 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
     {
         // The optimized history stage consumes guides cached in its output UAV, including warmup.
         c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostCompactScatter;
-        if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed, &h.state[next]))
+        if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed, &h.state[next],
+                      nullptr, false, true))
         {
             h.initialized = false;
             return nullptr;

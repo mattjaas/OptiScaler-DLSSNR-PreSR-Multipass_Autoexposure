@@ -269,3 +269,33 @@ Sprawdzono także natywne FP16 dla wyboru/porównań głębi i różnic MV, z od
 Rozdzielenie pól historii na dwie płaszczyzny jednej tekstury R32_UINT oraz grupy 16×8 zamiast 8×8 również nie poprawiły tych scen. [Planar 001](validation/private-ghost-rejected-planar-001-timing.csv), [004](validation/private-ghost-rejected-planar-004-timing.csv); [16×8 001](validation/private-ghost-rejected-wide-001-timing.csv), [004](validation/private-ghost-rejected-wide-004-timing.csv). Zostaje interleaved uint2 i grupy 8×8. Odrzucone warianty nie są dodatkowymi pozycjami UI ani częścią zwykłego benchmarku.
 
 Cały tor gry NR+NGX+kompozycja wymaga osobnego pomiaru po rozgrzewce, w porównywalnej scenie i ABBA 3/4, z timestampami całego toru oraz tego etapu. Oszczędności tego etapu nie przeliczać wprost na procent FPS. Osobno sprawdzić resztki smug, poprawną stabilizację i podgląd przy butach w ruchu.
+
+## Dalsza optymalizacja opcji 4: decode i bariery
+
+Kolejna wersja nie zmienia ustawień, precyzji historii, liczników ani kształtu maski. Opcje 1–3 pozostają bez zmian. Dla opcji 4 wprowadza:
+
+- Pojedynczy `GatherRed` zamiast czterech `Load` przy pobieraniu głębi/licznika historii. Pobierana jest ta sama czwórka texeli, w tej samej kolejności sumowania. Współrzędna gather jest środkiem wyznaczonego wcześniej footprintu, aby ograniczyć wpływ dokładności współrzędnych samplera. Clamp na brzegach pozostaje. [Dokumentacja Microsoft Gather](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-to-gather).
+- Bariery UAV zamiast zbędnych par przejść UAV→SRV→UAV pomiędzy clear i scatter oraz scatter i aktualizacją historii. Zasób nadal jest synchronizowany, ale pozostaje w stanie właściwym dla kolejnego zapisu/odczytu UAV. Przejścia do SRV pozostają tam, gdzie faktycznie zaczyna się odczyt SRV. Zmiana jest ograniczona do opcji 4; wspólny helper ma domyślne zachowanie identyczne z poprzednim.
+- Stały Mode 38 w kompaktowym PSO decode, zgodny z warunkiem hosta. Kompilator nie przechowuje już gałęzi kodowania/zrzutu w tym PSO.
+- Dwa dodatkowe natywne warianty FP16 dla nasycenia 1× i wyłączonych depth colour/depth brightness: osobno edit wokół 0.5 i pełna odpowiedź NR. `SimpleCompactGhost` sprawdza rzeczywiste wartości i aktywne bity. Dodatni mnożnik nadal jest dowolny, również <1. Po włączeniu nasycenia lub transformacji głębi wybierany jest ogólny kompaktowy PSO, z ich pełnym działaniem. To specjalizacje tych samych obliczeń, bez nowych opcji UI i bez resetu historii.
+
+Liczba przebiegów, tekstury i pamięć historii pozostają takie jak w poprzedniej opcji 4. Nowe PSO są tworzone na żądanie. Normalny carrier i shadery metody 3 pozostają identyczne bajtowo. Generator buduje 72 bloby, w tym oba faktycznie wybierane warianty tożsamościowego transportu; nie ma niepodłączonych produkcyjnych entry pointów.
+
+WARP: 432 przypadki niezależnej referencji maski dla obu wariantów tożsamościowych i ogólnego decode, m.in. 1×1, 17×9, 1281×7, krawędzie, zerowy wiek, inna powierzchnia, obie konwencje Z, gain 6, oba wejścia NR i fade/ekspansja. 64 dodatkowe przypadki porównują wynik z niezmienionym zwykłym carrierem i niezależnie znaną wagą surowego editu: gain 0.5/6, nasycenie 1/4, depth colour on/off, depth brightness on/off, oba wejścia i Z. Osobne asercje chronią warunki wyboru PSO przed pominięciem aktywnego ustawienia. Dotychczasowe testy 456/16/102/56/1507 pozostają. Nie zmienia to ograniczeń estymacji dysokluzji ani nie dowodzi poprawy jakości w grze.
+
+### Pomiar względem ostatniej DLL opcji 4
+
+Referencja to **niezmienny commit d419c5e7032f0c8b37aa274fc831f3d1471849bb**, a nie bieżący shader pod inną nazwą. `python tools/prepare_nr_compact_reference.py` odtwarza trzy oryginalne bloby z obiektów Git i zapisuje ich SHA256; brak commita jest błędem, bez zastępowania referencji wersją bieżącą. Następnie `private_exposure_quality.exe --compact-revision-timing <capture stem>` mierzy oba tryby wejścia, porównuje całe słowa końcowej historii i wszystkie piksele decode FP16. W czterech porównaniach na scenach 001/004 **historia i piksele są bitowo identyczne**. Guides są powtarzane podczas benchmarku; nie jest to sekwencja NGX w grze.
+
+RTX 4090, siatka NR 2496×1404, kolory FP16, rzeczywiste zapisane depth/MV. Dodatni mnożnik 1, nasycenie 1, depth colour/brightness off, okno 16, powrót 3, ekspansja 0.5; zielony podgląd i globalny fade off. Pełna odpowiedź używa znormalizowanej domeny signed edit z zerowym proxy; tryb editu dodaje neutralne 0.5 do tych samych danych przed konwersją FP16. 16 par rozgrzewki, następnie 64 ABBA = 128 próbek/wariant. Timestampy obejmują wszystkie przebiegi maski, decode i bariery, bez alokacji i mapowania CPU w interwale. Poza timestampem dochodzi readback do porównania bitowego; produkcja nie wykonuje tego porównania ani readbacku.
+
+| Wejście | Scena | Poprzednia opcja 4 [ms] | Nowa opcja 4 [ms] | Oszczędność etapu |
+| --- | --- | ---: | ---: | ---: |
+| Edit NR | 001 | 0.099512 | 0.091832 | 0.007680 ms / 7.7% |
+| Edit NR | 004 | 0.107160 | 0.099336 | 0.007824 ms / 7.3% |
+| Pełna odpowiedź NR | 001 | 0.104176 | 0.098160 | 0.006016 ms / 5.8% |
+| Pełna odpowiedź NR | 004 | 0.112752 | 0.107104 | 0.005648 ms / 5.0% |
+
+Odchylenia standardowe i parowane różnice ABBA są w [podsumowaniu](validation/private-ghost-compact-v2-summary.json); surowe wyniki: [001 edit](validation/private-ghost-compact-v2-001-edit.csv), [004 edit](validation/private-ghost-compact-v2-004-edit.csv), [001 pełna odpowiedź](validation/private-ghost-compact-v2-001-answer.csv), [004 pełna odpowiedź](validation/private-ghost-compact-v2-004-answer.csv). Nie sumować tych procentów z wcześniejszymi procentami ani utożsamiać ich z FPS gry. Cały tor NR+NGX+kompozycja nie był mierzony w grze; potrzebne jest ABBA obu DLL w tej samej scenie z timestampami całego toru i etapu po rozgrzewce.
+
+Odrzucono `GatherRed` w wyborze guides i w odczycie rekonstrukcji: nie dawał spójnego zysku w obu scenach. Odrzucono także znacznik klatki w 64-bitowym depth i `InterlockedMax` zamiast clear w każdej klatce. Wynik był bitowo poprawny, ale wzrósł koszt całego etapu: około 0.104200→0.111528 ms i 0.112088→0.117984 ms. [Surowe próby 001](validation/private-ghost-rejected-tagged-001.csv), [004](validation/private-ghost-rejected-tagged-004.csv). Przebieg mniej nie zrekompensował droższego wariantu; timestampy nie izolują kosztu samej instrukcji. Eksperymentalne PSO 64-bit nie są częścią paczki produkcyjnej.
