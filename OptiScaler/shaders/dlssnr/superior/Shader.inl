@@ -30,6 +30,12 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/private_carrier_compact_fast_fade_Shader.h"
 #include "precompile/private_ghost_compact_1_Shader.h"
 #include "precompile/private_ghost_compact_wave_Shader.h"
+#include "precompile/private_ghost_coarse_1_Shader.h"
+#include "precompile/private_ghost_coarse_2_Shader.h"
+#include "precompile/private_ghost_coarse_dilate_1_Shader.h"
+#include "precompile/private_ghost_coarse_dilate_2_Shader.h"
+#include "precompile/private_carrier_coarse_Shader.h"
+#include "precompile/private_carrier_coarse_answer_Shader.h"
 #include "precompile/private_ghost_compact_2_Shader.h"
 #include "precompile/private_ghost_clear_Shader.h"
 #include "precompile/private_ghost_scatter_Shader.h"
@@ -138,7 +144,9 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
 {
     using namespace DlssNr::Superior::Bytecode;
     const bool ghostRejection = DlssNr::Superior::Fields::CarrierGhostRejection(InConstants);
-    ID3D12PipelineState* pipeline = ghostRejection ? nullptr : SuperiorPipeline(InConstants, InSource);
+    ID3D12PipelineState* pipeline = ghostRejection || (InConstants.Mode >= 49u && InConstants.Mode <= 51u)
+                                        ? nullptr
+                                        : SuperiorPipeline(InConstants, InSource);
     const auto get = [&](unsigned index, const void* blob, size_t size)
     {
         if (index >= kSuperiorPipelineCount)
@@ -158,7 +166,11 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
                        : get(17u, private_carrier_ghost_cso, sizeof(private_carrier_ghost_cso));
     if (DlssNr::Superior::Fields::CompactGhostRejection(InConstants))
     {
-        if (InConstants.GuideHeight == 4u)
+        if (InConstants.GuideHeight == 5u)
+            pipeline = InConstants.DirectDetailMode != 0u
+                           ? get(36u, private_carrier_coarse_answer_cso, sizeof(private_carrier_coarse_answer_cso))
+                           : get(35u, private_carrier_coarse_cso, sizeof(private_carrier_coarse_cso));
+        else if (InConstants.GuideHeight == 4u)
             pipeline =
                 InConstants.DirectDetailMode != 0u
                     ? get(28u, private_carrier_compact_fast_answer_cso, sizeof(private_carrier_compact_fast_answer_cso))
@@ -170,6 +182,21 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
                            ? get(26u, private_carrier_compact_simple_answer_cso,
                                  sizeof(private_carrier_compact_simple_answer_cso))
                            : get(25u, private_carrier_compact_simple_cso, sizeof(private_carrier_compact_simple_cso));
+        if (!pipeline)
+            return false;
+    }
+    if (InConstants.Mode == 49u)
+    {
+        pipeline = InConstants.DebugView == 2u
+                       ? get(34u, private_ghost_coarse_dilate_2_cso, sizeof(private_ghost_coarse_dilate_2_cso))
+                       : get(33u, private_ghost_coarse_dilate_1_cso, sizeof(private_ghost_coarse_dilate_1_cso));
+        if (!pipeline)
+            return false;
+    }
+    if (InConstants.Mode == 50u || InConstants.Mode == 51u)
+    {
+        pipeline = InConstants.Mode == 50u ? get(31u, private_ghost_coarse_1_cso, sizeof(private_ghost_coarse_1_cso))
+                                           : get(32u, private_ghost_coarse_2_cso, sizeof(private_ghost_coarse_2_cso));
         if (!pipeline)
             return false;
     }

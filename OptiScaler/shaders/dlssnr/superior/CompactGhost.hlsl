@@ -1,5 +1,8 @@
 // Separate optimized method. The original TemporalGhost.hlsl remains byte-for-byte unchanged.
 #include "CompactGhostState.hlsli"
+#ifndef DLSSNR_GHOST_STEP
+#define DLSSNR_GHOST_STEP 2
+#endif
 cbuffer Params : register(b0)
 {
     uint mode;
@@ -33,10 +36,10 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
     int2 p = int2(id.xy);
 #if DLSSNR_COMPACT_GHOST_STAGE == 1
     float nearZ = -1;
-    uint2 chosen = min(id.xy * 2, uint2(fullWidth, fullHeight) - 1);
-    [unroll] for (uint y = 0; y < 2; ++y)[unroll] for (uint x = 0; x < 2; ++x)
+    uint2 chosen = min(id.xy * DLSSNR_GHOST_STEP, uint2(fullWidth, fullHeight) - 1);
+    [unroll] for (uint y = 0; y < DLSSNR_GHOST_STEP; ++y)[unroll] for (uint x = 0; x < DLSSNR_GHOST_STEP; ++x)
     {
-        uint2 q = min(id.xy * 2 + uint2(x, y), uint2(fullWidth, fullHeight) - 1);
+        uint2 q = min(id.xy * DLSSNR_GHOST_STEP + uint2(x, y), uint2(fullWidth, fullHeight) - 1);
         float z = Depth.Load(int3(q, 0));
         float n = isfinite(z) && z >= 0 && z <= 1 ? (inverted != 0 ? z : 1 - z) : -1;
         if (n > nearZ)
@@ -47,7 +50,11 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
     }
     float2 mv = Motion.Load(int3(chosen, 0));
     bool valid = nearZ > 0 && all(isfinite(mv)) && all(abs(mv) < 65504);
+#if DLSSNR_GHOST_STEP == 4
+    uint phase = (chosen.x & 3u) | ((chosen.y & 3u) << 2);
+#else
     uint phase = (chosen.x & 1u) | ((chosen.y & 1u) << 1);
+#endif
     StoreState(p, valid ? PackGhost(float4(nearZ, float(phase), mv)) : uint2(0, 0));
 #ifdef DLSSNR_COMPACT_WAVE_SCATTER
     ScatterCompactWave(chosen, nearZ, mv, valid);
@@ -55,7 +62,7 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
     if (initialized == 0 || !valid)
         return;
     // Scatter uses unquantized current MV/depth; the stored state's age slot temporarily holds phase.
-    float2 previousPos = (float2(chosen) + .5 + mv) * .5 - .5;
+    float2 previousPos = (float2(chosen) + .5 + mv) * (1.0 / DLSSNR_GHOST_STEP) - .5;
     int2 base = int2(floor(previousPos));
     float2 f = frac(previousPos);
     [unroll] for (int y = 0; y < 2; ++y)[unroll] for (int x = 0; x < 2; ++x)
@@ -69,15 +76,19 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
 #else
     uint2 packed = CurrentState(p);
     float4 current = UnpackGhost(packed);
-    uint phase = packed.x & 3u;
+    uint phase = packed.x & (DLSSNR_GHOST_STEP == 4 ? 15u : 3u);
     current.y = 0;
     if (initialized == 0 || current.x <= 0)
     {
         StoreState(p, PackGhost(current));
         return;
     }
-    float2 chosen = float2(id.xy * 2 + uint2(phase & 1u, phase >> 1));
-    float2 previousPos = (chosen + .5 + current.zw) * .5 - .5;
+#if DLSSNR_GHOST_STEP == 4
+    float2 chosen = float2(id.xy * 4 + uint2(phase & 3u, phase >> 2));
+#else
+    float2 chosen = float2(id.xy * DLSSNR_GHOST_STEP + uint2(phase & 1u, phase >> 1));
+#endif
+    float2 previousPos = (chosen + .5 + current.zw) * (1.0 / DLSSNR_GHOST_STEP) - .5;
     int2 oldPixel = int2(round(previousPos));
     if (!Inside(oldPixel))
     {

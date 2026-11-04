@@ -193,6 +193,8 @@ int main(int argc, char** argv)
     assert(motion.find("\"ghost_rejection_method\": 2") != std::string::npos);
     auto fastMetadata = metadata;
     fastMetadata.ghostRejection.method = 4;
+    fastMetadata.ghostRejection.coarseRadius = 2;
+    assert(MetadataJson(fastMetadata).find("\"ghost_coarse_expansion_radius\": 2") != std::string::npos);
     assert(MetadataJson(fastMetadata).find("\"ghost_rejection_method\": 4") != std::string::npos);
 
     assert(motion.find("\"ghost_disocclusion_window_frames\": 23") != std::string::npos);

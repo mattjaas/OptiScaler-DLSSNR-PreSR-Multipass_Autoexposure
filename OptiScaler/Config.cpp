@@ -1157,6 +1157,7 @@ void Config::ReadDlssNr()
     DlssNrSuperiorGhostHistoryFade.set_from_config(readUInt("DlssNr", "SuperiorGhostHistoryFade"));
     DlssNrSuperiorGhostHistoryDepth.set_from_config(readFloat("DlssNr", "SuperiorGhostHistoryDepth"));
     DlssNrSuperiorGhostSoftExpansion.set_from_config(readFloat("DlssNr", "SuperiorGhostSoftExpansion"));
+    DlssNrSuperiorGhostCoarseRadius.set_from_config(readUInt("DlssNr", "SuperiorGhostCoarseRadius"));
     DlssNrSuperiorGhostGuidedThreshold.set_from_config(readFloat("DlssNr", "SuperiorGhostGuidedThreshold"));
     DlssNrSuperiorGhostGuidedSoftness.set_from_config(readFloat("DlssNr", "SuperiorGhostGuidedSoftness"));
     DlssNrSuperiorGhostRadius.set_from_config(readFloat("DlssNr", "SuperiorGhostRadius"));
@@ -1472,6 +1473,8 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetIntValue(c.DlssNrSuperiorGhostHistoryFade.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostHistoryDepth",
                  GetFloatValue(c.DlssNrSuperiorGhostHistoryDepth.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostCoarseRadius",
+                 GetIntValue(c.DlssNrSuperiorGhostCoarseRadius.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostSoftExpansion",
                  GetFloatValue(c.DlssNrSuperiorGhostSoftExpansion.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostGuidedThreshold",
@@ -1896,6 +1899,7 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorGhostHistoryFade", DlssNrSuperiorGhostHistoryFade),
         NR_PROFILE_FIELD("SuperiorGhostHistoryDepth", DlssNrSuperiorGhostHistoryDepth),
         NR_PROFILE_FIELD("SuperiorGhostSoftExpansion", DlssNrSuperiorGhostSoftExpansion),
+        NR_PROFILE_FIELD("SuperiorGhostCoarseRadius", DlssNrSuperiorGhostCoarseRadius),
         NR_PROFILE_FIELD("SuperiorGhostGuidedThreshold", DlssNrSuperiorGhostGuidedThreshold),
         NR_PROFILE_FIELD("SuperiorGhostGuidedSoftness", DlssNrSuperiorGhostGuidedSoftness),
         NR_PROFILE_FIELD("SuperiorGhostRadius", DlssNrSuperiorGhostRadius),

@@ -8,15 +8,20 @@ struct TemporalGhostFixture
     UINT w = 128, h = 64, mw = 64, mh = 32;
     bool compact = false;
     bool valid = false, wasRead[2] = { false, false };
-    TemporalGhostFixture(Fixture& fixture, UINT width = 128, UINT height = 64, bool packed = false, bool fast = false)
-        : f(fixture), compact(packed), w(width), h(height), mw((width + 1) / 2), mh((height + 1) / 2)
+    TemporalGhostFixture(Fixture& fixture, UINT width = 128, UINT height = 64, bool packed = false, bool fast = false,
+                         unsigned step = 2)
+        : f(fixture), compact(packed), w(width), h(height), mw((width + step - 1) / step),
+          mh((height + step - 1) / step)
     {
         const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
         clear = f.r.pipeline(dir, "private_ghost_clear");
-        scatter = f.r.pipeline(dir, fast      ? "private_ghost_compact_wave"
+        scatter = f.r.pipeline(dir, step == 4 ? "private_ghost_coarse_1"
+                                    : fast    ? "private_ghost_compact_wave"
                                     : compact ? "private_ghost_compact_1"
                                               : "private_ghost_scatter");
-        age = f.r.pipeline(dir, compact ? "private_ghost_compact_2" : "private_ghost_history");
+        age = f.r.pipeline(dir, step == 4 ? "private_ghost_coarse_2"
+                                : compact ? "private_ghost_compact_2"
+                                          : "private_ghost_history");
         f.r.begin();
         reconstructed = f.texture(mw, mh, nullptr, DXGI_FORMAT_R32_UINT);
         history[0] = f.texture(mw, mh, nullptr, compact ? DXGI_FORMAT_R32G32_UINT : DXGI_FORMAT_R32G32B32A32_FLOAT);

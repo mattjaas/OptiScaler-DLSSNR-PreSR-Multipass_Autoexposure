@@ -4252,7 +4252,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                                                   "Depth + motion + coherent foreground match",
                                                   "Recent disocclusion window (temporal MV)",
                                                   "Recent disocclusion window (optimized mixed precision)",
-                                                  "Recent disocclusion window (fast blend, experimental)" };
+                                                  "Recent disocclusion window (fast blend, experimental)",
+                                                  "Coarse disocclusion + soft expansion (experimental)" };
             // Keep the existing modes and defaults; fast blend is an explicit quality/performance experiment.
             int ghostMethod = int(ghost.method);
             if (ImGui::Combo("Ghost rejection method", &ghostMethod, ghostMethods, IM_ARRAYSIZE(ghostMethods)))
@@ -4333,6 +4334,17 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                            "Missing/invalid guides cannot prove visibility. Projection matrices are unavailable; "
                            "this remains an experimental visibility estimate.");
             }
+            if (ghost.method == 5)
+            {
+                int radius = int(ghost.coarseRadius);
+                if (ImGui::SliderInt("Coarse mask expansion", &radius, 1, 2, "%d coarse texels"))
+                    config->DlssNrSuperiorGhostCoarseRadius = uint32_t(radius);
+                HelpMarker(
+                    "Experimental: visibility history on a grid of one texel per 4 NR pixels, then max "
+                    "expansion and a soft bilinear edge. 1 uses a radius of about 4 NR pixels, 2 about 8. Wider masks "
+                    "can remove valid DLSS stabilization on nearby surfaces. Coarse history can still miss "
+                    "areas found by the fine methods; expansion is not a guarantee of identical coverage.");
+            }
             if (ghost.method == 4)
                 HelpMarker(
                     "Experimental fast blend: the same disocclusion detection, MV history and depth checks. "
@@ -4340,7 +4352,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     "Compatible scatter writes are merged to reduce atomics. The history grid, expansion and fade "
                     "remain unchanged. Fully replaced pixels can skip the filtered result in full NR answer mode. "
                     "Check moving edges in your game.");
-            if (ghost.method >= 3)
+            if (ghost.method == 3 || ghost.method == 4)
             {
                 if (ImGui::SliderFloat("Disocclusion soft mask expansion", &ghost.softExpansion, 0.f, 1.f, "%.2f"))
                     config->DlssNrSuperiorGhostSoftExpansion = ghost.softExpansion;

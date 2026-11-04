@@ -119,6 +119,14 @@ try {
     if (-not (Select-String (Join-Path $scratch 'private_carrier_compact_simple.asm') -Pattern 'fmul fast half')) { throw 'Native FP16 mask arithmetic missing' }
     Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @('-D','DLSSNR_GHOST_REJECTION=1','-D','DLSSNR_COMPACT_GHOST=1','-D','DLSSNR_COMPACT_FAST_BLEND=1','-D','DLSSNR_COMPACT_NR_ANSWER=0','-D','DLSSNR_COMPACT_FUSED_DECODE=1') 'private_carrier_compact_fast_fade'
     Build (Join-Path $shaders 'superior/CompactGhost.hlsl') 'CompactGhostMain' @('-D','DLSSNR_COMPACT_GHOST_STAGE=1','-D','DLSSNR_COMPACT_WAVE_SCATTER=1') 'private_ghost_compact_wave'
+    foreach($stage in @(1,2)) {
+        Build (Join-Path $shaders 'superior/CompactGhost.hlsl') 'CompactGhostMain' @('-D',"DLSSNR_COMPACT_GHOST_STAGE=$stage",'-D','DLSSNR_GHOST_STEP=4') "private_ghost_coarse_$stage"
+    }
+    foreach($radius in @(1,2)) {
+        Build (Join-Path $shaders 'superior/CoarseGhostDilate.hlsl') 'CoarseGhostDilate' @('-D',"DLSSNR_COARSE_RADIUS=$radius") "private_ghost_coarse_dilate_$radius"
+    }
+    Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @('-D','DLSSNR_GHOST_REJECTION=1','-D','DLSSNR_COMPACT_GHOST=1','-D','DLSSNR_COARSE_GHOST=1','-D','DLSSNR_COMPACT_NR_ANSWER=0') 'private_carrier_coarse'
+    Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @('-D','DLSSNR_GHOST_REJECTION=1','-D','DLSSNR_COMPACT_GHOST=1','-D','DLSSNR_COARSE_GHOST=1','-D','DLSSNR_COMPACT_NR_ANSWER=1') 'private_carrier_coarse_answer'
     foreach ($stage in @(1,2)) {
         Build (Join-Path $shaders 'superior/CompactGhost.hlsl') 'CompactGhostMain' @('-D',"DLSSNR_COMPACT_GHOST_STAGE=$stage") "private_ghost_compact_$stage"
     }

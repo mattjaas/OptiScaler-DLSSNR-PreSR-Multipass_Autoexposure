@@ -48,6 +48,18 @@ int main()
         assert(DlssNr::Superior::Fields::PositiveUnfilteredEditWeight(fastGhost) ==
                (std::isfinite(value) && value > 0));
     }
+    ghost.method = 5;
+    ghost.coarseRadius = 999;
+    ghost = DlssNr::GhostRejection::Sanitize(ghost);
+    assert(ghost.method == 5 && ghost.coarseRadius == 2);
+    DlssNr::Superior::Fields::SetCarrierGhostRejection(fastGhost, ghost);
+    fastGhost.Mode = 38;
+    assert(DlssNr::Superior::Fields::CompactGhostRejection(fastGhost));
+    assert(DlssNr::Superior::Fields::TemporalGhostRejection(fastGhost));
+    DlssNr::Superior::Fields::SetCoarseGhostDilate(fastGhost, 9, 5, ghost);
+    assert(fastGhost.Mode == 49 && fastGhost.DebugView == 2 && fastGhost.Width == 9 && fastGhost.Height == 5);
+    ghost.coarseRadius = 0;
+    assert(DlssNr::GhostRejection::Sanitize(ghost).coarseRadius == 1);
     namespace DT = DlssNr::DepthTransport;
     DT::Settings ds;
     assert(DT::Flags(ds) == 0 && DT::Weight(.5f, false, ds) == 0);

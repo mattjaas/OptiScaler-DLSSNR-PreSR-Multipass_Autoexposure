@@ -76,15 +76,17 @@ struct Fixture
             r.device->GetCopyableFootprints(&d, 0, 1, 0, &fp, nullptr, nullptr, &bytes);
             auto b = r.buffer(bytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
             char* p; check(b->Map(0, nullptr, reinterpret_cast<void**>(&p)));
-            const UINT channels = (format == DXGI_FORMAT_R32G32_FLOAT || format == DXGI_FORMAT_R32G32_UINT) ? 2u
-                                  : (format == DXGI_FORMAT_R32_FLOAT || format == DXGI_FORMAT_R32_UINT)     ? 1u
-                                                                                                            : 4u;
+            const UINT channels =
+                (format == DXGI_FORMAT_R32G32_FLOAT || format == DXGI_FORMAT_R32G32_UINT) ? 2u
+                : (format == DXGI_FORMAT_R32_FLOAT || format == DXGI_FORMAT_R32_UINT || format == DXGI_FORMAT_R16_FLOAT)
+                    ? 1u
+                    : 4u;
             for (UINT y = 0; y < h; ++y)
                 for (UINT x = 0; x < w; ++x)
-                    if (format == DXGI_FORMAT_R16G16B16A16_FLOAT)
+                    if (format == DXGI_FORMAT_R16G16B16A16_FLOAT || format == DXGI_FORMAT_R16_FLOAT)
                     {
-                        auto* half = reinterpret_cast<uint16_t*>(p + fp.Footprint.RowPitch * y + x * 8);
-                        for (unsigned ch = 0; ch < 4; ++ch)
+                        auto* half = reinterpret_cast<uint16_t*>(p + fp.Footprint.RowPitch * y + x * channels * 2);
+                        for (unsigned ch = 0; ch < channels; ++ch)
                             half[ch] =
                                 DirectX::PackedVector::XMConvertFloatToHalf((*values)[(size_t(y) * w + x) * 4 + ch]);
                     }
@@ -189,15 +191,18 @@ struct Fixture
         char* p; check(b->Map(0, nullptr, reinterpret_cast<void**>(&p)));
         std::vector<float> out(size_t(d.Width) * d.Height * 4);
         const UINT channels = (d.Format == DXGI_FORMAT_R32G32_FLOAT || d.Format == DXGI_FORMAT_R32G32_UINT) ? 2u
-                              : (d.Format == DXGI_FORMAT_R32_FLOAT || d.Format == DXGI_FORMAT_R32_UINT)     ? 1u
-                                                                                                            : 4u;
-        const bool half = d.Format == DXGI_FORMAT_R16G16B16A16_FLOAT;
+                              : (d.Format == DXGI_FORMAT_R32_FLOAT || d.Format == DXGI_FORMAT_R32_UINT ||
+                                 d.Format == DXGI_FORMAT_R16_FLOAT)
+                                  ? 1u
+                                  : 4u;
+        const bool half = d.Format == DXGI_FORMAT_R16G16B16A16_FLOAT || d.Format == DXGI_FORMAT_R16_FLOAT;
         for (UINT y = 0; y < d.Height; ++y)
             for (UINT x = 0; x < d.Width; ++x)
                 if (half)
                 {
-                    const auto* code = reinterpret_cast<const uint16_t*>(p + fp.Footprint.RowPitch * y + x * 8);
-                    for (unsigned c = 0; c < 4; ++c)
+                    const auto* code =
+                        reinterpret_cast<const uint16_t*>(p + fp.Footprint.RowPitch * y + x * channels * 2);
+                    for (unsigned c = 0; c < channels; ++c)
                         out[(size_t(y) * d.Width + x) * 4 + c] = (code[c] & 0x8000u ? -1.f : 1.f) * Half(code[c] & 0x7fffu);
                 }
                 else
@@ -380,12 +385,22 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "temporal_ghost_quality.inl"
 #include "compact_ghost_quality.inl"
 #include "compact_fast_quality.inl"
+#include "coarse_ghost_quality.inl"
 
 int main(int argc, char** argv)
 {
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc == 4 && std::string(argv[1]) == "--coarse-ghost-timing")
+        {
+            const unsigned radius = unsigned(std::stoul(argv[3]));
+            if (radius < 1 || radius > 2)
+                throw std::runtime_error("Coarse radius must be 1 or 2");
+            CoarseGhostTiming(f, argv[2], radius);
+            CoarseGhostTiming(f, argv[2], radius, true);
+            return 0;
+        }
         if (argc == 5 && std::string(argv[1]) == "--compact-math-timing")
         {
             const float gain = std::stof(argv[3]), fade = std::stof(argv[4]);
@@ -490,6 +505,7 @@ int main(int argc, char** argv)
         CompactTransportQuality(f, true);
         CompactFastStressQuality(f);
         CompactWaveScatterQuality(f);
+        CoarseGhostQuality(f);
         GhostMaskQuality(f);
         unsigned checks = 0;
         for (bool full : { false, true })

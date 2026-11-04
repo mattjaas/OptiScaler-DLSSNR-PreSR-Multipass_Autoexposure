@@ -61,7 +61,7 @@ struct ResidentCnn
 
 struct GhostHistory
 {
-    Texture state[2], reconstructed;
+    Texture state[2], reconstructed, softField;
     unsigned index = 0, method = 2;
     bool initialized = false, submitted = false;
     uint64_t epoch = 0;
@@ -1135,17 +1135,26 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
 {
     auto& h = g.ghostHistory;
     const auto identity = Util::RealObjectIdentity(cmd);
+    const bool coarse = settings.method == 5;
     if (h.initialized && h.method == settings.method && !reset && h.epoch == frame.SubmissionEpoch &&
         (h.commands == identity || h.submitted))
-        return &h.state[h.index];
-    const unsigned w = (g.workWidth + 1) / 2, ht = (g.workHeight + 1) / 2;
-    const bool compact = settings.method == 3 || settings.method == 4;
+        return coarse ? &h.softField : &h.state[h.index];
+    const unsigned step = coarse ? 4 : 2;
+    const unsigned w = (g.workWidth + step - 1) / step, ht = (g.workHeight + step - 1) / step;
+    const bool compact = settings.method >= 3 && settings.method <= 5;
     const auto format = compact ? DXGI_FORMAT_R32G32_UINT : DXGI_FORMAT_R32G32B32A32_FLOAT;
+    if (!coarse && h.softField.resource)
+    {
+        auto old = std::move(h.softField.resource);
+        GetState().lifetime.Retire([old] {});
+        h.softField = {};
+    }
     bool previous = h.initialized && h.method == settings.method && h.submitted && !reset;
     if (h.state[0].resource && (h.state[0].Get()->GetDesc().Width != w || h.state[0].Get()->GetDesc().Height != ht))
         previous = false;
     if (!depth || !motion || !Ensure(h.reconstructed, g.device.Get(), DXGI_FORMAT_R32_UINT, w, ht) ||
-        !Ensure(h.state[0], g.device.Get(), format, w, ht) || !Ensure(h.state[1], g.device.Get(), format, w, ht))
+        !Ensure(h.state[0], g.device.Get(), format, w, ht) || !Ensure(h.state[1], g.device.Get(), format, w, ht) ||
+        (coarse && !Ensure(h.softField, g.device.Get(), DXGI_FORMAT_R16_FLOAT, w, ht)))
     {
         h.initialized = false;
         return nullptr;
@@ -1169,8 +1178,9 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
             h.initialized = false;
             return nullptr;
         }
-        c.Mode = compact ? DlssNr::Superior::DlssNrMode_PrivateGhostCompactScatter
-                         : DlssNr::Superior::DlssNrMode_PrivateGhostScatter;
+        c.Mode = coarse    ? DlssNr::Superior::DlssNrMode_PrivateGhostCoarseScatter
+                 : compact ? DlssNr::Superior::DlssNrMode_PrivateGhostCompactScatter
+                           : DlssNr::Superior::DlssNrMode_PrivateGhostScatter;
         if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed,
                       compact ? &h.state[next] : nullptr, nullptr, false, compact))
         {
@@ -1181,7 +1191,8 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
     else if (compact)
     {
         // The optimized history stage consumes guides cached in its output UAV, including warmup.
-        c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostCompactScatter;
+        c.Mode = coarse ? DlssNr::Superior::DlssNrMode_PrivateGhostCoarseScatter
+                        : DlssNr::Superior::DlssNrMode_PrivateGhostCompactScatter;
         if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed, &h.state[next],
                       nullptr, false, true))
         {
@@ -1189,8 +1200,9 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
             return nullptr;
         }
     }
-    c.Mode = compact ? DlssNr::Superior::DlssNrMode_PrivateGhostCompactHistory
-                     : DlssNr::Superior::DlssNrMode_PrivateGhostHistory;
+    c.Mode = coarse    ? DlssNr::Superior::DlssNrMode_PrivateGhostCoarseHistory
+             : compact ? DlssNr::Superior::DlssNrMode_PrivateGhostCompactHistory
+                       : DlssNr::Superior::DlssNrMode_PrivateGhostHistory;
     h.reconstructed.To(cmd, Srv);
     if (!Dispatch(shader, cmd, c, depth, motion, old, h.reconstructed.Get(), nullptr, nullptr, h.state[next],
                   &h.state[next]))
@@ -1198,13 +1210,22 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
         h.initialized = false;
         return nullptr;
     }
+    if (coarse)
+    {
+        Fields::SetCoarseGhostDilate(c, w, ht, settings);
+        if (!Dispatch(shader, cmd, c, h.state[next].Get(), nullptr, nullptr, nullptr, nullptr, nullptr, h.softField))
+        {
+            h.initialized = false;
+            return nullptr;
+        }
+    }
     h.index = next;
     h.method = settings.method;
     h.epoch = frame.SubmissionEpoch;
     h.commands = identity;
     h.submitted = false;
     h.initialized = true;
-    return &h.state[next];
+    return coarse ? &h.softField : &h.state[next];
 }
 
 ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Resource* proxy,
@@ -1224,7 +1245,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     const bool temporalGhost = guidedGhost && ghostSettings.method >= 2u;
     g.ghostMaskWritten = false;
     if (!temporalGhost && (g.ghostHistory.state[0].resource || g.ghostHistory.state[1].resource ||
-                           g.ghostHistory.reconstructed.resource))
+                           g.ghostHistory.reconstructed.resource || g.ghostHistory.softField.resource))
     {
         auto old = std::make_shared<GhostHistory>(std::move(g.ghostHistory));
         g.ghostHistory = {};

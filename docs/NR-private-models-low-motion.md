@@ -366,7 +366,7 @@ WARP i RTX 4090: dotychczasowe testy transportu/ekspozycji, green overlay i meto
 
 Cały tor NR+NGX+kompozycja nie został zmierzony w grze. Weryfikacja użytkowa: rozgrzane ABBA opcji 4/5 przy tym samym ruchu, GPU, rozdzielczości i ustawieniach, z timestampami etapu oraz całego toru. Ocenić smugi przy butach, poprawne wygładzanie, HDR i zielony podgląd. Nowy wariant jest eksperymentalny; nie ma deklaracji poprawy jakości w grze ani gwarancji całkowicie niewidocznej różnicy.
 
-## Dalsze uproszczenie matematyki: pełna odpowiedź i jednoczesne wygaszanie
+## Dalsze uproszczenie matematyki: pełna odpowiedź i jednoczesne wygaszanie (checkpoint 9633f725)
 
 Aktualizacja opcji 5, bez nowego przełącznika i bez zmiany domyślnej metody. Dwa mieszania z tym samym surowym editem są zastąpione jednym:
 
@@ -411,3 +411,48 @@ Siatka co 4 piksele dawała w początkowych próbach około 20–28% oszczędno�
 Na życzenie użytkownika zbadano także zmianę wyłącznie wzmacniającą maskę, z miękką krawędzią. Przy zgodności wszystkich czterech głębi uproszczona górna obwiednia wynosi `max_i(age_i * max(4*bilinearWeight_i, minTent_i))`; przy braku zgodności wszystkich bierze maksimum z dopuszczonych głębi. Matematycznie dominuje dotychczasową średnią i ekspansję; nie ma normalizacji przez sumę wag. W 001/004 zwiększała maskę na 4.1%/2.7% pikseli, nigdzie jej nie zmniejszając, oraz zachowywała ułamkowe wagi na brzegu. Zarówno wariant FP32, całkowite wagi parzystej siatki, jak i prostszy bitowy test głębi nie wykazały mierzalnego przyspieszenia względem opcji 5. Samo maksimum czterech wieków też nie dawało przewagi zwykłego editu i usztywniało brzeg. Tych prób nie przedstawiamy jako szybszych metod i nie dodajemy ich do UI. Aktualna miękka krawędź pozostaje.
 
 Wszystkie statystyki jakości powstały w odtwarzaniu zapisanych guides, bez NGX i prawdziwej sekwencji ruchu. Różnica wagi maski nie jest procentowym błędem finalnego obrazu. Zachowane 1–5 wymagają oceny smug i poprawnej stabilizacji w grze; nie ma potwierdzenia, że eksperymenty byłyby niewidoczne gołym okiem.
+
+## Opcja 6: rzadsza historia i miękkie poszerzenie
+
+**Coarse disocclusion + soft expansion (experimental)** jest szóstą pozycją w **Ghost rejection method**, `SuperiorGhostMethod=5`. Na prośbę użytkownika dopuszcza celowe różnice maski w zamian za niższy czas GPU. Opcje 1–5 i ich 75 shaderów pozostają bez zmian względem checkpointu 9633f725; domyślny wybór pozostaje taki sam.
+
+Historia ma jeden texel na blok **4×4 piksele NR**, zamiast 2×2. Wybiera najbliższą prawidłową głębię spośród wszystkich 16 pikseli i jej MV; przechowuje dokładną fazę 4-bitową wybranego piksela na czas obliczeń, a następnie zwykły timer. Reprojekcja i oba pierścienie kontaktu działają na mniejszej siatce; skala MV w jednostkach 1080p nadal wynika z pełnej wysokości NR. Pakowanie głębi, MV FP16 i dokładny timer 1–120 pozostają. To przybliżenie widoczności; rzadsze guides mogą zgubić cienki obiekt albo inną powierzchnię.
+
+Po obliczeniu historii dodatkowy przebieg na tej małej siatce wykonuje maksimum sąsiednich timerów, zamienia je na znormalizowaną wagę i zapisuje **R16_FLOAT**. Dodatnie wartości są zaokrąglane w górę do reprezentowalnego FP16, aby sam zapis nie osłabiał maski. Decode pobiera tę wagę biliniowo, nadając krawędzi płynne przejście. **Coarse mask expansion** wybiera promień 1 lub 2 texeli małej siatki: około 4 lub 8 pikseli NR, oprócz footprintu interpolacji. Default 1. Wartości odnoszą się do siatki NR, nie metrów ani natywnych pikseli ekranu.
+
+Głębia i MV nadal wykrywają dysokluzję w historii. Podczas końcowego poszerzania nie stosuje się ponownie ostrego odcięcia według głębi: rozszerzona maska może wejść na sąsiednią powierzchnię/foreground. To świadomy kompromis, bo użytkownik dopuścił dodatkowe maskowanie. Nieprawidłowa bieżąca głębia nadal daje wagę 0. Kolor i cofnięcie dodatniego mnożnika działają jak poprzednio, dla editu i pełnej odpowiedzi. Zielony podgląd pokazuje rzeczywiście używaną wagę; globalne wygaszanie zmniejsza wagę odrzucenia zgodnie z wcześniejszym znaczeniem.
+
+**Nie ma gwarancji, że nowa maska jest nadzbiorem starej.** Dylatacja odzyskuje wiele obszarów, ale nie odtworzy wszystkich informacji zgubionych przy rzadszym próbkowaniu i śledzeniu. Większy promień częściej odrzuca także poprawną stabilizację DLSS. Nie nazywać zmian niewidocznymi bez oceny w grze. Dotychczasowy suwak **Disocclusion soft mask expansion** dotyczy opcji 4/5; w opcji 6 zastępuje go **Coarse mask expansion**, z niezależnym miękkim brzegiem wynikającym z filtrowania znormalizowanej maski.
+
+Nowy klucz `[DlssNr] SuperiorGhostCoarseRadius=1` ma default, odczyt/zapis INI, reset/apply profili i pojedynczy wpis w `kKeptKeys`. Wartości są ograniczane do 1–2; zmiana promienia przebudowuje maskę przy kolejnym obliczeniu guides, bez resetowania historii NR/DLSS lub samego timera. JSON zapisuje `ghost_coarse_expansion_radius`. Natywny Vulkan i niedostępny Superior korzystają z dotychczasowego wyszarzania opcji.
+
+Zasoby należą do istniejącej generacji i są zwalniane przez tracker GPU, także po odrzuconej liście poleceń, zmianie metody i shutdown. Zasoby są ponownie używane, bez alokacji i odczytu CPU co klatkę. Jedna dodatkowa tekstura i dispatch są ograniczone do opcji 6; inne metody nie wykonują tego przebiegu. Historia/recon mają mniejsze wymiary. Nowych sześć PSO jest lazy; generator buduje 81 blobów.
+
+### Wynik pomiaru
+
+RTX 4090, sześć zapisów 001–006, NR 2496×1404, kolor FP16, głębia R32F i MV RG32F. Referencja to **niezmienne bloby opcji 5 z a13e22743e6d7e6324aacc581c64edcc403b4258**, odtworzone z Git przez `tools/prepare_nr_compact_reference.py`. Gain 1, okno 16, fade timera 3, ekspansja referencji 0.5; globalny fade i zielony podgląd off. Jak we wcześniejszych testach, pełna odpowiedź jest w znormalizowanej domenie signed edit z zerowym proxy. Guides są powtarzane, nie jest to sekwencja gry/NGX.
+
+16 par rozgrzewki, 64 ABBA, 128 próbek/wariant. Timestampy obejmują **clear, scatter, historię, nowe poszerzanie, decode i wszystkie bariery**, bez alokacji, uploadu i mapowania CPU w oknie. [Pełne podsumowanie z SD, parowanymi różnicami i statystykami maski](validation/private-ghost-coarse-summary.json); surowe CSV: `validation/private-ghost-coarse-r1-001-edit.csv` itd. Powtórzenie: `private_exposure_quality.exe --coarse-ghost-timing <capture stem> <radius 1|2>`.
+
+| Promień | Scena | Opcja 5 edit [ms ± SD] | Opcja 6 edit [ms ± SD] | Oszczędność etapu | Prawie pełna maska → prawie brak |
+|---|---|---:|---:|---:|---:|
+| 1 | 001 | 0.084752 ± 0.002106 | 0.068056 ± 0.000851 | 19.7% | 0.403% obrazu |
+| 1 | 002 | 0.087368 ± 0.001198 | 0.070528 ± 0.001656 | 19.3% | 0.579% obrazu |
+| 1 | 003 | 0.089736 ± 0.001112 | 0.071640 ± 0.002253 | 20.2% | 0.837% obrazu |
+| 1 | 004 | 0.092584 ± 0.001930 | 0.073160 ± 0.002540 | 21.0% | 0.723% obrazu |
+| 1 | 005 | 0.085168 ± 0.001962 | 0.069104 ± 0.001762 | 18.9% | 1.169% obrazu |
+| 1 | 006 | 0.088024 ± 0.002017 | 0.070408 ± 0.001624 | 20.0% | 0.482% obrazu |
+| 2 | 001 | 0.084576 ± 0.002354 | 0.073344 ± 0.001366 | 13.3% | 0.188% obrazu |
+| 2 | 002 | 0.087352 ± 0.001333 | 0.073728 ± 0.001790 | 15.6% | 0.202% obrazu |
+| 2 | 003 | 0.089592 ± 0.001488 | 0.076392 ± 0.003167 | 14.7% | 0.538% obrazu |
+| 2 | 004 | 0.092240 ± 0.001117 | 0.077560 ± 0.001809 | 15.9% | 0.243% obrazu |
+| 2 | 005 | 0.085224 ± 0.002252 | 0.071568 ± 0.000955 | 16.0% | 0.712% obrazu |
+| 2 | 006 | 0.088152 ± 0.002080 | 0.074472 ± 0.001654 | 15.5% | 0.247% obrazu |
+
+Ostatnia kolumna liczy wagę referencji >0.9 i nową <0.1; nie jest procentowym błędem finalnego obrazu. Wzrost/spadek wagi o >0.01, ułamkowe wagi na brzegu i błędy RGB są osobno w podsumowaniu. Maskowanie przeważnie rozszerza się, lecz może także zanikać. Pomiar obejmuje etap maskowania, nie cały NR+NGX+kompozycję i nie procent FPS. W grze trzeba wykonać rozgrzane ABBA opcji 5/6 tej samej sceny/ruchu, z timestampami obu zakresów i oceną smug przy butach oraz poprawnej stabilizacji. Nie wykonano takiego pomiaru ani oceny nowej opcji w grze.
+
+173 nowe kontrole na WARP i RTX 4090: niezależne maksima sąsiadów i zaokrąglenie FP16, oba promienie, fade 0/3/120/NaN/ujemny, miękki filtr i kompozycja editu/pełnej odpowiedzi, HDR na rzeczywistych teksturach FP16 przy gain 0.5/6, reversed Z, nietypowe wymiary, kontakt but–podłoże, zachowanie foreground w historii, śledzenie MV, upływ dokładnie N, reset, D16/D24 i nieprawidłowe guides. Błąd niezależnego wzoru maski po filtrowaniu sprzętowym musi być <=0.008, RGB <=0.0015 w skonstruowanych przypadkach; testy mają asercje, a nie tylko wydruk. To test konstrukcji i arytmetyki, nie dowód usunięcia wszystkich smug.
+
+### Sprawdzone alternatywy
+
+R8_UNORM dla znormalizowanej maski (to format stałoprzecinkowy 8-bit, nie FP8) nie dał spójnego dodatkowego zysku ponad R16_FLOAT na obu zapisach. Zostaje FP16. Maksimum 3×3 na gęstej historii 2×2 zachowywało maskowanie w badanych danych i miało miękki brzeg, ale kosztowało około 8–13% więcej; wariant LDS 16×16 zmniejszał stratę, nadal nie wygrywał. Nie dołączono ich do DLL. Odcinanie rozszerzonego brzegu interpolowanym zakresem głębi pozostawiało więcej dziur. Promień 2 odzyskuje więcej maski, ale jest droższy od 1 i maskuje większy obszar.

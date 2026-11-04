@@ -81,6 +81,7 @@ inline constexpr std::string_view kKeptKeys[] = {
     "SuperiorGhostHistoryFade",
     "SuperiorGhostHistoryDepth",
     "SuperiorGhostSoftExpansion",
+    "SuperiorGhostCoarseRadius",
     "SuperiorGhostGuidedThreshold",
     "SuperiorGhostGuidedSoftness",
     "SuperiorGhostRadius",
