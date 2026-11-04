@@ -693,12 +693,13 @@ std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, 
 }
 
 void RecordAfterEditDump(const std::shared_ptr<EditDumpJob>& job, Generation& g, DlssNr_Dx12& shader,
-                         ID3D12GraphicsCommandList* cmd, Constants decode, ID3D12Resource* proxy,
+                         ID3D12GraphicsCommandList* cmd, const Constants& transportDecode, ID3D12Resource* proxy,
                          ID3D12Resource* depth)
 {
     if (!job) return;
     auto& s = GetState();
     auto& after = job->guides[job->afterEdit];
+    Constants decode = transportDecode;
     // Decode with the current transport, but without rejection, its preview or the global fade.
     Fields::SetCarrierGhostRejection(decode, {});
     Fields::SetUnfilteredEditWeight(decode, 0.f);
