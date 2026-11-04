@@ -1,0 +1,358 @@
+// A stationary depth edge cannot uncover anything, even with small stable subpixel guide noise.
+void StaticVisibilityQuality(Fixture& f)
+{
+    unsigned checks = 0;
+    for (unsigned variant : { 0u, 1u, 2u, 3u })
+        for (bool reversed : { false, true })
+            for (float mv : { 0.f, .125f })
+                for (unsigned bits : { 0u, 16u, 24u })
+                    for (int left : { 40, 41, 43 })
+                    {
+                        TemporalGhostFixture t(f, 128, 64, variant != 0, variant == 2, variant == 3 ? 4 : 2);
+                        t.Frame(left, 12, .03f, mv, mv, false, reversed, false, bits);
+                        for (unsigned frame = 0; frame < 3; ++frame)
+                        {
+                            auto state = t.Frame(left, 12, .03f, mv, mv, false, reversed, false, bits);
+                            for (size_t i = 1; i < state.size(); i += 4)
+                                if (state[i] != 0)
+                                    throw std::runtime_error(
+                                        "Stationary depth edge created a disocclusion, variant=" +
+                                        std::to_string(variant) + " reversed=" + std::to_string(reversed) +
+                                        " motion=" + std::to_string(mv) + " bits=" + std::to_string(bits) +
+                                        " left=" + std::to_string(left));
+                        }
+                        ++checks;
+                    }
+    std::cout << "Stationary depth-edge visibility PASS: " << checks
+              << " legacy/compact/wave/coarse, Z, D16/D24 and subpixel-noise sequences\n";
+}
+// Known two-surface motions. All expectations come from visibility and the configured MV gate.
+void RelativeVisibilityQuality(Fixture& f)
+{
+    unsigned checks = 0;
+    struct Sequence
+    {
+        int next;
+        float bg, fg;
+        int pixel;
+        bool expected;
+    };
+    const Sequence sequences[] = {
+        { 44, 4, -4, 36, true },     // opposing directions
+        { 48, -1, -8, 44, true },    // same direction, foreground faster
+        { 41, -8, -1, 48, true },    // same direction, background faster
+        { 48, 0, -8, 40, true },     // stationary background
+        { 44, 0, -.05f, 40, false }, // below relative speed gate
+        { 44, -4, -4, 36, false },   // equal rigid translation
+        { 40, 0, 0, 36, false }      // both stationary
+    };
+    for (unsigned variant : { 0u, 1u, 2u, 3u })
+        for (bool reversed : { false, true })
+        {
+            const unsigned step = variant == 3 ? 4 : 2;
+            for (const auto& seq : sequences)
+            {
+                TemporalGhostFixture t(f, 128, 64, variant != 0, variant == 2, step);
+                t.Frame(40, 4, .03f, seq.bg, seq.fg, false, reversed);
+                auto state = t.Frame(seq.next, 4, .03f, seq.bg, seq.fg, false, reversed);
+                const float age = state[((24 / step) * t.mw + seq.pixel / step) * 4 + 1];
+                if (seq.expected ? age != 4 : age != 0)
+                    throw std::runtime_error("Relative layer motion failed variant=" + std::to_string(variant) +
+                                             " pixel=" + std::to_string(seq.pixel) + " bg=" + std::to_string(seq.bg) +
+                                             " fg=" + std::to_string(seq.fg) + " age=" + std::to_string(age));
+                ++checks;
+            }
+            TemporalGhostFixture start(f, 128, 64, variant != 0, variant == 2, step);
+            start.Frame(40, 12, .03f, 0, 0, false, reversed);
+            auto started = start.Frame(44, 12, .03f, 0, -4, false, reversed);
+            if (started[((24 / step) * start.mw + 40 / step) * 4 + 1] != 4)
+                throw std::runtime_error("A foreground starting from zero MV missed its first visibility window");
+            ++checks;
+            // Common temporal acceleration must not manufacture inter-surface motion.
+            TemporalGhostFixture camera(f, 128, 64, variant != 0, variant == 2, step);
+            camera.Frame(40, 12, .03f, 0, 0, false, reversed);
+            auto state = camera.Frame(40, 12, .03f, 12, 12, false, reversed);
+            for (size_t i = 1; i < state.size(); i += 4)
+                if (state[i] != 0)
+                    throw std::runtime_error("Common camera acceleration falsely created a visibility mask");
+            ++checks;
+            // A genuine event persists for N frames, then expires at a frozen edge without renewal.
+            TemporalGhostFixture timer(f, 128, 64, variant != 0, variant == 2, step);
+            timer.Frame(40, 4, .03f, 0, -4, false, reversed);
+            state = timer.Frame(44, 4, .03f, 0, -4, false, reversed);
+            for (unsigned frame = 1; frame <= 5; ++frame)
+            {
+                state = timer.Frame(44, 4, .03f, 0, 0, false, reversed);
+                float expected = frame < 4 ? float(4 - frame) : 0;
+                if (state[((24 / step) * timer.mw + 40 / step) * 4 + 1] != expected)
+                    throw std::runtime_error("Frozen edge renewed or prematurely cancelled a real visibility timer");
+                ++checks;
+            }
+        }
+    std::cout << "Relative-layer visibility PASS: " << checks
+              << " direction/speed/minimum/camera/frozen-expiry cases\n";
+}
+void StaticVisibilityCapture(Fixture& f, const std::string& stem)
+{
+    unsigned w, h, mw, mh;
+    auto z = GuidedPlane(stem + ".depth.dds", 1, 41, w, h), mv = GuidedPlane(stem + ".motion.dds", 2, 16, mw, mh);
+    if (w != mw || h != mh)
+        throw std::runtime_error("Static capture guide dimensions");
+    for (unsigned step : { 2u, 4u })
+        for (bool zero : { false, true })
+        {
+            TemporalGhostFixture t(f, w, h, true, step == 2, step);
+            const auto motion = zero ? std::vector<float>(mv.size(), 0) : mv;
+            std::vector<unsigned> active;
+            for (unsigned frame = 0; frame < 4; ++frame)
+            {
+                const auto state = t.FrameGuides(z, motion, false, true, 0, 19, 9, .05f, 2.02f);
+                unsigned count = 0;
+                for (size_t i = 1; i < state.size(); i += 4)
+                    count += state[i] > 0;
+                active.push_back(count);
+            }
+            std::cout << "Frozen capture " << std::filesystem::path(stem).filename().string() << " step=" << step
+                      << " zeroMV=" << zero << " active timers";
+            for (auto count : active)
+                std::cout << ' ' << count;
+            std::cout << '\n';
+        }
+}
+
+void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false)
+{
+    const unsigned radius = 1;
+    const bool residual = true;
+    const float gMathGain = 1, gMathBlend = 0;
+    unsigned w, h, aw, ah, dw, dh, mw, mh;
+    auto raw = GuidedPlane(stem + ".raw.dds", 4, 2, w, h), after = GuidedPlane(stem + ".after.dds", 4, 2, aw, ah),
+         depth = GuidedPlane(stem + ".depth.dds", 1, 41, dw, dh),
+         motion = GuidedPlane(stem + ".motion.dds", 2, 16, mw, mh);
+    if (w != aw || w != dw || w != mw || h != ah || h != dh || h != mh)
+        throw std::runtime_error("Compact timing dimensions");
+    for (size_t i = 0; i < after.size(); i += 4)
+        for (unsigned ch = 0; ch < 3; ++ch)
+            if (after[i + ch] > 0)
+                after[i + ch] *= gMathGain;
+    if (residual)
+        for (size_t i = 0; i < after.size(); i += 4)
+            for (unsigned ch = 0; ch < 3; ++ch)
+                after[i + ch] += .5f;
+    std::vector<float> zero(raw.size(), 0);
+    f.r.begin();
+    auto r = f.texture(w, h, &raw, DXGI_FORMAT_R16G16B16A16_FLOAT),
+         a = f.texture(w, h, &after, DXGI_FORMAT_R16G16B16A16_FLOAT),
+         p = f.texture(w, h, &zero, DXGI_FORMAT_R16G16B16A16_FLOAT), d = f.texture(w, h, &depth, DXGI_FORMAT_R32_FLOAT),
+         m = f.texture(w, h, &motion, DXGI_FORMAT_R32G32_FLOAT);
+    ComPtr<ID3D12Resource> movingDepth[2], movingMotion[2];
+    if (moving)
+        for (unsigned phase = 0; phase < 2; ++phase)
+        {
+            std::vector<float> z(w * h * 4, 0), mv(z);
+            const unsigned left = (w / 3 + 3) & ~3u;
+            for (unsigned y = 0; y < h; ++y)
+                for (unsigned x = 0; x < w; ++x)
+                {
+                    const size_t i = (size_t(y) * w + x) * 4;
+                    bool object = x >= left + phase * 8 && x < left + phase * 8 + w / 12 && y >= h / 6 && y < h * 5 / 6;
+                    z[i] = object ? .03f : .01f;
+                    mv[i] = object ? (phase ? -8.f : 8.f) : 0.f;
+                }
+            movingDepth[phase] = f.texture(w, h, &z, DXGI_FORMAT_R32_FLOAT);
+            movingMotion[phase] = f.texture(w, h, &mv, DXGI_FORMAT_R32G32_FLOAT);
+        }
+    ComPtr<ID3D12Resource> outputs[2] = { f.texture(w, h, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT),
+                                          f.texture(w, h, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT) };
+    struct State
+    {
+        ComPtr<ID3D12Resource> recon, state[2], field;
+        unsigned index = 0, frame = 0;
+        bool valid = false;
+    };
+    State states[2];
+    for (unsigned k = 0; k < 2; ++k)
+    {
+        auto& s = states[k];
+        const unsigned stride = 4;
+        const unsigned mw = (w + stride - 1) / stride, mh = (h + stride - 1) / stride;
+        s.recon = f.texture(mw, mh, nullptr, DXGI_FORMAT_R32_UINT);
+        s.field = f.texture(mw, mh, nullptr, DXGI_FORMAT_R16_FLOAT);
+        for (auto& hist : s.state)
+            hist = f.texture(mw, mh, nullptr, DXGI_FORMAT_R32G32_UINT);
+    }
+    f.r.finish();
+    f.uploads.clear();
+    std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
+    const std::string oldDir = "artifacts/ghost-study/static-baseline";
+    auto clear = f.r.pipeline(dir, "private_ghost_clear"), baseScatter = f.r.pipeline(dir, "private_ghost_coarse_1"),
+         baseAge = f.r.pipeline(oldDir, "private_ghost_coarse_2"),
+         baseDecode = f.r.pipeline(dir, "private_carrier_coarse"),
+         scatter = f.r.pipeline(dir, "private_ghost_coarse_1"), age = f.r.pipeline(dir, "private_ghost_coarse_2"),
+         decode16 = f.r.pipeline(dir, "private_carrier_coarse");
+    auto dilate = f.r.pipeline(dir, "private_ghost_coarse_dilate_1");
+    ComPtr<ID3D12QueryHeap> queries;
+    D3D12_QUERY_HEAP_DESC desc {};
+    desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+    desc.Count = 2;
+    check(f.r.device->CreateQueryHeap(&desc, IID_PPV_ARGS(&queries)));
+    auto readback = f.r.buffer(16, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST);
+    UINT64 frequency;
+    check(f.r.queue->GetTimestampFrequency(&frequency));
+    auto measure = [&](unsigned variant)
+    {
+        auto& s = states[variant];
+        auto& out = outputs[variant];
+        const unsigned stride = 4;
+        const unsigned mw = (w + stride - 1) / stride, mh = (h + stride - 1) / stride;
+        unsigned next = s.valid ? 1 - s.index : 0;
+        auto* guideDepth = moving ? movingDepth[s.frame & 1].Get() : d.Get();
+        auto* guideMotion = moving ? movingMotion[s.frame & 1].Get() : m.Get();
+        ++s.frame;
+        f.r.begin();
+        f.r.list->EndQuery(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
+        if (s.valid)
+            f.r.barrier(s.recon.Get(), SRV, UAV);
+        if (s.valid || next == 1)
+            f.r.barrier(s.state[next].Get(), SRV, UAV);
+        DlssNr::Superior::DlssNrConstants c {};
+        DlssNr::GhostRejection::Settings settings { true, .01f, .02f, 1, false, 2 };
+        settings.historyFrames = 19;
+        settings.historyFade = 9;
+        settings.motionGate = 2.02f;
+        DlssNr::Superior::Fields::SetGhostVisibility(c, mw, mh, w, h, settings, true, s.valid, 0);
+
+        if (!s.valid)
+            f.r.barrier(s.state[1].Get(), UAV, SRV);
+        auto* previous = s.valid ? s.state[s.index].Get() : s.state[1].Get();
+        c.Mode = 44;
+        f.dispatch(clear.Get(), c, guideDepth, guideMotion, s.recon.Get(), (mw + 7) / 8, (mh + 7) / 8, nullptr,
+                   previous, nullptr, nullptr, nullptr, 0, false);
+        const auto uavBarrier = [&](ID3D12Resource* resource)
+        {
+            D3D12_RESOURCE_BARRIER barrier {};
+            barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            barrier.UAV.pResource = resource;
+            f.r.list->ResourceBarrier(1, &barrier);
+        };
+        uavBarrier(s.recon.Get());
+        c.Mode = 45;
+        f.dispatch(variant ? scatter.Get() : baseScatter.Get(), c, guideDepth, guideMotion, s.recon.Get(), (mw + 7) / 8,
+                   (mh + 7) / 8, nullptr, previous, nullptr, nullptr, nullptr, 1, false, s.state[next].Get());
+        f.r.barrier(s.recon.Get(), UAV, SRV);
+        uavBarrier(s.state[next].Get());
+        c.Mode = 46;
+        f.dispatch(variant ? age.Get() : baseAge.Get(), c, guideDepth, guideMotion, s.state[next].Get(), (mw + 7) / 8,
+                   (mh + 7) / 8, s.recon.Get(), previous, nullptr, nullptr, nullptr, 2, false);
+        f.r.barrier(s.state[next].Get(), UAV, SRV);
+        ID3D12Resource* decodeGuide = s.state[next].Get();
+        if (s.field)
+        {
+            if (s.valid)
+                f.r.barrier(s.field.Get(), SRV, UAV);
+            DlssNr::Superior::Fields::SetCoarseGhostDilate(c, mw, mh, settings);
+            f.dispatch(dilate.Get(), c, s.state[next].Get(), s.state[next].Get(), s.field.Get(), (mw + 7) / 8,
+                       (mh + 7) / 8, nullptr, nullptr, nullptr, nullptr, nullptr, 3, false);
+            f.r.barrier(s.field.Get(), UAV, SRV);
+            decodeGuide = s.field.Get();
+        }
+
+        DlssNr::Superior::DlssNrConstants dc {};
+        dc.Mode = 38;
+        dc.Width = w;
+        dc.Height = h;
+        DlssNr::Superior::Fields::SetPositiveCarrierGain(dc, gMathGain);
+        DlssNr::Superior::Fields::SetUnfilteredEditWeight(dc, gMathBlend);
+        DlssNr::Superior::Fields::SetCarrierSaturation(dc, 1);
+        DlssNr::Superior::Fields::SetCarrierNrAnswer(dc, !residual);
+        DlssNr::Superior::Fields::SetCarrierDepthColour(dc, 0, 1, 0, true);
+        settings.softExpansion = .5f;
+        DlssNr::Superior::Fields::SetCarrierGhostRejection(dc, settings);
+        DlssNr::Superior::Fields::SetGhostDepthPrecision(dc, 0);
+        f.dispatch(variant ? decode16.Get() : baseDecode.Get(), dc, a.Get(), p.Get(), out.Get(), (w + 7) / 8,
+                   (h + 7) / 8, guideDepth, p.Get(), r.Get(), decodeGuide, nullptr, 4, false);
+        f.r.barrier(out.Get(), UAV, SRV);
+        f.r.list->EndQuery(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
+        f.r.list->ResolveQueryData(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, readback.Get(), 0);
+        f.r.barrier(out.Get(), SRV, UAV);
+        f.r.finish();
+        f.uploads.clear();
+        s.index = next;
+        s.valid = true;
+        UINT64* values;
+        check(readback->Map(0, nullptr, reinterpret_cast<void**>(&values)));
+        double ms = double(values[1] - values[0]) * 1000 / frequency;
+        readback->Unmap(0, nullptr);
+        return ms;
+    };
+    const auto name = std::filesystem::path(stem).filename().string();
+    const auto prefix = "artifacts/ghost-study/" + name + (moving ? ".moving-fix" : ".static-fix");
+    std::ofstream csv(prefix + "-timing.csv");
+    csv << "sample,width,height,comparison,block,position,variant,ms\n";
+    const unsigned blocks = 64;
+    for (unsigned candidate = 1; candidate <= 1; ++candidate)
+    {
+        for (unsigned warm = 0; warm < 16; ++warm)
+        {
+            measure(0);
+            measure(candidate);
+        }
+        for (unsigned block = 0; block < blocks; ++block)
+            for (unsigned pos = 0; pos < 4; ++pos)
+            {
+                unsigned variant = pos == 1 || pos == 2 ? candidate : 0;
+                csv << name << ',' << w << ',' << h << ',' << candidate << ',' << block << ',' << pos << ',' << variant
+                    << ',' << measure(variant) << '\n';
+            }
+    }
+    {
+        const auto readSrv = [&](ID3D12Resource* resource)
+        {
+            f.r.begin();
+            f.r.barrier(resource, SRV, UAV);
+            return f.read(resource);
+        };
+        auto oldOutput = readSrv(outputs[0].Get()), newOutput = readSrv(outputs[1].Get());
+        double sum = 0, sumSquared = 0;
+        float maxRGB = 0, maxMask = 0;
+        size_t changed = 0, increased = 0, decreased = 0, strongLost = 0, soft = 0, oldActive = 0, newActive = 0;
+        for (size_t i = 0; i < oldOutput.size(); ++i)
+        {
+            if (!std::isfinite(newOutput[i]))
+                throw std::runtime_error("Nonfinite coarse output");
+            const float delta = std::abs(newOutput[i] - oldOutput[i]);
+            if (i % 4 == 3)
+            {
+                if (newOutput[i] < 0 || newOutput[i] > 1)
+                    throw std::runtime_error("Invalid coarse weight");
+                maxMask = std::max(maxMask, delta);
+                oldActive += oldOutput[i] > 0;
+                newActive += newOutput[i] > 0;
+                changed += delta > 0;
+                increased += newOutput[i] > oldOutput[i] + .01f;
+                decreased += newOutput[i] < oldOutput[i] - .01f;
+                strongLost += oldOutput[i] > .9f && newOutput[i] < .1f;
+                soft += newOutput[i] > 0 && newOutput[i] < 1;
+            }
+            else
+            {
+                maxRGB = std::max(maxRGB, delta);
+                sum += delta;
+                sumSquared += double(delta) * delta;
+            }
+        }
+        std::ofstream quality(prefix + "-quality.json");
+        const size_t pixels = oldOutput.size() / 4;
+        quality << "{\n  \"pixels\": " << pixels << ",\n  \"max_rgb_difference\": " << maxRGB
+                << ",\n  \"mean_rgb_difference\": " << sum / (pixels * 3)
+                << ",\n  \"rms_rgb_difference\": " << std::sqrt(sumSquared / (pixels * 3))
+                << ",\n  \"max_mask_difference\": " << maxMask << ",\n  \"changed_mask_pixels\": " << changed
+                << ",\n  \"increased_mask_pixels\": " << increased << ",\n  \"decreased_mask_pixels\": " << decreased
+                << ",\n  \"strong_mask_lost_pixels\": " << strongLost << ",\n  \"soft_mask_pixels\": " << soft
+                << ",\n  \"old_active_mask_pixels\": " << oldActive << ",\n  \"new_active_mask_pixels\": " << newActive
+                << ",\n  \"history_bit_exact\": false\n}\n";
+        std::cout << "Static fix quality: increased " << increased << ", decreased " << decreased << ", strong loss "
+                  << strongLost << " / " << pixels << " pixels\n";
+    }
+    std::cout << "Static fix whole-region GPU ABBA saved for " << name << '\n';
+}

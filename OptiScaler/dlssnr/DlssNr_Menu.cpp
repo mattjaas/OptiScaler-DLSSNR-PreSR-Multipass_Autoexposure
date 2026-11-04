@@ -4367,8 +4367,11 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             {
                 if (ImGui::SliderFloat("Ghost relative motion gate (1080p)", &ghost.motionGate, .1f, 16.f, "%.2f px"))
                     config->DlssNrSuperiorGhostMotionGate = ghost.motionGate;
-                HelpMarker("Requires different motion on the two layers, in pixels at 1080p height per frame. "
-                           "Default 2. Matched depth/MV are used even with the Original guides experiment.");
+                HelpMarker("Minimum difference between foreground and background motion, in pixels at 1080p height "
+                           "per frame. Opposite directions or sufficiently different speeds can qualify; equal motion "
+                           "does not. Temporal methods require this evidence to start or renew a mask window; an "
+                           "existing window still expires normally. Default 2. Matched depth/MV are used even with "
+                           "the Original guides experiment.");
             }
             ImGui::EndDisabled();
             ImGui::EndDisabled();

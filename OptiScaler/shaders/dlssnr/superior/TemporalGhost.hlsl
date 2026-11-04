@@ -74,8 +74,6 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
     float precision = isfinite(depthPrecision) && depthPrecision >= 0 && depthPrecision <= .001
                           ? max(depthPrecision * 2, 1e-6)
                           : 2.0 / 65535;
-    float gate =
-        isfinite(motionGate) ? clamp(motionGate, .1, 16) * float(fullHeight) / 1080 : 2.0 * float(fullHeight) / 1080;
     int2 oldPixel = int2(round(previousPos));
     if (!Inside(oldPixel))
     {
@@ -95,45 +93,87 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
         WriteState[p] = current;
         return;
     }
-    int2 base = int2(floor(previousPos));
-    float2 f = frac(previousPos);
-    float reconstructed = 0;
-    [unroll] for (int y = 0; y < 2; ++y)[unroll] for (int x = 0; x < 2; ++x)
+    float gate =
+        isfinite(motionGate) ? clamp(motionGate, .1, 16) * float(fullHeight) / 1080 : 2.0 * float(fullHeight) / 1080;
+    float gateSquared = gate * gate;
+    float2 delta = current.zw - old.zw;
+    float errorSquared = dot(delta, delta), bestSquared = errorSquared;
+    bool previousOccluder = old.x > current.x * (1 + tolerance) + precision;
+    if (errorSquared <= gateSquared * 4 && !previousOccluder)
     {
-        int2 q = base + int2(x, y);
-        float w = (x ? f.x : 1 - f.x) * (y ? f.y : 1 - f.y);
-        if (Inside(q) && w > .1)
-            reconstructed = max(reconstructed, asfloat(Reconstructed.Load(int3(q, 0))));
+        WriteState[p] = float4(current.x, max(0, min(old.y, nFrames) - 1), current.zw);
+        return;
     }
-    bool exposed = reconstructed > current.x * (1 + tolerance) + precision;
-    float error = length(current.zw - old.zw), bestError = error;
-    bool oldNearBoundary = false;
-    if (error > gate * 2 || old.x > current.x * (1 + tolerance) + precision)
+    bool relativeMotion = false;
+    const int2 axis[4] = { int2(-1, 0), int2(1, 0), int2(0, -1), int2(0, 1) };
+    [unroll] for (uint ring = 0; ring < 2; ++ring)[unroll] for (uint k = 0; k < 4; ++k)
     {
-        const int2 axis[4] = { int2(-1, 0), int2(1, 0), int2(0, -1), int2(0, 1) };
-        [unroll] for (uint ring = 0; ring < 2; ++ring)[unroll] for (uint k = 0; k < 4; ++k)
+        int distance = max(1, int(round((ring == 0 ? 2.0 : 8.0) * float(height) / 1080)));
+        int2 q = oldPixel + axis[k] * distance;
+        if (!Inside(q))
+            continue;
+        float4 neighbour = Previous.Load(int3(q, 0));
+        if (!all(isfinite(neighbour)) || neighbour.x <= 0)
+            continue;
+        if (neighbour.x <= current.x * 1.25 + precision &&
+            abs(neighbour.x - current.x) + precision < abs(old.x - current.x) * .5)
         {
-            int distance = max(1, int(round((ring == 0 ? 2.0 : 8.0) * float(height) / 1080)));
-            int2 q = oldPixel + axis[k] * distance;
-            if (!Inside(q))
-                continue;
-            float4 neighbour = Previous.Load(int3(q, 0));
-            if (!all(isfinite(neighbour)) || neighbour.x <= 0)
-                continue;
-            if (neighbour.x <= current.x * 1.25 + precision &&
-                abs(neighbour.x - current.x) + precision < abs(old.x - current.x) * .5)
+            float2 neighbourDelta = current.zw - neighbour.zw;
+            bestSquared = min(bestSquared, dot(neighbourDelta, neighbourDelta));
+            // Foreground and matching background from the SAME previous frame:
+            // a common camera acceleration is not relative motion between layers.
+            float2 layerDelta = old.zw - neighbour.zw;
+            bool differentMotion = dot(layerDelta, layerDelta) >= gateSquared;
+            relativeMotion = relativeMotion || differentMotion;
+            if (differentMotion && previousOccluder && old.x > neighbour.x * (1 + tolerance) + precision)
             {
-                bestError = min(bestError, length(current.zw - neighbour.zw));
-                oldNearBoundary = oldNearBoundary || old.x > neighbour.x * (1 + tolerance) + precision;
+                // A matching visible background layer and a different foreground motion prove disappearance.
+                WriteState[p] = float4(current.x, nFrames, current.zw);
+                return;
             }
         }
     }
-    // Contact-depth case: a different previous motion layer, with a matching surrounding layer.
-    // A uniform camera acceleration changes both errors similarly and does not satisfy this test.
-    bool contact = error > gate * 2 && bestError + gate < error * .5 && old.x > current.x + precision;
-    bool disappeared = oldNearBoundary && old.x > current.x * (1 + tolerance) + precision;
+    // A newly moving foreground may have had zero MV in the previous frame.
+    // Only on a depth change without old-frame evidence, inspect the current boundary.
+    if (!relativeMotion && old.x > current.x + precision)
+    {
+        [unroll] for (uint ring = 0; ring < 2; ++ring)[unroll] for (uint k = 0; k < 4; ++k)
+        {
+            int distance = max(ring == 0 ? 1 : 2, int(round((ring == 0 ? 2.0 : 8.0) * float(height) / 1080)));
+            int2 q = p + axis[k] * distance;
+            if (!Inside(q))
+                continue;
+            uint2 source = min(uint2(q) * 2 + 2 / 2, uint2(fullWidth, fullHeight) - 1);
+            float z = Depth.Load(int3(source, 0));
+            float nearZ = isfinite(z) && z >= 0 && z <= 1 ? (inverted != 0 ? z : 1 - z) : -1;
+            if (nearZ <= current.x + precision || abs(nearZ - old.x) > old.x * tolerance + precision)
+                continue;
+            float2 foreground = Motion.Load(int3(source, 0));
+            float2 layerDelta = foreground - current.zw;
+            if (all(isfinite(foreground)) && all(abs(foreground) < 65504) && dot(layerDelta, layerDelta) >= gateSquared)
+                relativeMotion = true;
+        }
+    }
+    bool exposed = false;
+    if (relativeMotion && previousOccluder)
+    {
+        // Current-frame reconstructed depth corroborates the newly moving foreground.
+        int2 base = int2(floor(previousPos));
+        float2 f = frac(previousPos);
+        float reconstructed = 0;
+        [unroll] for (int y = 0; y < 2; ++y)[unroll] for (int x = 0; x < 2; ++x)
+        {
+            int2 q = base + int2(x, y);
+            float weight = (x ? f.x : 1 - f.x) * (y ? f.y : 1 - f.y);
+            if (Inside(q) && weight > .1)
+                reconstructed = max(reconstructed, asfloat(Reconstructed.Load(int3(q, 0))));
+        }
+        exposed = reconstructed > current.x * (1 + tolerance) + precision;
+    }
+    float error = sqrt(errorSquared), bestError = sqrt(bestSquared);
+    bool contact = relativeMotion && error > gate * 2 && bestError + gate < error * .5 && old.x > current.x + precision;
     float age = error <= bestError + gate ? max(0, min(old.y, nFrames) - 1) : 0;
-    if (exposed || contact || disappeared)
+    if (exposed || contact)
         age = nFrames;
     WriteState[p] = float4(current.x, age, current.zw);
 #endif

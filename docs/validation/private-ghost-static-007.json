@@ -1,0 +1,84 @@
+{
+  "static": {
+    "mean_ms": [
+      0.065872,
+      0.065056
+    ],
+    "sd_ms": [
+      0.0018803164082876018,
+      0.001163200147299322
+    ],
+    "delta_ms": -0.0008159999999999973,
+    "samples_per_variant": 128,
+    "quality": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.212402,
+      "mean_rgb_difference": 8.09246e-05,
+      "rms_rgb_difference": 0.00123441,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 208869,
+      "increased_mask_pixels": 0,
+      "decreased_mask_pixels": 208869,
+      "strong_mask_lost_pixels": 104565,
+      "soft_mask_pixels": 0,
+      "old_active_mask_pixels": 208869,
+      "new_active_mask_pixels": 0,
+      "history_bit_exact": false
+    }
+  },
+  "moving": {
+    "mean_ms": [
+      0.069384,
+      0.06899999999999999
+    ],
+    "sd_ms": [
+      0.0017886673172095287,
+      0.002251997566466287
+    ],
+    "delta_ms": -0.00038400000000000933,
+    "samples_per_variant": 128,
+    "quality": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.0525513,
+      "mean_rgb_difference": 5.39149e-06,
+      "rms_rgb_difference": 0.000121721,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 26240,
+      "increased_mask_pixels": 0,
+      "decreased_mask_pixels": 26240,
+      "strong_mask_lost_pixels": 9199,
+      "soft_mask_pixels": 7712,
+      "old_active_mask_pixels": 41376,
+      "new_active_mask_pixels": 19040,
+      "history_bit_exact": false
+    }
+  },
+  "capture_sha256": {
+    ".json": "076958ecb09fac05552b5fbbef8b2f4f46d47dd74f9325b6dd6b3b371802164e",
+    ".depth.dds": "7560629660c9dd2c92265aa78fad523e83170a737f51e3a1f6decc854d90363e",
+    ".motion.dds": "42b830f8a5f7295ac70389a020dde2362df62a7229056b3f6bd131578186046c",
+    ".raw.dds": "2ccc51d864354c594178efa7dcdc9bfee5d274f540291f5af6da0875bd703621",
+    ".after.dds": "9147c7ecbbb55a4d4131a95d96fcdd4c85b9682aa335af3bef562346f91ab7f9"
+  },
+  "baseline": "21b0ce92d3c54956b87b11e535f3244fe7213b21",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "size": [
+    2496,
+    1404
+  ],
+  "settings": {
+    "method": 6,
+    "window": 19,
+    "fade": 9,
+    "radius": 1,
+    "depth_separation": 0.05,
+    "motion_gate_1080p": 2.02,
+    "gain": 1,
+    "global_fade": 0
+  },
+  "before_history_sha256": {
+    "private_ghost_history": "bd6ca718797a276dcc6590519934d685803976b4016b570c734d8f27b610151a",
+    "private_ghost_compact_2": "38d59cef9908151fe43f868cac61d9db6cb166c19577ed8cd4310fe9253396f4",
+    "private_ghost_coarse_2": "01a39d1029cdda82bfb536f51b64d2b2fdf0be7bce8139b97ce3abf054e8395c"
+  }
+}

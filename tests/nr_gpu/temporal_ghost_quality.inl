@@ -44,6 +44,14 @@ struct TemporalGhostFixture
                 z[i] = invalid ? NAN : zValue;
                 mv[i] = invalid ? INFINITY : object ? objectMv : bgMv;
             }
+        return FrameGuides(z, mv, reset, reversed, bits);
+    }
+    std::vector<float> FrameGuides(const std::vector<float>& z, const std::vector<float>& mv, bool reset = false,
+                                   bool reversed = true, unsigned bits = 0, unsigned frames = 4, unsigned fade = 2,
+                                   float threshold = .05f, float gate = 2.f)
+    {
+        if (z.size() != size_t(w) * h * 4 || mv.size() != z.size())
+            throw std::runtime_error("Visibility guide dimensions");
         f.r.begin();
         auto depth = f.texture(w, h, &z, DXGI_FORMAT_R32_FLOAT),
              motion = f.texture(w, h, &mv, DXGI_FORMAT_R32G32_FLOAT);
@@ -52,10 +60,10 @@ struct TemporalGhostFixture
         c.Height = mh;
         c.GuideWidth = w;
         c.GuideHeight = h;
-        c.WhitePoint = 4;
-        c.TransferStrength = 2;
-        c.ColourStrength = .05f;
-        c.MaxRatio = 2;
+        c.WhitePoint = float(frames);
+        c.TransferStrength = float(fade);
+        c.ColourStrength = threshold;
+        c.MaxRatio = gate;
         c.Passthrough = reversed;
         c.MvScaleX = bits ? 1.f / float((1u << bits) - 1) : 0;
         c.DebugView = valid && !reset;

@@ -386,12 +386,34 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "compact_ghost_quality.inl"
 #include "compact_fast_quality.inl"
 #include "coarse_ghost_quality.inl"
+#include "static_visibility_quality.inl"
 
 int main(int argc, char** argv)
 {
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc == 3 && std::string(argv[1]) == "--moving-visibility-timing")
+        {
+            StaticVisibilityTiming(f, argv[2], true);
+            return 0;
+        }
+        if (argc == 3 && std::string(argv[1]) == "--static-visibility-timing")
+        {
+            StaticVisibilityTiming(f, argv[2]);
+            return 0;
+        }
+        if (argc == 2 && std::string(argv[1]) == "--static-visibility-quality")
+        {
+            StaticVisibilityQuality(f);
+            RelativeVisibilityQuality(f);
+            return 0;
+        }
+        if (argc == 3 && std::string(argv[1]) == "--static-visibility-capture")
+        {
+            StaticVisibilityCapture(f, argv[2]);
+            return 0;
+        }
         if (argc == 4 && std::string(argv[1]) == "--coarse-ghost-timing")
         {
             const unsigned radius = unsigned(std::stoul(argv[3]));
@@ -499,6 +521,8 @@ int main(int argc, char** argv)
         GhostQuality(f);
         GuidedGhostQuality(f);
         TemporalGhostQuality(f);
+        StaticVisibilityQuality(f);
+        RelativeVisibilityQuality(f);
         CompactGhostQuality(f);
         CompactTransportQuality(f);
         CompactGhostQuality(f, true);
