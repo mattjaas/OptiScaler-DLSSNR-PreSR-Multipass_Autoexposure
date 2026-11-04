@@ -91,7 +91,7 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     ID3D12PipelineState* _superiorRawLow = nullptr;
     bool _superiorRawLowAttempted = false;
     ID3D12PipelineState* SuperiorRawLowPipeline();
-    static constexpr size_t kSuperiorPipelineCount = 30;
+    static constexpr size_t kSuperiorPipelineCount = 31;
     ID3D12PipelineState* _superiorPipeline[kSuperiorPipelineCount] {};
     bool _superiorAttempted[kSuperiorPipelineCount] {};
     ID3D12PipelineState* SuperiorPipeline(const DlssNr::Superior::DlssNrConstants&, ID3D12Resource*);

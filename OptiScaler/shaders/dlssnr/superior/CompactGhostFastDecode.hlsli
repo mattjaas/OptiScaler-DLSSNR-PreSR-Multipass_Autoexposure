@@ -3,13 +3,21 @@
 // The production history is exactly ceil(work/2); even grids have exact quarter-texel tents.
 #include "CompactGhostState.hlsli"
 Texture2D<uint2> gCompactGhost : register(t5);
+#ifdef DLSSNR_COMPACT_FUSED_DECODE
+#define COMPACT_UNMASKED 0
+float CompactGhostWeight(int2 pixel)
+{
+    float mask = 0;
+#else
+#define COMPACT_UNMASKED filtered
 float3 RejectCompactGhost(float3 filtered, int2 pixel, out float mask)
 {
     mask = 0;
+#endif
     float depth = gMotion.Load(int3(pixel, 0)).x;
     float nearZ = isfinite(depth) && depth >= 0 && depth <= 1 ? (gPassthrough != 0 ? depth : 1 - depth) : 0;
     if (nearZ <= 0)
-        return filtered;
+        return COMPACT_UNMASKED;
     uint w = (gWidth + 1) / 2, h = (gHeight + 1) / 2;
     int2 base = (pixel - 1) >> 1;
     float2 f = float2((pixel.x & 1) != 0 ? .25 : .75, (pixel.y & 1) != 0 ? .25 : .75);
@@ -43,7 +51,7 @@ float3 RejectCompactGhost(float3 filtered, int2 pixel, out float mask)
     float4 broadened = ages * min(vx, vy);
     expanded = max(max(broadened.x, broadened.y), max(broadened.z, broadened.w));
     if (weight <= 1e-6 || maskSum <= 0)
-        return filtered;
+        return COMPACT_UNMASKED;
     float baseMask = maskSum / weight;
     float expansion = isfinite(gExposureAnchors[2].w) ? saturate(gExposureAnchors[2].w) : .5;
     // The minimum of the two linear tents broadens corners without another texture read.
@@ -51,6 +59,11 @@ float3 RejectCompactGhost(float3 filtered, int2 pixel, out float mask)
     float age = max(baseMask, lerp(baseMask, expanded, expansion));
     float strength = isfinite(gCompareSplit) ? saturate(gCompareSplit) : 1;
     mask = strength * (fade > 0 ? saturate(age / fade) : 1);
+#ifdef DLSSNR_COMPACT_FUSED_DECODE
+    return mask;
+#else
     float3 raw = GhostRawEdit(pixel);
     return mask >= 1 ? raw : lerp(filtered, raw, mask);
+#endif
 }
+#undef COMPACT_UNMASKED

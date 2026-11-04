@@ -4338,7 +4338,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     "Experimental fast blend: the same disocclusion detection, MV history and depth checks. "
                     "Mask weights use vector FP32 arithmetic with tiny rounding differences from option 4. "
                     "Compatible scatter writes are merged to reduce atomics. The history grid, expansion and fade "
-                    "remain unchanged. Check moving edges in your game.");
+                    "remain unchanged. Fully replaced pixels can skip the filtered result in full NR answer mode. "
+                    "Check moving edges in your game.");
             if (ghost.method >= 3)
             {
                 if (ImGui::SliderFloat("Disocclusion soft mask expansion", &ghost.softExpansion, 0.f, 1.f, "%.2f"))

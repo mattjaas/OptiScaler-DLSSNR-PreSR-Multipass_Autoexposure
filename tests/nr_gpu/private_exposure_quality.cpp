@@ -386,6 +386,15 @@ int main(int argc, char** argv)
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc == 5 && std::string(argv[1]) == "--compact-math-timing")
+        {
+            const float gain = std::stof(argv[3]), fade = std::stof(argv[4]);
+            if (!std::isfinite(gain) || gain < .01f || gain > 1024 || !std::isfinite(fade) || fade < 0 || fade > 1)
+                throw std::runtime_error("Invalid math timing gain/fade");
+            CompactGhostTiming(f, argv[2], true, false, true, true, true, gain, fade);
+            CompactGhostTiming(f, argv[2], true, true, true, true, true, gain, fade);
+            return 0;
+        }
         if (argc == 3 && std::string(argv[1]) == "--compact-fast-timing")
         {
             CompactGhostTiming(f, argv[2], true, false, true, true);

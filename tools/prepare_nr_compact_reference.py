@@ -30,6 +30,9 @@ def extract(commit,dest,stems):
 
 
 def main():
+    extract('a13e22743e6d7e6324aacc581c64edcc403b4258',ROOT/'artifacts/ghost-study/compact-math-baseline',
+            ('private_carrier_compact_fast','private_carrier_compact_fast_answer',
+             'private_ghost_compact_wave','private_ghost_compact_2'))
     extract(COMMIT,DEST,STEMS)
     extract('ac9540b3e09f88369fa7c5a7ab5c97e3b6984491',ROOT/'artifacts/ghost-study/fast-blend-baseline',
             ('private_carrier_compact_simple','private_carrier_compact_simple_answer',

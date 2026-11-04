@@ -27,6 +27,7 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/private_carrier_compact_simple_answer_Shader.h"
 #include "precompile/private_carrier_compact_fast_Shader.h"
 #include "precompile/private_carrier_compact_fast_answer_Shader.h"
+#include "precompile/private_carrier_compact_fast_fade_Shader.h"
 #include "precompile/private_ghost_compact_1_Shader.h"
 #include "precompile/private_ghost_compact_wave_Shader.h"
 #include "precompile/private_ghost_compact_2_Shader.h"
@@ -161,6 +162,8 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
             pipeline =
                 InConstants.DirectDetailMode != 0u
                     ? get(28u, private_carrier_compact_fast_answer_cso, sizeof(private_carrier_compact_fast_answer_cso))
+                : DlssNr::Superior::Fields::PositiveUnfilteredEditWeight(InConstants)
+                    ? get(30u, private_carrier_compact_fast_fade_cso, sizeof(private_carrier_compact_fast_fade_cso))
                     : get(27u, private_carrier_compact_fast_cso, sizeof(private_carrier_compact_fast_cso));
         else
             pipeline = InConstants.DirectDetailMode != 0u

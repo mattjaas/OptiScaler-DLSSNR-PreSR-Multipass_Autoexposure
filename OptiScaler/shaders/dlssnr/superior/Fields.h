@@ -41,6 +41,12 @@ inline void SetUnfilteredEditWeight(DlssNrConstants& c, float weight)
 {
     std::memcpy(&c.ExposurePadding, &weight, sizeof(weight));
 }
+inline bool PositiveUnfilteredEditWeight(const DlssNrConstants& c)
+{
+    float weight;
+    std::memcpy(&weight, &c.ExposurePadding, sizeof(weight));
+    return std::isfinite(weight) && weight > 0.f;
+}
 static_assert(offsetof(DlssNrConstants, ExposurePadding) == 172);
 
 // Decode only: select the rejection PSO. Former transport slots 0..3 remain reserved.

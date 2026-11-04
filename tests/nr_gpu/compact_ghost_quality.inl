@@ -1,6 +1,7 @@
 // Production shaders, matched captures, complete visibility+decode region, FP16 colour.
 void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = false, bool residual = false,
-                        bool retirement = false, bool fast = false)
+                        bool retirement = false, bool fast = false, bool math = false, float gain = 1.f,
+                        float globalFade = 0.f)
 {
     unsigned w, h, aw, ah, dw, dh, mw, mh;
     auto raw = GuidedPlane(stem + ".raw.dds", 4, 2, w, h), after = GuidedPlane(stem + ".after.dds", 4, 2, aw, ah),
@@ -8,6 +9,10 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
          motion = GuidedPlane(stem + ".motion.dds", 2, 16, mw, mh);
     if (w != aw || w != dw || w != mw || h != ah || h != dh || h != mh)
         throw std::runtime_error("Compact timing dimensions");
+    for (size_t i = 0; i < after.size(); i += 4)
+        for (unsigned ch = 0; ch < 3; ++ch)
+            if (after[i + ch] > 0)
+                after[i + ch] *= gain;
     if (residual)
         for (size_t i = 0; i < after.size(); i += 4)
             for (unsigned ch = 0; ch < 3; ++ch)
@@ -40,24 +45,30 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
     f.r.finish();
     f.uploads.clear();
     std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    const std::string oldDir = fast         ? "artifacts/ghost-study/fast-blend-baseline"
+    const std::string oldDir = math         ? "artifacts/ghost-study/compact-math-baseline"
+                               : fast       ? "artifacts/ghost-study/fast-blend-baseline"
                                : retirement ? "artifacts/ghost-study/carrier-retirement-baseline"
                                             : "artifacts/ghost-study/compact-baseline";
     auto clear = f.r.pipeline(dir, "private_ghost_clear"),
-         baseScatter =
-             f.r.pipeline(revision ? oldDir : dir, revision ? "private_ghost_compact_1" : "private_ghost_scatter"),
+         baseScatter = f.r.pipeline(revision ? oldDir : dir, math       ? "private_ghost_compact_wave"
+                                                             : revision ? "private_ghost_compact_1"
+                                                                        : "private_ghost_scatter"),
          baseAge =
              f.r.pipeline(revision ? oldDir : dir, revision ? "private_ghost_compact_2" : "private_ghost_history"),
-         baseDecode =
-             f.r.pipeline(revision ? oldDir : dir, retirement ? (residual ? "private_carrier_compact_simple"
-                                                                          : "private_carrier_compact_simple_answer")
-                                                   : revision ? "private_carrier_compact_native16"
-                                                              : "private_carrier_temporal_ghost"),
+         baseDecode = f.r.pipeline(
+             revision ? oldDir : dir,
+             retirement
+                 ? (residual ? (math ? "private_carrier_compact_fast" : "private_carrier_compact_simple")
+                             : (math ? "private_carrier_compact_fast_answer" : "private_carrier_compact_simple_answer"))
+             : revision ? "private_carrier_compact_native16"
+                        : "private_carrier_temporal_ghost"),
          scatter = f.r.pipeline(dir, fast ? "private_ghost_compact_wave" : "private_ghost_compact_1"),
          age = f.r.pipeline(dir, "private_ghost_compact_2"),
          decode16 = f.r.pipeline(
-             dir, fast ? (residual ? "private_carrier_compact_fast" : "private_carrier_compact_fast_answer")
-                       : (residual ? "private_carrier_compact_simple" : "private_carrier_compact_simple_answer"));
+             dir,
+             fast ? (residual ? (globalFade > 0 ? "private_carrier_compact_fast_fade" : "private_carrier_compact_fast")
+                              : "private_carrier_compact_fast_answer")
+                  : (residual ? "private_carrier_compact_simple" : "private_carrier_compact_simple_answer"));
     ComPtr<ID3D12QueryHeap> queries;
     D3D12_QUERY_HEAP_DESC desc {};
     desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -128,7 +139,8 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
         dc.Mode = 38;
         dc.Width = w;
         dc.Height = h;
-        DlssNr::Superior::Fields::SetPositiveCarrierGain(dc, 1);
+        DlssNr::Superior::Fields::SetPositiveCarrierGain(dc, gain);
+        DlssNr::Superior::Fields::SetUnfilteredEditWeight(dc, globalFade);
         DlssNr::Superior::Fields::SetCarrierSaturation(dc, 1);
         DlssNr::Superior::Fields::SetCarrierNrAnswer(dc, !residual);
         DlssNr::Superior::Fields::SetCarrierDepthColour(dc, 0, 1, 0, true);
@@ -154,7 +166,9 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
     const auto name = std::filesystem::path(stem).filename().string();
     std::ofstream csv(
         "artifacts/ghost-study/" + name +
-        (fast         ? (residual ? ".compact-fast-edit-timing.csv" : ".compact-fast-answer-timing.csv")
+        (math ? ".compact-math-g" + std::to_string(int(gain)) + "-b" + std::to_string(int(globalFade * 100)) +
+                    (residual ? "-edit-timing.csv" : "-answer-timing.csv")
+         : fast       ? (residual ? ".compact-fast-edit-timing.csv" : ".compact-fast-answer-timing.csv")
          : retirement ? (residual ? ".carrier-retirement-edit-timing.csv" : ".carrier-retirement-answer-timing.csv")
          : revision   ? (residual ? ".compact-revision-edit-timing.csv" : ".compact-revision-timing.csv")
                       : (residual ? ".compact-final-edit-timing.csv" : ".compact-final-timing.csv")));
@@ -221,7 +235,9 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
                     sumSquaredRGB += double(delta) * delta;
                     changedRGB += delta > 0;
                     // Quantization and a small fraction of the actual raw/filtered contrast.
-                    const float filtered = after[i] - (residual ? .5f : 0.f);
+                    float filtered = after[i] - (residual ? .5f : 0.f);
+                    if (filtered > 0)
+                        filtered /= gain;
                     const float bound = .003f * std::abs(raw[i] - filtered) +
                                         .002f * std::max(std::abs(oldOutput[i]), std::abs(newOutput[i])) + 1e-6f;
                     if (delta > bound)
@@ -231,7 +247,9 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
             const double channels = double(oldOutput.size() / 4) * 3;
             const auto qualityPath =
                 "artifacts/ghost-study/" + name +
-                (residual ? ".compact-fast-edit-quality.json" : ".compact-fast-answer-quality.json");
+                (math ? ".compact-math-g" + std::to_string(int(gain)) + "-b" + std::to_string(int(globalFade * 100)) +
+                            (residual ? "-edit-quality.json" : "-answer-quality.json")
+                      : (residual ? ".compact-fast-edit-quality.json" : ".compact-fast-answer-quality.json"));
             std::ofstream quality(qualityPath);
             quality << "{\n  \"pixels\": " << oldOutput.size() / 4 << ",\n  \"max_rgb_error\": " << maxRGB
                     << ",\n  \"mean_rgb_error\": " << sumRGB / channels
@@ -262,7 +280,7 @@ void CompactGhostQuality(Fixture& f, bool fast = false)
         for (bool staleFields : { false, true })
         {
             auto decode = f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile",
-                                       fast ? "private_carrier_compact_fast" : "private_carrier_compact_simple");
+                                       fast ? "private_carrier_compact_fast_fade" : "private_carrier_compact_simple");
             auto answerDecode =
                 f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile",
                              fast ? "private_carrier_compact_fast_answer" : "private_carrier_compact_simple_answer");
@@ -390,7 +408,7 @@ void CompactTransportQuality(Fixture& f, bool fast = false)
         !options.Native16BitShaderOpsSupported)
         return;
     const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    auto simple = f.r.pipeline(dir, fast ? "private_carrier_compact_fast" : "private_carrier_compact_simple"),
+    auto simple = f.r.pipeline(dir, fast ? "private_carrier_compact_fast_fade" : "private_carrier_compact_simple"),
          answerSimple =
              f.r.pipeline(dir, fast ? "private_carrier_compact_fast_answer" : "private_carrier_compact_simple_answer");
     unsigned checks = 0;

@@ -365,3 +365,49 @@ WARP i RTX 4090: dotychczasowe testy transportu/ekspozycji, green overlay i meto
 [Podsumowanie prób](validation/private-ghost-fast-trials.json) opisuje wektorowe sumowanie FP16, dodatkowe mieszanie RGB FP16 oraz wcześniejsze wyjścia i zastępowanie dwóch pierwiastków w historii jednym lub nierównościami kwadratowymi. Nie wykazały dodatkowej przewagi całej ścieżki uzasadniającej włączenie ich do produkcji; FP16 RGB zmieniało więcej kanałów bez wyraźnego zysku. Kod/PSO tych prób nie trafiają do pakietu ani rutynowego benchmarku. Pozostają pełne obliczenia pierwiastków i oba pierścienie kontaktu.
 
 Cały tor NR+NGX+kompozycja nie został zmierzony w grze. Weryfikacja użytkowa: rozgrzane ABBA opcji 4/5 przy tym samym ruchu, GPU, rozdzielczości i ustawieniach, z timestampami etapu oraz całego toru. Ocenić smugi przy butach, poprawne wygładzanie, HDR i zielony podgląd. Nowy wariant jest eksperymentalny; nie ma deklaracji poprawy jakości w grze ani gwarancji całkowicie niewidocznej różnicy.
+
+## Dalsze uproszczenie matematyki: pełna odpowiedź i jednoczesne wygaszanie
+
+Aktualizacja opcji 5, bez nowego przełącznika i bez zmiany domyślnej metody. Dwa mieszania z tym samym surowym editem są zastąpione jednym:
+
+```
+old = lerp(lerp(filteredEdit, rawEdit, rejection), rawEdit, globalRaw)
+rawWeight = globalRaw + rejection * (1 - globalRaw)
+new = lerp(filteredEdit, rawEdit, rawWeight)
+previewWeight = rejection * (1 - globalRaw)
+```
+
+Tożsamość zachodzi w liczbach rzeczywistych; FP32/FMA może zmienić zaokrąglenia. Gdy `rawWeight >= 1`, nie jest pobierany ani dekodowany wynik prywatnego DLSS; pozostaje bieżący surowy edit. Maska jest obliczana przed pobraniem koloru. Kontrole głębi, historia, wiek, footprint i miękka ekspansja nie zmieniają się. Zielony podgląd zachowuje dotychczasową wagę, bez doliczania globalnego wygaszenia jako ghostingu.
+
+Specjalizacja jest wybierana dla **pełnej odpowiedzi NR**, również bez wygaszania, oraz dla **editu z dodatnim globalnym udziałem raw**. Zwykły edit bez globalnego fade zachowuje identyczny bajtowo shader z a13e2274, ponieważ próba z dodatkową gałęzią bywała wolniejsza. Metody 1–4, scatter, timery i cała pozostała historia pozostają bajtowo takie jak wcześniej. Jest jeden dodatkowy lazy PSO dla edit+fade, bez dodatkowych dispatchy, tekstur, resetu NR/DLSS czy nowych kluczy INI. Przejście między istniejącymi PSO nie odtwarza instancji NGX. Generator buduje 75 blobów. Użytkownik wskazał, że zwykle używa maskowania i wygaszania osobno; zysk ich kombinacji **nie jest** zyskiem zwykłego maskowania editu.
+
+### Pomiar porównawczy
+
+Referencja **a13e22743e6d7e6324aacc581c64edcc403b4258**, odtwarzana z Git przez `tools/prepare_nr_compact_reference.py`. Powtórzenie: `private_exposure_quality.exe --compact-math-timing <stem> <gain> <globalRawFade>`. RTX 4090, sześć zapisów 001–006, 2496×1404, kolor FP16, depth R32F i MV RG32F, okno 16, fade timera 3, ekspansja 0.5, podgląd off. Gain 1 i 6; globalny raw 0 i 0.35. Zapisany signed wynik jest przekształcany jednolitym dodatnim gain do domeny transportu (tryb edit dodaje 0.5); to syntetyczne wejście kosztu GPU, bez ponownego wykonania NGX. Dla pełnej odpowiedzi proxy jest zerowe. Guides są powtarzane, nie są sekwencją gry.
+
+Po 16 parach rozgrzewki: 64 ABBA, 128 próbek/wariant. Timestampy obejmują cały etap clear/scatter/historia/decode/bariery; upload, alokacje i odczyt CPU są poza oknem. [Pełne podsumowanie z SD, różnicami ABBA i błędem](validation/private-ghost-math-summary.json), surowe CSV `validation/private-ghost-math-g1-b0-001-edit.csv` itd.
+
+| Gain | Global raw | Wejście | Zakres zmiany czasu etapu na sześciu zapisach |
+|---|---:|---|---:|
+| 1 | 0 | edit | -0.54% do +0.20% oszczędności |
+| 1 | 0 | answer | -0.61% do +3.97% oszczędności |
+| 1 | 0.35 | edit | +0.56% do +2.64% oszczędności |
+| 1 | 0.35 | answer | +3.20% do +5.99% oszczędności |
+| 6 | 0 | edit | -0.64% do +0.65% oszczędności |
+| 6 | 0 | answer | -0.10% do +4.81% oszczędności |
+| 6 | 0.35 | edit | +1.73% do +3.45% oszczędności |
+| 6 | 0.35 | answer | +3.28% do +5.46% oszczędności |
+
+Drobne ujemne wyniki i wyniki kontroli ze **tym samym blobem po obu stronach** pokazują rozrzut pomiaru. Nie ma deklaracji przyspieszenia każdego zapisu. Historia i waga maski pozostały bitowo identyczne w 48 porównaniach; bez globalnego fade także RGB było identyczne. Z fade 0.35 maksymalna różnica RGB wyniosła 0.0000610352. To wyniki na dostarczonych danych i FP16 wyjściu, nie gwarancja niewidoczności w każdej grze/HDR.
+
+Testy WARP i RTX 4090 zachowują niezależne referencje masek, HDR, niepoprawnych danych, gain 0.01–1024 i nietypowych siatek. Stress test zawiera teraz globalny udział raw 0, 0.35, 1, NaN, Inf i wartość ujemną; sprawdza też właściwą specjalizację PSO. Test CPU chroni wybór dla skończonego dodatniego fade. Test profili jest wykonywany z aktualnym Config.cpp. Pełny pomiar NR+NGX+kompozycji w grze nie był wykonywany: wymaga rozgrzanego ABBA tej samej sceny, opcji i obu DLL oraz timestampów całego toru.
+
+### Próby celowo zmieniające maskę
+
+[Odrzucone próby i statystyki maski](validation/private-ghost-math-rejected.json) obejmują skrócone wzory gain, wspólną normalizację fade, wagi całkowite, przybliżone normy MV, przedziały głębi, 1/2 tapów, jeden pierścień oraz siatki 3/4 piksele. Samo zmniejszenie liczby działań często nie przyspieszało całego etapu. Nie dołączono niezmierzonych wariantów do rutynowego benchmarku.
+
+Siatka co 4 piksele dawała w początkowych próbach około 20–28% oszczędności etapu, ale zmieniała 11.1%/13.7% pikseli maski w 001/004; ponad połowa skali wagi zmieniała się dla 6.5%/10.7% całego obrazu. Prawie pełne maskowanie (>0.9) stawało się prawie zerowe (<0.1) dla 1.6%/4.7% pikseli. To **nie jest** wyłącznie rozszerzenie lub prawie niewidoczna zmiana. Krok 3 też usuwał część maskowania (2.6%/5.2% pikseli z >0.9 do <0.1). Nie dodano tych wariantów do DLL.
+
+Na życzenie użytkownika zbadano także zmianę wyłącznie wzmacniającą maskę, z miękką krawędzią. Przy zgodności wszystkich czterech głębi uproszczona górna obwiednia wynosi `max_i(age_i * max(4*bilinearWeight_i, minTent_i))`; przy braku zgodności wszystkich bierze maksimum z dopuszczonych głębi. Matematycznie dominuje dotychczasową średnią i ekspansję; nie ma normalizacji przez sumę wag. W 001/004 zwiększała maskę na 4.1%/2.7% pikseli, nigdzie jej nie zmniejszając, oraz zachowywała ułamkowe wagi na brzegu. Zarówno wariant FP32, całkowite wagi parzystej siatki, jak i prostszy bitowy test głębi nie wykazały mierzalnego przyspieszenia względem opcji 5. Samo maksimum czterech wieków też nie dawało przewagi zwykłego editu i usztywniało brzeg. Tych prób nie przedstawiamy jako szybszych metod i nie dodajemy ich do UI. Aktualna miękka krawędź pozostaje.
+
+Wszystkie statystyki jakości powstały w odtwarzaniu zapisanych guides, bez NGX i prawdziwej sekwencji ruchu. Różnica wagi maski nie jest procentowym błędem finalnego obrazu. Zachowane 1–5 wymagają oceny smug i poprawnej stabilizacji w grze; nie ma potwierdzenia, że eksperymenty byłyby niewidoczne gołym okiem.

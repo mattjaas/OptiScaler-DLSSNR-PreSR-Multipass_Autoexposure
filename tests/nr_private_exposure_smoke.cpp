@@ -42,6 +42,12 @@ int main()
     DlssNr::Superior::Fields::SetGhostVisibility(fastGhost, 9, 5, 17, 9, ghost, true, false, 0);
     assert(!DlssNr::Superior::Fields::FastCompactScatter(fastGhost));
 
+    for (float value : { 0.f, -1.f, NAN, INFINITY, .35f, 1.f, 2.f })
+    {
+        DlssNr::Superior::Fields::SetUnfilteredEditWeight(fastGhost, value);
+        assert(DlssNr::Superior::Fields::PositiveUnfilteredEditWeight(fastGhost) ==
+               (std::isfinite(value) && value > 0));
+    }
     namespace DT = DlssNr::DepthTransport;
     DT::Settings ds;
     assert(DT::Flags(ds) == 0 && DT::Weight(.5f, false, ds) == 0);

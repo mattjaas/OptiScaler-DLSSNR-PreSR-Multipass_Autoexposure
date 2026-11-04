@@ -3,7 +3,8 @@ void CompactFastStressQuality(Fixture& f)
 {
     const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
     auto editPs = f.r.pipeline(dir, "private_carrier_compact_fast"),
-         answerPs = f.r.pipeline(dir, "private_carrier_compact_fast_answer");
+         answerPs = f.r.pipeline(dir, "private_carrier_compact_fast_answer"),
+         fadePs = f.r.pipeline(dir, "private_carrier_compact_fast_fade");
     unsigned cases = 0;
     for (auto size : { std::pair<UINT, UINT> { 1, 1 }, { 2, 2 }, { 3, 5 }, { 17, 9 }, { 1281, 7 } })
         for (unsigned seed = 0; seed < 24; ++seed)
@@ -14,6 +15,10 @@ void CompactFastStressQuality(Fixture& f)
             const float gain = gains[seed % 5], strength = seed % 3 == 0 ? .7f : 1.f;
             const unsigned fade = seed % 3 == 0 ? 0 : seed % 3 == 1 ? 3 : 120;
             const float expansion = float(seed % 3) * .5f;
+            const float rawFades[] = { 0.f, .35f, 1.f, NAN, INFINITY, -.4f };
+            const float globalRequested = rawFades[(seed / 2) % 6];
+            const float globalRaw = std::isfinite(globalRequested) ? std::clamp(globalRequested, 0.f, 1.f) : 0.f;
+
             const float precision = seed % 3 == 0 ? 0 : seed % 3 == 1 ? 1.f / 65535.f : 1.f / 16777215.f;
             std::vector<float> proxy(w * h * 4), answer(proxy), encoded(proxy), depth(w * h * 4), state(mw * mh * 4, 0);
             std::vector<float> zs(mw * mh);
@@ -83,8 +88,9 @@ void CompactFastStressQuality(Fixture& f)
             settings.softExpansion = expansion;
             DlssNr::Superior::Fields::SetCarrierGhostRejection(c, settings);
             DlssNr::Superior::Fields::SetGhostDepthPrecision(c, precision);
-            f.dispatch(full ? answerPs.Get() : editPs.Get(), c, e.Get(), p.Get(), out.Get(), (w + 7) / 8, (h + 7) / 8,
-                       d.Get(), p.Get(), a.Get(), s.Get());
+            DlssNr::Superior::Fields::SetUnfilteredEditWeight(c, globalRequested);
+            f.dispatch(full ? answerPs.Get() : (globalRaw > 0 ? fadePs.Get() : editPs.Get()), c, e.Get(), p.Get(),
+                       out.Get(), (w + 7) / 8, (h + 7) / 8, d.Get(), p.Get(), a.Get(), s.Get());
             auto got = f.read(out.Get());
             for (unsigned y = 0; y < h; ++y)
                 for (unsigned x = 0; x < w; ++x)
@@ -118,7 +124,7 @@ void CompactFastStressQuality(Fixture& f)
                         const double base = sum / weights, age = std::max(base, base + (broadened - base) * expansion);
                         mask = strength * (fade ? std::min(1., age / fade) : 1.);
                     }
-                    if (!std::isfinite(got[i + 3]) || std::abs(got[i + 3] - mask) > 3e-6)
+                    if (!std::isfinite(got[i + 3]) || std::abs(got[i + 3] - mask * (1 - globalRaw)) > 3e-6)
                         throw std::runtime_error("Fast compact mixed-depth mask reference");
                     for (unsigned ch = 0; ch < 3; ++ch)
                     {
@@ -127,7 +133,8 @@ void CompactFastStressQuality(Fixture& f)
                         const float delta = value - base;
                         const double filtered = std::min(delta, 0.f) + double(std::max(delta, 0.f)) / gain;
                         const float raw = std::isfinite(answer[i + ch]) ? answer[i + ch] - proxy[i + ch] : 0;
-                        const double expected = filtered * (1 - mask) + raw * mask;
+                        const double rejected = filtered * (1 - mask) + raw * mask;
+                        const double expected = rejected * (1 - globalRaw) + raw * globalRaw;
                         const double bound = 1e-5 + 3e-6 * std::max(std::abs(filtered), double(std::abs(raw)));
                         if (!std::isfinite(got[i + ch]) || std::abs(got[i + ch] - expected) > bound)
                             throw std::runtime_error("Fast compact HDR/mixed-depth RGB reference");
@@ -136,7 +143,7 @@ void CompactFastStressQuality(Fixture& f)
             ++cases;
         }
     std::cout << "Fast compact stress PASS: " << cases
-              << " independent mixed-depth/NaN/Inf/D16/D24/HDR/odd-grid/gain cases\n";
+              << " independent mixed-depth/NaN/Inf/D16/D24/HDR/odd-grid/gain/global-fade cases\n";
 }
 
 // Independent scalar splat plus the retained method-4 PSO. Adversarial nonuniform

@@ -28,6 +28,9 @@
 #include "TemporalGhostDecode.hlsli"
 #endif
 #endif
+#ifdef DLSSNR_COMPACT_FUSED_DECODE
+#include "CompactCarrierMath.hlsli"
+#endif
 
 [numthreads(8, 8, 1)]
 void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
@@ -35,6 +38,9 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
     if (id.x >= gWidth || id.y >= gHeight) return;
     const int3 p = int3(id.xy, 0);
     const float gain = PositiveCarrierGain(gWhitePoint);
+#ifdef DLSSNR_COMPACT_FUSED_DECODE
+    CompactCarrierMath(int2(id.xy), gain);
+#else
     if (gMode == 43u)
     {
         const float3 proxy = SanitizeFinite3(gSource.Load(p).rgb, 0.0);
@@ -104,4 +110,5 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
         gTarget[id.xy] = float4(edit, 1.0);
 #endif
     }
+#endif
 }
