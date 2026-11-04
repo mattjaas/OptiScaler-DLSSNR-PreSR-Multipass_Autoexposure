@@ -1,10 +1,19 @@
 // Preserve the frozen v59 source and its independent reference blobs.
+#ifdef DLSSNR_COMPACT_GHOST
+#define gAux2 gUnusedFloatAux2
+#endif
 #include "precompile/dlssnr.hlsl"
+#ifdef DLSSNR_COMPACT_GHOST
+#undef gAux2
+#endif
 #include "PositiveCarrier.hlsli"
 #include "DepthCarrier.hlsli"
 #include "DepthBrightness.hlsli"
 #ifdef DLSSNR_GHOST_REJECTION
 #include "GhostRejection.hlsli"
+#ifdef DLSSNR_COMPACT_GHOST
+#include "CompactGhostDecode.hlsli"
+#endif
 #ifdef DLSSNR_GUIDED_GHOST
 #include "GuidedGhostRejection.hlsli"
 #endif
@@ -69,7 +78,9 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
         }
 #ifdef DLSSNR_GHOST_REJECTION
         float rejectionMask;
-#ifdef DLSSNR_TEMPORAL_GHOST
+#ifdef DLSSNR_COMPACT_GHOST
+        edit = RejectCompactGhost(edit, int2(id.xy), rejectionMask);
+#elif defined(DLSSNR_TEMPORAL_GHOST)
         edit = RejectTemporalGhost(edit, int2(id.xy), rejectionMask);
 #elif defined(DLSSNR_GUIDED_GHOST)
         edit = RejectGuidedGhost(edit, int2(id.xy), rejectionMask);

@@ -1,0 +1,65 @@
+{
+  "note": "Input quantization only; not temporal mask quality or ghost rejection accuracy.",
+  "samples": [
+    {
+      "sample": "nr-edit-001",
+      "valid_motion_samples": 3504384,
+      "mv_absolute_error_work_pixels_quantiles": [
+        0.00234222412109375,
+        0.014507293701171875,
+        0.03125
+      ],
+      "depth_relative_error_max": 1.5138888556975871e-05
+    },
+    {
+      "sample": "nr-edit-002",
+      "valid_motion_samples": 3504384,
+      "mv_absolute_error_work_pixels_quantiles": [
+        0.0023431777954101562,
+        0.0234375,
+        0.03125
+      ],
+      "depth_relative_error_max": 1.5139350580284372e-05
+    },
+    {
+      "sample": "nr-edit-003",
+      "valid_motion_samples": 3504384,
+      "mv_absolute_error_work_pixels_quantiles": [
+        0.0023441314697265625,
+        0.0187530517578125,
+        0.03125
+      ],
+      "depth_relative_error_max": 1.5139119568630122e-05
+    },
+    {
+      "sample": "nr-edit-004",
+      "valid_motion_samples": 3504384,
+      "mv_absolute_error_work_pixels_quantiles": [
+        0.0023441314697265625,
+        0.0203094482421875,
+        0.03125
+      ],
+      "depth_relative_error_max": 1.5139350580284372e-05
+    },
+    {
+      "sample": "nr-edit-005",
+      "valid_motion_samples": 3504384,
+      "mv_absolute_error_work_pixels_quantiles": [
+        0.0003418922424316406,
+        0.0072917938232421875,
+        0.015625
+      ],
+      "depth_relative_error_max": 1.5139119568630122e-05
+    },
+    {
+      "sample": "nr-edit-006",
+      "valid_motion_samples": 3504384,
+      "mv_absolute_error_work_pixels_quantiles": [
+        0.0007810592651367188,
+        0.015621185302734375,
+        0.03125
+      ],
+      "depth_relative_error_max": 1.5139350580284372e-05
+    }
+  ]
+}

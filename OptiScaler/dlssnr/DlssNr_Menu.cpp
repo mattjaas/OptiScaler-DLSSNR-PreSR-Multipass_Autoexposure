@@ -4250,7 +4250,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             ImGui::BeginDisabled(!ghost.enabled);
             static const char* ghostMethods[] = { "Local range 3x3 (legacy)",
                                                   "Depth + motion + coherent foreground match",
-                                                  "Recent disocclusion window (temporal MV)" };
+                                                  "Recent disocclusion window (temporal MV)",
+                                                  "Recent disocclusion window (optimized mixed precision)" };
             int ghostMethod = int(ghost.method);
             if (ImGui::Combo("Ghost rejection method", &ghostMethod, ghostMethods, IM_ARRAYSIZE(ghostMethods)))
             {
@@ -4272,7 +4273,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "or reset history. Only shown while private DLSS is evaluated; normal image debug views "
                        "take precedence.");
             ImGui::EndDisabled();
-            ImGui::BeginDisabled(ghost.method == 2);
+            ImGui::BeginDisabled(ghost.method >= 2);
             if (ImGui::SliderFloat("Ghost rejection threshold", &ghost.threshold, 0.f, .25f, "%.4f"))
             {
                 if (ghost.method == 1)
@@ -4311,7 +4312,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                            "One-sided: the current nearer object is protected from farther background candidates. NDC, "
                            "not metres.");
             }
-            if (ghost.method == 2)
+            if (ghost.method >= 2)
             {
                 int frames = int(ghost.historyFrames), fade = int(ghost.historyFade);
                 if (ImGui::SliderInt("Disocclusion masking window (frames)", &frames, 1, 120))
@@ -4329,6 +4330,16 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                            "Previous motion-layer boundaries also handle close-depth contacts such as feet. "
                            "Missing/invalid guides cannot prove visibility. Projection matrices are unavailable; "
                            "this remains an experimental visibility estimate.");
+            }
+            if (ghost.method == 3)
+            {
+                if (ImGui::SliderFloat("Disocclusion soft mask expansion", &ghost.softExpansion, 0.f, 1.f, "%.2f"))
+                    config->DlssNrSuperiorGhostSoftExpansion = ghost.softExpansion;
+                HelpMarker(
+                    "Slightly broadens and softens the existing half-resolution mask fringe without another pass. "
+                    "0 keeps bilinear interpolation; 1 uses the broadest tent inside the same four depth-checked taps. "
+                    "Default 0.5. Compact MV history and mask weights use FP16. Reprojection coordinates and "
+                    "depth comparisons remain FP32. Does not reset NR or DLSS history.");
             }
             if (ghost.method != 0)
             {

@@ -1,0 +1,31 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "width": 2496,
+  "height": 1404,
+  "colour_format": "FP16",
+  "motion_format": "RG32F",
+  "depth_format": "R32F",
+  "warmup_pairs": 16,
+  "abba_blocks": 16,
+  "samples_per_variant": 32,
+  "measurements": [
+    {
+      "sample": "001",
+      "baseline_ms": 0.124704,
+      "optimized_ms": 0.104096,
+      "baseline_std_ms": 0.0014881137660290495,
+      "optimized_std_ms": 0.0020415381930173095,
+      "delta_ms": -0.020608,
+      "percent_less": 16.525532460867332
+    },
+    {
+      "sample": "004",
+      "baseline_ms": 0.13472,
+      "optimized_ms": 0.112192,
+      "baseline_std_ms": 0.0020797538315868074,
+      "optimized_std_ms": 0.001762859846587266,
+      "delta_ms": -0.022528000000000006,
+      "percent_less": 16.722090261282663
+    }
+  ]
+}

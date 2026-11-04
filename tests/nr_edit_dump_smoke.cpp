@@ -193,6 +193,7 @@ int main(int argc, char** argv)
     assert(motion.find("\"ghost_rejection_method\": 2") != std::string::npos);
     assert(motion.find("\"ghost_disocclusion_window_frames\": 23") != std::string::npos);
     assert(motion.find("\"ghost_disocclusion_return_frames\": 4") != std::string::npos);
+    assert(motion.find("\"ghost_disocclusion_soft_expansion\": 0.5") != std::string::npos);
     assert(motion.find("\"active_private_preset\": 5")!=std::string::npos);
     assert(motion.find("\"resident_private_instances\": 2")!=std::string::npos);
     assert(motion.find("\"camera_motion_required_sample_percent\": 75")!=std::string::npos);

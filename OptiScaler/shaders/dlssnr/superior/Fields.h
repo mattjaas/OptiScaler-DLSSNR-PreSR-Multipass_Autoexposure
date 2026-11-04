@@ -58,10 +58,15 @@ inline void SetCarrierGhostRejection(DlssNrConstants& c, DlssNr::GhostRejection:
     c.ExposureAnchors[8] = float(s.historyFrames);
     c.ExposureAnchors[9] = float(s.historyFade);
     c.ExposureAnchors[10] = s.historyDepth;
+    c.ExposureAnchors[11] = s.softExpansion;
 }
 inline bool CarrierGhostRejection(const DlssNrConstants& c) { return c.Mode == 38u && c.GuideWidth == 1u; }
 inline bool GuidedGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 1u; }
-inline bool TemporalGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 2u; }
+inline bool TemporalGhostRejection(const DlssNrConstants& c)
+{
+    return CarrierGhostRejection(c) && (c.GuideHeight == 2u || c.GuideHeight == 3u);
+}
+inline bool CompactGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 3u; }
 inline void SetGhostDepthPrecision(DlssNrConstants& c, float precision)
 {
     c.ExposureAnchors[7] =

@@ -200,6 +200,7 @@ inline std::string MetadataJson(const Metadata& m)
     value("ghost_disocclusion_window_frames", m.ghostRejection.historyFrames);
     value("ghost_disocclusion_return_frames", m.ghostRejection.historyFade);
     value("ghost_disocclusion_depth_threshold", m.ghostRejection.historyDepth);
+    value("ghost_disocclusion_soft_expansion", m.ghostRejection.softExpansion);
     value("resident_cnn_e_enabled", m.residentCnnEnabled);
     value("active_private_preset", m.activePrivatePreset);
     value("resident_private_instances", m.residentPrivateInstances);

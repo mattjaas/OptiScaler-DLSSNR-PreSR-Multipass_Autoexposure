@@ -5,6 +5,7 @@
 #include "packed_fixture.h"
 #include "../../OptiScaler/dlssnr/DlssNr_PrivateExposure.h"
 #include <cmath>
+#include <DirectXPackedVector.h>
 #include <limits>
 #include "../../OptiScaler/dlssnr/DlssNr_EditDump.h"
 
@@ -53,7 +54,7 @@ struct Fixture
     ComPtr<ID3D12Resource> timingReadback;
     UINT64 timingFrequency = 0;
     std::vector<ComPtr<ID3D12Resource>> uploads;
-    Fixture(bool hardware) : r(hardware, 32)
+    Fixture(bool hardware) : r(hardware, 40)
     {
         const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
         meter = r.pipeline(dir, "private_exposure");
@@ -75,11 +76,21 @@ struct Fixture
             r.device->GetCopyableFootprints(&d, 0, 1, 0, &fp, nullptr, nullptr, &bytes);
             auto b = r.buffer(bytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
             char* p; check(b->Map(0, nullptr, reinterpret_cast<void**>(&p)));
-            const UINT channels = format == DXGI_FORMAT_R32G32_FLOAT ? 2u : format == DXGI_FORMAT_R32_FLOAT ? 1u : 4u;
+            const UINT channels = (format == DXGI_FORMAT_R32G32_FLOAT || format == DXGI_FORMAT_R32G32_UINT) ? 2u
+                                  : format == DXGI_FORMAT_R32_FLOAT                                         ? 1u
+                                                                                                            : 4u;
             for (UINT y = 0; y < h; ++y)
                 for (UINT x = 0; x < w; ++x)
-                    std::memcpy(p + fp.Footprint.RowPitch * y + x * channels * 4,
-                                values->data() + (size_t(y) * w + x) * 4, channels * 4);
+                    if (format == DXGI_FORMAT_R16G16B16A16_FLOAT)
+                    {
+                        auto* half = reinterpret_cast<uint16_t*>(p + fp.Footprint.RowPitch * y + x * 8);
+                        for (unsigned ch = 0; ch < 4; ++ch)
+                            half[ch] =
+                                DirectX::PackedVector::XMConvertFloatToHalf((*values)[(size_t(y) * w + x) * 4 + ch]);
+                    }
+                    else
+                        std::memcpy(p + fp.Footprint.RowPitch * y + x * channels * 4,
+                                    values->data() + (size_t(y) * w + x) * 4, channels * 4);
             b->Unmap(0, nullptr);
             D3D12_TEXTURE_COPY_LOCATION a {}, z {};
             a.pResource = b.Get(); a.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT; a.PlacedFootprint = fp;
@@ -94,7 +105,7 @@ struct Fixture
                   ID3D12Resource* model, ID3D12Resource* target, UINT gx, UINT gy, ID3D12Resource* depth = nullptr,
                   ID3D12Resource* rawProxy = nullptr, ID3D12Resource* rawAnswer = nullptr,
                   ID3D12Resource* guideMotion = nullptr, double* gpuMs = nullptr, UINT tableSlot = 0,
-                  bool submit = true)
+                  bool submit = true, ID3D12Resource* keep = nullptr)
     {
         auto cpu = r.heap->GetCPUDescriptorHandleForHeapStart();
         cpu.ptr += SIZE_T(tableSlot) * 8 * r.stride;
@@ -116,7 +127,11 @@ struct Fixture
         D3D12_UNORDERED_ACCESS_VIEW_DESC u {};
         u.Format = target->GetDesc().Format; u.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
         for (UINT i = 6; i < 8; ++i)
-            r.device->CreateUnorderedAccessView(target, nullptr, &u, { cpu.ptr + SIZE_T(i) * r.stride });
+        {
+            auto* write = i == 7 && keep ? keep : target;
+            u.Format = write->GetDesc().Format;
+            r.device->CreateUnorderedAccessView(write, nullptr, &u, { cpu.ptr + SIZE_T(i) * r.stride });
+        }
         auto b = r.buffer(256, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
         void* p; check(b->Map(0, nullptr, &p)); std::memcpy(p, &c, 256); b->Unmap(0, nullptr);
         r.list->SetComputeRootSignature(r.root.Get());
@@ -173,7 +188,9 @@ struct Fixture
         r.list->CopyTextureRegion(&z, 0, 0, 0, &a, nullptr); r.finish(); uploads.clear();
         char* p; check(b->Map(0, nullptr, reinterpret_cast<void**>(&p)));
         std::vector<float> out(size_t(d.Width) * d.Height * 4);
-        const UINT channels = d.Format == DXGI_FORMAT_R32G32_FLOAT ? 2u : d.Format == DXGI_FORMAT_R32_FLOAT ? 1u : 4u;
+        const UINT channels = (d.Format == DXGI_FORMAT_R32G32_FLOAT || d.Format == DXGI_FORMAT_R32G32_UINT) ? 2u
+                              : d.Format == DXGI_FORMAT_R32_FLOAT                                           ? 1u
+                                                                                                            : 4u;
         const bool half = d.Format == DXGI_FORMAT_R16G16B16A16_FLOAT;
         for (UINT y = 0; y < d.Height; ++y)
             for (UINT x = 0; x < d.Width; ++x)
@@ -361,12 +378,18 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "private_ghost_quality.inl"
 #include "guided_ghost_quality.inl"
 #include "temporal_ghost_quality.inl"
+#include "compact_ghost_quality.inl"
 
 int main(int argc, char** argv)
 {
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc == 3 && std::string(argv[1]) == "--compact-ghost-timing")
+        {
+            CompactGhostTiming(f, argv[2]);
+            return 0;
+        }
         if (argc == 3 && std::string(argv[1]) == "--temporal-ghost-timing")
         {
             TemporalGhostTiming(f, argv[2]);
@@ -432,6 +455,7 @@ int main(int argc, char** argv)
         GhostQuality(f);
         GuidedGhostQuality(f);
         TemporalGhostQuality(f);
+        CompactGhostQuality(f);
         GhostMaskQuality(f);
         unsigned checks = 0;
         for (bool full : { false, true })

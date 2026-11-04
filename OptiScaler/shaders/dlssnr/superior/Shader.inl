@@ -23,6 +23,9 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/private_carrier_ghost_Shader.h"
 #include "precompile/private_carrier_guided_ghost_Shader.h"
 #include "precompile/private_carrier_temporal_ghost_Shader.h"
+#include "precompile/private_carrier_compact_native16_Shader.h"
+#include "precompile/private_ghost_compact_1_Shader.h"
+#include "precompile/private_ghost_compact_2_Shader.h"
 #include "precompile/private_ghost_clear_Shader.h"
 #include "precompile/private_ghost_scatter_Shader.h"
 #include "precompile/private_ghost_history_Shader.h"
@@ -140,12 +143,25 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
         }
         return _superiorPipeline[index];
     };
-    if (ghostRejection)
+    if (ghostRejection && !DlssNr::Superior::Fields::CompactGhostRejection(InConstants))
         pipeline = DlssNr::Superior::Fields::TemporalGhostRejection(InConstants)
                        ? get(22u, private_carrier_temporal_ghost_cso, sizeof(private_carrier_temporal_ghost_cso))
                    : DlssNr::Superior::Fields::GuidedGhostRejection(InConstants)
                        ? get(18u, private_carrier_guided_ghost_cso, sizeof(private_carrier_guided_ghost_cso))
                        : get(17u, private_carrier_ghost_cso, sizeof(private_carrier_ghost_cso));
+    if (DlssNr::Superior::Fields::CompactGhostRejection(InConstants))
+    {
+        pipeline = get(25u, private_carrier_compact_native16_cso, sizeof(private_carrier_compact_native16_cso));
+        if (!pipeline)
+            return false;
+    }
+    if (InConstants.Mode == 47u || InConstants.Mode == 48u)
+    {
+        pipeline = InConstants.Mode == 47u ? get(23u, private_ghost_compact_1_cso, sizeof(private_ghost_compact_1_cso))
+                                           : get(24u, private_ghost_compact_2_cso, sizeof(private_ghost_compact_2_cso));
+        if (!pipeline)
+            return false;
+    }
     if (InConstants.Mode >= 44u && InConstants.Mode <= 46u)
     {
         const void* blobs[] = { private_ghost_clear_cso, private_ghost_scatter_cso, private_ghost_history_cso };

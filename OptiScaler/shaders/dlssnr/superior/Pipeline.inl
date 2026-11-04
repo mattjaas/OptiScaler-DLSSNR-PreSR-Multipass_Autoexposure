@@ -62,7 +62,7 @@ struct ResidentCnn
 struct GhostHistory
 {
     Texture state[2], reconstructed;
-    unsigned index = 0;
+    unsigned index = 0, method = 2;
     bool initialized = false, submitted = false;
     uint64_t epoch = 0;
     const void* commands = nullptr;
@@ -1130,20 +1130,24 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
 {
     auto& h = g.ghostHistory;
     const auto identity = Util::RealObjectIdentity(cmd);
-    if (h.initialized && !reset && h.epoch == frame.SubmissionEpoch && (h.commands == identity || h.submitted))
+    if (h.initialized && h.method == settings.method && !reset && h.epoch == frame.SubmissionEpoch &&
+        (h.commands == identity || h.submitted))
         return &h.state[h.index];
     const unsigned w = (g.workWidth + 1) / 2, ht = (g.workHeight + 1) / 2;
-    bool previous = h.initialized && h.submitted && !reset;
+    const bool compact = settings.method == 3;
+    const auto format = compact ? DXGI_FORMAT_R32G32_UINT : DXGI_FORMAT_R32G32B32A32_FLOAT;
+    bool previous = h.initialized && h.method == settings.method && h.submitted && !reset;
     if (h.state[0].resource && (h.state[0].Get()->GetDesc().Width != w || h.state[0].Get()->GetDesc().Height != ht))
         previous = false;
     if (!depth || !motion || !Ensure(h.reconstructed, g.device.Get(), DXGI_FORMAT_R32_UINT, w, ht) ||
-        !Ensure(h.state[0], g.device.Get(), DXGI_FORMAT_R32G32B32A32_FLOAT, w, ht) ||
-        !Ensure(h.state[1], g.device.Get(), DXGI_FORMAT_R32G32B32A32_FLOAT, w, ht))
+        !Ensure(h.state[0], g.device.Get(), format, w, ht) || !Ensure(h.state[1], g.device.Get(), format, w, ht))
     {
         h.initialized = false;
         return nullptr;
     }
-    auto* old = previous ? h.state[h.index].Get() : depth;
+    if (compact && !previous)
+        h.state[1].To(cmd, Srv);
+    auto* old = previous ? h.state[h.index].Get() : compact ? h.state[1].Get() : depth;
     const unsigned next = previous ? 1 - h.index : 0;
     Constants c {};
     Fields::SetGhostVisibility(c, w, ht, g.workWidth, g.workHeight, settings, g.inverted, previous, precision);
@@ -1156,14 +1160,27 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
             h.initialized = false;
             return nullptr;
         }
-        c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostScatter;
-        if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed))
+        c.Mode = compact ? DlssNr::Superior::DlssNrMode_PrivateGhostCompactScatter
+                         : DlssNr::Superior::DlssNrMode_PrivateGhostScatter;
+        if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed,
+                      compact ? &h.state[next] : nullptr))
         {
             h.initialized = false;
             return nullptr;
         }
     }
-    c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostHistory;
+    else if (compact)
+    {
+        // The optimized history stage consumes guides cached in its output UAV, including warmup.
+        c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostCompactScatter;
+        if (!Dispatch(shader, cmd, c, depth, motion, old, nullptr, nullptr, nullptr, h.reconstructed, &h.state[next]))
+        {
+            h.initialized = false;
+            return nullptr;
+        }
+    }
+    c.Mode = compact ? DlssNr::Superior::DlssNrMode_PrivateGhostCompactHistory
+                     : DlssNr::Superior::DlssNrMode_PrivateGhostHistory;
     h.reconstructed.To(cmd, Srv);
     if (!Dispatch(shader, cmd, c, depth, motion, old, h.reconstructed.Get(), nullptr, nullptr, h.state[next],
                   &h.state[next]))
@@ -1172,6 +1189,7 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
         return nullptr;
     }
     h.index = next;
+    h.method = settings.method;
     h.epoch = frame.SubmissionEpoch;
     h.commands = identity;
     h.submitted = false;
@@ -1199,7 +1217,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     const bool depthActive = DlssNr::DepthTransport::Flags(depthTransport) != 0;
     const auto ghostSettings = DlssNr::GhostRejection::Read(cfg);
     const bool guidedGhost = ghostSettings.enabled && ghostSettings.strength > 0.f && ghostSettings.method != 0u;
-    const bool temporalGhost = guidedGhost && ghostSettings.method == 2u;
+    const bool temporalGhost = guidedGhost && ghostSettings.method >= 2u;
     g.ghostMaskWritten = false;
     if (!temporalGhost && (g.ghostHistory.state[0].resource || g.ghostHistory.state[1].resource ||
                            g.ghostHistory.reconstructed.resource))

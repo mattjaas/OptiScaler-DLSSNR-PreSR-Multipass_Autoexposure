@@ -38,9 +38,10 @@ function Write-Header([string]$cso, [string]$header, [string]$name) {
 }
 
 # Compile one blob into the scratch directory, then make its header; $asm keeps the disassembly for the LDS checks.
-function Build([string]$source, [string]$entry, [string[]]$defines, [string]$stem, [switch]$asm) {
+function Build([string]$source, [string]$entry, [string[]]$defines, [string]$stem, [switch]$asm, [switch]$Native16) {
     $cso = Join-Path $scratch "${stem}_Shader.cso"
     $dxcArgs = @('-T', 'cs_6_0', '-E', $entry, '-O3', '-Qstrip_debug', '-Qstrip_reflect') + $defines + @((Split-Path $source -Leaf), '-Fo', $cso)
+    if ($Native16) { $dxcArgs[1]='cs_6_2'; $dxcArgs+=@('-HV','2018','-enable-16bit-types') }
     if ($asm) { $dxcArgs += @('-Fc', (Join-Path $scratch "${stem}.asm")) }
     Push-Location (Split-Path $source -Parent)
     try { & $dxc @dxcArgs | Out-Null } finally { Pop-Location }
@@ -111,6 +112,12 @@ try {
     Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @('-D', 'DLSSNR_GHOST_REJECTION=1') 'private_carrier_ghost'
     Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @('-D', 'DLSSNR_GHOST_REJECTION=1', '-D', 'DLSSNR_GUIDED_GHOST=1') 'private_carrier_guided_ghost'
     Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @('-D', 'DLSSNR_GHOST_REJECTION=1', '-D', 'DLSSNR_TEMPORAL_GHOST=1') 'private_carrier_temporal_ghost'
+    Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' @('-D','DLSSNR_GHOST_REJECTION=1','-D','DLSSNR_COMPACT_GHOST=1') 'private_carrier_compact_native16' -Native16 -asm
+    if (-not (Select-String (Join-Path $scratch 'private_carrier_compact_native16.asm') -Pattern 'fmul fast half')) { throw 'Native FP16 mask arithmetic missing' }
+    foreach ($stage in @(1,2)) {
+        Build (Join-Path $shaders 'superior/CompactGhost.hlsl') 'CompactGhostMain' @('-D',"DLSSNR_COMPACT_GHOST_STAGE=$stage") "private_ghost_compact_$stage"
+    }
+
     $ghostStages=@('clear','scatter','history')
     for($stage=0;$stage -lt $ghostStages.Count;++$stage) {
         Build (Join-Path $shaders 'superior/TemporalGhost.hlsl') 'TemporalGhostMain' @('-D',"DLSSNR_TEMPORAL_GHOST_STAGE=$stage") "private_ghost_$($ghostStages[$stage])"

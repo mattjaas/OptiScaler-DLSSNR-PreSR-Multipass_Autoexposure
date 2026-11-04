@@ -16,9 +16,15 @@ int main()
     ghost.historyFrames = 0;
     ghost.historyFade = 999;
     ghost.historyDepth = NAN;
+    ghost.softExpansion = NAN;
     ghost = DlssNr::GhostRejection::Sanitize(ghost);
     assert(ghost.method == 2 && ghost.radius == 192 && ghost.depthRatio == 1.2f && ghost.motionGate == .1f);
     assert(ghost.historyFrames == 1 && ghost.historyFade == 1 && ghost.historyDepth == .05f);
+    assert(ghost.softExpansion == .5f);
+    ghost.method = 3;
+    ghost.softExpansion = 99;
+    ghost = DlssNr::GhostRejection::Sanitize(ghost);
+    assert(ghost.method == 3 && ghost.softExpansion == 1);
     namespace DT = DlssNr::DepthTransport;
     DT::Settings ds;
     assert(DT::Flags(ds) == 0 && DT::Weight(.5f, false, ds) == 0);

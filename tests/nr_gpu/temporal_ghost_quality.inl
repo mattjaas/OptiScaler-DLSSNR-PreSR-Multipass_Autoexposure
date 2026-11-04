@@ -6,18 +6,19 @@ struct TemporalGhostFixture
     ComPtr<ID3D12Resource> reconstructed, history[2];
     unsigned index = 0;
     UINT w = 128, h = 64, mw = 64, mh = 32;
+    bool compact = false;
     bool valid = false, wasRead[2] = { false, false };
-    TemporalGhostFixture(Fixture& fixture, UINT width = 128, UINT height = 64)
-        : f(fixture), w(width), h(height), mw((width + 1) / 2), mh((height + 1) / 2)
+    TemporalGhostFixture(Fixture& fixture, UINT width = 128, UINT height = 64, bool packed = false)
+        : f(fixture), compact(packed), w(width), h(height), mw((width + 1) / 2), mh((height + 1) / 2)
     {
         const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
         clear = f.r.pipeline(dir, "private_ghost_clear");
-        scatter = f.r.pipeline(dir, "private_ghost_scatter");
-        age = f.r.pipeline(dir, "private_ghost_history");
+        scatter = f.r.pipeline(dir, compact ? "private_ghost_compact_1" : "private_ghost_scatter");
+        age = f.r.pipeline(dir, compact ? "private_ghost_compact_2" : "private_ghost_history");
         f.r.begin();
         reconstructed = f.texture(mw, mh, nullptr, DXGI_FORMAT_R32_UINT);
-        history[0] = f.texture(mw, mh);
-        history[1] = f.texture(mw, mh);
+        history[0] = f.texture(mw, mh, nullptr, compact ? DXGI_FORMAT_R32G32_UINT : DXGI_FORMAT_R32G32B32A32_FLOAT);
+        history[1] = f.texture(mw, mh, nullptr, compact ? DXGI_FORMAT_R32G32_UINT : DXGI_FORMAT_R32G32B32A32_FLOAT);
         f.r.finish();
     }
     std::vector<float> Frame(int left, int objectWidth, float nearObject, float bgMv, float objectMv,
@@ -51,7 +52,12 @@ struct TemporalGhostFixture
         c.Passthrough = reversed;
         c.MvScaleX = bits ? 1.f / float((1u << bits) - 1) : 0;
         c.DebugView = valid && !reset;
-        auto* previous = c.DebugView ? history[index].Get() : depth.Get();
+        if (compact && !c.DebugView && !wasRead[1])
+        {
+            f.r.barrier(history[1].Get(), UAV, SRV);
+            wasRead[1] = true;
+        }
+        auto* previous = c.DebugView ? history[index].Get() : compact ? history[1].Get() : depth.Get();
         const unsigned next = c.DebugView ? 1 - index : 0;
         if (wasRead[next])
         {
@@ -64,12 +70,32 @@ struct TemporalGhostFixture
         f.r.barrier(reconstructed.Get(), UAV, SRV);
         f.r.barrier(reconstructed.Get(), SRV, UAV);
         c.Mode = 45;
-        f.dispatch(scatter.Get(), c, depth.Get(), motion.Get(), reconstructed.Get(), (mw + 7) / 8, (mh + 7) / 8);
+        f.dispatch(scatter.Get(), c, depth.Get(), motion.Get(), reconstructed.Get(), (mw + 7) / 8, (mh + 7) / 8,
+                   nullptr, nullptr, nullptr, nullptr, nullptr, 0, true, compact ? history[next].Get() : nullptr);
+        if (compact)
+        {
+            D3D12_RESOURCE_BARRIER b {};
+            b.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+            b.UAV.pResource = history[next].Get();
+            f.r.list->ResourceBarrier(1, &b);
+        }
         f.r.barrier(reconstructed.Get(), UAV, SRV);
         c.Mode = 46;
         f.dispatch(age.Get(), c, depth.Get(), motion.Get(), history[next].Get(), (mw + 7) / 8, (mh + 7) / 8,
                    reconstructed.Get(), previous);
         auto values = f.read(history[next].Get());
+        if (compact)
+            for (size_t i = 0; i < values.size(); i += 4)
+            {
+                uint32_t z, m;
+                std::memcpy(&z, &values[i], 4);
+                std::memcpy(&m, &values[i + 1], 4);
+                uint32_t depthBits = z & 0xffffff80u;
+                std::memcpy(&values[i], &depthBits, 4);
+                values[i + 1] = float(z & 127u);
+                values[i + 2] = TestHalf(m & 65535u);
+                values[i + 3] = TestHalf(m >> 16);
+            }
         f.r.begin();
         f.r.barrier(history[next].Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, SRV);
         f.r.finish();
@@ -85,40 +111,42 @@ struct TemporalGhostFixture
 void TemporalGhostQuality(Fixture& f)
 {
     unsigned checks = 0;
-    for (bool reversed : { false, true })
-    {
-        TemporalGhostFixture t(f);
-        auto first = t.Frame(40, 4, .0102f, 0, -4, false, reversed);
-        for (size_t i = 1; i < first.size(); i += 4)
-            if (first[i] != 0)
-                throw std::runtime_error("First visibility frame must warm up without a mask");
-        auto opened = t.Frame(44, 4, .0102f, 0, -4, false, reversed);
-        if (opened[(12 * t.mw + 20) * 4 + 1] != 4)
-            throw std::runtime_error("Contact-depth MV disocclusion did not start N-frame window");
-        if (opened[(12 * t.mw + 22) * 4 + 1] != 0)
-            throw std::runtime_error("Visible occluding foot must not inherit background mask");
-        for (int step = 1; step <= 4; ++step)
+    for (bool packed : { false, true })
+        for (bool reversed : { false, true })
         {
-            auto tracked = t.Frame(44 - step * 2, 4, .0102f, 2, 2, false, reversed);
-            const int coordinate = 20 - step;
-            const float expected = float(4 - step);
-            if (tracked[(12 * t.mw + coordinate) * 4 + 1] != expected)
-                throw std::runtime_error("Visibility timer must follow background MV and expire exactly, step=" +
-                                         std::to_string(step));
-            ++checks;
+            TemporalGhostFixture t(f, 128, 64, packed);
+            auto first = t.Frame(40, 4, .0102f, 0, -4, false, reversed);
+            for (size_t i = 1; i < first.size(); i += 4)
+                if (first[i] != 0)
+                    throw std::runtime_error("First visibility frame must warm up without a mask");
+            auto opened = t.Frame(44, 4, .0102f, 0, -4, false, reversed);
+            if (opened[(12 * t.mw + 20) * 4 + 1] != 4)
+                throw std::runtime_error("Contact-depth MV disocclusion did not start N-frame window");
+            if (opened[(12 * t.mw + 22) * 4 + 1] != 0)
+                throw std::runtime_error("Visible occluding foot must not inherit background mask");
+            for (int step = 1; step <= 4; ++step)
+            {
+                auto tracked = t.Frame(44 - step * 2, 4, .0102f, 2, 2, false, reversed);
+                const int coordinate = 20 - step;
+                const float expected = float(4 - step);
+                if (tracked[(12 * t.mw + coordinate) * 4 + 1] != expected)
+                    throw std::runtime_error("Visibility timer must follow background MV and expire exactly, step=" +
+                                             std::to_string(step));
+                ++checks;
+            }
+            auto reset = t.Frame(36, 4, .0102f, 0, 0, true, reversed);
+            for (size_t i = 1; i < reset.size(); i += 4)
+                if (reset[i] != 0)
+                    throw std::runtime_error("History reset left old visibility timers");
+            auto bad = t.Frame(36, 4, .0102f, 0, 0, false, reversed, true);
+            for (size_t i = 1; i < bad.size(); i += 4)
+                if (bad[i] != 0)
+                    throw std::runtime_error("Invalid guides created a visibility mask");
+            checks += 5;
         }
-        auto reset = t.Frame(36, 4, .0102f, 0, 0, true, reversed);
-        for (size_t i = 1; i < reset.size(); i += 4)
-            if (reset[i] != 0)
-                throw std::runtime_error("History reset left old visibility timers");
-        auto bad = t.Frame(36, 4, .0102f, 0, 0, false, reversed, true);
-        for (size_t i = 1; i < bad.size(); i += 4)
-            if (bad[i] != 0)
-                throw std::runtime_error("Invalid guides created a visibility mask");
-        checks += 5;
-    }
+    for (bool packed : { false, true })
     {
-        TemporalGhostFixture t(f);
+        TemporalGhostFixture t(f, 128, 64, packed);
         t.Frame(0, 0, .03f, 0, 0);
         auto camera = t.Frame(0, 0, .03f, 12, 12);
         for (size_t i = 1; i < camera.size(); i += 4)
@@ -126,34 +154,37 @@ void TemporalGhostQuality(Fixture& f)
                 throw std::runtime_error("Uniform camera acceleration is not a disocclusion");
         ++checks;
     }
+    for (bool packed : { false, true })
     {
-        TemporalGhostFixture t(f);
+        TemporalGhostFixture t(f, 128, 64, packed);
         t.Frame(40, 12, .03f, 0, 0);
         auto exposed = t.Frame(44, 12, .03f, 0, -4);
         if (exposed[(12 * t.mw + 20) * 4 + 1] != 4)
             throw std::runtime_error("Reconstructed-depth disocclusion missed moving foreground");
         ++checks;
     }
-    for (unsigned bits : { 16u, 24u })
-        for (bool reversed : { false, true })
+    for (bool packed : { false, true })
+        for (unsigned bits : { 16u, 24u })
+            for (bool reversed : { false, true })
+            {
+                TemporalGhostFixture t(f, 128, 64, packed);
+                t.Frame(40, 4, .0102f, 0, -4, false, reversed, false, bits);
+                auto opened = t.Frame(44, 4, .0102f, 0, -4, false, reversed, false, bits);
+                if (opened[(12 * t.mw + 20) * 4 + 1] != 4)
+                    throw std::runtime_error("Quantized depth contact mask failed");
+                ++checks;
+            }
+    for (bool packed : { false, true })
+        for (auto size : { std::pair<UINT, UINT> { 1, 1 }, { 17, 9 }, { 127, 63 } })
         {
-            TemporalGhostFixture t(f);
-            t.Frame(40, 4, .0102f, 0, -4, false, reversed, false, bits);
-            auto opened = t.Frame(44, 4, .0102f, 0, -4, false, reversed, false, bits);
-            if (opened[(12 * t.mw + 20) * 4 + 1] != 4)
-                throw std::runtime_error("Quantized depth contact mask failed");
+            TemporalGhostFixture t(f, size.first, size.second, packed);
+            t.Frame(0, 0, .03f, 0, 0);
+            auto frame = t.Frame(0, 0, .03f, 0, 0);
+            for (size_t i = 1; i < frame.size(); i += 4)
+                if (frame[i] != 0)
+                    throw std::runtime_error("Odd/edge visibility must remain unmasked");
             ++checks;
         }
-    for (auto size : { std::pair<UINT, UINT> { 1, 1 }, { 17, 9 }, { 127, 63 } })
-    {
-        TemporalGhostFixture t(f, size.first, size.second);
-        t.Frame(0, 0, .03f, 0, 0);
-        auto frame = t.Frame(0, 0, .03f, 0, 0);
-        for (size_t i = 1; i < frame.size(); i += 4)
-            if (frame[i] != 0)
-                throw std::runtime_error("Odd/edge visibility must remain unmasked");
-        ++checks;
-    }
     // Independent bilinear timer reference: zero-age neighbours must contribute to the
     // denominator; zero fade must still preserve all never-disoccluded pixels.
     auto decode = f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", "private_carrier_temporal_ghost");
