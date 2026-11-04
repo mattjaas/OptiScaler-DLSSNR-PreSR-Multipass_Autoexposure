@@ -49,10 +49,8 @@ jobs:
             & "./artifacts/validation/$test.exe" OptiScaler/Config.cpp
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          foreach ($mode in @('--metadata', '--paired-metadata')) {
-            & ./artifacts/validation/nr_edit_dump_smoke.exe $mode | python -c "import json,sys; d=json.load(sys.stdin); assert 'paired_before_after_capture' in d"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          python tests/test_nr_edit_dump_json.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmd /c "`"$vcvars`" >nul && cl /nologo /std:c++17 /EHsc /O2 tests/nr_gpu/private_exposure_quality.cpp /Fe:artifacts/validation/private_exposure_quality.exe /Fo:artifacts/validation/private_exposure_quality.obj /link d3d12.lib dxgi.lib"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ./artifacts/validation/private_exposure_quality.exe --warp
