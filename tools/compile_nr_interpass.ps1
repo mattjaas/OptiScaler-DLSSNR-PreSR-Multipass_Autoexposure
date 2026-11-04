@@ -155,6 +155,12 @@ try {
         Build $live "CSMain" $defines $stem
     }
     Build (Join-Path $shaders "superior/WarpCache.hlsl") "CSMain" @() "host_warp_cache"
+    foreach ($variant in @('hdr', 'sdr', 'packed_hdr', 'packed_sdr')) {
+        $defines = @('-D', 'DLSSNR_SUPERIOR_HOST_RESOLVE=1', '-D', 'DLSSNR_SUPERIOR_GHOST_MASK=1')
+        if ($variant.EndsWith('sdr')) { $defines += @('-D', 'DLSSNR_SUPERIOR_HOST_SDR=1') }
+        if ($variant.StartsWith('packed_')) { $defines += @('-D', 'DLSSNR_SUPERIOR_HOST_PACKED=1') }
+        Build $live 'CSMain' $defines "host_ghost_$variant"
+    }
 
     # Every shipped blob must come from this script, and nothing else may sit beside them.
     $shipped = @(Get-ChildItem $out -Filter "*_Shader.cso" | ForEach-Object { $_.Name -replace '_Shader\.cso$', '' })

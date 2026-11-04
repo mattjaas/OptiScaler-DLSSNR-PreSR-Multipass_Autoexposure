@@ -236,6 +236,10 @@ namespace DlssNr::Superior::HostBytecode
 #include "precompile/host_low_raw_Shader.h"
 #include "precompile/host_resolve_packed_hdr_Shader.h"
 #include "precompile/host_resolve_packed_sdr_Shader.h"
+#include "precompile/host_ghost_hdr_Shader.h"
+#include "precompile/host_ghost_sdr_Shader.h"
+#include "precompile/host_ghost_packed_hdr_Shader.h"
+#include "precompile/host_ghost_packed_sdr_Shader.h"
 #include "precompile/host_normal_sdr_Shader.h"
 #include "precompile/host_normal_hdr0_Shader.h"
 #include "precompile/host_normal_hdr2_Shader.h"
@@ -267,7 +271,8 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorResolvePipeline(const DlssNrConstants&
         std::call_once(once, [] { LOG_ERROR("Superior Scaling: packed resolve asked for a raw NR answer; skipped"); });
         return nullptr;
     }
-    int normal =
+    const bool ghostPreview = !rawAnswer && DlssNr::Superior::Fields::GhostMaskPreview(params);
+    int normal = ghostPreview ? -1 :
         DlssNr::SuperiorScaling::NormalResolveVariant(rawAnswer, packed, params.Passthrough, params.ReversibleMode,
                                                       params.DebugView, params.CompareMode, params.ApplyModel);
     if (normal >= 5 && cachedWarp)
@@ -300,16 +305,20 @@ ID3D12PipelineState* DlssNr_Dx12::SuperiorResolvePipeline(const DlssNrConstants&
     }
     const bool sdr = params.Passthrough != 0;
     // The raw (non-temporal) resolve compiles to the same bytecode for SDR and HDR: one blob, one PSO (slot 2).
-    const auto index = packed ? 4u + (sdr ? 1u : 0u) : rawAnswer ? 2u : (sdr ? 1u : 0u);
+    const auto index = ghostPreview ? 6u + (packed ? 2u : 0u) + (sdr ? 1u : 0u)
+                                   : packed ? 4u + (sdr ? 1u : 0u) : rawAnswer ? 2u : (sdr ? 1u : 0u);
     auto*& pso = _superiorResolve[index];
     if (!_superiorResolveAttempted[index])
     {
         _superiorResolveAttempted[index] = true;
         const void* blobs[] { host_resolve_hdr_cso, host_resolve_sdr_cso,        host_resolve_raw_cso,
-                              host_resolve_raw_cso, host_resolve_packed_hdr_cso, host_resolve_packed_sdr_cso };
+                              host_resolve_raw_cso, host_resolve_packed_hdr_cso, host_resolve_packed_sdr_cso,
+                              host_ghost_hdr_cso, host_ghost_sdr_cso, host_ghost_packed_hdr_cso, host_ghost_packed_sdr_cso };
         const size_t sizes[] { sizeof(host_resolve_hdr_cso),        sizeof(host_resolve_sdr_cso),
                                sizeof(host_resolve_raw_cso),        sizeof(host_resolve_raw_cso),
-                               sizeof(host_resolve_packed_hdr_cso), sizeof(host_resolve_packed_sdr_cso) };
+                               sizeof(host_resolve_packed_hdr_cso), sizeof(host_resolve_packed_sdr_cso),
+                               sizeof(host_ghost_hdr_cso), sizeof(host_ghost_sdr_cso), sizeof(host_ghost_packed_hdr_cso), sizeof(host_ghost_packed_sdr_cso) };
+        static_assert(std::size(blobs) == kSuperiorResolveCount && std::size(sizes) == kSuperiorResolveCount);
         CreateComputePipeline(_device, &pso, blobs[index], sizes[index], nullptr);
     }
     return pso;

@@ -5,7 +5,7 @@ float3 GhostRawEdit(int2 pixel)
     const float3 proxy = SanitizeFinite3(gOriginal.Load(p).rgb, 0.0);
     return SanitizeFinite3(gAux.Load(p).rgb, proxy) - proxy;
 }
-float3 RejectUnsupportedEdit(float3 filtered, int2 pixel)
+float3 RejectUnsupportedEdit(float3 filtered, int2 pixel, out float mask)
 {
     const float3 raw = GhostRawEdit(pixel);
     float3 low = raw, high = raw;
@@ -24,7 +24,7 @@ float3 RejectUnsupportedEdit(float3 filtered, int2 pixel)
     const float softness = isfinite(gTransferStrength) && gTransferStrength >= 0.0001 && gTransferStrength <= 0.25
         ? gTransferStrength : 0.02;
     const float strength = isfinite(gCompareSplit) ? saturate(gCompareSplit) : 1.0;
-    const float mask = strength * smoothstep(threshold, threshold + softness, distance);
+    mask = strength * smoothstep(threshold, threshold + softness, distance);
     // One RGB weight avoids independently replacing channels and introducing colour fringes.
     return mask >= 1.0 ? raw : lerp(filtered, raw, mask);
 }

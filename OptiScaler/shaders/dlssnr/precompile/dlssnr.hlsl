@@ -2089,9 +2089,25 @@ void CSMain(uint3 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID, uint3 gr
             result = originalSample.rgb;
         else if (detail != 1.0 || colour != 1.0)
             result = ClampAp1(lerp(baseChroma, editedChroma, colour) * wantedY);
+#if defined(DLSSNR_SUPERIOR_GHOST_MASK)
+        if ((gShowSkinMask & 1u) != 0u)
+#else
         if (gShowSkinMask != 0)
+#endif
             result = mask.xxx * normScale;
     }
+
+#if defined(DLSSNR_SUPERIOR_GHOST_MASK)
+    // Mask travels in the signed residual's otherwise unused alpha. Apply after shaping,
+    // in the final colour domain; RGB edits and the output alpha stay independent of this diagnostic.
+    float2 ghostUv = cmpUv;
+#if defined(DLSSNR_SUPERIOR_HOST_PACKED)
+    ghostUv = SuperiorPackedUv(ghostUv);
+#endif
+    float rejection = gModel.SampleLevel(gLinear, ghostUv, 0).a;
+    rejection = isfinite(rejection) ? saturate(rejection) : 0.0;
+    result = lerp(result, float3(0.0, normScale, 0.0), rejection * 0.75);
+#endif
 
     // The side being shown untouched takes the frame as it arrived, past every step above.
     if (showOriginal)

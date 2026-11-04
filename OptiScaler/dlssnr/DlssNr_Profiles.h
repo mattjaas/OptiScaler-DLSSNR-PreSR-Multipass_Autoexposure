@@ -83,6 +83,7 @@ inline constexpr std::string_view kKeptKeys[] = {
     "SuperiorEditSaturation",
     "SuperiorFilterNrAnswer",
     "SuperiorGhostRejection",
+    "SuperiorShowGhostMask",
     "SuperiorGhostThreshold",
     "SuperiorGhostSoftness",
     "SuperiorGhostStrength",

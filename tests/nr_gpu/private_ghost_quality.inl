@@ -61,6 +61,7 @@ void GhostQuality(Fixture& f)
             const double t=std::clamp((distance-.01)/.02,0.,1.), mask=strength*t*t*(3-2*t);
             for(unsigned ch=0;ch<3;++ch)
                 expected[i+ch]=float((wanted[i+ch]*(1-mask)+raw[i+ch]*mask)*(1-fade)+raw[i+ch]*fade);
+            expected[i+3]=float(mask*(1-fade));
         }
         f.r.begin();
         auto p=f.texture(w,h,&proxy), a=f.texture(w,h,&answer), s=f.texture(w,h,&filtered),
@@ -79,7 +80,7 @@ void GhostQuality(Fixture& f)
         f.dispatch(ps.Get(),c,s.Get(),p.Get(),out.Get(),(w+7)/8,(h+7)/8,d.Get(),p.Get(),a.Get());
         const auto got=f.read(out.Get());
         for(size_t i=0;i<got.size();++i)
-            if(i%4!=3) Near(got[i],expected[i],("ghost rejection independent RGB reference: case="+std::to_string(cases)+
+            Near(got[i],expected[i],("ghost rejection independent RGBA reference: case="+std::to_string(cases)+
                 " index="+std::to_string(i)+" gain="+std::to_string(gain)+" full="+std::to_string(full)+
                 " transforms="+std::to_string(transforms)+" strength="+std::to_string(strength)+" fade="+std::to_string(fade)).c_str());
         ++cases;
@@ -90,7 +91,7 @@ void GhostQuality(Fixture& f)
             f.r.begin();auto fallback=f.texture(w,h);
             f.dispatch(ps.Get(),c,s.Get(),p.Get(),fallback.Get(),1,1,d.Get(),p.Get(),a.Get());
             const auto values=f.read(fallback.Get());
-            for(unsigned ch=0;ch<3;++ch)Near(values[ch],expected[ch],"Ghost shader invalid-parameter fallback");
+            for(unsigned ch=0;ch<4;++ch)Near(values[ch],expected[ch],"Ghost shader invalid-parameter fallback");
             ++cases;
         }
     }
@@ -103,11 +104,79 @@ void GhostQuality(Fixture& f)
     std::cout<<"Ghost rejection GPU PASS: "<<cases<<" independent-reference cases\n";
 }
 
-void GhostTiming(Fixture& f)
+void GhostMaskQuality(Fixture& f)
+{
+    unsigned cases=0;
+    for(bool packed:{false,true}) for(bool sdr:{false,true}) for(unsigned compare:{0u,2u})
+    {
+        const UINT w=packed?193:17,h=packed?129:9;
+        DlssNr::Spatial::Settings settings;settings.enabled=true;
+        const auto layout=DlssNr::Spatial::Build(settings,w,h,.65f,false);
+        if(packed && !layout.active)throw std::runtime_error("Packed mask fixture must be active");
+        const UINT mw=packed?layout.modelW:11,mh=packed?layout.modelH:7;
+        ComPtr<ID3D12Resource> warp;
+        if(packed)warp=UploadWarp(f.r,layout);
+        const std::string suffix=std::string(packed?"packed_":"")+(sdr?"sdr":"hdr");
+        auto overlay=f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile","host_ghost_"+suffix),
+             baseline=f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile","host_resolve_"+suffix);
+        for(float alpha:{0.f,.5f,1.f,-1.f,NAN,INFINITY,2.f})
+        {
+            std::vector<float> proxy(mw*mh*4,.5f),edit(mw*mh*4,0.f),original(w*h*4,.25f);
+            for(UINT y=0;y<mh;++y)for(UINT x=0;x<mw;++x)
+                edit[(y*mw+x)*4+3]=alpha==2.f?.1f+.8f*x/(mw-1):alpha;
+            for(size_t i=3;i<original.size();i+=4)original[i]=.375f;
+            f.r.begin();auto p=f.texture(mw,mh,&proxy),m=f.texture(mw,mh,&edit),o=f.texture(w,h,&original),
+                 out=f.texture(w,h),reference=f.texture(w,h);
+            ::DlssNrConstants host{};host.Mode=1;host.Width=w;host.Height=h;
+            host.WhitePoint=2.f;host.Passthrough=sdr;host.ApplyModel=1;host.MaxRatio=3;
+            host.TransferStrength=host.ColourStrength=1;host.CompareMode=compare;host.CompareSplit=.5f;
+            host.ModelWorkScale=.65f;host.ExposurePreMul=1;host.ExposureTrim=1;host.ExposureBaseScale=1;
+            DlssNr::Superior::Fields::SetGhostMaskPreview(host,true);
+            DlssNr::Superior::DlssNrConstants c{};std::memcpy(&c,&host,sizeof(c));
+            f.dispatch(baseline.Get(),c,p.Get(),m.Get(),reference.Get(),(w+7)/8,(h+7)/8,warp.Get(),o.Get());
+            f.dispatch(overlay.Get(),c,p.Get(),m.Get(),out.Get(),(w+7)/8,(h+7)/8,warp.Get(),o.Get());
+            const auto old=f.read(reference.Get());f.r.begin();const auto got=f.read(out.Get());
+            for(UINT y=0;y<h;++y)for(UINT x=0;x<w;++x)
+            {
+                const double u=(x+.5)/w;
+                const size_t i=(y*w+x)*4;
+                // The independent baseline marks the divider at WhitePoint. Its subpixel
+                // border can round either way on hardware, so retain its exact coverage.
+                const bool divider=old[i]==2.f && old[i+1]==2.f && old[i+2]==2.f;
+                const bool untouched=compare && (u<.5 || divider);
+                double mask=std::isfinite(alpha)?std::clamp(double(alpha),0.,1.):0;
+                if(alpha==2.f)
+                {
+                    const double pos=packed?pw::Pack(float(x)+.5f,layout.warp.x):u*mw;
+                    mask=.1+.8*std::clamp(pos-.5,0.,double(mw-1))/(mw-1);
+                }
+                const double amount=untouched?0:mask*.75;
+                for(unsigned ch=0;ch<4;++ch)
+                {
+                    const float expected=ch==3?old[i+ch]:float(old[i+ch]*(1-amount)+(ch==1?(sdr?1.:2.):0)*amount);
+                    Near(got[i+ch],expected,("Green mask reference case="+std::to_string(cases)+" alpha="+
+                        std::to_string(alpha)+" x="+std::to_string(x)+" y="+std::to_string(y)+" ch="+std::to_string(ch)).c_str());
+                }
+            }
+            ++cases;
+        }
+    }
+    ::DlssNrConstants h{};h.ShowSkinMask=1;
+    DlssNr::Superior::Fields::SetGhostMaskPreview(h,true);
+    if(h.ShowSkinMask!=3 || !DlssNr::Superior::Fields::GhostMaskPreview(h))throw std::runtime_error("Mask preview preserves skin bit");
+    DlssNr::Superior::Fields::SetGhostMaskPreview(h,false);
+    if(h.ShowSkinMask!=1)throw std::runtime_error("Mask preview clears only its own bit");
+    std::cout<<"Green ghost mask PASS: "<<cases<<" packed/SDR/HDR/wipe/finite/alpha cases\n";
+}
+
+void GhostTiming(Fixture& f, bool preview=false)
 {
     auto& r=f.r;
-    auto ghost=r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile","private_carrier_ghost");
-    std::ofstream csv("artifacts/validation/private-ghost-timing.csv");
+    const std::string shaders="OptiScaler/shaders/dlssnr/superior/precompile";
+    auto ghost=r.pipeline(shaders,preview?"host_ghost_hdr":"private_carrier_ghost");
+    auto baseline=preview?r.pipeline(shaders,"host_normal_hdr0"):f.carrier;
+    const std::string path=preview?"artifacts/validation/private-ghost-mask-timing.csv":"artifacts/validation/private-ghost-timing.csv";
+    std::ofstream csv(path);
     csv<<"width,height,block,position,variant,ms\n";
     for(auto size:{std::pair<UINT,UINT>{2496,1404},{3840,2160}})
     {
@@ -125,6 +194,7 @@ void GhostTiming(Fixture& f)
         DlssNr::Superior::DlssNrConstants c{};c.Mode=37;c.Width=w;c.Height=h;c.WhitePoint=1;c.MaxRatio=1;
         f.dispatch(f.carrier.Get(),c,pi.Get(),pi.Get(),pp.Get(),(w+7)/8,(h+7)/8);
         f.dispatch(f.carrier.Get(),c,pi.Get(),ai.Get(),aa.Get(),(w+7)/8,(h+7)/8);
+        if(preview)c.Mode=43;
         f.dispatch(f.carrier.Get(),c,pi.Get(),si.Get(),ss.Get(),(w+7)/8,(h+7)/8);
         r.barrier(pp.Get(),UAV,SRV);r.barrier(aa.Get(),UAV,SRV);r.barrier(ss.Get(),UAV,SRV);
         r.finish();
@@ -135,7 +205,8 @@ void GhostTiming(Fixture& f)
             {
                 D3D12_SHADER_RESOURCE_VIEW_DESC d{};d.Format=DXGI_FORMAT_R16G16B16A16_FLOAT;
                 d.ViewDimension=D3D12_SRV_DIMENSION_TEXTURE2D;d.Shader4ComponentMapping=D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;d.Texture2D.MipLevels=1;
-                r.device->CreateShaderResourceView(i==2?pp.Get():i==4?aa.Get():ss.Get(),&d,{cpu.ptr+SIZE_T(i)*r.stride});
+                auto* input=preview?(i==1?ss.Get():pp.Get()):(i==2?pp.Get():i==4?aa.Get():ss.Get());
+                r.device->CreateShaderResourceView(input,&d,{cpu.ptr+SIZE_T(i)*r.stride});
             }
             else
             {
@@ -144,6 +215,14 @@ void GhostTiming(Fixture& f)
             }
         }
         c.Mode=38;DlssNr::Superior::Fields::SetCarrierGhostRejection(c,{true,.01f,.02f,1});
+        if(preview)
+        {
+            ::DlssNrConstants h{};h.Mode=1;h.Width=w;h.Height=size.second;
+            h.ApplyModel=1;h.WhitePoint=1;h.MaxRatio=3;h.TransferStrength=h.ColourStrength=1;h.ModelWorkScale=1;
+            DlssNr::SuperiorScaling::SetGuidedRange(h,1.f);
+            DlssNr::Superior::Fields::SetGhostMaskPreview(h,true);
+            std::memcpy(&c,&h,sizeof(c));
+        }
         auto cb=r.buffer(256,D3D12_HEAP_TYPE_UPLOAD,D3D12_RESOURCE_STATE_GENERIC_READ);
         void* data;check(cb->Map(0,nullptr,&data));std::memcpy(data,&c,256);cb->Unmap(0,nullptr);
         D3D12_QUERY_HEAP_DESC q{};q.Type=D3D12_QUERY_HEAP_TYPE_TIMESTAMP;q.Count=2;
@@ -154,7 +233,7 @@ void GhostTiming(Fixture& f)
         {
             r.begin();r.list->SetComputeRootSignature(r.root.Get());ID3D12DescriptorHeap* heaps[]{r.heap.Get()};r.list->SetDescriptorHeaps(1,heaps);
             r.list->SetComputeRootDescriptorTable(0,r.heap->GetGPUDescriptorHandleForHeapStart());r.list->SetComputeRootConstantBufferView(1,cb->GetGPUVirtualAddress());
-            r.list->SetPipelineState(candidate?ghost.Get():f.carrier.Get());
+            r.list->SetPipelineState(candidate?ghost.Get():baseline.Get());
             r.list->EndQuery(queries.Get(),D3D12_QUERY_TYPE_TIMESTAMP,0);
             r.list->Dispatch((w+7)/8,(h+7)/8,1);
             D3D12_RESOURCE_BARRIER b{};b.Type=D3D12_RESOURCE_BARRIER_TYPE_UAV;b.UAV.pResource=out.Get();r.list->ResourceBarrier(1,&b);
@@ -170,5 +249,5 @@ void GhostTiming(Fixture& f)
                 csv<<w<<','<<h<<','<<block<<','<<position++<<','<<(candidate?'B':'A')<<','<<measure(candidate)<<'\n';
         }
     }
-    std::cout<<"Synthetic decode ABBA timings: artifacts/validation/private-ghost-timing.csv\n";
+    std::cout<<"Synthetic ABBA timings: "<<path<<'\n';
 }

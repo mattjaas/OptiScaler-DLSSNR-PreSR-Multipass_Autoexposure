@@ -53,6 +53,13 @@ inline void SetCarrierGhostRejection(DlssNrConstants& c, DlssNr::GhostRejection:
     c.CompareSplit = s.strength;
 }
 inline bool CarrierGhostRejection(const DlssNrConstants& c) { return c.Mode == 38u && c.GuideWidth == 1u; }
+// Final composition only: bit 0 retains the existing skin-mask preview; bit 1 selects the green ghost overlay PSO.
+inline void SetGhostMaskPreview(::DlssNrConstants& c, bool enabled)
+{
+    c.ShowSkinMask = (c.ShowSkinMask & 1u) | (enabled ? 2u : 0u);
+}
+inline bool GhostMaskPreview(const ::DlssNrConstants& c) { return (c.ShowSkinMask & 2u) != 0u; }
+static_assert(offsetof(::DlssNrConstants, ShowSkinMask) == 96);
 static_assert(offsetof(DlssNrConstants, GuideWidth) == 44 && offsetof(DlssNrConstants, ColourStrength) == 20 &&
               offsetof(DlssNrConstants, TransferStrength) == 16 && offsetof(DlssNrConstants, CompareSplit) == 56);
 

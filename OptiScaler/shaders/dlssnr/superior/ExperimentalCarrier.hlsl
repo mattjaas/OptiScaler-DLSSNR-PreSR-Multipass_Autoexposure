@@ -62,7 +62,8 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
             edit = DecodePositiveCarrier(filtered - depthColour - bias, gain, gMaxRatio);
         }
 #ifdef DLSSNR_GHOST_REJECTION
-        edit = RejectUnsupportedEdit(edit, int2(id.xy));
+        float rejectionMask;
+        edit = RejectUnsupportedEdit(edit, int2(id.xy), rejectionMask);
 #endif
         const float weightRaw = asfloat(gExposurePadding);
         [branch] if (isfinite(weightRaw) && weightRaw > 0.0)
@@ -70,7 +71,14 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
             const float3 proxy = SanitizeFinite3(gOriginal.Load(p).rgb, 0.0);
             const float3 rawEdit = SanitizeFinite3(gAux.Load(p).rgb, proxy) - proxy;
             edit = weightRaw >= 1.0 ? rawEdit : lerp(edit, rawEdit, weightRaw);
+#ifdef DLSSNR_GHOST_REJECTION
+            rejectionMask *= 1.0 - saturate(weightRaw);
+#endif
         }
+#ifdef DLSSNR_GHOST_REJECTION
+        gTarget[id.xy] = float4(edit, rejectionMask);
+#else
         gTarget[id.xy] = float4(edit, 1.0);
+#endif
     }
 }

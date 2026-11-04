@@ -5565,9 +5565,12 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
         ci.edgeCompression = spatial;
         ci.convertedEncoding = frame.InputEncoding != 0;
         ci.blocked = calibrationPinned || g_nr.heldActive || g_capture.isActive() || CalibrationActive() || g_multiRun;
-        // The skin mask preview is painted by the resolve: carried, it would be taken for the model's edit
-        ci.debugOrCompare = cfg.DlssNrDebugView.value_or_default() != 0 || cfg.DlssNrCompare.value_or_default() != 0 ||
-                            cfg.DlssNrShowSkinMask.value_or_default();
+        // Final mask previews are not NR edits and must never enter the carried edit cache.
+        ci.debugOrCompare =
+            cfg.DlssNrDebugView.value_or_default() != 0 || cfg.DlssNrCompare.value_or_default() != 0 ||
+            cfg.DlssNrShowSkinMask.value_or_default() ||
+            (superior && privateActive && cfg.DlssNrSuperiorGhostRejection.value_or_default() &&
+             cfg.DlssNrSuperiorShowGhostMask.value_or_default() && DlssNr::GhostRejection::Read(cfg).strength > 0.f);
         ci.reset = g_nr.reset;
         ci.revision = reuseFrame.revision;
         ci.width = width;
@@ -6214,6 +6217,7 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
             auto* shapingProxy = g.packed ? modelInput : superiorGuided ? ordinaryProxy : resolveProxy;
             auto* shapingAnswer = g.packed ? finalAnswer : superiorGuided ? ordinaryAnswer : resolveAnswer;
             auto* residual = shapingAnswer;
+            bool ghostMaskAvailable = false;
             DlssNr::GainPreview::Status transitionMotion;
             const bool transitionObserver = g.temporal && !superiorSpatialFallback && g.presetFade.value == 1.f &&
                                             !g_viewSecondary &&
@@ -6257,6 +6261,7 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
                 g.motionFade = {};
 
             if (g.temporal && !superiorSpatialFallback && !g.motionFade.sleeping)
+            {
                 residual = SuperiorRun::Stabilize(
                     g, *this, cmdList, shapingProxy, shapingAnswer, depthIn, motionIn, guides, frame, superiorReset,
                     g_nr.heldActive, g.packed ? EdgeCompression::depth : nullptr,
@@ -6265,6 +6270,9 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
                     g.presetFade.value *
                         (g.residentCnn && g.residentCnn->ready ? g.residentSwitch.fade.value : g.motionFade.fade.value),
                     transitionObserver ? &transitionMotion : nullptr);
+                const auto ghost = DlssNr::GhostRejection::Read(cfg);
+                ghostMaskAvailable = residual && ghost.enabled && ghost.strength > 0.f && ghost.showMask;
+            }
             else if (superiorGuided)
             {
                 if (g.motionFade.sleeping && !g.reset)
@@ -6285,6 +6293,7 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
             // Guided reconstruction takes a signed edit, extracted directly or decoded after private DLSS.
             const bool rawAnswer = !superiorGuided;
             DlssNr::Superior::Fields::SetResolveFlags(resolveParams, low != nullptr, rawAnswer);
+            DlssNr::Superior::Fields::SetGhostMaskPreview(resolveParams, ghostMaskAvailable);
             auto* pso = SuperiorResolvePipeline(resolveParams, rawAnswer, g.packed, g.warpCache.Get() != nullptr);
             const bool lowReady = (gains.high == 1.0f && gains.low == 1.0f) || low != nullptr;
             composed = residual && lowReady && pso &&

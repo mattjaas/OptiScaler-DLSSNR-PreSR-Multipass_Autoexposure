@@ -1159,6 +1159,7 @@ void Config::ReadDlssNr()
     DlssNrSuperiorEditSaturation.set_from_config(readFloat("DlssNr", "SuperiorEditSaturation"));
     DlssNrSuperiorFilterNrAnswer.set_from_config(readBool("DlssNr", "SuperiorFilterNrAnswer"));
     DlssNrSuperiorGhostRejection.set_from_config(readBool("DlssNr", "SuperiorGhostRejection"));
+    DlssNrSuperiorShowGhostMask.set_from_config(readBool("DlssNr", "SuperiorShowGhostMask"));
     DlssNrSuperiorGhostThreshold.set_from_config(readFloat("DlssNr", "SuperiorGhostThreshold"));
     DlssNrSuperiorGhostSoftness.set_from_config(readFloat("DlssNr", "SuperiorGhostSoftness"));
     DlssNrSuperiorGhostStrength.set_from_config(readFloat("DlssNr", "SuperiorGhostStrength"));
@@ -1478,6 +1479,8 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetBoolValue(c.DlssNrSuperiorFilterNrAnswer.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostRejection",
                  GetBoolValue(c.DlssNrSuperiorGhostRejection.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorShowGhostMask",
+                 GetBoolValue(c.DlssNrSuperiorShowGhostMask.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostThreshold",
                  GetFloatValue(c.DlssNrSuperiorGhostThreshold.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostSoftness",
@@ -1899,6 +1902,7 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorEditSaturation", DlssNrSuperiorEditSaturation),
         NR_PROFILE_FIELD("SuperiorFilterNrAnswer", DlssNrSuperiorFilterNrAnswer),
         NR_PROFILE_FIELD("SuperiorGhostRejection", DlssNrSuperiorGhostRejection),
+        NR_PROFILE_FIELD("SuperiorShowGhostMask", DlssNrSuperiorShowGhostMask),
         NR_PROFILE_FIELD("SuperiorGhostThreshold", DlssNrSuperiorGhostThreshold),
         NR_PROFILE_FIELD("SuperiorGhostSoftness", DlssNrSuperiorGhostSoftness),
         NR_PROFILE_FIELD("SuperiorGhostStrength", DlssNrSuperiorGhostStrength),

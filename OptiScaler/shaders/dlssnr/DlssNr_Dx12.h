@@ -79,8 +79,9 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool _superiorRingReady = false;
     bool EnsureSuperiorRing();
 
-    ID3D12PipelineState* _superiorResolve[6] {};
-    bool _superiorResolveAttempted[6] {};
+    static constexpr size_t kSuperiorResolveCount = 10;
+    ID3D12PipelineState* _superiorResolve[kSuperiorResolveCount] {};
+    bool _superiorResolveAttempted[kSuperiorResolveCount] {};
     ID3D12PipelineState* _superiorNormalResolve[15] {};
     bool _superiorNormalResolveAttempted[15] {};
     ID3D12PipelineState* _superiorWarpCache = nullptr;

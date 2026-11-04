@@ -8,6 +8,7 @@ struct Settings
 {
     bool enabled = false;
     float threshold = .01f, softness = .02f, strength = 1.f;
+    bool showMask = false;
 };
 inline Settings Sanitize(Settings s)
 {
@@ -20,6 +21,7 @@ template <class Config> Settings Read(const Config& c)
 {
     return Sanitize(
         { c.DlssNrSuperiorGhostRejection.value_or_default(), c.DlssNrSuperiorGhostThreshold.value_or_default(),
-          c.DlssNrSuperiorGhostSoftness.value_or_default(), c.DlssNrSuperiorGhostStrength.value_or_default() });
+          c.DlssNrSuperiorGhostSoftness.value_or_default(), c.DlssNrSuperiorGhostStrength.value_or_default(),
+          c.DlssNrSuperiorShowGhostMask.value_or_default() });
 }
 } // namespace DlssNr::GhostRejection

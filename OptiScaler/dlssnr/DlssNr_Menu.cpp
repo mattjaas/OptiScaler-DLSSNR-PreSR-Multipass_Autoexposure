@@ -4247,6 +4247,14 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "valid temporal detail, cannot detect every trail or repair ghosting already present in NR. "
                        "Adds neighbourhood reads to decode; no extra pass or history reset.");
             ImGui::BeginDisabled(!ghost.enabled);
+            ImGui::BeginDisabled(ghost.strength <= 0.f);
+            if (ImGui::Checkbox("Show DLSS ghost rejection mask", &ghost.showMask))
+                config->DlssNrSuperiorShowGhostMask = ghost.showMask;
+            HelpMarker("Highlights replaced areas in green over the final image. Stronger rejection gives a "
+                       "stronger tint; the preview follows private DLSS fade weight. Does not alter the NR edit "
+                       "or reset history. Only shown while private DLSS is evaluated; normal image debug views "
+                       "take precedence.");
+            ImGui::EndDisabled();
             if (ImGui::SliderFloat("Ghost rejection threshold", &ghost.threshold, 0.f, .25f, "%.4f"))
                 config->DlssNrSuperiorGhostThreshold = ghost.threshold;
             HelpMarker("Allowed RGB distance outside the local edit range, before the positive transport multiplier. "

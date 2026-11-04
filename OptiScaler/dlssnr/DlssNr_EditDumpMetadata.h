@@ -181,6 +181,7 @@ inline std::string MetadataJson(const Metadata& m)
     value("full_nr_answer", m.fullNrAnswer);
     value("private_preset", m.privatePreset);
     value("ghost_rejection_enabled", m.ghostRejection.enabled);
+    value("show_ghost_rejection_mask", m.ghostRejection.showMask);
     value("ghost_rejection_threshold", m.ghostRejection.threshold);
     value("ghost_rejection_softness", m.ghostRejection.softness);
     value("ghost_rejection_strength", m.ghostRejection.strength);

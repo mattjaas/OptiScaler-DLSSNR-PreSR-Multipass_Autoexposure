@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "../../OptiScaler/shaders/dlssnr/superior/Fields.h"
+#include "../../OptiScaler/dlssnr/DlssNr_SuperiorScaling.h"
 #include "interpass_fixture.h"
+#include "packed_fixture.h"
 #include "../../OptiScaler/dlssnr/DlssNr_PrivateExposure.h"
 #include <cmath>
 #include <limits>
@@ -319,6 +321,11 @@ int main(int argc, char** argv)
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc > 1 && std::string(argv[1]) == "--ghost-mask-timing")
+        {
+            GhostTiming(f,true);
+            return 0;
+        }
         if (argc > 1 && std::string(argv[1]) == "--ghost-timing")
         {
             GhostTiming(f);
@@ -367,6 +374,7 @@ int main(int argc, char** argv)
             std::cout << "Disabled colour transport bit parity PASS: " << cases << " cases\n"; return 0;
         }
         GhostQuality(f);
+        GhostMaskQuality(f);
         unsigned checks = 0;
         for (bool full : { false, true })
         for (float rawWeight : { 0.f, .25f, .5f, 1.f })

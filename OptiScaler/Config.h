@@ -487,6 +487,7 @@ class Config
     CustomOptional<float> DlssNrSuperiorEditSaturation { 1.0f };
     CustomOptional<bool> DlssNrSuperiorFilterNrAnswer { false };
     CustomOptional<bool> DlssNrSuperiorGhostRejection { false };
+    CustomOptional<bool> DlssNrSuperiorShowGhostMask { false };
     CustomOptional<float> DlssNrSuperiorGhostThreshold { .01f };
     CustomOptional<float> DlssNrSuperiorGhostSoftness { .02f };
     CustomOptional<float> DlssNrSuperiorGhostStrength { 1.f };
