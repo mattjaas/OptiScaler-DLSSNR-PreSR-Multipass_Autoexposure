@@ -408,6 +408,7 @@ static_assert(offsetof(Constants, warp) == 16);
 inline void SetPrivateCarrierGain(Constants& c, float gain) { c.padding[3] = gain; }
 static_assert(offsetof(Constants, padding) + 3 * sizeof(float) == 244);
 // PrivateGuides.hlsl only: padding[4] = edit saturation (gPadding1.z), unused by joint guides.
+// Legacy test-only setters populate obsolete carrier slots; current HLSL ignores them.
 inline void SetPrivateCarrierSaturation(Constants& c, float saturation) { c.padding[4] = saturation; }
 static_assert(offsetof(Constants, padding) + 4 * sizeof(float) == 248);
 // PrivateGuidesMain reconstructs uniform guides, ignoring the warp's colour-filter selector.

@@ -18,6 +18,7 @@ enum Mode : uint32_t
 };
 inline uint32_t SanitizeMode(uint32_t mode) { return mode < Count ? mode : Native; }
 inline float PositiveGain(float value) { return std::isfinite(value) ? std::clamp(value, .01f, 1024.f) : 1.f; }
+// Archived capture/test sanitizers only; no active carrier path reads these controls.
 inline float EditSaturation(float value) { return std::isfinite(value) ? std::clamp(value, 1.f, 64.f) : 1.f; }
 inline float DepthStrength(float value) { return std::isfinite(value) ? std::clamp(value, 0.f, 16.f) : 1.f; }
 inline float DepthCurve(float value) { return std::isfinite(value) ? std::clamp(value, 0.03125f, 64.f) : 1.f; }

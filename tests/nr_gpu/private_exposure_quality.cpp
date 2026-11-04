@@ -385,6 +385,12 @@ int main(int argc, char** argv)
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc == 3 && std::string(argv[1]) == "--compact-retirement-timing")
+        {
+            CompactGhostTiming(f, argv[2], true, false, true);
+            CompactGhostTiming(f, argv[2], true, true, true);
+            return 0;
+        }
         if (argc == 3 && std::string(argv[1]) == "--compact-revision-timing")
         {
             CompactGhostTiming(f, argv[2], true);
@@ -607,6 +613,10 @@ int main(int argc, char** argv)
                 answer[i] = i % 4 == 0 ? .25f : i % 4 == 1 ? .125f : i % 4 == 2 ? .5f : -2.f;
             f.r.begin(); auto p = f.texture(17, 9, &proxy), a = f.texture(17, 9, &answer), out = f.texture(17, 9);
             DlssNr::Superior::DlssNrConstants c {}; c.Mode = 37; c.Width = 17; c.Height = 9; c.WhitePoint = gain;
+            c.MaxRatio = 64;
+            c.ResidualScale = 16;
+            c.ResidualBlend = .1f;
+            c.DirectResolveUpscaler = 7; // retired fields must be inert
             f.dispatch(f.carrier.Get(), c, p.Get(), a.Get(), out.Get(), 3, 2);
             auto encoded = f.read(out.Get());
             for (size_t i = 0; i < encoded.size(); i += 4)
@@ -624,154 +634,7 @@ int main(int argc, char** argv)
             }
             ++checks;
         }
-        // Independent RGB matrix reference: full signed chroma (not positive-only colour),
-        // both transport controls, exact disabled path, clipping and invalid parameters.
-        const std::array<std::array<float, 3>, 10> edits {{
-            {0, 0, 0}, {.015625f, .015625f, .015625f}, {-.015625f, -.015625f, -.015625f},
-            {.015625f, -.0078125f, .00390625f}, {-.00390625f, .0078125f, -.015625f},
-            {.125f, 0, 0}, {0, .125f, 0}, {0, 0, .125f}, {8, -2, 1}, {65504, -65504, 0}
-        }};
-        auto matrix = [](const std::array<double, 3>& v, double s)
-        {
-            const std::array<double, 3> w { .25, .5, .25 };
-            std::array<double, 3> out {};
-            for (unsigned row = 0; row < 3; ++row)
-                for (unsigned col = 0; col < 3; ++col)
-                    out[row] += ((row == col ? s : 0.) + (1. - s) * w[col]) * v[col];
-            return out;
-        };
-        for (float gain : { .01f, .5f, 1.f, 16.f, 1024.f })
-            for (float saturation : { 1.f, 2.f, 4.f, 16.f, 64.f, 0.f, NAN, INFINITY })
-            {
-                const double sat = std::isfinite(saturation) && saturation >= 1.f && saturation <= 64.f ? saturation : 1.;
-                constexpr UINT width = 17, height = 9;
-                std::vector<float> proxy(width * height * 4, .5f), answer(proxy.size());
-                for (size_t i = 0; i < answer.size(); i += 4)
-                {
-                    for (unsigned c = 0; c < 3; ++c) answer[i + c] = proxy[i + c] + edits[(i / 4) % edits.size()][c];
-                    answer[i + 3] = 1.f;
-                }
-                f.r.begin(); auto p = f.texture(width, height, &proxy), a = f.texture(width, height, &answer), out = f.texture(width, height);
-                DlssNr::Superior::DlssNrConstants c {}; c.Mode = 37; c.Width = width; c.Height = height; c.WhitePoint = gain; c.MaxRatio = saturation;
-                f.dispatch(f.carrier.Get(), c, p.Get(), a.Get(), out.Get(), 3, 2);
-                const auto encoded = f.read(out.Get());
-                std::vector<std::array<double, 3>> references(width * height);
-                std::vector<bool> clipped(width * height);
-                for (size_t i = 0; i < encoded.size(); i += 4)
-                {
-                    std::array<double, 3> scaled {};
-                    for (unsigned channel = 0; channel < 3; ++channel)
-                    {
-                        const double edit = double(answer[i + channel]) - proxy[i + channel];
-                        scaled[channel] = edit > 0 ? edit * gain : edit;
-                    }
-                    const auto colour = matrix(scaled, sat);
-                    std::array<double, 3> stored {};
-                    for (unsigned channel = 0; channel < 3; ++channel)
-                    {
-                        const double full = .5 + colour[channel];
-                        stored[channel] = std::clamp(full, 0., 65504.);
-                        clipped[i / 4] = clipped[i / 4] || stored[channel] != full;
-                        Near(encoded[i + channel], float(stored[channel]), "saturation encode matrix");
-                        stored[channel] -= .5;
-                        if ((i / 4) % edits.size() == 0 && encoded[i + channel] != .5f)
-                            throw std::runtime_error("Saturation changed neutral 0.5");
-                    }
-                    references[i / 4] = matrix(stored, 1. / sat);
-                }
-                f.r.begin(); auto e = f.texture(width, height, &encoded), decoded = f.texture(width, height);
-                c.Mode = 38; f.dispatch(f.carrier.Get(), c, e.Get(), e.Get(), decoded.Get(), 3, 2);
-                const auto values = f.read(decoded.Get());
-                for (size_t i = 0; i < values.size(); i += 4)
-                    for (unsigned channel = 0; channel < 3; ++channel)
-                    {
-                        const auto restored = references[i / 4][channel];
-                        const float expected = float(restored > 0 ? restored / gain : restored);
-                        // Absolute error scales with carrier magnitude for FP32 cancellation after clipping.
-                        const float tolerance = (3e-6f + 3e-7f * std::max({std::abs(encoded[i]), std::abs(encoded[i + 1]), std::abs(encoded[i + 2])})) / std::min(gain, 1.f);
-                        if (!std::isfinite(values[i + channel]) || std::abs(values[i + channel] - expected) > tolerance)
-                            throw std::runtime_error("Saturation decode differs from independent inverse matrix");
-                        if (!clipped[i / 4])
-                            InverseNear(values[i + channel], answer[i + channel] - proxy[i + channel], gain, "saturation round trip");
-                    }
-                ++checks;
-            }
-        // Every combination of positive gain/saturation with depth colour on/off;
-        // the zero-edit half-neutral is restored by subtraction before signed decode.
-        for (const auto transport : { std::pair<float, float>{.01f, 1.f}, {.5f, 4.f}, {1.f, 1.f}, {16.f, 1.f}, {1.f, 4.f}, {16.f, 4.f} })
-            for (UINT pair = 0; pair < 3; ++pair)
-                for (bool inverted : { false, true })
-                    for (float curve : { .03125f, 1.f, 64.f, NAN })
-                        for (float strength : { 0.f, 1.f, 16.f })
-                        for (bool halfCarrier : {false, true})
-                        {
-                            constexpr UINT w = 17, h = 9;
-                            const float gain = transport.first, saturation = transport.second;
-                            const float safeCurve = std::isfinite(curve) ? curve : 1.f;
-                            const std::array<float, 13> depths { 0, .001f, .25f, .5f, .75f, .999f, 1, NAN,
-                                INFINITY, -1, 2, 12345.f / 65535.f, 1234567.f / 16777215.f };
-                            std::vector<float> proxy(w * h * 4, .5f), answer(proxy.size()), depth(proxy.size());
-                            for (size_t i = 0; i < proxy.size(); i += 4)
-                            {
-                                const bool neutral = i / 4 % 2 == 0;
-                                const std::array<float, 3> edit { .015625f, -.0078125f, .00390625f };
-                                for (unsigned channel = 0; channel < 3; ++channel)
-                                    answer[i + channel] = proxy[i + channel] + (neutral ? 0 : edit[channel]);
-                                answer[i + 3] = 1.f;
-                                depth[i] = depths[(i / 4) % depths.size()];
-                            }
-                            f.r.begin(); auto p = f.texture(w, h, &proxy), a = f.texture(w, h, &answer),
-                                d = f.texture(w, h, &depth, DXGI_FORMAT_R32_FLOAT),
-                                out = f.texture(w, h, nullptr, halfCarrier ? DXGI_FORMAT_R16G16B16A16_FLOAT : DXGI_FORMAT_R32G32B32A32_FLOAT);
-                            DlssNr::Superior::DlssNrConstants c {}; c.Mode = 37; c.Width = w; c.Height = h; c.WhitePoint = gain;
-                            c.MaxRatio = saturation; c.ResidualScale = strength; c.ResidualBlend = curve;
-                            c.SkinProtection = pair; c.Passthrough = inverted;
-                            f.dispatch(f.carrier.Get(), c, p.Get(), a.Get(), out.Get(), 3, 2, d.Get());
-                            const auto encoded = f.read(out.Get());
-                            std::vector<std::array<double, 3>> colour(w * h);
-                            for (size_t i = 0; i < encoded.size(); i += 4)
-                            {
-                                double z = std::isfinite(depth[i]) ? std::clamp(double(depth[i]), 0., 1.) : (inverted ? 0. : 1.);
-                                if (inverted) z = 1. - z;
-                                double t = std::pow(z, double(safeCurve)); t = t * t * (3. - 2. * t);
-                                std::array<double, 3> scaled {};
-                                for (unsigned channel = 0; channel < 3; ++channel)
-                                {
-                                    const double edit = answer[i + channel] - proxy[i + channel];
-                                    scaled[channel] = edit > 0 ? edit * gain : edit;
-                                    colour[i / 4][channel] = strength * (channel == pair ? 1. - t : t);
-                                }
-                                const auto chroma = matrix(scaled, saturation);
-                                for (unsigned channel = 0; channel < 3; ++channel)
-                                    Near(encoded[i + channel], float(.5 + chroma[channel] + colour[i / 4][channel]), "depth colour encode");
-                            }
-                            f.r.begin(); auto e = f.texture(w, h, &encoded), decoded = f.texture(w, h);
-                            c.Mode = 38; f.dispatch(f.carrier.Get(), c, e.Get(), e.Get(), decoded.Get(), 3, 2, d.Get());
-                            const auto values = f.read(decoded.Get());
-                            for (size_t i = 0; i < values.size(); i += 4)
-                                for (unsigned channel = 0; channel < 3; ++channel)
-                                {
-                                    if (!halfCarrier)
-                                        InverseNear(values[i + channel], answer[i + channel] - proxy[i + channel], gain, "depth colour round trip / neutral");
-                                    else
-                                    {
-                                        // Bound real FP16 storage error; don't claim an exact inverse after quantization.
-                                        // Typed FP16 UAV stores can truncate: allow one half interval,
-                                        // not just the half-interval error of round-to-nearest. Both
-                                        // inverse transforms have infinity-norm Lipschitz bound <= 1.
-                                        const float peak = std::max({.5f, encoded[i], encoded[i + 1], encoded[i + 2]});
-                                        const float tolerance = (std::ldexp(1.f, std::ilogb(peak) - 10) + .000004f) / std::min(gain, 1.f);
-                                        const float expected = answer[i + channel] - proxy[i + channel];
-                                        if (!std::isfinite(values[i + channel]) || std::abs(values[i + channel] - expected) > tolerance)
-                                            throw std::runtime_error("FP16 colour transport exceeded round-trip error bound: gain=" +
-                                                std::to_string(gain) + " saturation=" + std::to_string(saturation) + " strength=" +
-                                                std::to_string(strength) + " curve=" + std::to_string(curve) + " channel=" +
-                                                std::to_string(channel) + " pixel=" + std::to_string(i / 4) + " expected=" +
-                                                std::to_string(expected) + " got=" + std::to_string(values[i + channel]));
-                                    }
-                                }
-                            ++checks;
-                        }
+        // Rejected transport fields below are deliberately non-default: they must not affect colour.
         // Full-answer path: independent forward/inverse matrix references, varying current proxy,
         // raw-answer bypass, clipping, invalid RGB, both real FP16 and FP32 carrier writes, and a
         // synthetic DLSS change. Decode must use this proxy, never the original NR answer or 0.5.
@@ -813,9 +676,9 @@ int main(int argc, char** argv)
                     const double n = std::isfinite(answer[i + channel]) ? answer[i + channel] : proxy[i + channel];
                     const double delta = n - proxy[i + channel];
                     edit[channel] = delta > 0 ? delta * gain : delta;
-                    colours[i / 4][channel] = strength * (channel == pair ? 1. - t : t);
+                    colours[i / 4][channel] = 0; // obsolete depth-colour slots are inert
                 }
-                const auto chroma = matrix(edit, saturation);
+                const auto& chroma = edit;
                 for (unsigned channel = 0; channel < 3; ++channel)
                 {
                     const double expected = std::min(65504., std::clamp(double(proxy[i + channel]) + chroma[channel], 0., 65504.) + colours[i / 4][channel]);
@@ -837,7 +700,7 @@ int main(int argc, char** argv)
                 for (unsigned channel = 0; channel < 3; ++channel)
                     delta[channel] = std::isfinite(encoded[i + channel])
                         ? encoded[i + channel] - colours[i / 4][channel] - proxy[i + channel] : 0.;
-                const auto restored = matrix(delta, 1. / saturation);
+                const auto& restored = delta;
                 for (unsigned channel = 0; channel < 3; ++channel)
                 {
                     const float expected = float(restored[channel] > 0 ? restored[channel] / gain : restored[channel]);
@@ -885,85 +748,6 @@ int main(int argc, char** argv)
             ++checks;
         }
 
-        // Independent double-precision reference for spatial gain + additive lift, including
-        // neutral/dark edit, clipping, full-answer, saturation, depth colour, reversed and invalid Z.
-        for (unsigned flags : {1u,2u,3u,5u,6u,7u}) for (bool inverted : {false,true})
-        for (bool fullAnswer : {false,true}) for (bool halfCarrier : {false,true})
-        for (float saturation : {1.f,4.f})
-        {
-            constexpr UINT w=17,h=9;
-            constexpr double peak=16, nearLimit=.125, farLimit=.75, curve=.5, lift=.25;
-            std::vector<float> proxy(w*h*4,.25f), answer(proxy.size()), depth(proxy.size());
-            for (size_t i=0;i<proxy.size();i+=4)
-            {
-                depth[i] = i/4%13==0 ? NAN : i/4%13==1 ? INFINITY : i/4%13==2 ? -1.f :
-                    i/4%13==3 ? 2.f : float(i/4%9)/8.f;
-                for (unsigned ch=0;ch<3;++ch)
-                    answer[i+ch] = i/4%7==0 ? proxy[i+ch] : i/4%7==1 ? -1.f :
-                        proxy[i+ch]+float(int((i/4+ch)%5)-2)/64.f;
-                answer[i+3]=1;
-            }
-            auto weight = [&](size_t i)
-            {
-                double z=depth[i]; if (!std::isfinite(z)||z<0||z>1) return 0.;
-                const double proximity=std::pow(inverted?z:1-z,curve);
-                if (flags&4) return proximity;
-                const double t=std::clamp((1-proximity-nearLimit)/(farLimit-nearLimit),0.,1.);
-                return 1-t*t*(3-2*t);
-            };
-            auto colour = [&](size_t i)
-            {
-                const double z=std::isfinite(depth[i])?std::clamp(double(depth[i]),0.,1.):(inverted?0.:1.);
-                const double u=inverted?1-z:z,t=u*u*(3-2*u);
-                return std::array<double,3>{.125*(1-t),.125*t,.125*t};
-            };
-            f.r.begin(); auto p=f.texture(w,h,&proxy),a=f.texture(w,h,&answer),d=f.texture(w,h,&depth,DXGI_FORMAT_R32_FLOAT),
-                out=f.texture(w,h,nullptr,halfCarrier?DXGI_FORMAT_R16G16B16A16_FLOAT:DXGI_FORMAT_R32G32B32A32_FLOAT);
-            DlssNr::Superior::DlssNrConstants c{};c.Mode=37;c.Width=w;c.Height=h;c.WhitePoint=float(peak);c.MaxRatio=saturation;
-            c.DirectDetailMode=fullAnswer;c.Passthrough=inverted;c.DirectResolveUpscaler=flags;
-            c.ExposureAnchors[0]=float(nearLimit);c.ExposureAnchors[1]=float(farLimit);
-            c.ExposureAnchors[2]=float(curve);c.ExposureAnchors[3]=float(lift);
-            c.ResidualScale=.125f;c.ResidualBlend=1;
-            f.dispatch(f.carrier.Get(),c,p.Get(),a.Get(),out.Get(),3,2,d.Get());
-            const auto encoded=f.read(out.Get());
-            for (size_t i=0;i<encoded.size();i+=4)
-            {
-                const double gain=flags&1?1+weight(i)*(peak-1):peak,bias=flags&2?weight(i)*lift:0;
-                std::array<double,3> edit{};
-                for(unsigned ch=0;ch<3;++ch) {double v=answer[i+ch]-proxy[i+ch];edit[ch]=v>0?v*gain:v;}
-                const auto chroma=matrix(edit,saturation), col=colour(i);
-                for(unsigned ch=0;ch<3;++ch)
-                {
-                    double expected=(fullAnswer?proxy[i+ch]:.5)+chroma[ch];
-                    expected=bias==0?std::min(std::clamp(expected,0.,65504.)+col[ch],65504.):
-                        std::clamp(expected+col[ch]+bias,0.,65504.);
-                    Near(encoded[i+ch],float(expected),"spatial transport encode independent reference");
-                }
-            }
-            f.r.begin();auto e=f.texture(w,h,&encoded),decoded=f.texture(w,h);c.Mode=38;
-            f.dispatch(f.carrier.Get(),c,e.Get(),p.Get(),decoded.Get(),3,2,d.Get());
-            const auto values=f.read(decoded.Get());
-            for(size_t i=0;i<values.size();i+=4)
-            {
-                const double gain=flags&1?1+weight(i)*(peak-1):peak,bias=flags&2?weight(i)*lift:0;
-                const auto col=colour(i);std::array<double,3> delta{};
-                for(unsigned ch=0;ch<3;++ch) delta[ch]=encoded[i+ch]-col[ch]-bias-(fullAnswer?proxy[i+ch]:.5);
-                const auto restored=matrix(delta,1./saturation);
-                for(unsigned ch=0;ch<3;++ch)
-                    Near(values[i+ch],float(restored[ch]>0?restored[ch]/gain:restored[ch]),"spatial inverse independent reference");
-            }
-            // Capture always precedes additive/saturation/colour: reconstruct positive edit using spatial gain.
-            f.r.begin(); auto saved=f.texture(w,h);c.Mode=43;
-            f.dispatch(f.carrier.Get(),c,p.Get(),a.Get(),saved.Get(),3,2,d.Get());
-            const auto snapshot=f.read(saved.Get());
-            for(size_t i=0;i<snapshot.size();i+=4)
-                for(unsigned ch=0;ch<3;++ch)
-                {
-                    const double gain=flags&1?1+weight(i)*(peak-1):peak,edit=answer[i+ch]-proxy[i+ch];
-                    Near(snapshot[i+ch],float(edit>0?edit*gain:edit),"depth-weighted diagnostic before additive lift");
-                }
-            ++checks;
-        }
         std::cout << "Private exposure/carrier GPU PASS: " << checks << " cases against independent numeric reference\n";
     }
     catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }

@@ -81,6 +81,14 @@ static void Keys()
               !IsKept("NativeDebugView") && !IsKept("Compare"),
           "the player's own and session keys left out");
     Check(!IsKept("Unknown"), "unknown key left out");
+    Section retiredOnly;
+    for (auto key : kRetiredCarrierKeys)
+    {
+        Check(!IsKept(key) && IsLeftOut(key), "retired transport excluded: " + std::string(key));
+        retiredOnly.emplace(std::string(key), "64");
+    }
+    Check(Filter(retiredOnly).empty() && Same(retiredOnly, {}),
+          "obsolete transport profile values cannot change a profile");
 
     Check(SameGame("NBA2K27.exe", "nba2k27.EXE") && SameGame("", "x.exe") && !SameGame("Cyberpunk2077.exe", "x.exe"),
           "same game by exe name, a file without one counts as this game's");
@@ -117,6 +125,16 @@ static void Coverage(const char* configCpp)
     buffer << in.rdbuf();
     const std::string text = buffer.str();
 
+    for (auto key : kRetiredCarrierKeys)
+    {
+        Check(text.find("DlssNr" + std::string(key)) == std::string::npos,
+              "retired field neither read nor applied: " + std::string(key));
+        Check(text.find("SetValue(\"DlssNr\", \"" + std::string(key) + "\"") == std::string::npos,
+              "retired key not written: " + std::string(key));
+    }
+    Check(text.find("for(auto key:DlssNrProfiles::kRetiredCarrierKeys)out.Delete") != std::string::npos ||
+              text.find("for (auto key : DlssNrProfiles::kRetiredCarrierKeys)") != std::string::npos,
+          "INI writer deletes retired keys");
     const std::regex written(R"re(SetValue\("DlssNr",\s*"([A-Za-z0-9]+)")re");
     std::set<std::string> keys;
     for (auto it = std::sregex_iterator(text.begin(), text.end(), written); it != std::sregex_iterator(); ++it)

@@ -1,0 +1,50 @@
+{
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "baseline": "9f2cc97c8ea422ec7e68742cd321a6bde83a2502",
+  "width": 2496,
+  "height": 1404,
+  "warmup_pairs": 16,
+  "abba_blocks": 64,
+  "results": [
+    {
+      "scene": "001",
+      "mode": "edit",
+      "before_ms": 0.091816,
+      "after_ms": 0.091904,
+      "before_sd_ms": 0.0012209629348137407,
+      "after_sd_ms": 0.002451680008920768,
+      "samples_per_variant": 128,
+      "difference_ms": 8.800000000000474e-05
+    },
+    {
+      "scene": "001",
+      "mode": "answer",
+      "before_ms": 0.09832,
+      "after_ms": 0.098128,
+      "before_sd_ms": 0.0012523888103474344,
+      "after_sd_ms": 0.0012597836584674893,
+      "samples_per_variant": 128,
+      "difference_ms": -0.00019199999999999773
+    },
+    {
+      "scene": "004",
+      "mode": "edit",
+      "before_ms": 0.099576,
+      "after_ms": 0.099336,
+      "before_sd_ms": 0.0015081784810521113,
+      "after_sd_ms": 0.0012882130209719072,
+      "samples_per_variant": 128,
+      "difference_ms": -0.0002400000000000041
+    },
+    {
+      "scene": "004",
+      "mode": "answer",
+      "before_ms": 0.107104,
+      "after_ms": 0.107448,
+      "before_sd_ms": 0.0012487782753965446,
+      "after_sd_ms": 0.0012135441425126555,
+      "samples_per_variant": 128,
+      "difference_ms": 0.0003439999999999971
+    }
+  ]
+}

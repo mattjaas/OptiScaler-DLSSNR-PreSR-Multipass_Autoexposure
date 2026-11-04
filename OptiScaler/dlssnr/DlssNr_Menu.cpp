@@ -4234,8 +4234,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 config->DlssNrSuperiorFilterNrAnswer = filterNrAnswer;
             HelpMarker("Experimental: private DLSS processes NR's full working-resolution picture. The edit is then "
                        "extracted by subtracting the current NR input proxy. Off: DLSS processes the edit encoded "
-                       "around 0.5. With multiplier 1x, saturation 1x and depth colour off, the full NR answer is "
-                       "fed directly to DLSS. Other transport controls can also be combined with this mode. "
+                       "around 0.5. With multiplier 1x, the full NR answer is "
+                       "fed directly to DLSS. The positive transport multiplier also works in this mode. "
                        "DLSS may alter picture detail as well as NR's edit; temporal behaviour can change.");
             ImGui::BeginDisabled(nr.vulkan || noDlss);
             auto ghost = DlssNr::GhostRejection::Read(*config);
@@ -4351,15 +4351,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             ImGui::EndDisabled();
             ImGui::EndDisabled();
             const bool previewInputSupported =
-                !filterNrAnswer &&
-                DlssNr::PrivateExposure::EditSaturation(config->DlssNrSuperiorEditSaturation.value_or_default()) ==
-                    1.f &&
-                (!config->DlssNrSuperiorDepthColour.value_or_default() ||
-                 DlssNr::PrivateExposure::DepthStrength(config->DlssNrSuperiorDepthColourStrength.value_or_default()) ==
-                     0.f) &&
-                !DlssNr::DepthTransport::Flags(
-                    DlssNr::DepthTransport::Effective(DlssNr::DepthTransport::Read(*config))) &&
-                !config->DlssNrSuperiorOriginalGuides.value_or_default();
+                !filterNrAnswer && !config->DlssNrSuperiorOriginalGuides.value_or_default();
             ImGui::BeginDisabled(automaticGain && previewInputSupported);
             if (ImGui::SliderFloat("Positive NR edit transport multiplier", &gain, .01f, 64.f, "%.3fx",
                                    ImGuiSliderFlags_Logarithmic))
@@ -4369,7 +4361,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             ImGui::EndDisabled();
             HelpMarker(
                 "Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
-                "then divide positive changes by the same multiplier. In edit mode without depth colour, zero "
+                "then divide positive changes by the same multiplier. In edit mode, zero "
                 "edit enters as 0.5; "
                 "darkening is not multiplied. Input is limited to nonnegative FP16 values, not to 2.0. "
                 "Below 1x attenuates positive changes before DLSS and restores their scale afterwards. "
@@ -4387,7 +4379,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "Dynamic automatic gain changes continue private DLSS history. Manual gain/other transport "
                        "changes reset it. "
                        "When disabled, the saved manual multiplier returns unchanged. "
-                       "Needs edit mode, saturation 1x, depth transport and original guides off. Can run without the "
+                       "Needs edit mode and original guides off. Can run without the "
                        "preview checkbox. "
                        "This estimate is calibrated on the supplied examples; it does not guarantee no ghosting.");
             bool gainPreview = config->DlssNrSuperiorGainPreview.value_or_default();
@@ -4401,8 +4393,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "Transformer examples; depth-boundary target comes from one Transformer scene. This checkbox displays "
                 "a suggestion; automatic application is a separate "
                 "option. "
-                "Not a ghosting detector or a guarantee for other scenes. Needs edit mode, saturation 1x "
-                "and depth transport/original guides off. Samples up to eight times per second; the boundary motion "
+                "Not a ghosting detector or a guarantee for other scenes. Needs edit mode and original guides off. "
+                "Samples up to eight times per second; the boundary motion "
                 "gate is optional. "
                 "EMA smooths the measurements and catches up faster after a sustained image change. "
                 "Changing motion helps reject frozen buffers, but cannot reliably identify every menu or video.");
@@ -4416,11 +4408,9 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     ImGui::Text("Suggested positive multiplier: %.2fx", status.smoothed);
                 else
                     ImGui::TextUnformatted("Suggested positive multiplier: waiting for measurement");
-                ImGui::TextWrapped(
-                    "%s",
-                    previewInputSupported
-                        ? status.text.c_str()
-                        : "Paused: preview needs edit mode, saturation 1x, depth transport and original guides off.");
+                ImGui::TextWrapped("%s", previewInputSupported
+                                             ? status.text.c_str()
+                                             : "Paused: preview needs edit mode and original guides off.");
                 if (meterMethod == int(DlssNr::GainPreview::DepthBoundary))
                     ImGui::Text("Depth-boundary pairs: %u | smoothed contrast at 1x: %.5f | target: %.5f",
                                 status.boundaryPairs, status.boundaryBase + status.boundarySlope,
@@ -4495,7 +4485,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             ImGui::EndDisabled();
             HelpMarker(
                 "Save one working-resolution signed RGB edit after the positive multiplier, before private "
-                "DLSS, saturation, depth colour and carrier clipping. Zero edit is 0. Values below 0 and above 1 "
+                "DLSS and carrier clipping. Zero edit is 0. Values below 0 and above 1 "
                 "are preserved in FP32 DDS. Works in edit and full NR answer modes. Enter a filename only; "
                 ".dds is added automatically. Saved under dlssnr-edit next to OptiScaler.dll. Existing files "
                 "are not overwritten: occupied bundle names automatically get -001, -002, etc. All companion files "
@@ -4505,97 +4495,10 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "age. "
                 "Save edit + object guides additionally writes .depth.dds and .motion.dds from the same "
                 "private DLSS input grid. Capture after the picture has settled at the chosen settings. "
-                "Depth-weighted gain also saves transport depth with the edit-only button. Added depth brightness is "
-                "not baked into the saved edit. Guide bundles require original-guide experiment off. "
+                "Guide bundles require original-guide experiment off. "
                 "This diagnostic does not adjust the image or any settings.");
             if (const auto status = DlssNr::SuperiorScaling::EditDumpStatus(); !status.empty())
                 ImGui::TextWrapped("%s", status.c_str());
-
-            float saturation =
-                DlssNr::PrivateExposure::EditSaturation(config->DlssNrSuperiorEditSaturation.value_or_default());
-            if (ImGui::SliderFloat("NR edit transport saturation", &saturation, 1.f, 16.f, "%.3fx",
-                                   ImGuiSliderFlags_Logarithmic))
-                config->DlssNrSuperiorEditSaturation = DlssNr::PrivateExposure::EditSaturation(saturation);
-            if (ImGui::InputFloat("Exact edit saturation", &saturation, 0.1f, 1.f, "%.4f"))
-                config->DlssNrSuperiorEditSaturation = DlssNr::PrivateExposure::EditSaturation(saturation);
-            HelpMarker("Experimental: increase the colour saturation of the transported NR edit before private DLSS, "
-                       "then undo it after DLSS. 1x disables the transform. In edit mode without depth colour, neutral "
-                       "input remains 0.5. "
-                       "Applies after the positive multiplier; the inverse runs before undoing that multiplier. "
-                       "High saturation can clip carrier channels at zero or the FP16 limit; clipped values cannot "
-                       "be recovered exactly and temporal stability may change. Exact entry supports 1..64.");
-
-            bool depthColour = config->DlssNrSuperiorDepthColour.value_or_default();
-            if (ImGui::Checkbox("Depth colour transport", &depthColour))
-                config->DlssNrSuperiorDepthColour = depthColour;
-            HelpMarker("Experimental: add a saturated near colour, smoothly changing to its complementary far colour, "
-                       "to the entire private DLSS input. Subtract the same current-depth colour after DLSS. "
-                       "This also colours pixels with no NR edit while enabled. Depth is the private DLSS guide, "
-                       "including reversed Z. Temporal filtering can leave colour errors at moving depth edges.");
-            ImGui::BeginDisabled(!depthColour);
-            static const char* depthColours[] = { "Red / Cyan", "Green / Magenta", "Blue / Yellow" };
-            int depthPair =
-                int(DlssNr::PrivateExposure::DepthPair(config->DlssNrSuperiorDepthColourPair.value_or_default()));
-            if (ImGui::Combo("Near / far depth colours", &depthPair, depthColours, IM_ARRAYSIZE(depthColours)))
-                config->DlssNrSuperiorDepthColourPair = uint32_t(depthPair);
-            float depthStrength =
-                DlssNr::PrivateExposure::DepthStrength(config->DlssNrSuperiorDepthColourStrength.value_or_default());
-            if (ImGui::SliderFloat("Depth colour strength", &depthStrength, 0.f, 4.f, "%.3f"))
-                config->DlssNrSuperiorDepthColourStrength = depthStrength;
-            if (ImGui::InputFloat("Exact depth colour strength", &depthStrength, 0.1f, 1.f, "%.4f"))
-                config->DlssNrSuperiorDepthColourStrength = DlssNr::PrivateExposure::DepthStrength(depthStrength);
-            float depthCurve =
-                DlssNr::PrivateExposure::DepthCurve(config->DlssNrSuperiorDepthColourCurve.value_or_default());
-            if (ImGui::SliderFloat("Depth colour curve", &depthCurve, 0.03125f, 64.f, "%.3f",
-                                   ImGuiSliderFlags_Logarithmic))
-                config->DlssNrSuperiorDepthColourCurve = depthCurve;
-            HelpMarker("Smooth transition in normalized device depth, not linear distance in metres. "
-                       "Curve 1 uses raw depth; higher curves spread colours where perspective depth approaches "
-                       "the far plane. Strength 0 disables the effect; exact strength supports 0..16. "
-                       "Clipping and FP16 precision limit exact subtraction, especially at high strengths.");
-            ImGui::EndDisabled();
-
-            auto depthTransport = DlssNr::DepthTransport::Read(*config);
-            if (ImGui::Checkbox("Depth-weighted positive edit multiplier", &depthTransport.weightedGain))
-                config->DlssNrSuperiorDepthWeightedGain = depthTransport.weightedGain;
-            HelpMarker(
-                "Experimental: replace the uniform positive multiplier with a depth-weighted value. "
-                "Near-camera peak uses Positive NR edit transport multiplier (at least 1x); far areas approach 1x. "
-                "Only positive edit is multiplied, then divided by the same per-pixel gain after DLSS.");
-            if (ImGui::Checkbox("Add near-camera brightness before DLSS", &depthTransport.additive))
-                config->DlssNrSuperiorDepthBrightness = depthTransport.additive;
-            HelpMarker("Experimental: add a depth-weighted brightness offset to the whole private DLSS input, "
-                       "including neutral and darkening edits. Subtract it after DLSS. Independent of depth-weighted "
-                       "multiplication; both can run together and with saturation, depth colour or full NR answer. "
-                       "Temporal filtering can leave errors at moving depth edges. Clipping and FP16 limit recovery.");
-            ImGui::BeginDisabled(!depthTransport.additive);
-            if (ImGui::SliderFloat("Near-camera brightness strength", &depthTransport.bias, 0.f, 4.f, "%.3f"))
-                config->DlssNrSuperiorDepthBrightnessStrength = depthTransport.bias;
-            if (ImGui::InputFloat("Exact near-camera brightness", &depthTransport.bias, .01f, .1f, "%.4f"))
-                config->DlssNrSuperiorDepthBrightnessStrength = DlssNr::DepthTransport::Sanitize(depthTransport).bias;
-            ImGui::EndDisabled();
-            ImGui::BeginDisabled(!depthTransport.weightedGain && !depthTransport.additive);
-            if (ImGui::Checkbox("Depth brightness across full range", &depthTransport.fullRange))
-                config->DlssNrSuperiorDepthBrightnessFullRange = depthTransport.fullRange;
-            ImGui::BeginDisabled(depthTransport.fullRange);
-            if (ImGui::SliderFloat("Full strength until relative depth", &depthTransport.nearLimit, 0.f, .9999f,
-                                   "%.4f"))
-                config->DlssNrSuperiorDepthBrightnessNear = depthTransport.nearLimit;
-            depthTransport = DlssNr::DepthTransport::Sanitize(depthTransport);
-            if (ImGui::SliderFloat("Fade out by relative depth", &depthTransport.farLimit,
-                                   depthTransport.nearLimit + .0001f, 1.f, "%.4f"))
-                config->DlssNrSuperiorDepthBrightnessFar = depthTransport.farLimit;
-            ImGui::EndDisabled();
-            if (ImGui::SliderFloat("Depth brightness distribution", &depthTransport.curve, .03125f, 64.f, "%.4f",
-                                   ImGuiSliderFlags_Logarithmic))
-                config->DlssNrSuperiorDepthBrightnessCurve = depthTransport.curve;
-            HelpMarker(
-                "Shared relative depth mask for both brightness options: 0 near, 1 far, not metres. "
-                "Distribution reshapes perspective depth before the range test; start with 0.25. "
-                "Full range fades continuously across the whole depth. Limited range stays at full strength "
-                "until the first slider, then smoothly fades to zero by the second. Reversed Z is handled. "
-                "Exact additive strength supports 0..64. Automatic gain/preview pauses while these modes are active.");
-            ImGui::EndDisabled();
 
             bool originalGuides = config->DlssNrSuperiorOriginalGuides.value_or_default();
             ImGui::BeginDisabled(EdgeCompressionNow(nr).status == DlssNr::Spatial::Status::Active && !originalGuides);

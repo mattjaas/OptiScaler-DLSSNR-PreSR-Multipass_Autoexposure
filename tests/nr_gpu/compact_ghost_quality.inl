@@ -1,5 +1,6 @@
 // Production shaders, matched captures, complete visibility+decode region, FP16 colour.
-void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = false, bool residual = false)
+void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = false, bool residual = false,
+                        bool retirement = false)
 {
     unsigned w, h, aw, ah, dw, dh, mw, mh;
     auto raw = GuidedPlane(stem + ".raw.dds", 4, 2, w, h), after = GuidedPlane(stem + ".after.dds", 4, 2, aw, ah),
@@ -39,14 +40,18 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
     f.r.finish();
     f.uploads.clear();
     std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    const std::string oldDir = "artifacts/ghost-study/compact-baseline";
+    const std::string oldDir =
+        retirement ? "artifacts/ghost-study/carrier-retirement-baseline" : "artifacts/ghost-study/compact-baseline";
     auto clear = f.r.pipeline(dir, "private_ghost_clear"),
          baseScatter =
              f.r.pipeline(revision ? oldDir : dir, revision ? "private_ghost_compact_1" : "private_ghost_scatter"),
          baseAge =
              f.r.pipeline(revision ? oldDir : dir, revision ? "private_ghost_compact_2" : "private_ghost_history"),
-         baseDecode = f.r.pipeline(revision ? oldDir : dir,
-                                   revision ? "private_carrier_compact_native16" : "private_carrier_temporal_ghost"),
+         baseDecode =
+             f.r.pipeline(revision ? oldDir : dir, retirement ? (residual ? "private_carrier_compact_simple"
+                                                                          : "private_carrier_compact_simple_answer")
+                                                   : revision ? "private_carrier_compact_native16"
+                                                              : "private_carrier_temporal_ghost"),
          scatter = f.r.pipeline(dir, "private_ghost_compact_1"), age = f.r.pipeline(dir, "private_ghost_compact_2"),
          decode16 =
              f.r.pipeline(dir, residual ? "private_carrier_compact_simple" : "private_carrier_compact_simple_answer");
@@ -87,7 +92,7 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
             barrier.UAV.pResource = resource;
             f.r.list->ResourceBarrier(1, &barrier);
         };
-        if (variant)
+        if (variant || retirement)
             uavBarrier(s.recon.Get());
         else
         {
@@ -101,7 +106,7 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
         f.r.barrier(s.recon.Get(), UAV, SRV);
         if (compact)
         {
-            if (variant)
+            if (variant || retirement)
                 uavBarrier(s.state[next].Get());
             else
             {
@@ -144,9 +149,11 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
         return ms;
     };
     const auto name = std::filesystem::path(stem).filename().string();
-    std::ofstream csv("artifacts/ghost-study/" + name +
-                      (revision ? (residual ? ".compact-revision-edit-timing.csv" : ".compact-revision-timing.csv")
-                                : (residual ? ".compact-final-edit-timing.csv" : ".compact-final-timing.csv")));
+    std::ofstream csv(
+        "artifacts/ghost-study/" + name +
+        (retirement ? (residual ? ".carrier-retirement-edit-timing.csv" : ".carrier-retirement-answer-timing.csv")
+         : revision ? (residual ? ".compact-revision-edit-timing.csv" : ".compact-revision-timing.csv")
+                    : (residual ? ".compact-final-edit-timing.csv" : ".compact-final-timing.csv")));
     csv << "sample,width,height,comparison,block,position,variant,ms\n";
     const unsigned blocks = revision ? 64u : 16u;
     for (unsigned candidate = 1; candidate <= 1; ++candidate)
@@ -181,7 +188,7 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
         if (oldOutput.size() != newOutput.size() ||
             std::memcmp(oldOutput.data(), newOutput.data(), oldOutput.size() * sizeof(float)))
             throw std::runtime_error("Compact revision changed decoded FP16 pixels");
-        std::cout << "Frozen d419c5e7 history words and FP16 decode pixels: bit-exact PASS\n";
+        std::cout << "Frozen reference history words and FP16 decode pixels: bit-exact PASS\n";
     }
     std::cout << "Compact native16 GPU ABBA saved for " << name << '\n';
 }
@@ -192,38 +199,6 @@ void CompactGhostQuality(Fixture& f)
     D3D12_FEATURE_DATA_D3D12_OPTIONS4 options {};
     bool native = SUCCEEDED(f.r.device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS4, &options, sizeof(options))) &&
                   options.Native16BitShaderOpsSupported;
-    // Host selection must preserve every non-identity transport, including unusual valid flags.
-    DlssNr::Superior::DlssNrConstants selector {};
-    selector.Mode = 38;
-    selector.GuideWidth = 1;
-    selector.GuideHeight = 3;
-    selector.MaxRatio = 1;
-    if (!DlssNr::Superior::Fields::SimpleCompactGhost(selector))
-        throw std::runtime_error("Simple compact identity selection");
-    selector.MaxRatio = 2;
-    if (DlssNr::Superior::Fields::SimpleCompactGhost(selector))
-        throw std::runtime_error("Saturation must select general compact PSO");
-    selector.MaxRatio = 1;
-    selector.ResidualScale = .1f;
-    if (DlssNr::Superior::Fields::SimpleCompactGhost(selector))
-        throw std::runtime_error("Depth colour must select general compact PSO");
-    selector.ResidualScale = 0;
-    for (unsigned flags : { 1u, 2u, 3u, 5u, 6u, 7u })
-    {
-        selector.DirectResolveUpscaler = flags;
-        if (DlssNr::Superior::Fields::SimpleCompactGhost(selector))
-            throw std::runtime_error("Depth brightness must select general compact PSO");
-    }
-    selector.DirectResolveUpscaler = 4; // full-range flag alone is inert
-    if (!DlssNr::Superior::Fields::SimpleCompactGhost(selector))
-        throw std::runtime_error("Inert full-range flag identity");
-    selector.Mode = 37;
-    if (DlssNr::Superior::Fields::SimpleCompactGhost(selector))
-        throw std::runtime_error("Encode must not select fixed decode");
-    selector.Mode = 38;
-    selector.GuideHeight = 2;
-    if (DlssNr::Superior::Fields::SimpleCompactGhost(selector))
-        throw std::runtime_error("Method 3 must retain its own PSO");
     unsigned checks = 0;
     for (bool useNative : { true })
     {
@@ -232,13 +207,12 @@ void CompactGhostQuality(Fixture& f)
             std::cout << "Native FP16 mask quality skipped: unavailable device\n";
             continue;
         }
-        for (bool simple : { false, true })
+        for (bool staleFields : { false, true })
         {
-            auto decode = f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile",
-                                       simple ? "private_carrier_compact_simple" : "private_carrier_compact_native16");
-            auto answerDecode = simple ? f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile",
-                                                      "private_carrier_compact_simple_answer")
-                                       : decode;
+            auto decode =
+                f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", "private_carrier_compact_simple");
+            auto answerDecode =
+                f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", "private_carrier_compact_simple_answer");
             for (float expansion : { 0.f, .5f, 1.f })
                 for (unsigned fade : { 0u, 3u })
                     for (bool full : { false, true })
@@ -295,6 +269,13 @@ void CompactGhostQuality(Fixture& f)
                                     settings.historyFade = fade;
                                     settings.softExpansion = expansion;
                                     DlssNr::Superior::Fields::SetCarrierGhostRejection(c, settings);
+                                    if (staleFields)
+                                    {
+                                        c.MaxRatio = 64;
+                                        c.ResidualScale = 16;
+                                        c.ResidualBlend = .1f;
+                                        c.DirectResolveUpscaler = 7;
+                                    }
                                     DlssNr::Superior::Fields::SetGhostDepthPrecision(c, 0);
                                     DlssNr::Superior::Fields::SetUnfilteredEditWeight(c, .25f);
                                     f.dispatch(full ? answerDecode.Get() : decode.Get(), c, e.Get(), p.Get(), out.Get(),
@@ -356,8 +337,7 @@ void CompactTransportQuality(Fixture& f)
         !options.Native16BitShaderOpsSupported)
         return;
     const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    auto general = f.r.pipeline(dir, "private_carrier_compact_native16"),
-         simple = f.r.pipeline(dir, "private_carrier_compact_simple"),
+    auto simple = f.r.pipeline(dir, "private_carrier_compact_simple"),
          answerSimple = f.r.pipeline(dir, "private_carrier_compact_simple_answer");
     unsigned checks = 0;
     for (bool full : { false, true })
@@ -414,11 +394,8 @@ void CompactTransportQuality(Fixture& f)
                             DlssNr::Superior::Fields::SetCarrierGhostRejection(c, settings);
                             DlssNr::Superior::Fields::SetGhostDepthPrecision(c, 0);
                             DlssNr::Superior::Fields::SetUnfilteredEditWeight(c, .25f);
-                            bool identity = DlssNr::Superior::Fields::SimpleCompactGhost(c);
-                            if (identity != (saturation == 1 && colour == 0 && !brightness))
-                                throw std::runtime_error("Compact transport PSO selection mismatch");
-                            f.dispatch(identity ? (full ? answerSimple.Get() : simple.Get()) : general.Get(), c,
-                                       encoded.Get(), p.Get(), out.Get(), 3, 2, d.Get(), p.Get(), r.Get(), s.Get());
+                            f.dispatch(full ? answerSimple.Get() : simple.Get(), c, encoded.Get(), p.Get(), out.Get(),
+                                       3, 2, d.Get(), p.Get(), r.Get(), s.Get());
                             auto got = f.read(out.Get());
                             for (size_t i = 0; i < got.size(); i += 4)
                             {
@@ -430,5 +407,5 @@ void CompactTransportQuality(Fixture& f)
                             ++checks;
                         }
     std::cout << "Compact combined transport PASS: " << checks
-              << " depth/saturation/gain/answer/Z/general/simple cases\n";
+              << " gain/answer/Z cases with obsolete transform fields ignored\n";
 }

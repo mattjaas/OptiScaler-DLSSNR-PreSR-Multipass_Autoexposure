@@ -11,8 +11,8 @@ void GhostQuality(Fixture& f)
         const unsigned w = tiny ? 1 : 17, h = tiny ? 1 : 9;
         std::vector<float> proxy(w*h*4,.5f), answer(proxy), filtered(proxy), expected(proxy), depth(proxy);
         std::vector<double> raw(proxy.size()), wanted(proxy.size());
-        const double sat = transforms ? 3 : 1, spatialGain = transforms ? 1 + .5*(std::max(1.f,gain)-1) : gain;
-        const double colour = transforms ? .0625 : 0, bias = transforms ? .05 : 0;
+        const double sat = 1, spatialGain = gain; // transforms=true now injects obsolete slots only
+        const double colour = 0, bias = 0;
         for (unsigned y=0;y<h;++y) for(unsigned x=0;x<w;++x)
         {
             const size_t i=(y*w+x)*4;

@@ -2,15 +2,15 @@
 
 Experimental branch based on janblade `release/0.1.35`, `789f882072254776c80c0ba2a02433ca73c22c6d`, fetched on 2026-10-27. The existing local v13 checkout was left intact. These controls apply to **Superior Scaling's private DLAA**, on D3D12 and D3D12 bridges. They do not change the game's DLSS configuration, NR proxy exposure, ordinary NVIDIA residual mode, or native Vulkan. Superior remains disabled for the upstream multi-view route; its new history belongs to its private temporal generation, not to a game-wide static latch.
 
+Updated 2026-11-04: saturation, depth colour, depth-weighted gain and additive near-camera brightness are retired. UI, Config fields and shader math have been removed; old INI/profile values are ignored and removed on the next INI save. Uniform gain, full NR answer, exposure methods and depth/MV guides remain.
+
 ## Controls
 
 Select **Superior Scaling** under **Upscale Mode**. Below **DLSS to temporally stabilize NR**:
 
 - **Private DLSS on full NR answer**: unchecked by default. When checked, private DLSS filters the complete NR response at working resolution; its output is then compared with the current immutable proxy to extract the edit. With transport controls at identity, the sanitized NR answer goes directly to DLSS, subject only to nonnegative FP16 range limits. Available on the same D3D12 Superior route as the other controls.
 - **Positive NR edit transport multiplier**: logarithmic slider 0.01..64. **Exact transport multiplier** accepts 0.01..1024. Default 1. Values below 1 attenuate the positive edit before DLSS and divide it back afterwards; 0 is disallowed because the inverse would be undefined.
-- **NR edit transport saturation**: logarithmic slider 1..16. **Exact edit saturation** accepts 1..64. Default 1 disables the transform.
-- **Depth-weighted positive edit multiplier**, **Add near-camera brightness before DLSS** and **Original depth and MV for private DLSS (experimental)**: see [depth brightness controls, exact formulas, capture format and native-guide limits](Private-DLSS-depth-brightness.md). The brightness modes combine with the controls below; raw guides remain an explicit compatibility experiment.
-- **Depth colour transport**: off by default. **Near / far depth colours** selects Red / Cyan, Green / Magenta or Blue / Yellow. **Depth colour strength** spans 0..4; **Exact depth colour strength** accepts 0..16. **Depth colour curve** spans 0.03125..64, default 1. Depth controls are disabled when the checkbox is off.
+- **Original depth and MV for private DLSS (experimental)**: see [guide compatibility](Private-DLSS-depth-brightness.md).
 - **Disable DLSS IsHDR flag**: the existing independent IsHDR experiment.
 - **Disable private DLSS AutoExposure**: unchecked by default. When checked, clears only the private feature's AutoExposure creation bit, independently of IsHDR.
 - **Private DLSS exposure method**: **Off (constant 1.0)**, **Manual**, **Legacy CNN E/F**, **Legacy Transformer K**, **Transformer 2 L/M**. Every method is selectable with either private model preference; there is no preset-dependent gate.
@@ -25,12 +25,7 @@ All transport and exposure settings participate in INI read/write, NR profile sa
 ```ini
 [DlssNr]
 SuperiorPositiveEditGain=1.0
-SuperiorEditSaturation=1.0
 SuperiorFilterNrAnswer=false
-SuperiorDepthColour=false
-SuperiorDepthColourStrength=1.0
-SuperiorDepthColourPair=0
-SuperiorDepthColourCurve=1.0
 SuperiorScalingDisableAutoExposure=false
 ; 1=unit, 2=manual, 3=Legacy CNN, 4=Legacy K, 5=Transformer 2
 SuperiorPrivateExposureMode=1
@@ -39,7 +34,7 @@ SuperiorPrivateExposureValue=1.0
 
 ## Positive transport
 
-With full-answer mode off, saturation at 1 and depth colour disabled, for each RGB channel, with `d = NR - proxy` and multiplier `m`:
+With full-answer mode off, for each RGB channel, with `d = NR - proxy` and multiplier `m`:
 
 ```text
 carrier = clamp(0.5 + min(d, 0) + m * max(d, 0), 0, 65504)
@@ -57,7 +52,7 @@ Enter a filename in **Pre-DLSS edit filename**, then click **Save pre-DLSS edit*
 
 The outputs are `<OptiScaler.dll folder>/dlssnr-edit/<name>.dds` and `<name>.json` settings. The `.dds` extension is added if omitted. Plain ASCII names (letters/digits/spaces/dash/underscore/dot, subject to the existing profile-name length rule) are accepted; paths, traversal, Windows reserved characters and device names are rejected. Existing files are never overwritten. Occupied bundle names automatically advance to `name-001`, `name-002`, etc.; DDS, depth, motion and JSON share the selected stem. Orphan companion names also count as occupied. Each attempted bundle still uses `CREATE_NEW`; partial failures remove only files created by that attempt. The last typed name is kept in the running menu only, not in NR look profiles or INI.
 
-The file contains the **signed edit after the positive multiplier**, before saturation, depth colouring, carrier offset/clipping and private DLSS:
+The file contains the **signed edit after the positive multiplier**, before carrier offset/clipping and private DLSS:
 
 ```text
 edit = sanitizedNRanswer - sanitizedCurrentProxy
@@ -90,15 +85,14 @@ filteredAnswer = privateDLSS(input)
 edit = filteredAnswer - currentProxy
 ```
 
-There is no artificial neutral 0.5 offset in this mode. Where NR made no edit, DLSS sees the proxy picture itself. Subtraction happens point-for-point on the same working/packed raster after DLSS, before the existing residual enlargement, band shaping and final composition. It uses the same immutable proxy that the original residual route compares against, not an unfiltered NR answer, a reconstructed native proxy or a previous frame. The default multiplier/saturation identity path feeds sanitized NR directly without a subtract/add round trip.
+There is no artificial neutral 0.5 offset in this mode. Where NR made no edit, DLSS sees the proxy picture itself. Subtraction happens point-for-point on the same working/packed raster after DLSS, before the existing residual enlargement, band shaping and final composition. It uses the same immutable proxy that the original residual route compares against, not an unfiltered NR answer, a reconstructed native proxy or a previous frame. The default unit multiplier path feeds sanitized NR directly without a subtract/add round trip.
 
-All transport options remain usable independently and together. With `d=NRanswer-proxy` and `e=min(d,0)+multiplier*max(d,0)`:
+The uniform positive multiplier remains available with full-answer mode. With `d=NRanswer-proxy` and `e=min(d,0)+multiplier*max(d,0)`:
 
 ```text
-base = clamp(proxy + S(e,saturation), 0, 65504)
-input = min(base + depthColour, 65504)
+input = clamp(proxy + e, 0, 65504)
 filteredAnswer = privateDLSS(input)
-restored = S(filteredAnswer - depthColour - proxy, 1/saturation)
+restored = filteredAnswer - proxy
 edit = min(restored,0) + max(restored,0)/multiplier
 ```
 
@@ -108,30 +102,9 @@ Changing the switch resets private temporal history and invalidates external exp
 
 The normal carrier cbuffer's otherwise unused `DirectDetailMode` selects the input mode. In `PrivateGuidesMain` only, the otherwise unused warp colour-filter selector (`gOptions.y`) carries it. Named setters and ABI offset assertions pin both usages; general joint/spatial guide entry points keep their original meaning.
 
-## Independent saturation and depth colour experiments
+## Retired carrier transforms
 
-The three transport controls can run individually or in any combination in either input mode. With full-answer mode off, positive gain 1, saturation 1 and depth colour off preserve the preceding branch's carrier output bit for bit. Colour controls do not gate the exposure methods or private preset choice.
-
-Saturation acts on the signed transported edit, not on the original game image. For `e = min(d,0) + m*max(d,0)`, define `Y(e) = .25*e.r + .5*e.g + .25*e.b` and `S(e,s) = Y(e) + s*(e-Y(e))`. Its inverse is `S(e,1/s)`. This keeps grey edits unchanged and increases chroma without changing the weighted signed luminance. A zero edit remains zero under this transform.
-
-Depth colour is added to the entire carrier, including zero-edit pixels, as explicitly requested. It uses the exact current private DLSS depth raster, point sampled at the carrier coordinate, including the matched or packed-guide path. Invalid depth maps to the far plane; reversed Z is normalized so the near endpoint always gets the near colour. Let `z = saturate(depth)` for normal Z and `z = 1-saturate(depth)` for reversed Z. Then `t = smoothstep(0,1,pow(z,curve))`, `colour = strength * lerp(nearRGB, 1-nearRGB, t)`. Palettes are saturated red/cyan, green/magenta and blue/yellow. This is normalized **device depth**, not linear eye-space distance in metres: no camera projection/near/far values are invented. The curve redistributes the non-linear range. The same current depth, curve, strength and palette produce the subtracted colour after DLSS.
-
-The complete order is:
-
-```text
-e = min(NR-proxy,0) + multiplier*max(NR-proxy,0)
-base = clamp(0.5 + S(e,saturation), 0, 65504)
-input = min(base + depthColour, 65504)
-filtered = privateDLSS(input)
-restored = S(filtered - depthColour - 0.5, 1/saturation)
-decodedEdit = min(restored,0) + max(restored,0)/multiplier
-```
-
-Depth colour is therefore removed before desaturation, then the positive multiplier is undone. With an identity filter, no clipping and exact arithmetic, a zero edit returns to carrier-neutral 0.5 after removing the colour transforms and to signed edit 0 after final decode. The code does not overwrite regions with a neutral mask: the actual DLSS result is retained. Temporal reconstruction can alter the artificial colour field, especially at moving depth boundaries/disocclusions, so exact colour cancellation after proprietary DLSS is not guaranteed. Clipped channels cannot be recovered. FP16 stores introduce a further error (roughly one half interval at the carrier magnitude); large additive strength can conceal a small original edit. These options are experiments, not established ghosting fixes.
-
-Both separate carrier+motion and fused guides+carrier paths share the transform functions. Saturation and depth colouring add no dispatch, texture allocation, extra colour copy or CPU/GPU synchronization. The separate path reads the existing private depth once on encode and once on decode only while depth colouring is active; the fused preparation reuses its already reconstructed depth. Exposure metering still reads the final coloured carrier supplied to DLSS. Changing an active transport parameter resets private history and measured exposure history to avoid mixing incompatible encodings; it does not recreate the NGX instance. All state belongs to the existing GPU-retired generation. The existing multi-view exclusion is retained.
-
-Named constant setters and offset assertions document the reused carrier fields and private-guide padding; the frozen 256-byte ABI is unchanged. The fused private entry point uses its existing padding for MV conversion, so its otherwise unused motionScale pair carries the depth curve/palette. General joint-guide entry points keep their original constants.
+Saturation, depth colour, depth-weighted gain and additive brightness no longer participate in encode, decode, fused preparation, gain-preview eligibility or history reset keys. Their old cbuffer slots remain reserved for ABI compatibility but are not read by current carrier math. Tests populate those slots with non-neutral values and require unchanged output. Legacy JSON fields retain identity defaults for analysis-file compatibility; old capture readers still interpret old files.
 
 ## Exposure implementation
 
@@ -149,7 +122,9 @@ The external NGX API receives current exposure; NVIDIA owns reconstruction's int
 
 Native/unit add no per-frame exposure dispatches. Manual updates the existing 1×1 texture only when the value changes. Custom resources are lazy and reused, with no per-frame allocation, readback, CPU/GPU wait or telemetry. Switching the exposure source or either creation flag retires/recreates the private generation and its NGX history using the upstream GPU lifetime tracker and submission gate. Shutdown drops all state. Resource/PSO failures preserve the game frame instead of silently substituting a different measurement algorithm.
 
-## Validation
+## Historical validation before retirement
+
+The counts and colour/depth-transform cases below document earlier revisions. Current validation is in [the retirement update](NR-private-models-low-motion.md#wycofanie-odrzuconych-transformacji-transportu).
 
 Local RTX 4090 and WARP numeric tests: 1402 cases against an independent CPU reference (double natural-log/exp arithmetic, binary search over binary16 values and an independent RGB matrix), including the report's uniform values, black, very low light, >10000 HDR, 90/10 dark/bright mixtures, negative/NaN/Inf samples, independent origins, grids smaller/larger than input, changing PreExposure, dark/bright transitions, odd-evaluation reset, held exposure, FP16 interval boundaries, manual entry, positive-only carrier inversion, signed saturation and all combinations of the three transport controls. Depth tests cover all three palettes, normal/reversed Z, endpoints, curves, invalid depth, D16/D24-quantized values and FP32/real FP16 carrier storage. Exposure assertions allow one half interval for FP32 reduction/transcendental differences; dedicated truncation cases require exact values. FP32 colour round trips use a strict numeric bound; FP16 round trips allow one half interval at carrier magnitude plus FP32 arithmetic error, accounting for truncating typed UAV stores.
 

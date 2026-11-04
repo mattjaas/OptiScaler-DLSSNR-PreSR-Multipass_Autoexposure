@@ -44,15 +44,6 @@ inline Settings Effective(Settings s)
     }
     return s;
 }
-template <class C> inline Settings Read(const C& c)
-{
-    return Sanitize(
-        { c.DlssNrSuperiorDepthWeightedGain.value_or_default(), c.DlssNrSuperiorDepthBrightness.value_or_default(),
-          c.DlssNrSuperiorDepthBrightnessFullRange.value_or_default(),
-          c.DlssNrSuperiorDepthBrightnessNear.value_or_default(), c.DlssNrSuperiorDepthBrightnessFar.value_or_default(),
-          c.DlssNrSuperiorDepthBrightnessCurve.value_or_default(),
-          c.DlssNrSuperiorDepthBrightnessStrength.value_or_default() });
-}
 inline float Weight(float depth, bool inverted, Settings s)
 {
     s = Sanitize(s);

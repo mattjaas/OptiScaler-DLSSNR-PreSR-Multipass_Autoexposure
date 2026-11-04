@@ -67,12 +67,6 @@ inline bool TemporalGhostRejection(const DlssNrConstants& c)
     return CarrierGhostRejection(c) && (c.GuideHeight == 2u || c.GuideHeight == 3u);
 }
 inline bool CompactGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 3u; }
-// A specialization of the same native-FP16 decode: only omit controls whose effective values are identity.
-inline bool SimpleCompactGhost(const DlssNrConstants& c)
-{
-    return CompactGhostRejection(c) && c.MaxRatio == 1.f && c.ResidualScale == 0.f &&
-           (c.DirectResolveUpscaler & 3u) == 0u;
-}
 inline void SetGhostDepthPrecision(DlssNrConstants& c, float precision)
 {
     c.ExposureAnchors[7] =
@@ -112,13 +106,15 @@ static_assert(offsetof(DlssNrConstants, GuideWidth) == 44 && offsetof(DlssNrCons
               offsetof(DlssNrConstants, TransferStrength) == 16 && offsetof(DlssNrConstants, CompareSplit) == 56);
 
 static_assert(offsetof(DlssNrConstants, WhitePoint) == 4);
-// Private carrier modes do not use composition's MaxRatio; HLSL reads it as edit saturation.
+// Legacy test-only setter: current carrier shaders ignore this obsolete saturation slot.
 inline void SetCarrierSaturation(DlssNrConstants& c, float saturation) { c.MaxRatio = saturation; }
 static_assert(offsetof(DlssNrConstants, MaxRatio) == 28);
 // Carrier only: full NR answer instead of the 0.5 residual; t1 supplies proxy during decode.
 inline void SetCarrierNrAnswer(DlssNrConstants& c, bool enabled) { c.DirectDetailMode = enabled ? 1u : 0u; }
 static_assert(offsetof(DlssNrConstants, DirectDetailMode) == 240);
-// Carrier only: t3 is private depth. These composition/history fields are otherwise unused.
+// Guided rejection still needs the depth convention, independently of retired colour controls.
+inline void SetCarrierDepthConvention(DlssNrConstants& c, bool inverted) { c.Passthrough = inverted ? 1u : 0u; }
+// Legacy parameter setters below remain only for stale-field regression and archived capture tests.
 inline void SetCarrierDepthColour(DlssNrConstants& c, float strength, float curve, uint32_t pair, bool inverted)
 {
     c.ResidualScale = strength;

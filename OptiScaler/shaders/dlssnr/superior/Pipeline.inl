@@ -87,15 +87,12 @@ struct Generation
     bool exactPresetOverride = false;
     bool disableIsHDR = false; // creation identity, independent of the game's HDR and AutoExposure
     uint32_t exposureMode = DlssNr::PrivateExposure::Native;
-    float positiveGain = 1.f, editSaturation = 1.f, manualExposure = 1.f;
-    DlssNr::DepthTransport::Settings depthTransport;
+    float positiveGain = 1.f, manualExposure = 1.f;
     bool originalGuides = false, originalMvLowRes = true, usedOriginalGuides = false, originalRejected = false;
     std::string originalGuideStatus;
     unsigned dlssDepthW = 0, dlssDepthH = 0, dlssMotionW = 0, dlssMotionH = 0;
     unsigned dlssDepthX = 0, dlssDepthY = 0, dlssMotionX = 0, dlssMotionY = 0;
     float dlssMotionScaleX = 1, dlssMotionScaleY = 1;
-    float depthStrength = 0.f, depthCurve = 1.f;
-    uint32_t depthPair = 0;
     bool unitInitialized = false;
     bool filterNrAnswer = false;
     struct ExposureHistory
@@ -582,7 +579,7 @@ std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, 
         return {};
     }
     UINT64 snapshotTotal = snapshotBytes, readbackTotal = job->bytes;
-    const bool withDepth = withGuides || g.depthTransport.weightedGain;
+    const bool withDepth = withGuides;
     if (withDepth)
     {
         if (!PrepareDumpGuide(*job, 0, depth, DlssNr::EditDump::Format::R32Float, ".depth.dds", snapshotTotal, readbackTotal) ||
@@ -617,7 +614,6 @@ std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, 
         const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
         m.guidesIncluded = withGuides;
         m.depthIncluded = withDepth;
-        m.depthTransport = g.depthTransport;
         m.originalGuides = g.usedOriginalGuides;
         m.dlssDepthW = g.dlssDepthW; m.dlssDepthH = g.dlssDepthH;
         m.dlssMotionW = g.dlssMotionW; m.dlssMotionH = g.dlssMotionH;
@@ -639,7 +635,7 @@ std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, 
         m.previewSettings = DlssNr::GainPreview::Read(cfg);
         m.frame = g_frames; m.submissionEpoch = frame.SubmissionEpoch;
         m.width = job->width; m.height = job->height;
-        m.gain = gain; m.saturation = g.editSaturation; m.depthStrength = g.depthStrength;
+        m.gain = gain; // retired transport metadata retains identity defaults for older analysis tools
         m.fullNrAnswer = g.filterNrAnswer; m.privatePreset = g.preset;
         m.ghostRejection = DlssNr::GhostRejection::Read(cfg);
         m.residentCnnEnabled = g.residentCnn && g.residentCnn->ready;
@@ -672,10 +668,6 @@ std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, 
     c.Width = job->width;
     c.Height = job->height;
     Fields::SetPositiveCarrierGain(c, gain);
-    auto snapshotTransport = g.depthTransport;
-    snapshotTransport.additive = false;
-    Fields::SetCarrierDepthBrightness(c, snapshotTransport);
-    c.Passthrough = g.inverted;
     Record(cmd);
     // Even a failed dispatch may have recorded a barrier referencing the snapshot.
     // Retain before recording anything that could leave a partial command sequence.
@@ -684,7 +676,7 @@ std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, 
     auto retainedBytes = s.editDumpRetainedBytes;
     retainedBytes->fetch_add(snapshotTotal);
     s.lifetime.Retire([snapshots, retainedBytes, snapshotTotal] { retainedBytes->fetch_sub(snapshotTotal); });
-    if (!Dispatch(shader, cmd, c, proxy, answer, nullptr, g.depthTransport.weightedGain ? depth : nullptr, nullptr, nullptr, job->image))
+    if (!Dispatch(shader, cmd, c, proxy, answer, nullptr, nullptr, nullptr, nullptr, job->image))
     {
         s.editDumpStatus = "Edit not saved: snapshot dispatch failed.";
         return {};
@@ -1224,15 +1216,9 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
 {
     if (!g.feature || !g.parameters || !NgxAlive(g.ngxEpoch))
         return nullptr;
-    const float manualGain = DlssNr::PrivateExposure::PositiveGain(Config::Instance()->DlssNrSuperiorPositiveEditGain.value_or_default());
-    const float saturation = DlssNr::PrivateExposure::EditSaturation(Config::Instance()->DlssNrSuperiorEditSaturation.value_or_default());
+    const float manualGain =
+        DlssNr::PrivateExposure::PositiveGain(Config::Instance()->DlssNrSuperiorPositiveEditGain.value_or_default());
     const auto& cfg = *Config::Instance();
-    const float depthStrength = cfg.DlssNrSuperiorDepthColour.value_or_default()
-                                    ? DlssNr::PrivateExposure::DepthStrength(cfg.DlssNrSuperiorDepthColourStrength.value_or_default()) : 0.f;
-    const float depthCurve = depthStrength > 0 ? DlssNr::PrivateExposure::DepthCurve(cfg.DlssNrSuperiorDepthColourCurve.value_or_default()) : 1.f;
-    const uint32_t depthPair = depthStrength > 0 ? DlssNr::PrivateExposure::DepthPair(cfg.DlssNrSuperiorDepthColourPair.value_or_default()) : 0u;
-    const auto depthTransport = DlssNr::DepthTransport::Effective(DlssNr::DepthTransport::Read(cfg));
-    const bool depthActive = DlssNr::DepthTransport::Flags(depthTransport) != 0;
     const auto ghostSettings = DlssNr::GhostRejection::Read(cfg);
     const bool guidedGhost = ghostSettings.enabled && ghostSettings.strength > 0.f && ghostSettings.method != 0u;
     const bool temporalGhost = guidedGhost && ghostSettings.method >= 2u;
@@ -1256,7 +1242,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     const uint64_t context = DlssNr::GainPreview::Context(baseContext,measurementSettings);
     const double now = (measurementRequested || lowMotionSettings.enabled) ? std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count() : 0;
     auto& runtime = GetState();
-    const bool supported = !filterNrAnswer && saturation == 1.f && depthStrength == 0.f && !depthActive && !cfg.DlssNrSuperiorOriginalGuides.value_or_default();
+    const bool supported = !filterNrAnswer && !cfg.DlssNrSuperiorOriginalGuides.value_or_default();
     // Auto never attenuates positive edit, including during warmup, fallback and secondary views.
     float gain = autoRequested ? std::max(1.f, manualGain) : manualGain;
     if (!g_viewSecondary && autoRequested)
@@ -1271,17 +1257,11 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     const bool automaticControlled = !g_viewSecondary && autoRequested && runtime.automaticGain.state.controlled;
 
     const bool gainChanged = gain != g.positiveGain;
-    const bool transformChanged = saturation != g.editSaturation || depthStrength != g.depthStrength ||
-        depthCurve != g.depthCurve || depthPair != g.depthPair || filterNrAnswer != g.filterNrAnswer || depthTransport != g.depthTransport;
+    const bool transformChanged = filterNrAnswer != g.filterNrAnswer;
     if (gainChanged || transformChanged)
     {
         g.positiveGain = gain;
-        g.editSaturation = saturation;
-        g.depthStrength = depthStrength;
-        g.depthCurve = depthCurve;
-        g.depthPair = depthPair;
         g.filterNrAnswer = filterNrAnswer;
-        g.depthTransport = depthTransport;
         // Automatic gain follows the existing DLSS history, explicitly requested for live regulation.
         // Manual gain and other transport changes retain their previous reset behaviour.
         if (DlssNr::AutoGain::ResetHistoryForTransport(gainChanged,autoRequested && supported,transformChanged))
@@ -1292,10 +1272,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     }
     auto encode = GuideConstants(g.workWidth, g.workHeight, regions, frame, true, hold);
     Fields::SetPositiveCarrierGain(encode, gain);
-    Fields::SetCarrierSaturation(encode, saturation);
-    Fields::SetCarrierDepthColour(encode, depthStrength, depthCurve, depthPair, g.inverted);
+    Fields::SetCarrierDepthConvention(encode, g.inverted);
     Fields::SetCarrierNrAnswer(encode, filterNrAnswer);
-    Fields::SetCarrierDepthBrightness(encode, depthTransport);
     encode.Mode = 39u; // v50: fixed carrier + motion; reuse this frame's exact NR depth.
     auto* motion = originalMotion;
     auto* temporalDepth = g.packed ? packedDepth : g.depth.Get();
@@ -1331,10 +1309,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
             fused.padding[1] = encode.MvScaleX;
             fused.padding[2] = encode.MvScaleY;
             DlssNr::Spatial::SetPrivateCarrierGain(fused, gain);
-            DlssNr::Spatial::SetPrivateCarrierSaturation(fused, saturation);
-            DlssNr::Spatial::SetPrivateCarrierDepthColour(fused, depthStrength, depthCurve, depthPair);
             DlssNr::Spatial::SetPrivateCarrierNrAnswer(fused, filterNrAnswer);
-            DlssNr::Spatial::SetPrivateCarrierDepthBrightness(fused, depthTransport);
             Record(cmd);
             g.depth.To(cmd, Uav);
             g.carrier.To(cmd, Uav);
@@ -1410,8 +1385,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     else g.originalGuideStatus = cfg.DlssNrSuperiorOriginalGuides.value_or_default() ?
         "Matched guides: original-guide experiment unavailable with edge compression." : "Matched guides (original-guide experiment off).";
     encode.Mode = useOriginal && !guidedGhost ? 37u : 39u; // The guided detector always needs matched pixel MV.
-    if (!prepared && !Dispatch(shader, cmd, encode, proxy, answer, motion,
-                               depthStrength > 0 || depthActive ? temporalDepth : nullptr, nullptr, nullptr, g.carrier,
+    if (!prepared && !Dispatch(shader, cmd, encode, proxy, answer, motion, nullptr, nullptr, nullptr, g.carrier,
                                useOriginal && !guidedGhost ? nullptr : &g.temporalMotion))
         return nullptr;
     // The estimate samples raw NR differences, independent of the manually selected gain.
@@ -1420,7 +1394,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     {
         auto& preview = GetState().preview;
         if (!supported)
-            preview.Pause("Preview needs edit mode, saturation 1x, depth transport and original guides off.");
+            preview.Pause("Preview needs edit mode and original guides off.");
         else if (hold)
             preview.Pause("Paused: frame held.");
         else
@@ -1501,12 +1475,9 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     decode.Width = g.workWidth;
     decode.Height = g.workHeight;
     Fields::SetPositiveCarrierGain(decode, gain);
-    Fields::SetCarrierSaturation(decode, saturation);
-    Fields::SetCarrierDepthColour(decode, depthStrength, depthCurve, depthPair, g.inverted);
+    Fields::SetCarrierDepthConvention(decode, g.inverted);
     Fields::SetCarrierNrAnswer(decode, filterNrAnswer);
-    Fields::SetCarrierDepthBrightness(decode, depthTransport);
-    RecordAfterEditDump(pairedDump, g, shader, cmd, decode, proxy,
-                        depthStrength > 0 || depthActive ? temporalDepth : nullptr);
+    RecordAfterEditDump(pairedDump, g, shader, cmd, decode, proxy, nullptr);
     Fields::SetUnfilteredEditWeight(decode, 1.f - mix);
     auto effectiveGhost = ghostSettings;
     auto* history = temporalGhost ? TemporalGhostMask(g, shader, cmd, temporalDepth, g.temporalMotion.Get(), frame,
@@ -1518,8 +1489,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     Fields::SetGhostDepthPrecision(decode, packedDepthPrecision);
     const bool needsRawEdit = mix < 1.f || Fields::CarrierGhostRejection(decode);
     if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), filterNrAnswer ? proxy : nullptr,
-                  needsRawEdit ? proxy : nullptr,
-                  depthStrength > 0 || depthActive || guidedGhost ? temporalDepth : nullptr,
+                  needsRawEdit ? proxy : nullptr, guidedGhost ? temporalDepth : nullptr,
                   needsRawEdit ? answer : nullptr,
                   history       ? history->Get()
                   : guidedGhost ? g.temporalMotion.Get()

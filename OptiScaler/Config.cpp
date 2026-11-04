@@ -1148,15 +1148,7 @@ void Config::ReadDlssNr()
     DlssNrSuperiorGainPreviewSlowSeconds.set_from_config(readFloat("DlssNr", "SuperiorGainPreviewSlowSeconds"));
     DlssNrSuperiorGainPreviewFastSeconds.set_from_config(readFloat("DlssNr", "SuperiorGainPreviewFastSeconds"));
     DlssNrSuperiorGainPreviewMotionThreshold.set_from_config(readFloat("DlssNr", "SuperiorGainPreviewMotionThreshold"));
-    DlssNrSuperiorDepthWeightedGain.set_from_config(readBool("DlssNr", "SuperiorDepthWeightedGain"));
-    DlssNrSuperiorDepthBrightness.set_from_config(readBool("DlssNr", "SuperiorDepthBrightness"));
-    DlssNrSuperiorDepthBrightnessFullRange.set_from_config(readBool("DlssNr", "SuperiorDepthBrightnessFullRange"));
-    DlssNrSuperiorDepthBrightnessNear.set_from_config(readFloat("DlssNr", "SuperiorDepthBrightnessNear"));
-    DlssNrSuperiorDepthBrightnessFar.set_from_config(readFloat("DlssNr", "SuperiorDepthBrightnessFar"));
-    DlssNrSuperiorDepthBrightnessCurve.set_from_config(readFloat("DlssNr", "SuperiorDepthBrightnessCurve"));
-    DlssNrSuperiorDepthBrightnessStrength.set_from_config(readFloat("DlssNr", "SuperiorDepthBrightnessStrength"));
     DlssNrSuperiorOriginalGuides.set_from_config(readBool("DlssNr", "SuperiorOriginalGuides"));
-    DlssNrSuperiorEditSaturation.set_from_config(readFloat("DlssNr", "SuperiorEditSaturation"));
     DlssNrSuperiorFilterNrAnswer.set_from_config(readBool("DlssNr", "SuperiorFilterNrAnswer"));
     DlssNrSuperiorGhostRejection.set_from_config(readBool("DlssNr", "SuperiorGhostRejection"));
     DlssNrSuperiorShowGhostMask.set_from_config(readBool("DlssNr", "SuperiorShowGhostMask"));
@@ -1173,10 +1165,6 @@ void Config::ReadDlssNr()
     DlssNrSuperiorGhostThreshold.set_from_config(readFloat("DlssNr", "SuperiorGhostThreshold"));
     DlssNrSuperiorGhostSoftness.set_from_config(readFloat("DlssNr", "SuperiorGhostSoftness"));
     DlssNrSuperiorGhostStrength.set_from_config(readFloat("DlssNr", "SuperiorGhostStrength"));
-    DlssNrSuperiorDepthColour.set_from_config(readBool("DlssNr", "SuperiorDepthColour"));
-    DlssNrSuperiorDepthColourStrength.set_from_config(readFloat("DlssNr", "SuperiorDepthColourStrength"));
-    DlssNrSuperiorDepthColourCurve.set_from_config(readFloat("DlssNr", "SuperiorDepthColourCurve"));
-    DlssNrSuperiorDepthColourPair.set_from_config(readUInt("DlssNr", "SuperiorDepthColourPair"));
     DlssNrSuperiorPrivateExposureMode.set_from_config(readUInt("DlssNr", "SuperiorPrivateExposureMode"));
     DlssNrSuperiorPrivateExposureValue.set_from_config(readFloat("DlssNr", "SuperiorPrivateExposureValue"));
 
@@ -1366,6 +1354,8 @@ void Config::ReadDlssNr()
 // built), into the ini given: OptiScaler.ini, or a profile / snapshot (DlssNr_Profiles.h).
 static void WriteDlssNr(Config& c, CSimpleIniA& out)
 {
+    for (auto key : DlssNrProfiles::kRetiredCarrierKeys)
+        out.Delete("DlssNr", key.data());
     // --- DLSS 5 Neural Rendering (OptiScaler/dlssnr) ---
     out.SetValue("DlssNr", "Enabled", GetBoolValue(c.DlssNrEnabled.value_for_config()).c_str());
     out.SetValue("DlssNr", "FinishedPicture", GetBoolValue(c.DlssNrFinishedPicture.value_for_config()).c_str());
@@ -1467,24 +1457,8 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetFloatValue(c.DlssNrSuperiorGainPreviewFastSeconds.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGainPreviewMotionThreshold",
                  GetFloatValue(c.DlssNrSuperiorGainPreviewMotionThreshold.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthWeightedGain",
-                 GetBoolValue(c.DlssNrSuperiorDepthWeightedGain.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthBrightness",
-                 GetBoolValue(c.DlssNrSuperiorDepthBrightness.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthBrightnessFullRange",
-                 GetBoolValue(c.DlssNrSuperiorDepthBrightnessFullRange.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthBrightnessNear",
-                 GetFloatValue(c.DlssNrSuperiorDepthBrightnessNear.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthBrightnessFar",
-                 GetFloatValue(c.DlssNrSuperiorDepthBrightnessFar.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthBrightnessCurve",
-                 GetFloatValue(c.DlssNrSuperiorDepthBrightnessCurve.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthBrightnessStrength",
-                 GetFloatValue(c.DlssNrSuperiorDepthBrightnessStrength.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorOriginalGuides",
                  GetBoolValue(c.DlssNrSuperiorOriginalGuides.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorEditSaturation",
-                 GetFloatValue(c.DlssNrSuperiorEditSaturation.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorFilterNrAnswer",
                  GetBoolValue(c.DlssNrSuperiorFilterNrAnswer.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostRejection",
@@ -1516,13 +1490,6 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetFloatValue(c.DlssNrSuperiorGhostSoftness.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostStrength",
                  GetFloatValue(c.DlssNrSuperiorGhostStrength.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthColour", GetBoolValue(c.DlssNrSuperiorDepthColour.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthColourStrength",
-                 GetFloatValue(c.DlssNrSuperiorDepthColourStrength.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthColourCurve",
-                 GetFloatValue(c.DlssNrSuperiorDepthColourCurve.value_for_config()).c_str());
-    out.SetValue("DlssNr", "SuperiorDepthColourPair",
-                 GetIntValue(c.DlssNrSuperiorDepthColourPair.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorPrivateExposureMode",
                  GetIntValue(c.DlssNrSuperiorPrivateExposureMode.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorPrivateExposureValue",
@@ -1920,15 +1887,7 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorGainPreviewSlowSeconds", DlssNrSuperiorGainPreviewSlowSeconds),
         NR_PROFILE_FIELD("SuperiorGainPreviewFastSeconds", DlssNrSuperiorGainPreviewFastSeconds),
         NR_PROFILE_FIELD("SuperiorGainPreviewMotionThreshold", DlssNrSuperiorGainPreviewMotionThreshold),
-        NR_PROFILE_FIELD("SuperiorDepthWeightedGain", DlssNrSuperiorDepthWeightedGain),
-        NR_PROFILE_FIELD("SuperiorDepthBrightness", DlssNrSuperiorDepthBrightness),
-        NR_PROFILE_FIELD("SuperiorDepthBrightnessFullRange", DlssNrSuperiorDepthBrightnessFullRange),
-        NR_PROFILE_FIELD("SuperiorDepthBrightnessNear", DlssNrSuperiorDepthBrightnessNear),
-        NR_PROFILE_FIELD("SuperiorDepthBrightnessFar", DlssNrSuperiorDepthBrightnessFar),
-        NR_PROFILE_FIELD("SuperiorDepthBrightnessCurve", DlssNrSuperiorDepthBrightnessCurve),
-        NR_PROFILE_FIELD("SuperiorDepthBrightnessStrength", DlssNrSuperiorDepthBrightnessStrength),
         NR_PROFILE_FIELD("SuperiorOriginalGuides", DlssNrSuperiorOriginalGuides),
-        NR_PROFILE_FIELD("SuperiorEditSaturation", DlssNrSuperiorEditSaturation),
         NR_PROFILE_FIELD("SuperiorFilterNrAnswer", DlssNrSuperiorFilterNrAnswer),
         NR_PROFILE_FIELD("SuperiorGhostRejection", DlssNrSuperiorGhostRejection),
         NR_PROFILE_FIELD("SuperiorShowGhostMask", DlssNrSuperiorShowGhostMask),
@@ -1945,10 +1904,6 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorGhostThreshold", DlssNrSuperiorGhostThreshold),
         NR_PROFILE_FIELD("SuperiorGhostSoftness", DlssNrSuperiorGhostSoftness),
         NR_PROFILE_FIELD("SuperiorGhostStrength", DlssNrSuperiorGhostStrength),
-        NR_PROFILE_FIELD("SuperiorDepthColour", DlssNrSuperiorDepthColour),
-        NR_PROFILE_FIELD("SuperiorDepthColourStrength", DlssNrSuperiorDepthColourStrength),
-        NR_PROFILE_FIELD("SuperiorDepthColourCurve", DlssNrSuperiorDepthColourCurve),
-        NR_PROFILE_FIELD("SuperiorDepthColourPair", DlssNrSuperiorDepthColourPair),
         NR_PROFILE_FIELD("SuperiorPrivateExposureMode", DlssNrSuperiorPrivateExposureMode),
         NR_PROFILE_FIELD("SuperiorPrivateExposureValue", DlssNrSuperiorPrivateExposureValue),
         NR_PROFILE_FIELD("ScalingDownscaler", DlssNrScalingDownscaler),

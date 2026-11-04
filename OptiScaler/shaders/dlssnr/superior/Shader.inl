@@ -23,7 +23,6 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/private_carrier_ghost_Shader.h"
 #include "precompile/private_carrier_guided_ghost_Shader.h"
 #include "precompile/private_carrier_temporal_ghost_Shader.h"
-#include "precompile/private_carrier_compact_native16_Shader.h"
 #include "precompile/private_carrier_compact_simple_Shader.h"
 #include "precompile/private_carrier_compact_simple_answer_Shader.h"
 #include "precompile/private_ghost_compact_1_Shader.h"
@@ -138,6 +137,8 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
     ID3D12PipelineState* pipeline = ghostRejection ? nullptr : SuperiorPipeline(InConstants, InSource);
     const auto get = [&](unsigned index, const void* blob, size_t size)
     {
+        if (index >= kSuperiorPipelineCount)
+            return static_cast<ID3D12PipelineState*>(nullptr);
         if (!_superiorAttempted[index])
         {
             _superiorAttempted[index] = true;
@@ -153,12 +154,10 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
                        : get(17u, private_carrier_ghost_cso, sizeof(private_carrier_ghost_cso));
     if (DlssNr::Superior::Fields::CompactGhostRejection(InConstants))
     {
-        pipeline = DlssNr::Superior::Fields::SimpleCompactGhost(InConstants)
-                       ? (InConstants.DirectDetailMode != 0u ? get(27u, private_carrier_compact_simple_answer_cso,
-                                                                   sizeof(private_carrier_compact_simple_answer_cso))
-                                                             : get(26u, private_carrier_compact_simple_cso,
-                                                                   sizeof(private_carrier_compact_simple_cso)))
-                       : get(25u, private_carrier_compact_native16_cso, sizeof(private_carrier_compact_native16_cso));
+        pipeline =
+            InConstants.DirectDetailMode != 0u
+                ? get(26u, private_carrier_compact_simple_answer_cso, sizeof(private_carrier_compact_simple_answer_cso))
+                : get(25u, private_carrier_compact_simple_cso, sizeof(private_carrier_compact_simple_cso));
         if (!pipeline)
             return false;
     }

@@ -7,19 +7,11 @@
 #undef gAux2
 // The host selects this PSO only for Mode 38; keep the general carrier unchanged.
 #define gMode 38u
-#ifdef DLSSNR_COMPACT_SIMPLE
-#define gMaxRatio 1.0
-#define gResidualScale 0.0
-#define gDirectResolveUpscaler 0u
-#ifndef DLSSNR_COMPACT_NR_ANSWER
-#define DLSSNR_COMPACT_NR_ANSWER 0
-#endif
+#ifdef DLSSNR_COMPACT_NR_ANSWER
 #define gDirectDetailMode DLSSNR_COMPACT_NR_ANSWER
 #endif
 #endif
 #include "PositiveCarrier.hlsli"
-#include "DepthCarrier.hlsli"
-#include "DepthBrightness.hlsli"
 #ifdef DLSSNR_GHOST_REJECTION
 #include "GhostRejection.hlsli"
 #ifdef DLSSNR_COMPACT_GHOST
@@ -38,31 +30,25 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= gWidth || id.y >= gHeight) return;
     const int3 p = int3(id.xy, 0);
-    float depth = 0.0;
-    [branch] if ((gDirectResolveUpscaler & 3u) != 0u || (gMode != 43u && isfinite(gResidualScale) && gResidualScale > 0.0))
-        depth = gMotion.Load(p).x;
-    const float weight = CarrierDepthWeight(depth, gPassthrough != 0u, gDirectResolveUpscaler, gExposureAnchors[0]);
-    const float gain = CarrierDepthGain(gWhitePoint, weight, gDirectResolveUpscaler);
-    const float bias = CarrierDepthBias(weight, gDirectResolveUpscaler, gExposureAnchors[0].w);
+    const float gain = PositiveCarrierGain(gWhitePoint);
     if (gMode == 43u)
     {
         const float3 proxy = SanitizeFinite3(gSource.Load(p).rgb, 0.0);
         const float3 model = SanitizeFinite3(gModel.Load(p).rgb, proxy);
         precise float3 edit = model - proxy;
-        // One-shot diagnostic: signed edit after positive gain, before colour transforms/clipping.
-        gTarget[id.xy] = float4(min(edit, 0.0) + max(edit, 0.0) * PositiveCarrierGain(gain), 1.0);
+        // One-shot diagnostic: signed edit after positive gain, before carrier offset/clipping.
+        gTarget[id.xy] = float4(min(edit, 0.0) + max(edit, 0.0) * gain, 1.0);
         return;
     }
-    float3 depthColour = 0.0;
-    [branch] if (isfinite(gResidualScale) && gResidualScale > 0.0)
-        depthColour = CarrierDepthColour(depth, gResidualScale, gResidualBlendUnused,
-                                        gSkinProtection, gPassthrough != 0u);
     if (gMode == 37u || gMode == 39u)
     {
         const float3 proxy = SanitizeFinite3(gSource.Load(p).rgb, 0.0);
         const float3 model = SanitizeFinite3(gModel.Load(p).rgb, proxy);
-        gTarget[id.xy] = float4(EncodeDepthCarrier(proxy, model, gain, gMaxRatio,
-                                                  gDirectDetailMode != 0u, depthColour, bias), 1.0);
+        gTarget[id.xy] = float4(min((gDirectDetailMode != 0u ? EncodeNrAnswer(proxy, model, gain)
+                                                             : EncodePositiveCarrier(proxy, model, gain)) +
+                                        0.0,
+                                    65504.0),
+                                1.0);
         if (gMode == 39u)
         {
             const float2 uv = (float2(id.xy) + 0.5) / float2(gWidth, gHeight);
@@ -78,14 +64,13 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
         if (gDirectDetailMode != 0u)
         {
             const float3 proxy = SanitizeFinite3(gModel.Load(p).rgb, 0.0);
-            const float3 filtered = SanitizeFinite3(gSource.Load(p).rgb, proxy + depthColour + bias) - depthColour - bias;
-            edit = DecodeNrAnswer(filtered, proxy, gain, gMaxRatio);
+            const float3 filtered = SanitizeFinite3(gSource.Load(p).rgb, proxy);
+            edit = DecodeNrAnswer(filtered, proxy, gain);
         }
         else
         {
-            const float3 filtered = SanitizeFinite3(gSource.Load(p).rgb,
-                bias == 0.0 ? float3(0.5, 0.5, 0.5) : 0.5 + depthColour + bias);
-            edit = DecodePositiveCarrier(filtered - depthColour - bias, gain, gMaxRatio);
+            const float3 filtered = SanitizeFinite3(gSource.Load(p).rgb, float3(.5, .5, .5));
+            edit = DecodePositiveCarrier(filtered, gain);
         }
 #ifdef DLSSNR_GHOST_REJECTION
         float rejectionMask;

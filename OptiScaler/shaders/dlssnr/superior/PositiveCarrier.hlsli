@@ -1,56 +1,29 @@
-// Shared by the ordinary and fused private-carrier preparation paths.
-float PositiveCarrierGain(float gain)
+// Uniform positive-only carrier. Rejected saturation/depth-colour/depth-brightness controls
+// are not part of this shader, including when obsolete constant slots contain non-default values.
+float PositiveCarrierGain(float gain) { return isfinite(gain) && gain >= .01 && gain <= 1024.0 ? gain : 1.0; }
+// Callers validate gain once with PositiveCarrierGain, including direct/invalid-parameter tests.
+float3 EncodePositiveCarrier(float3 proxy, float3 model, float gain)
 {
-    return isfinite(gain) && gain >= 0.01 && gain <= 1024.0 ? gain : 1.0;
-}
-float CarrierSaturation(float saturation)
-{
-    return isfinite(saturation) && saturation >= 1.0 && saturation <= 64.0 ? saturation : 1.0;
-}
-// A linear chroma transform of the SIGNED edit, before adding the neutral 0.5.
-// Binary-exact weights sum to one; the inverse uses the reciprocal saturation.
-float3 ScaleCarrierChroma(float3 edit, float factor)
-{
-    [branch] if (factor == 1.0) return edit;
-    precise float grey = dot(edit, float3(0.25, 0.5, 0.25));
-    precise float3 chroma = edit - grey;
-    return grey + factor * chroma;
-}
-float3 EncodePositiveCarrier(float3 proxy, float3 model, float gain, float saturation)
-{
-    precise float3 edit = model - proxy;
-    // Keep the subtraction and neutral addition separate: zero edit is exactly 0.5.
-    precise float3 scaled = min(edit, 0.0) + max(edit, 0.0) * PositiveCarrierGain(gain);
-    precise float3 coloured = ScaleCarrierChroma(scaled, CarrierSaturation(saturation));
-    precise float3 encoded = 0.5 + coloured;
-    // DLSS cannot carry negatives. The upper bound is only the FP16 storage limit,
-    // never the previous arbitrary 2.0 limit. Darkening is independent of gain.
-    return clamp(encoded, 0.0, 65504.0);
-}
-float3 DecodePositiveCarrier(float3 filtered, float gain, float saturation)
-{
-    precise float3 edit = filtered - 0.5;
-    // Reverse transforms in reverse order: chroma first, positive amplification second.
-    precise float3 restored = ScaleCarrierChroma(edit, 1.0 / CarrierSaturation(saturation));
-    return min(restored, 0.0) + max(restored, 0.0) / PositiveCarrierGain(gain);
-}
-
-// Full picture as the base, rather than a residual around 0.5. Bypass subtract/add
-// cancellation when transport controls are off: feed the sanitized NR answer directly.
-float3 EncodeNrAnswer(float3 proxy, float3 model, float gain, float saturation)
-{
-    gain = PositiveCarrierGain(gain);
-    saturation = CarrierSaturation(saturation);
-    [branch] if (gain == 1.0 && saturation == 1.0) return clamp(model, 0.0, 65504.0);
     precise float3 edit = model - proxy;
     precise float3 scaled = min(edit, 0.0) + max(edit, 0.0) * gain;
-    precise float3 encoded = proxy + ScaleCarrierChroma(scaled, saturation);
+    precise float3 encoded = .5 + scaled;
     return clamp(encoded, 0.0, 65504.0);
 }
-float3 DecodeNrAnswer(float3 filtered, float3 proxy, float gain, float saturation)
+float3 EncodeNrAnswer(float3 proxy, float3 model, float gain)
 {
-    // Extract the edit AFTER private DLSS, against the immutable current NR-input proxy.
+    [branch] if (gain == 1.0) return clamp(model, 0.0, 65504.0);
+    precise float3 edit = model - proxy;
+    precise float3 scaled = min(edit, 0.0) + max(edit, 0.0) * gain;
+    precise float3 encoded = proxy + scaled;
+    return clamp(encoded, 0.0, 65504.0);
+}
+float3 DecodePositiveCarrier(float3 filtered, float gain)
+{
+    precise float3 edit = filtered - .5;
+    return min(edit, 0.0) + max(edit, 0.0) / gain;
+}
+float3 DecodeNrAnswer(float3 filtered, float3 proxy, float gain)
+{
     precise float3 edit = filtered - proxy;
-    precise float3 restored = ScaleCarrierChroma(edit, 1.0 / CarrierSaturation(saturation));
-    return min(restored, 0.0) + max(restored, 0.0) / PositiveCarrierGain(gain);
+    return min(edit, 0.0) + max(edit, 0.0) / gain;
 }

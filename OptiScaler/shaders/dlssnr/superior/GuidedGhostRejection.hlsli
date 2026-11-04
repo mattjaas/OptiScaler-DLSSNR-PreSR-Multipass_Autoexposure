@@ -13,20 +13,15 @@ float GhostNearDepth(int2 p)
 float3 GhostRestoredTap(int2 pixel)
 {
     int3 p = int3(pixel, 0);
-    float z = gMotion.Load(p).x;
-    float weight = CarrierDepthWeight(z, gPassthrough != 0u, gDirectResolveUpscaler, gExposureAnchors[0]);
-    float gain = CarrierDepthGain(gWhitePoint, weight, gDirectResolveUpscaler);
-    float bias = CarrierDepthBias(weight, gDirectResolveUpscaler, gExposureAnchors[0].w);
-    float3 colour = CarrierDepthColour(z, gResidualScale, gResidualBlendUnused, gSkinProtection, gPassthrough != 0u);
+    float gain = PositiveCarrierGain(gWhitePoint);
     if (gDirectDetailMode != 0u)
     {
         float3 proxy = SanitizeFinite3(gModel.Load(p).rgb, 0.0);
-        float3 filtered = SanitizeFinite3(gSource.Load(p).rgb, proxy + colour + bias) - colour - bias;
-        return DecodeNrAnswer(filtered, proxy, gain, gMaxRatio);
+        return DecodeNrAnswer(SanitizeFinite3(gSource.Load(p).rgb, proxy), proxy, gain);
     }
-    return DecodePositiveCarrier(SanitizeFinite3(gSource.Load(p).rgb, 0.5 + colour + bias) - colour - bias, gain,
-                                 gMaxRatio);
+    return DecodePositiveCarrier(SanitizeFinite3(gSource.Load(p).rgb, .5), gain);
 }
+
 float3 RejectGuidedGhost(float3 filtered, int2 pixel, out float mask)
 {
     mask = 0.0;

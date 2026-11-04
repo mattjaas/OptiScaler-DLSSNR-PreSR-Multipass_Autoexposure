@@ -1,5 +1,8 @@
 # Rodziny prywatnego DLSS i cykliczny reset przy niskim MV
 
+Aktualizacja 2026-11-04: cztery odrzucone transformacje transportu zostały wycofane. Dawne wartości INI/profili są ignorowane; szczegóły i bieżąca weryfikacja: [sekcja wycofania](#wycofanie-odrzuconych-transformacji-transportu). Starsze opisy i pomiary dokumentują wskazane rewizje historyczne.
+
+
 Aktualizacja 2026-10-31. W **DLSS to temporally stabilize NR** dostępne są CNN, Transformer oraz **Transformer 2-gen (L/M)**. Ta ostatnia ma **Private Transformer 2-gen preset override**: Automatic M, L, M. Numery L=12 i M=13 są kontrolowane względem SDK. Wskazówki presetów dotyczą prywatnego SR/DLAA; sukces tworzenia NGX nie potwierdza faktycznie użytego wewnętrznego modelu. Jawny override nie przechodzi po błędzie na Default. Automatic zachowuje istniejący fallback. Zmiana rodziny/override odtwarza prywatną instancję przez dotychczasowy mechanizm bezpiecznego zwalniania GPU. Wybór jest zachowany podczas DRS, a latch instancji czyszczony podczas shutdown NR/NGX.
 
 ## Przejście z Finished picture na After SR
@@ -270,7 +273,7 @@ Rozdzielenie pól historii na dwie płaszczyzny jednej tekstury R32_UINT oraz gr
 
 Cały tor gry NR+NGX+kompozycja wymaga osobnego pomiaru po rozgrzewce, w porównywalnej scenie i ABBA 3/4, z timestampami całego toru oraz tego etapu. Oszczędności tego etapu nie przeliczać wprost na procent FPS. Osobno sprawdzić resztki smug, poprawną stabilizację i podgląd przy butach w ruchu.
 
-## Dalsza optymalizacja opcji 4: decode i bariery
+## Dalsza optymalizacja opcji 4: decode i bariery (checkpoint 9f2cc97c)
 
 Kolejna wersja nie zmienia ustawień, precyzji historii, liczników ani kształtu maski. Opcje 1–3 pozostają bez zmian. Dla opcji 4 wprowadza:
 
@@ -299,3 +302,26 @@ RTX 4090, siatka NR 2496×1404, kolory FP16, rzeczywiste zapisane depth/MV. Doda
 Odchylenia standardowe i parowane różnice ABBA są w [podsumowaniu](validation/private-ghost-compact-v2-summary.json); surowe wyniki: [001 edit](validation/private-ghost-compact-v2-001-edit.csv), [004 edit](validation/private-ghost-compact-v2-004-edit.csv), [001 pełna odpowiedź](validation/private-ghost-compact-v2-001-answer.csv), [004 pełna odpowiedź](validation/private-ghost-compact-v2-004-answer.csv). Nie sumować tych procentów z wcześniejszymi procentami ani utożsamiać ich z FPS gry. Cały tor NR+NGX+kompozycja nie był mierzony w grze; potrzebne jest ABBA obu DLL w tej samej scenie z timestampami całego toru i etapu po rozgrzewce.
 
 Odrzucono `GatherRed` w wyborze guides i w odczycie rekonstrukcji: nie dawał spójnego zysku w obu scenach. Odrzucono także znacznik klatki w 64-bitowym depth i `InterlockedMax` zamiast clear w każdej klatce. Wynik był bitowo poprawny, ale wzrósł koszt całego etapu: około 0.104200→0.111528 ms i 0.112088→0.117984 ms. [Surowe próby 001](validation/private-ghost-rejected-tagged-001.csv), [004](validation/private-ghost-rejected-tagged-004.csv). Przebieg mniej nie zrekompensował droższego wariantu; timestampy nie izolują kosztu samej instrukcji. Eksperymentalne PSO 64-bit nie są częścią paczki produkcyjnej.
+
+## Wycofanie odrzuconych transformacji transportu
+
+Wycofano **NR edit transport saturation**, **Depth colour transport**, **Depth-weighted positive edit multiplier** i **Add near-camera brightness before DLSS**, razem z parametrami. Usunięto kontrolki, pola Config, odczyt/zapis i apply/reset profili. Dwanaście dawnych kluczy należy do `kLeftOutKeys`; `kRetiredCarrierKeys` usuwa je przy zapisie INI, także z wcześniej istniejących plików. Stare wpisy nie wpływają na klatki ani historię.
+
+Usunięto rzeczywiste obliczenia encode/decode i fused guides/carrier, odczyty głębi dla tych efektów oraz zbędny ogólny PSO kompaktowego decode. Opcja 4 zawsze wybiera jeden z dwóch natywnych wariantów FP16: edit lub pełna odpowiedź NR. Generator buduje 71 blobów. Wspólny ABI stałych pozostaje; dawne sloty są ignorowane. Pomocnicze settery i czysta matematyka CPU pozostają tylko dla testów starych pól i archiwalnych metadanych, bez wywołań przy renderowaniu. Nowe zrzuty zachowują neutralne dawne pola JSON dla kompatybilności narzędzi.
+
+**Positive NR edit transport multiplier** nadal działa jednolicie na dodatnich składowych i jest cofany po DLSS. Ujemne składowe nie są mnożone, neutralny edit daje carrier 0.5. Ręczne wartości <1 pozostają; automat nie schodzi poniżej 1× i nie resetuje historii przy swoich zmianach. Nie wraca limit -1..2: carrier ma zakres 0..65504. Głębia/MV dla NR, interpass, rekonstrukcji, detekcji ruchu, kontrastu granic i dysokluzji pozostają. Usunięte opcje nie blokują podglądu/automatu; ograniczenia pełnej odpowiedzi i original guides pozostają.
+
+Kontrola obejmuje test profili z aktualnym Config.cpp, 507 przypadków ekspozycji/transportu, 456 legacy maskowania, 16 guided, 102 sekwencji widoczności, 432 niezależnej referencji compact, 64 łączone i 56 zielonego podglądu. Testy wpisują dawne nieobojętne parametry i wymagają wyniku jednolitego transportu. 768 przypadków fused/separate sprawdza kolor, głębię i MV. Liczba testów transportu zmalała przez usunięcie scenariuszy odrzuconych funkcji; ekspozycja, HDR, gain <1, pełna odpowiedź i niepoprawne dane pozostają pokryte.
+
+`python tools/prepare_nr_compact_reference.py` odtwarza też niezależne bloby checkpointu 9f2cc97c sprzed usunięcia transformacji. `private_exposure_quality.exe --compact-retirement-timing <capture stem>` porównuje checkpoint z bieżącą opcją 4 w obu trybach wejścia, po 16 parach rozgrzewki i 64 ABBA, sprawdzając bitową zgodność historii i pikseli. Referencji nie zastępuje się shaderem bieżącym.
+
+RTX 4090, zapisane sceny 001/004, NR 2496×1404, kolor FP16, depth R32F / MV RG32F, gain 1, okno 16, fade 3, ekspansja 0.5, zielony podgląd i globalny fade off. Timestampy obejmują całą maskę, decode i bariery; poza oknem są upload, alokacje i odczyt CPU. W obu trybach wyniki historii i decode są bitowo zgodne z checkpointem. Guides są powtarzane, to pomiar etapu na zapisach, bez NGX i bez gry.
+
+| Scena / wejście | Przed [ms ± SD] | Po [ms ± SD] | Po − przed [ms] |
+|---|---:|---:|---:|
+| 001 / edit | 0.091816 ± 0.001221 | 0.091904 ± 0.002452 | +0.000088 |
+| 001 / answer | 0.098320 ± 0.001252 | 0.098128 ± 0.001260 | -0.000192 |
+| 004 / edit | 0.099576 ± 0.001508 | 0.099336 ± 0.001288 | -0.000240 |
+| 004 / answer | 0.107104 ± 0.001249 | 0.107448 ± 0.001214 | +0.000344 |
+
+Drobne różnice kompaktowego etapu nie są podstawą deklaracji dodatkowego przyspieszenia całej gry. Usunięcie odrzuconej matematyki obejmuje także zwykłe encode/decode i fused preparation; ich osobny zysk nie został tu zmierzony. [Podsumowanie](validation/private-carrier-retirement-summary.json), surowe próby: [001 edit](validation/private-carrier-retirement-001-edit.csv), [001 answer](validation/private-carrier-retirement-001-answer.csv), [004 edit](validation/private-carrier-retirement-004-edit.csv), [004 answer](validation/private-carrier-retirement-004-answer.csv). Weryfikacja gry nadal wymaga rozgrzanego ABBA obu DLL z timestampami całego NR+NGX+kompozycji, tą samą sceną i ustawieniami, oraz oceny stabilizacji/ghostingu w ruchu.

@@ -72,15 +72,7 @@ inline constexpr std::string_view kKeptKeys[] = {
     "SuperiorGainPreviewSlowSeconds",
     "SuperiorGainPreviewFastSeconds",
     "SuperiorGainPreviewMotionThreshold",
-    "SuperiorDepthWeightedGain",
-    "SuperiorDepthBrightness",
-    "SuperiorDepthBrightnessFullRange",
-    "SuperiorDepthBrightnessNear",
-    "SuperiorDepthBrightnessFar",
-    "SuperiorDepthBrightnessCurve",
-    "SuperiorDepthBrightnessStrength",
     "SuperiorOriginalGuides",
-    "SuperiorEditSaturation",
     "SuperiorFilterNrAnswer",
     "SuperiorGhostRejection",
     "SuperiorShowGhostMask",
@@ -97,10 +89,6 @@ inline constexpr std::string_view kKeptKeys[] = {
     "SuperiorGhostThreshold",
     "SuperiorGhostSoftness",
     "SuperiorGhostStrength",
-    "SuperiorDepthColour",
-    "SuperiorDepthColourStrength",
-    "SuperiorDepthColourCurve",
-    "SuperiorDepthColourPair",
     "SuperiorPrivateExposureMode",
     "SuperiorPrivateExposureValue",
     "ScalingDownscaler",
@@ -216,8 +204,29 @@ inline constexpr std::string_view kKeptKeys[] = {
     "SpatialShiftY",
 };
 
+// Retired private-carrier controls are ignored on load and deleted on the next INI save.
+inline constexpr std::string_view kRetiredCarrierKeys[] = {
+    "SuperiorDepthWeightedGain",       "SuperiorDepthBrightness",    "SuperiorDepthBrightnessFullRange",
+    "SuperiorDepthBrightnessNear",     "SuperiorDepthBrightnessFar", "SuperiorDepthBrightnessCurve",
+    "SuperiorDepthBrightnessStrength", "SuperiorEditSaturation",     "SuperiorDepthColour",
+    "SuperiorDepthColourStrength",     "SuperiorDepthColourCurve",   "SuperiorDepthColourPair",
+};
+
 // [DlssNr] keys a profile leaves out.
 inline constexpr std::string_view kLeftOutKeys[] = {
+    // retired carrier transforms
+    "SuperiorDepthWeightedGain",
+    "SuperiorDepthBrightness",
+    "SuperiorDepthBrightnessFullRange",
+    "SuperiorDepthBrightnessNear",
+    "SuperiorDepthBrightnessFar",
+    "SuperiorDepthBrightnessCurve",
+    "SuperiorDepthBrightnessStrength",
+    "SuperiorEditSaturation",
+    "SuperiorDepthColour",
+    "SuperiorDepthColourStrength",
+    "SuperiorDepthColourCurve",
+    "SuperiorDepthColourPair",
     // the player's own
     "Enabled",
     "ToggleKey",
