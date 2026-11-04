@@ -39,6 +39,15 @@ void FilenameReservationChecks()
     assert(plain.paths[0].filename()=="orphan-001.dds");
     const auto abandoned=plain.paths;plain.Finish(false);
     for(const auto& path:abandoned)assert(!fs::exists(path));
+    for(const char* suffix:{".raw.dds",".after.dds"})
+    {
+        const auto file=folder/(std::string("pair")+suffix);
+        {std::ofstream out(file);out<<"keep";}created.push_back(file);
+        Files pair;assert(pair.Reserve(folder/"pair.dds",{".depth.dds",".motion.dds",".raw.dds",".after.dds",".json"}));
+        assert(pair.paths.size()==6 && pair.paths[0].filename()=="pair-001.dds");
+        assert(pair.paths[3].filename()=="pair-001.raw.dds" && pair.paths[4].filename()=="pair-001.after.dds");
+        pair.Finish(false);
+    }
     std::ifstream in(original,std::ios::binary);std::string value((std::istreambuf_iterator<char>(in)),{});in.close();
     assert(value==std::string(message,sizeof(message))&&fs::file_size(orphan)==4);
     for(const auto& path:created)assert(fs::remove(path));
@@ -128,6 +137,11 @@ int main(int argc, char** argv)
     assert(text.find("\"preview_capture_raw_gain\": null") != std::string::npos);
     assert(text.find("\"preview_request_measurement_age_seconds\": 0.5") != std::string::npos);
     assert(text.find("\"guides_included\": false") != std::string::npos);
+    metadata.paired=true;
+    const auto paired=MetadataJson(metadata);
+    assert(paired.find("\"paired_before_after_capture\": true")!=std::string::npos);
+    assert(paired.find("\"paired_same_evaluation\": true")!=std::string::npos);
+    assert(paired.find("after_transport_inverse_before_ghost_rejection_and_fade")!=std::string::npos);
     metadata.depthTransport.weightedGain = true; metadata.depthTransport.additive = true;
     metadata.depthTransport.fullRange = false; metadata.depthTransport.nearLimit = .125f;
     metadata.depthTransport.farLimit = .75f; metadata.depthTransport.bias = .25f;
@@ -186,4 +200,5 @@ int main(int argc, char** argv)
     assert(noPreview.find("\"preview_request_suggested_gain\": null") != std::string::npos);
     assert(noPreview.find("\"preview_request_measurement_age_seconds\": null") != std::string::npos);
     if (argc > 1 && std::string(argv[1]) == "--metadata") std::cout << text;
+    if (argc > 1 && std::string(argv[1]) == "--paired-metadata") std::cout << paired;
 }

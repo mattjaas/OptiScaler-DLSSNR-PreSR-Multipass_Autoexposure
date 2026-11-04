@@ -9,7 +9,7 @@ void Require(bool condition, const char* message)
     if (!condition)
         throw std::runtime_error(message);
 }
-void Run(bool hardware, D3D12_COMMAND_LIST_TYPE type, bool batch)
+void Run(bool hardware, D3D12_COMMAND_LIST_TYPE type, unsigned count)
 {
     Runner r(hardware);
     D3D12_COMMAND_QUEUE_DESC q {};
@@ -28,14 +28,15 @@ void Run(bool hardware, D3D12_COMMAND_LIST_TYPE type, bool batch)
         DlssNr::EditDump::Format format;
         std::vector<float> expected;
     };
-    std::array<Plane, 3> planes;
-    const auto count = batch ? 3u : 1u;
-    const DXGI_FORMAT formats[] { DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R32G32_FLOAT };
+    std::array<Plane, Copy::MaxItems> planes;
+    const DXGI_FORMAT formats[] { DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R32G32_FLOAT,
+                                  DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32G32B32A32_FLOAT };
+    static_assert(std::size(formats)==Copy::MaxItems);
     for (unsigned i = 0; i < count; ++i)
     {
         auto& p = planes[i];
         p.format = DlssNr::EditDump::Format(uint32_t(formats[i]));
-        p.channels = i == 0 ? 4 : i == 1 ? 1 : 2;
+        p.channels = DlssNr::EditDump::PixelBytes(p.format)/4;
         p.expected.resize(6 * p.channels);
         D3D12_RESOURCE_DESC d {};
         d.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -73,7 +74,7 @@ void Run(bool hardware, D3D12_COMMAND_LIST_TYPE type, bool batch)
             for (unsigned y = 0; y < 2; ++y)
                 for (unsigned x = 0; x < 3 * p.channels; ++x)
                 {
-                    const float v = base + float(int(x + y * 3 * p.channels) - 7) * .5f;
+                    const float v = base + 100.f*i + float(int(x + y * 3 * p.channels) - 7) * .5f;
                     std::memcpy(static_cast<char*>(data) + p.fp.Offset + y * p.fp.Footprint.RowPitch + x * 4, &v, 4);
                     if (remember)
                         p.expected[y * 3 * p.channels + x] = v;
@@ -83,14 +84,14 @@ void Run(bool hardware, D3D12_COMMAND_LIST_TYPE type, bool batch)
     };
     fill(0, true);
     check(original->Close());
-    std::array<Copy::Item, 3> items;
+    std::array<Copy::Item, Copy::MaxItems> items;
     for (unsigned i = 0; i < count; ++i)
         items[i] = { planes[i].snapshot.Get(), planes[i].readback.Get(), planes[i].fp };
     Copy copy;
     Require(copy.Poll() == Copy::State::NotSubmitted, "Unsubmitted capture must not map");
     ID3D12CommandList* lists[] { original.Get() };
     queue->ExecuteCommandLists(1, lists);
-    if (batch)
+    if (count > 1)
         check(copy.SubmitMany(queue.Get(), items.data(), count));
     else
         check(copy.Submit(queue.Get(), items[0].snapshot, items[0].readback, items[0].footprint));
@@ -144,7 +145,7 @@ void Run(bool hardware, D3D12_COMMAND_LIST_TYPE type, bool batch)
             "Missing queue accepted");
     Require(invalid.Poll() == Copy::State::Failed, "Failed setup must not become pending or complete");
     Copy invalidCount;
-    Require(FAILED(invalidCount.SubmitMany(queue.Get(), items.data(), 4)), "Oversized batch accepted");
+    Require(FAILED(invalidCount.SubmitMany(queue.Get(), items.data(), Copy::MaxItems+1)), "Oversized batch accepted");
     Copy missing;
     Require(FAILED(missing.SubmitMany(queue.Get(), nullptr, 1)), "Missing batch accepted");
 }
@@ -153,10 +154,10 @@ int main(int argc, char** argv)
     try
     {
         const bool hardware = argc < 2 || std::string(argv[1]) != "--warp";
-        for (bool batch : { false, true })
+        for (unsigned count : {1u,3u,Copy::MaxItems})
         {
-            Run(hardware, D3D12_COMMAND_LIST_TYPE_DIRECT, batch);
-            Run(hardware, D3D12_COMMAND_LIST_TYPE_COMPUTE, batch);
+            Run(hardware, D3D12_COMMAND_LIST_TYPE_DIRECT, count);
+            Run(hardware, D3D12_COMMAND_LIST_TYPE_COMPUTE, count);
         }
         std::cout << "Edit dump completion PASS: single/batch, DIRECT/COMPUTE, unreset lists, replay state cycle, "
                      "immutable readbacks, DDS payloads\n";

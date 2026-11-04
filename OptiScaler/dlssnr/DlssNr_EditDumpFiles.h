@@ -47,7 +47,7 @@ class Files
             }
             bool occupied = false;
             // Also avoid orphan companions when this capture does not request guides.
-            for (const char* suffix : { ".dds", ".depth.dds", ".motion.dds", ".json" })
+            for (const char* suffix : { ".dds", ".depth.dds", ".motion.dds", ".raw.dds", ".after.dds", ".json" })
             {
                 const auto candidate = std::filesystem::path(image).replace_extension(suffix);
                 if (GetFileAttributesW(candidate.c_str()) != INVALID_FILE_ATTRIBUTES)

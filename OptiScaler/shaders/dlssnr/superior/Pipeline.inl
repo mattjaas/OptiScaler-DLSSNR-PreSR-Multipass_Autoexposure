@@ -196,8 +196,11 @@ struct EditDumpJob
     const void* commands = nullptr; // identity only, never dereferenced
     DlssNr::EditDump::ReadbackCopy copy;
     std::filesystem::path path;
-    std::array<EditDumpGuide, 2> guides;
+    std::array<EditDumpGuide, DlssNr::EditDump::ReadbackCopy::MaxItems - 1> guides;
     unsigned guideCount = 0;
+    bool paired = false;
+    unsigned rawEdit = 0, afterEdit = 0;
+    UINT64 budget = 512ull << 20;
     std::string metadata;
 };
 
@@ -215,7 +218,7 @@ struct State
     uint32_t rejectedPresetOptions = 0;
     bool srUnavailable = false; // the NGX DLSS SR runtime itself failed: the menu greys Superior out
     std::string pendingEditDump, editDumpStatus;
-    bool pendingEditDumpGuides = false, pendingEditDumpPreviewEnabled = false;
+    bool pendingEditDumpGuides = false, pendingEditDumpPreviewEnabled = false, pendingEditDumpPair = false;
     DlssNr::EditDump::PreviewSnapshot pendingEditDumpPreview;
     uint32_t pendingEditDumpPrivatePreset = 0;
     float pendingEditDumpGain = 1, pendingEditDumpEffectiveGain = 1;
@@ -292,7 +295,8 @@ void CollectEditDump()
         written = writeBytes(files.back(), job->metadata.data(), job->metadata.size());
     outputs.Finish(written);
     const auto utf8 = job->path.u8string();
-    s.editDumpStatus = written ? (job->guideCount == 2 ? "Saved edit + depth + motion + settings: " :
+    s.editDumpStatus = written ? (job->paired ? "Saved ghosting sample: transported edit + raw before/after + depth + motion + settings: " :
+                                  job->guideCount == 2 ? "Saved edit + depth + motion + settings: " :
                                   job->guideCount == 1 ? "Saved edit + transport depth + settings: " : "Saved edit + settings: ") +
                                    std::string(utf8.begin(), utf8.end())
                                : "Edit not saved: automatic filename reservation, GPU readback or file writing failed.";
@@ -360,7 +364,7 @@ void Submitted(ID3D12CommandQueue* queue, UINT count, ID3D12CommandList* const* 
             {
                 // The real game Execute has already happened. Queue order captures the image once;
                 // replay never writes this private readback, even while the file is being mapped.
-                std::array<DlssNr::EditDump::ReadbackCopy::Item, 3> items;
+                std::array<DlssNr::EditDump::ReadbackCopy::Item, DlssNr::EditDump::ReadbackCopy::MaxItems> items;
                 items[0] = { s.editDump->image.Get(), s.editDump->readback.Get(), s.editDump->footprint };
                 for (unsigned j = 0; j < s.editDump->guideCount; ++j)
                 {
@@ -451,18 +455,19 @@ bool PrepareDumpGuide(EditDumpJob& job, unsigned index, ID3D12Resource* source,
                       DlssNr::EditDump::Format format, const char* extension,
                       UINT64& snapshots, UINT64& readbacks)
 {
-    if (!source) return false;
-    auto desc = source->GetDesc();
+    if (index >= job.guides.size() || (!source && format != DlssNr::EditDump::Format::Rgba32Float)) return false;
+    auto desc = source ? source->GetDesc() : CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32B32A32_FLOAT,
+        job.width, job.height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.SampleDesc.Count != 1 ||
         desc.DepthOrArraySize != 1 || desc.Width < job.width || desc.Height < job.height ||
         uint32_t(desc.Format) != uint32_t(format)) return false;
     desc.Width = job.width; desc.Height = job.height;
-    desc.MipLevels = 1; desc.Flags = D3D12_RESOURCE_FLAG_NONE; desc.Alignment = 0;
+    desc.MipLevels = 1; desc.Flags = source ? D3D12_RESOURCE_FLAG_NONE : D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS; desc.Alignment = 0;
     auto& guide = job.guides[index];
     guide.format = format; guide.extension = extension;
     job.device->GetCopyableFootprints(&desc, 0, 1, 0, &guide.footprint, nullptr, nullptr, &guide.bytes);
     guide.allocationBytes = job.device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
-    constexpr UINT64 budget = 512ull << 20;
+    const UINT64 budget = job.budget;
     if (guide.allocationBytes == UINT64_MAX || guide.allocationBytes > budget || guide.bytes > budget ||
         GetState().editDumpRetainedBytes->load() + snapshots + readbacks + guide.allocationBytes + guide.bytes > budget)
         return false;
@@ -479,32 +484,35 @@ bool PrepareDumpGuide(EditDumpJob& job, unsigned index, ID3D12Resource* source,
     return true;
 }
 
-void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd,
+std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd,
                    ID3D12Resource* proxy, ID3D12Resource* answer, float gain,
                    ID3D12Resource* depth, ID3D12Resource* motion, const DlssNrFrameInfo& frame, bool reset, bool hold, bool automaticControlled)
 {
     auto& s = GetState();
-    if (s.pendingEditDump.empty() || s.editDump) return;
+    if (s.pendingEditDump.empty() || s.editDump) return {};
     auto name = std::move(s.pendingEditDump);
     s.pendingEditDump.clear();
-    const bool withGuides = std::exchange(s.pendingEditDumpGuides, false);
+    const bool paired = std::exchange(s.pendingEditDumpPair, false);
+    const bool withGuides = std::exchange(s.pendingEditDumpGuides, false) || paired;
     if (withGuides && Config::Instance()->DlssNrSuperiorOriginalGuides.value_or_default())
     {
         s.editDumpStatus = "Guide capture requires original-guide experiment off; edit-only capture remains available.";
-        return;
+        return {};
     }
     auto job = std::make_shared<EditDumpJob>();
+    job->paired = paired;
+    job->budget = (paired ? 1024ull : 512ull) << 20;
     job->device = g.device;
     job->width = g.workWidth;
     job->height = g.workHeight;
     job->commands = Util::RealObjectIdentity(cmd);
     job->path = Util::DllPath().remove_filename() / "dlssnr-edit" / std::filesystem::u8path(name);
-    // Bound a diagnostic's transient allocation to 512 MiB for the texture + readback together.
+    // Bound textures + readbacks together: 512 MiB for legacy, 1 GiB for paired diagnostics.
     if (!job->width || !job->height || job->width > 16384 || job->height > 16384 ||
-        s.editDumpRetainedBytes->load() + uint64_t(job->width) * job->height * 32u > (512ull << 20))
+        s.editDumpRetainedBytes->load() + uint64_t(job->width) * job->height * 32u > job->budget)
     {
-        s.editDumpStatus = "Edit not saved: image allocation failed or the 512 MiB capture limit was exceeded.";
-        return;
+        s.editDumpStatus = "Edit not saved: image allocation failed or the capture budget was exceeded.";
+        return {};
     }
     const auto imageHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
     const auto imageDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32B32A32_FLOAT,
@@ -515,17 +523,17 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         D3D12_RESOURCE_STATE_COPY_SOURCE, nullptr, IID_PPV_ARGS(&job->image.resource))))
     {
         s.editDumpStatus = "Edit not saved: image allocation failed.";
-        return;
+        return {};
     }
     job->image.state = D3D12_RESOURCE_STATE_COPY_SOURCE;
     const auto desc = job->image.Get()->GetDesc();
     g.device->GetCopyableFootprints(&desc, 0, 1, 0, &job->footprint, nullptr, nullptr, &job->bytes);
     const auto snapshotBytes = g.device->GetResourceAllocationInfo(0, 1, &desc).SizeInBytes;
-    if (snapshotBytes == UINT64_MAX || snapshotBytes > (512ull << 20) ||
-        s.editDumpRetainedBytes->load() + snapshotBytes + job->bytes > (512ull << 20))
+    if (snapshotBytes == UINT64_MAX || snapshotBytes > job->budget ||
+        s.editDumpRetainedBytes->load() + snapshotBytes + job->bytes > job->budget)
     {
-        s.editDumpStatus = "Edit not saved: 512 MiB capture budget reached; older game recordings still retain snapshots.";
-        return;
+        s.editDumpStatus = "Edit not saved: Capture budget reached; older game recordings still retain snapshots.";
+        return {};
     }
     const auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
     const auto buffer = CD3DX12_RESOURCE_DESC::Buffer(job->bytes);
@@ -534,7 +542,7 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
                                                  IID_PPV_ARGS(&job->readback))))
     {
         s.editDumpStatus = "Edit not saved: readback allocation failed.";
-        return;
+        return {};
     }
     UINT64 snapshotTotal = snapshotBytes, readbackTotal = job->bytes;
     const bool withDepth = withGuides || g.depthTransport.weightedGain;
@@ -543,14 +551,32 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         if (!PrepareDumpGuide(*job, 0, depth, DlssNr::EditDump::Format::R32Float, ".depth.dds", snapshotTotal, readbackTotal) ||
             (withGuides && !PrepareDumpGuide(*job, 1, motion, DlssNr::EditDump::Format::Rg32Float, ".motion.dds", snapshotTotal, readbackTotal)))
         {
-            s.editDumpStatus = "Diagnostic not saved: guides unavailable/unsupported or the 512 MiB capture budget was exceeded.";
-            return;
+            s.editDumpStatus = "Diagnostic not saved: guides unavailable/unsupported or the capture budget was exceeded.";
+            return {};
         }
     }
     // Settings and the shown recommendation accompany every edit, with or without guides.
+    if (paired)
+    {
+        job->rawEdit = job->guideCount;
+        if (!PrepareDumpGuide(*job, job->rawEdit, nullptr, DlssNr::EditDump::Format::Rgba32Float,
+                              ".raw.dds", snapshotTotal, readbackTotal))
+        {
+            s.editDumpStatus = "Ghosting sample not saved: raw-before allocation failed or 1 GiB capture budget exceeded.";
+            return {};
+        }
+        job->afterEdit = job->guideCount;
+        if (!PrepareDumpGuide(*job, job->afterEdit, nullptr, DlssNr::EditDump::Format::Rgba32Float,
+                              ".after.dds", snapshotTotal, readbackTotal))
+        {
+            s.editDumpStatus = "Ghosting sample not saved: after-edit allocation failed or 1 GiB capture budget exceeded.";
+            return {};
+        }
+    }
     {
         const auto& cfg = *Config::Instance();
         DlssNr::EditDump::Metadata m;
+        m.paired = paired;
         const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
         m.guidesIncluded = withGuides;
         m.depthIncluded = withDepth;
@@ -624,10 +650,11 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
     if (!Dispatch(shader, cmd, c, proxy, answer, nullptr, g.depthTransport.weightedGain ? depth : nullptr, nullptr, nullptr, job->image))
     {
         s.editDumpStatus = "Edit not saved: snapshot dispatch failed.";
-        return;
+        return {};
     }
     job->image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    for (unsigned i = 0; i < job->guideCount; ++i)
+    const unsigned copiedGuides = paired ? job->rawEdit : job->guideCount;
+    for (unsigned i = 0; i < copiedGuides; ++i)
     {
         auto* source = i == 0 ? depth : motion;
         auto& guide = job->guides[i];
@@ -641,11 +668,51 @@ void RecordEditDump(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandLis
         Barrier(cmd, source, D3D12_RESOURCE_STATE_COPY_SOURCE, Srv);
         guide.image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
     }
+    if (paired)
+    {
+        Constants raw {};
+        raw.Mode = 43u; raw.Width = job->width; raw.Height = job->height;
+        Fields::SetPositiveCarrierGain(raw, 1.f);
+        auto& before = job->guides[job->rawEdit];
+        if (!Dispatch(shader, cmd, raw, proxy, answer, nullptr, nullptr, nullptr, nullptr, before.image))
+        {
+            s.editDumpStatus = "Ghosting sample not saved: raw-before snapshot failed.";
+            return {};
+        }
+        before.image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        // Publish only after this exact Evaluate succeeds and the matching after-edit is recorded.
+        s.editDumpStatus = "Before edit recorded; waiting for the matching private DLSS result.";
+        return job;
+    }
     s.editDump = job;
     g_editDumpCommands = job->commands;
     // Only the snapshot is referenced by the game list. Keep it until replay is impossible;
     // private copy/readback ownership is separately held by the job until its fence completes.
     s.editDumpStatus = "Snapshot recorded; waiting for game submission.";
+    return {};
+}
+
+void RecordAfterEditDump(const std::shared_ptr<EditDumpJob>& job, Generation& g, DlssNr_Dx12& shader,
+                         ID3D12GraphicsCommandList* cmd, Constants decode, ID3D12Resource* proxy,
+                         ID3D12Resource* depth)
+{
+    if (!job) return;
+    auto& s = GetState();
+    auto& after = job->guides[job->afterEdit];
+    // Decode with the current transport, but without rejection, its preview or the global fade.
+    Fields::SetCarrierGhostRejection(decode, {});
+    Fields::SetUnfilteredEditWeight(decode, 0.f);
+    if (job->commands != Util::RealObjectIdentity(cmd) ||
+        !Dispatch(shader, cmd, decode, g.temporalOutput.Get(), g.filterNrAnswer ? proxy : nullptr,
+                  nullptr, depth, nullptr, nullptr, after.image))
+    {
+        s.editDumpStatus = "Ghosting sample not saved: matching after-edit snapshot failed.";
+        return;
+    }
+    after.image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    s.editDump = job;
+    g_editDumpCommands = job->commands;
+    s.editDumpStatus = "Before/after sample recorded; waiting for game submission.";
 }
 
 Constants GuideConstants(unsigned w, unsigned h, const DlssNr::GuideRegions& regions, const DlssNrFrameInfo& frame,
@@ -1252,11 +1319,12 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
                 h.initialized = false;
         }
     }
-    RecordEditDump(g, shader, cmd, proxy, answer, gain, temporalDepth, g.temporalMotion.Get(), frame,
+    const auto pairedDump = RecordEditDump(g, shader, cmd, proxy, answer, gain, temporalDepth, g.temporalMotion.Get(), frame,
                    reset || g.reset, hold, automaticControlled);
     auto* exposure = PrivateExposureTexture(g, shader, cmd, reset || g.reset);
     if (!exposure)
     {
+        if (pairedDump) runtime.editDumpStatus = "Ghosting sample not saved: private exposure preparation failed.";
         g.reset = true;
         Say("Private exposure calculation failed; keeping the game frame.");
         return nullptr;
@@ -1288,6 +1356,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     p->Set(NVSDK_NGX_Parameter_Sharpness, 0.0f);
     if (NVNGXProxy::D3D12_EvaluateFeature()(cmd, feature, p, nullptr) != NVSDK_NGX_Result_Success)
     {
+        if (pairedDump) runtime.editDumpStatus = "Ghosting sample not saved: private DLSS evaluation failed.";
         g.reset = true;
         if (useOriginal)
         {
@@ -1309,6 +1378,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     Fields::SetCarrierDepthColour(decode, depthStrength, depthCurve, depthPair, g.inverted);
     Fields::SetCarrierNrAnswer(decode, filterNrAnswer);
     Fields::SetCarrierDepthBrightness(decode, depthTransport);
+    RecordAfterEditDump(pairedDump, g, shader, cmd, decode, proxy,
+                        depthStrength > 0 || depthActive ? temporalDepth : nullptr);
     Fields::SetUnfilteredEditWeight(decode, 1.f - mix);
     Fields::SetCarrierGhostRejection(decode, DlssNr::GhostRejection::Read(cfg));
     const bool needsRawEdit = mix < 1.f || Fields::CarrierGhostRejection(decode);
@@ -1548,6 +1619,7 @@ void NgxShutdown()
     if (!s.pendingEditDump.empty()) s.editDumpStatus = "Edit capture cancelled: NGX shutdown.";
     s.pendingEditDump.clear();
     s.pendingEditDumpGuides = false;
+    s.pendingEditDumpPair = false;
     s.automaticGain.Reset();
     s.preview.Configure(false, {});
     s.preview.Reset("Preview stopped: NR/NGX shutdown.");
@@ -1569,6 +1641,7 @@ void Shutdown()
     if (!s.pendingEditDump.empty()) s.editDumpStatus = "Edit capture cancelled: NR shutdown.";
     s.pendingEditDump.clear();
     s.pendingEditDumpGuides = false;
+    s.pendingEditDumpPair = false;
     s.automaticGain.Reset();
     s.preview.Configure(false, {});
     s.preview.Reset("Preview stopped: NR/NGX shutdown.");

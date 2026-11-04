@@ -3458,6 +3458,7 @@ void DlssNr_Dx12::Dispatch(ID3D12GraphicsCommandList* cmdList, ID3D12Resource* c
     {
         superiorState.pendingEditDump.clear();
         superiorState.pendingEditDumpGuides = false;
+        superiorState.pendingEditDumpPair = false;
         superiorState.editDumpStatus = "Edit capture cancelled: Superior Scaling is inactive or unavailable.";
     }
     if (superiorState.wasSelected != superiorSelected)
@@ -7695,7 +7696,7 @@ std::string DlssNr::SuperiorScaling::OriginalGuideStatus()
 }
 
 bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename, bool withGuides,
-                                              const DlssNr::GainPreview::Status* displayedPreview)
+                                              const DlssNr::GainPreview::Status* displayedPreview, bool paired)
 {
     std::lock_guard<std::recursive_mutex> lock(g_nrMutex);
     auto& s = SuperiorRun::GetState();
@@ -7713,7 +7714,8 @@ bool DlssNr::SuperiorScaling::RequestEditDump(const std::string& filename, bool 
         return false;
     }
     s.pendingEditDump = *name;
-    s.pendingEditDumpGuides = withGuides;
+    s.pendingEditDumpGuides = withGuides || paired;
+    s.pendingEditDumpPair = paired;
     const auto& cfg = *Config::Instance();
     s.pendingEditDumpRequestedAt =
         std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();

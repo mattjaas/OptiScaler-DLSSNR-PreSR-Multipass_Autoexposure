@@ -44,6 +44,7 @@ inline PreviewSnapshot SnapshotPreview(const GainPreview::Status& status, double
 }
 struct Metadata
 {
+    bool paired = false;
     DepthTransport::Settings depthTransport;
     bool depthIncluded = false, originalGuides = false;
     unsigned dlssDepthW = 0, dlssDepthH = 0, dlssMotionW = 0, dlssMotionH = 0;
@@ -100,6 +101,13 @@ inline std::string MetadataJson(const Metadata& m)
         out << v;
     };
     value("guides_included", m.guidesIncluded);
+    value("paired_before_after_capture", m.paired);
+    if (m.paired)
+        out << ",\n  \"paired_edit_units\": \"signed_rgb_edit_zero_neutral_before_transport\",\n"
+               "  \"raw_before_edit_suffix\": \".raw.dds\",\n"
+               "  \"decoded_after_edit_suffix\": \".after.dds\",\n"
+               "  \"decoded_after_stage\": \"after_transport_inverse_before_ghost_rejection_and_fade\",\n"
+               "  \"paired_same_evaluation\": true";
     value("depth_included", m.depthIncluded || m.guidesIncluded);
     value("original_guides_active", m.originalGuides);
     value("captured_guides_match_private_dlss_inputs", !m.originalGuides);
@@ -196,7 +204,7 @@ inline std::string MetadataJson(const Metadata& m)
     value("low_motion_reset_threshold", m.lowMotionThreshold);
     value("camera_motion_required_sample_percent", m.minimumMovingPercent);
     value("moving_sample_percent", m.movingSamplePercent);
-    out << "\n  \"low_motion_reset_units\": \"pixels_at_1080p_height_per_frame\",";
+    out << ",\n  \"low_motion_reset_units\": \"pixels_at_1080p_height_per_frame\"";
     value("low_motion_reset_delay", m.lowMotionDelay);
     value("low_motion_reset_peak_mv", m.lowMotionPeak);
     value("low_motion_reset_quiet_seconds", m.lowMotionSeconds);

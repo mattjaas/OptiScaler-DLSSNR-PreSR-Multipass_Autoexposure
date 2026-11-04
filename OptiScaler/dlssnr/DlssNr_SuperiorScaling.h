@@ -21,9 +21,10 @@ void RetryPrivatePreset();
 // Selecting Superior again retries. SrUnavailable: the NGX DLSS SR runtime itself could not be used here.
 std::string Unavailable();
 bool SrUnavailable();
-// One-shot signed FP32 edit + JSON settings, recorded before private DLSS; filename only, .dds is appended.
+// One-shot signed FP32 edit + JSON; paired also saves raw before/after edits from one successful DLSS evaluation.
+// Filename only, .dds is appended. Paired captures always include depth/MV.
 bool RequestEditDump(const std::string& filename, bool withGuides = false,
-                     const DlssNr::GainPreview::Status* displayedPreview = nullptr);
+                     const DlssNr::GainPreview::Status* displayedPreview = nullptr, bool paired = false);
 bool EditDumpBusy();
 std::string EditDumpStatus();
 DlssNr::GainPreview::Status GainPreviewStatus();

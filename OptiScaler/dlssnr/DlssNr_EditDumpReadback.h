@@ -15,7 +15,11 @@ class ReadbackCopy
     Microsoft::WRL::ComPtr<ID3D12CommandAllocator> allocator;
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> commands;
     Microsoft::WRL::ComPtr<ID3D12Fence> fence;
-    static constexpr unsigned MaxItems = 3;
+
+  public:
+    static constexpr unsigned MaxItems = 5; // edit + depth/MV + comparable before/after edits
+
+  private:
     std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, MaxItems> sources, destinations;
     bool attempted = false, executed = false;
     HRESULT result = S_OK;

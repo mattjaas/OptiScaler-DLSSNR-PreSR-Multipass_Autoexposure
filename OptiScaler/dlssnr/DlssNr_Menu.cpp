@@ -4400,6 +4400,16 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             if (ImGui::Button("Save edit + object guides"))
                 DlssNr::SuperiorScaling::RequestEditDump(editFilename, true,
                                                          (gainPreview || automaticGain) ? &displayedPreview : nullptr);
+            if (ImGui::Button("Save DLSS ghosting sample (before + after + guides)"))
+                DlssNr::SuperiorScaling::RequestEditDump(
+                    editFilename, true, (gainPreview || automaticGain) ? &displayedPreview : nullptr, true);
+            HelpMarker("Saves one matched-frame diagnostic: .dds is the pre-DLSS positive-gain edit; .raw.dds is "
+                       "the signed NR edit before transport; .after.dds is the decoded private DLSS result after "
+                       "undoing transport, before ghost rejection and fade. Both comparable edits use zero as "
+                       "neutral. Includes same-frame .depth.dds, .motion.dds and .json. No green overlay is saved. "
+                       "Uses the filename above, adds a suffix if occupied. Waits for an active DLSS evaluation "
+                       "when sleeping. Original-guide experiment must be off. One-shot only; up to 1 GiB of "
+                       "snapshot/readback memory, so saving may briefly stall. No settings or history are changed.");
             ImGui::EndDisabled();
             ImGui::EndDisabled();
             HelpMarker(
@@ -4410,7 +4420,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "are not overwritten: occupied bundle names automatically get -001, -002, etc. All companion files "
                 "share "
                 "the selected name. Snapshot/readback run only when requested; saving may briefly pause a frame. "
-                "Both buttons also save .json settings: actual multiplier, displayed suggestion and measurement age. "
+                "All capture buttons also save .json settings: actual multiplier, displayed suggestion and measurement "
+                "age. "
                 "Save edit + object guides additionally writes .depth.dds and .motion.dds from the same "
                 "private DLSS input grid. Capture after the picture has settled at the chosen settings. "
                 "Depth-weighted gain also saves transport depth with the edit-only button. Added depth brightness is "
