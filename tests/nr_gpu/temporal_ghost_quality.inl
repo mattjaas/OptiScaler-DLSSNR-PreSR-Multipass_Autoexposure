@@ -8,12 +8,14 @@ struct TemporalGhostFixture
     UINT w = 128, h = 64, mw = 64, mh = 32;
     bool compact = false;
     bool valid = false, wasRead[2] = { false, false };
-    TemporalGhostFixture(Fixture& fixture, UINT width = 128, UINT height = 64, bool packed = false)
+    TemporalGhostFixture(Fixture& fixture, UINT width = 128, UINT height = 64, bool packed = false, bool fast = false)
         : f(fixture), compact(packed), w(width), h(height), mw((width + 1) / 2), mh((height + 1) / 2)
     {
         const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
         clear = f.r.pipeline(dir, "private_ghost_clear");
-        scatter = f.r.pipeline(dir, compact ? "private_ghost_compact_1" : "private_ghost_scatter");
+        scatter = f.r.pipeline(dir, fast      ? "private_ghost_compact_wave"
+                                    : compact ? "private_ghost_compact_1"
+                                              : "private_ghost_scatter");
         age = f.r.pipeline(dir, compact ? "private_ghost_compact_2" : "private_ghost_history");
         f.r.begin();
         reconstructed = f.texture(mw, mh, nullptr, DXGI_FORMAT_R32_UINT);
@@ -111,10 +113,10 @@ struct TemporalGhostFixture
 void TemporalGhostQuality(Fixture& f)
 {
     unsigned checks = 0;
-    for (bool packed : { false, true })
+    for (unsigned variant : { 0u, 1u, 2u })
         for (bool reversed : { false, true })
         {
-            TemporalGhostFixture t(f, 128, 64, packed);
+            TemporalGhostFixture t(f, 128, 64, variant != 0, variant == 2);
             auto first = t.Frame(40, 4, .0102f, 0, -4, false, reversed);
             for (size_t i = 1; i < first.size(); i += 4)
                 if (first[i] != 0)
@@ -144,9 +146,9 @@ void TemporalGhostQuality(Fixture& f)
                     throw std::runtime_error("Invalid guides created a visibility mask");
             checks += 5;
         }
-    for (bool packed : { false, true })
+    for (unsigned variant : { 0u, 1u, 2u })
     {
-        TemporalGhostFixture t(f, 128, 64, packed);
+        TemporalGhostFixture t(f, 128, 64, variant != 0, variant == 2);
         t.Frame(0, 0, .03f, 0, 0);
         auto camera = t.Frame(0, 0, .03f, 12, 12);
         for (size_t i = 1; i < camera.size(); i += 4)
@@ -154,30 +156,30 @@ void TemporalGhostQuality(Fixture& f)
                 throw std::runtime_error("Uniform camera acceleration is not a disocclusion");
         ++checks;
     }
-    for (bool packed : { false, true })
+    for (unsigned variant : { 0u, 1u, 2u })
     {
-        TemporalGhostFixture t(f, 128, 64, packed);
+        TemporalGhostFixture t(f, 128, 64, variant != 0, variant == 2);
         t.Frame(40, 12, .03f, 0, 0);
         auto exposed = t.Frame(44, 12, .03f, 0, -4);
         if (exposed[(12 * t.mw + 20) * 4 + 1] != 4)
             throw std::runtime_error("Reconstructed-depth disocclusion missed moving foreground");
         ++checks;
     }
-    for (bool packed : { false, true })
+    for (unsigned variant : { 0u, 1u, 2u })
         for (unsigned bits : { 16u, 24u })
             for (bool reversed : { false, true })
             {
-                TemporalGhostFixture t(f, 128, 64, packed);
+                TemporalGhostFixture t(f, 128, 64, variant != 0, variant == 2);
                 t.Frame(40, 4, .0102f, 0, -4, false, reversed, false, bits);
                 auto opened = t.Frame(44, 4, .0102f, 0, -4, false, reversed, false, bits);
                 if (opened[(12 * t.mw + 20) * 4 + 1] != 4)
                     throw std::runtime_error("Quantized depth contact mask failed");
                 ++checks;
             }
-    for (bool packed : { false, true })
+    for (unsigned variant : { 0u, 1u, 2u })
         for (auto size : { std::pair<UINT, UINT> { 1, 1 }, { 17, 9 }, { 127, 63 } })
         {
-            TemporalGhostFixture t(f, size.first, size.second, packed);
+            TemporalGhostFixture t(f, size.first, size.second, variant != 0, variant == 2);
             t.Frame(0, 0, .03f, 0, 0);
             auto frame = t.Frame(0, 0, .03f, 0, 0);
             for (size_t i = 1; i < frame.size(); i += 4)

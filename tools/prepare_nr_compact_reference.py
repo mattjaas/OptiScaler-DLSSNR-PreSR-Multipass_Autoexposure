@@ -31,6 +31,9 @@ def extract(commit,dest,stems):
 
 def main():
     extract(COMMIT,DEST,STEMS)
+    extract('ac9540b3e09f88369fa7c5a7ab5c97e3b6984491',ROOT/'artifacts/ghost-study/fast-blend-baseline',
+            ('private_carrier_compact_simple','private_carrier_compact_simple_answer',
+             'private_ghost_compact_1','private_ghost_compact_2'))
     extract(RETIREMENT_COMMIT,ROOT/'artifacts/ghost-study/carrier-retirement-baseline',
             ('private_carrier_compact_simple','private_carrier_compact_simple_answer',
              'private_ghost_compact_1','private_ghost_compact_2'))

@@ -1,0 +1,242 @@
+[
+  {
+    "variant": "vectorhalf",
+    "scene": "001",
+    "mode": "edit",
+    "before_ms": 0.092088,
+    "after_ms": 0.092584,
+    "before_sd_ms": 0.0017297069434549386,
+    "after_sd_ms": 0.0018733568001818037,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "vectorhalf",
+    "scene": "001",
+    "mode": "answer",
+    "before_ms": 0.098192,
+    "after_ms": 0.099032,
+    "before_sd_ms": 0.002380720885993962,
+    "after_sd_ms": 0.0007937316629415145,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "vectorhalf",
+    "scene": "004",
+    "mode": "edit",
+    "before_ms": 0.099536,
+    "after_ms": 0.098952,
+    "before_sd_ms": 0.0012079234475404898,
+    "after_sd_ms": 0.0013530762151831952,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "vectorhalf",
+    "scene": "004",
+    "mode": "answer",
+    "before_ms": 0.1076,
+    "after_ms": 0.10744,
+    "before_sd_ms": 0.001628540412153089,
+    "after_sd_ms": 0.0037212851560446745,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "vectorfloat",
+    "scene": "001",
+    "mode": "edit",
+    "before_ms": 0.092248,
+    "after_ms": 0.090664,
+    "before_sd_ms": 0.001105628377998786,
+    "after_sd_ms": 0.0012251820754933696,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "vectorfloat",
+    "scene": "001",
+    "mode": "answer",
+    "before_ms": 0.098328,
+    "after_ms": 0.097232,
+    "before_sd_ms": 0.0009909305894314005,
+    "after_sd_ms": 0.002195330534903644,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "vectorfloat",
+    "scene": "004",
+    "mode": "edit",
+    "before_ms": 0.099528,
+    "after_ms": 0.09792000000000001,
+    "before_sd_ms": 0.0011781596752870275,
+    "after_sd_ms": 0.0010979296766201153,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "vectorfloat",
+    "scene": "004",
+    "mode": "answer",
+    "before_ms": 0.106688,
+    "after_ms": 0.106256,
+    "before_sd_ms": 0.000942111550310446,
+    "after_sd_ms": 0.0010940452710551391,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "halfrgb",
+    "scene": "001",
+    "mode": "edit",
+    "before_ms": 0.091048,
+    "after_ms": 0.089472,
+    "before_sd_ms": 0.0010598754940992507,
+    "after_sd_ms": 0.0015420353867075355,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "halfrgb",
+    "scene": "001",
+    "mode": "answer",
+    "before_ms": 0.097792,
+    "after_ms": 0.096432,
+    "before_sd_ms": 0.0010827850936613037,
+    "after_sd_ms": 0.001610698092895344,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "halfrgb",
+    "scene": "004",
+    "mode": "edit",
+    "before_ms": 0.100576,
+    "after_ms": 0.098792,
+    "before_sd_ms": 0.005474493330742714,
+    "after_sd_ms": 0.007358367501250842,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "halfrgb",
+    "scene": "004",
+    "mode": "answer",
+    "before_ms": 0.10732799999999999,
+    "after_ms": 0.107032,
+    "before_sd_ms": 0.001217391661172738,
+    "after_sd_ms": 0.0011419050252162739,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "earlyhistory",
+    "scene": "001",
+    "mode": "edit",
+    "before_ms": 0.091856,
+    "after_ms": 0.090688,
+    "before_sd_ms": 0.0012215175278587486,
+    "after_sd_ms": 0.0015881945575891858,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "earlyhistory",
+    "scene": "001",
+    "mode": "answer",
+    "before_ms": 0.098384,
+    "after_ms": 0.097584,
+    "before_sd_ms": 0.0008388140108998456,
+    "after_sd_ms": 0.0011229082601129645,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "earlyhistory",
+    "scene": "004",
+    "mode": "edit",
+    "before_ms": 0.099352,
+    "after_ms": 0.097664,
+    "before_sd_ms": 0.0013259165898161153,
+    "after_sd_ms": 0.0013041624941024898,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "earlyhistory",
+    "scene": "004",
+    "mode": "answer",
+    "before_ms": 0.107296,
+    "after_ms": 0.107384,
+    "before_sd_ms": 0.000908084979893769,
+    "after_sd_ms": 0.0010702922111847962,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "onesqrt",
+    "scene": "001",
+    "mode": "edit",
+    "before_ms": 0.091888,
+    "after_ms": 0.090672,
+    "before_sd_ms": 0.0012087775565017612,
+    "after_sd_ms": 0.0014185432030423474,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "onesqrt",
+    "scene": "001",
+    "mode": "answer",
+    "before_ms": 0.098376,
+    "after_ms": 0.0974,
+    "before_sd_ms": 0.0008732869214892034,
+    "after_sd_ms": 0.001189059205958894,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "onesqrt",
+    "scene": "004",
+    "mode": "edit",
+    "before_ms": 0.099296,
+    "after_ms": 0.09764,
+    "before_sd_ms": 0.0015629757203367545,
+    "after_sd_ms": 0.0018955376026736084,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "onesqrt",
+    "scene": "004",
+    "mode": "answer",
+    "before_ms": 0.107176,
+    "after_ms": 0.107232,
+    "before_sd_ms": 0.001343315911390646,
+    "after_sd_ms": 0.001112404390300156,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "squarehistory",
+    "scene": "001",
+    "mode": "edit",
+    "before_ms": 0.091448,
+    "after_ms": 0.090464,
+    "before_sd_ms": 0.0012228633495421923,
+    "after_sd_ms": 0.0025778777330003866,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "squarehistory",
+    "scene": "001",
+    "mode": "answer",
+    "before_ms": 0.09829600000000001,
+    "after_ms": 0.097264,
+    "before_sd_ms": 0.0009131497104532118,
+    "after_sd_ms": 0.0011706073798653763,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "squarehistory",
+    "scene": "004",
+    "mode": "edit",
+    "before_ms": 0.099104,
+    "after_ms": 0.097272,
+    "before_sd_ms": 0.0013100842552696763,
+    "after_sd_ms": 0.00138697545522112,
+    "samples_per_variant": 128
+  },
+  {
+    "variant": "squarehistory",
+    "scene": "004",
+    "mode": "answer",
+    "before_ms": 0.10716,
+    "after_ms": 0.107296,
+    "before_sd_ms": 0.0010084808252035116,
+    "after_sd_ms": 0.0021615154788606856,
+    "samples_per_variant": 128
+  }
+]

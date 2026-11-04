@@ -325,3 +325,43 @@ RTX 4090, zapisane sceny 001/004, NR 2496×1404, kolor FP16, depth R32F / MV RG3
 | 004 / answer | 0.107104 ± 0.001249 | 0.107448 ± 0.001214 | +0.000344 |
 
 Drobne różnice kompaktowego etapu nie są podstawą deklaracji dodatkowego przyspieszenia całej gry. Usunięcie odrzuconej matematyki obejmuje także zwykłe encode/decode i fused preparation; ich osobny zysk nie został tu zmierzony. [Podsumowanie](validation/private-carrier-retirement-summary.json), surowe próby: [001 edit](validation/private-carrier-retirement-001-edit.csv), [001 answer](validation/private-carrier-retirement-001-answer.csv), [004 edit](validation/private-carrier-retirement-004-edit.csv), [004 answer](validation/private-carrier-retirement-004-answer.csv). Weryfikacja gry nadal wymaga rozgrzanego ABBA obu DLL z timestampami całego NR+NGX+kompozycji, tą samą sceną i ustawieniami, oraz oceny stabilizacji/ghostingu w ruchu.
+
+## Opcja 5: fast blend i łączenie zapisów historii
+
+**Recent disocclusion window (fast blend, experimental)** jest piątą pozycją w **Ghost rejection method** (`SuperiorGhostMethod=4`). Domyślny wybór nie zmienia się; opcje 1–4 pozostają dostępne, wszystkie ich dotychczasowe 71 blobów pozostają bajtowo niezmienione. Zapis/odczyt INI, reset/apply i filtr profili używają istniejącego klucza; sanitizacja akceptuje teraz również 4. JSON zapisuje tę wartość w istniejącym `ghost_rejection_method`.
+
+Nowy wariant łączy dwie zmiany:
+
+- **Łączenie splatów w wave.** Jeśli prawy zapis jednego aktywnego wątku trafia w dokładnie ten sam texel co lewy zapis następnej, wykonywane jest jedno `InterlockedMax` z maksimum obu głębi. Sprawdzane są rzeczywiste współrzędne, aktywność i maski pokrycia, bez założenia kolejności lane/piksel. Pozostałe zapisy działają osobno. Dla dodatnich skończonych głębi to dokładnie ta sama redukcja maksimum, bez zmiany wyniku rekonstrukcji ani timerów. Nie dodaje LDS, barier ani dispatchy. Jeśli urządzenie nie utworzy PSO z operacjami wave, host używa zwykłego scatter tej samej metody i pamięta wynik próby; nie powtarza tworzenia PSO co klatkę.
+- **Wektorowe wagi FP32.** Zamiast kolejnych sumowań FP16 używa czteroskładnikowych iloczynów skalarnych FP32. Zmienia to zaokrąglenia na miękkim brzegu, bez zmiany kontroli głębi. Dla parzystych osi współrzędne wykorzystują dokładne ćwiartki texela; dla nieparzystych osobno wyznaczają małą poprawkę `1/(2N)`, ograniczając utratę precyzji przy odejmowaniu dużych współrzędnych. Siatka jest nadal `ceil(work/2)`, z tym samym footprintem i clampem. Arytmetyka RGB pozostaje FP32.
+
+Detekcja dysokluzji, oba pierścienie sąsiadów przy kontakcie, historia MV FP16, wiek 1–120, bufor 8 bajtów na texel połowy siatki, kontrola foreground, fade i miękka ekspansja zachowują znaczenie opcji 4. Nie ma rzadszych klatek, pomijania butów, większych progów ani bardziej zgrubnej siatki. Pamięć historii i liczba przebiegów pozostają takie same; trzy nowe PSO są tworzone na żądanie tylko dla nowej opcji. Generator buduje 74 bloby.
+
+### Pomiar GPU i błąd
+
+Referencja: niezmienne bloby commita **ac9540b3e09f88369fa7c5a7ab5c97e3b6984491**, odtwarzane przez `python tools/prepare_nr_compact_reference.py`. Powtórzenie: `private_exposure_quality.exe --compact-fast-timing <capture stem>`. RTX 4090, sześć dostarczonych zapisów 001–006, NR 2496×1404, kolor FP16, depth R32F / MV RG32F. Gain 1, okno 16, fade 3, ekspansja 0.5; zielony podgląd i globalny fade off. Pełna odpowiedź jest mierzona w znormalizowanej domenie signed edit z zerowym proxy; tryb editu dodaje neutralne 0.5. Po 16 parach rozgrzewki następują 64 ABBA, 128 próbek na wariant. Timestampy obejmują clear, scatter, historię, decode i bariery; upload, alokacje i readback są poza oknem. Guides są powtarzane, a nie odtwarzane jako sekwencja gry/NGX.
+
+| Scena / wejście | Opcja 4 [ms ± SD] | Opcja 5 [ms ± SD] | Oszczędność etapu |
+|---|---:|---:|---:|
+| 001 / edit | 0.092296 ± 0.003418 | 0.085504 ± 0.004768 | 7.4% |
+| 001 / answer | 0.098000 ± 0.001242 | 0.092784 ± 0.002163 | 5.3% |
+| 002 / edit | 0.094104 ± 0.001481 | 0.087784 ± 0.002103 | 6.7% |
+| 002 / answer | 0.103368 ± 0.001872 | 0.097952 ± 0.002171 | 5.2% |
+| 003 / edit | 0.096296 ± 0.001565 | 0.090008 ± 0.001747 | 6.5% |
+| 003 / answer | 0.105032 ± 0.001289 | 0.100208 ± 0.001111 | 4.6% |
+| 004 / edit | 0.099416 ± 0.001185 | 0.092080 ± 0.001829 | 7.4% |
+| 004 / answer | 0.107328 ± 0.001162 | 0.101608 ± 0.001343 | 5.3% |
+| 005 / edit | 0.089952 ± 0.001846 | 0.084912 ± 0.002430 | 5.6% |
+| 005 / answer | 0.093832 ± 0.001757 | 0.089552 ± 0.002064 | 4.6% |
+| 006 / edit | 0.094856 ± 0.001803 | 0.088056 ± 0.002201 | 7.2% |
+| 006 / answer | 0.098704 ± 0.001522 | 0.093224 ± 0.002880 | 5.6% |
+
+[Podsumowanie z jakością i parowanymi różnicami ABBA](validation/private-ghost-fast-summary.json); surowe CSV mają nazwy `validation/private-ghost-fast-001-edit.csv` itd. W każdym z 12 porównań całe słowa historii są bitowo identyczne. Maksymalna różnica wagi maski to 0.000488281, RGB 0.00012207; zmienione są 45–124 piksele maski z 3504384 na zapis (0.0013–0.0036%). Maksymalna różnica maski i RGB oraz liczba zmienionych pikseli są osobno zapisane dla każdego wejścia. To małe różnice numeryczne na tych zapisach, nie dowód niewidoczności w każdej grze. Nie przeliczać oszczędności etapu na procent FPS.
+
+WARP i RTX 4090: dotychczasowe testy transportu/ekspozycji, green overlay i metod 1–4 oraz 432 niezależne przypadki maski + 64 transportu dla opcji 5. Dodatkowe 120 przypadków porównuje z referencją double mieszane powierzchnie, NaN/Inf, D16/D24, HDR, gain 0.01–1024 i szerokie nieparzyste siatki. Granice: maska 0.000003, RGB 0.00001 + 0.000003 × maksimum modułów raw/filtered. 72 przypadki splatów wymagają dokładnej zgodności uint z niezależnym skalarnym splatem i zachowanym PSO opcji 4: małe/nieparzyste wymiary, częściowe waves, niejednorodne MV, dane niepoprawne i odległe cele. 129 kontroli czasowych obejmuje także nowy scatter, w tym kontakt but–podłoże i powtarzalne timery. Narzędzie odczytu testowego poprawiono, aby R32_UINT miało jeden kanał, nie cztery.
+
+### Odrzucone dalsze próby
+
+[Podsumowanie prób](validation/private-ghost-fast-trials.json) opisuje wektorowe sumowanie FP16, dodatkowe mieszanie RGB FP16 oraz wcześniejsze wyjścia i zastępowanie dwóch pierwiastków w historii jednym lub nierównościami kwadratowymi. Nie wykazały dodatkowej przewagi całej ścieżki uzasadniającej włączenie ich do produkcji; FP16 RGB zmieniało więcej kanałów bez wyraźnego zysku. Kod/PSO tych prób nie trafiają do pakietu ani rutynowego benchmarku. Pozostają pełne obliczenia pierwiastków i oba pierścienie kontaktu.
+
+Cały tor NR+NGX+kompozycja nie został zmierzony w grze. Weryfikacja użytkowa: rozgrzane ABBA opcji 4/5 przy tym samym ruchu, GPU, rozdzielczości i ustawieniach, z timestampami etapu oraz całego toru. Ocenić smugi przy butach, poprawne wygładzanie, HDR i zielony podgląd. Nowy wariant jest eksperymentalny; nie ma deklaracji poprawy jakości w grze ani gwarancji całkowicie niewidocznej różnicy.

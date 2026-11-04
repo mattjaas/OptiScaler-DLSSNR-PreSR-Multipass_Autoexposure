@@ -15,7 +15,11 @@
 #ifdef DLSSNR_GHOST_REJECTION
 #include "GhostRejection.hlsli"
 #ifdef DLSSNR_COMPACT_GHOST
+#ifdef DLSSNR_COMPACT_FAST_BLEND
+#include "CompactGhostFastDecode.hlsli"
+#else
 #include "CompactGhostDecode.hlsli"
+#endif
 #endif
 #ifdef DLSSNR_GUIDED_GHOST
 #include "GuidedGhostRejection.hlsli"

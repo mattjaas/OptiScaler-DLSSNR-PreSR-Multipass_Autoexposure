@@ -10,7 +10,8 @@ struct Settings
     bool enabled = false;
     float threshold = .01f, softness = .02f, strength = 1.f;
     bool showMask = false;
-    uint32_t method = 0; // 0 legacy, 1 spatial depth/MV, 2 temporal disocclusion window, 3 compact mixed precision
+    uint32_t method = 0; // 0 legacy, 1 spatial depth/MV, 2 temporal disocclusion window, 3 compact mixed precision, 4
+                         // compact fast blend
     float radius = 192.f, depthRatio = 1.2f, motionGate = 2.f;
     uint32_t historyFrames = 16, historyFade = 3;
     float historyDepth = .05f;
@@ -18,7 +19,7 @@ struct Settings
 };
 inline Settings Sanitize(Settings s)
 {
-    s.method = s.method <= 3 ? s.method : 2;
+    s.method = s.method <= 4 ? s.method : 2;
     s.threshold = std::isfinite(s.threshold) ? std::clamp(s.threshold, 0.f, .25f) : s.method == 1 ? .004f : .01f;
     s.softness = std::isfinite(s.softness) ? std::clamp(s.softness, .0001f, .25f) : s.method == 1 ? .01f : .02f;
     s.strength = std::isfinite(s.strength) ? std::clamp(s.strength, 0.f, 1.f) : 1.f;

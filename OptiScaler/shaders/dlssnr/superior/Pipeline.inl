@@ -1139,7 +1139,7 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
         (h.commands == identity || h.submitted))
         return &h.state[h.index];
     const unsigned w = (g.workWidth + 1) / 2, ht = (g.workHeight + 1) / 2;
-    const bool compact = settings.method == 3;
+    const bool compact = settings.method == 3 || settings.method == 4;
     const auto format = compact ? DXGI_FORMAT_R32G32_UINT : DXGI_FORMAT_R32G32B32A32_FLOAT;
     bool previous = h.initialized && h.method == settings.method && h.submitted && !reset;
     if (h.state[0].resource && (h.state[0].Get()->GetDesc().Width != w || h.state[0].Get()->GetDesc().Height != ht))

@@ -1,4 +1,5 @@
 #include <cassert>
+#include "../OptiScaler/shaders/dlssnr/superior/Fields.h"
 #include "../OptiScaler/dlssnr/DlssNr_GhostRejection.h"
 #include "../OptiScaler/shaders/dlssnr/DlssNr_Guides.h"
 #include <cmath>
@@ -25,6 +26,22 @@ int main()
     ghost.softExpansion = 99;
     ghost = DlssNr::GhostRejection::Sanitize(ghost);
     assert(ghost.method == 3 && ghost.softExpansion == 1);
+    ghost.method = 4;
+    ghost = DlssNr::GhostRejection::Sanitize(ghost);
+    assert(ghost.method == 4);
+    DlssNr::Superior::DlssNrConstants fastGhost {};
+    fastGhost.Mode = 38;
+    ghost.enabled = true;
+    DlssNr::Superior::Fields::SetCarrierGhostRejection(fastGhost, ghost);
+    assert(DlssNr::Superior::Fields::CompactGhostRejection(fastGhost));
+    assert(DlssNr::Superior::Fields::TemporalGhostRejection(fastGhost));
+    DlssNr::Superior::Fields::SetGhostVisibility(fastGhost, 9, 5, 17, 9, ghost, true, false, 0);
+    fastGhost.Mode = 47;
+    assert(DlssNr::Superior::Fields::FastCompactScatter(fastGhost));
+    ghost.method = 3;
+    DlssNr::Superior::Fields::SetGhostVisibility(fastGhost, 9, 5, 17, 9, ghost, true, false, 0);
+    assert(!DlssNr::Superior::Fields::FastCompactScatter(fastGhost));
+
     namespace DT = DlssNr::DepthTransport;
     DT::Settings ds;
     assert(DT::Flags(ds) == 0 && DT::Weight(.5f, false, ds) == 0);

@@ -43,7 +43,7 @@ inline void SetUnfilteredEditWeight(DlssNrConstants& c, float weight)
 }
 static_assert(offsetof(DlssNrConstants, ExposurePadding) == 172);
 
-// Decode only: select the rejection PSO; anchors 0..3 remain the carrier's depth transport.
+// Decode only: select the rejection PSO. Former transport slots 0..3 remain reserved.
 inline void SetCarrierGhostRejection(DlssNrConstants& c, DlssNr::GhostRejection::Settings settings)
 {
     const auto s = DlssNr::GhostRejection::Sanitize(settings);
@@ -64,9 +64,12 @@ inline bool CarrierGhostRejection(const DlssNrConstants& c) { return c.Mode == 3
 inline bool GuidedGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 1u; }
 inline bool TemporalGhostRejection(const DlssNrConstants& c)
 {
-    return CarrierGhostRejection(c) && (c.GuideHeight == 2u || c.GuideHeight == 3u);
+    return CarrierGhostRejection(c) && (c.GuideHeight >= 2u && c.GuideHeight <= 4u);
 }
-inline bool CompactGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 3u; }
+inline bool CompactGhostRejection(const DlssNrConstants& c)
+{
+    return CarrierGhostRejection(c) && (c.GuideHeight == 3u || c.GuideHeight == 4u);
+}
 inline void SetGhostDepthPrecision(DlssNrConstants& c, float precision)
 {
     c.ExposureAnchors[7] =
@@ -88,6 +91,7 @@ inline void SetGhostVisibility(DlssNrConstants& c, unsigned width, unsigned heig
     c.TransferStrength = float(s.historyFade);
     c.ColourStrength = s.historyDepth;
     c.MaxRatio = s.motionGate;
+    c.MvScaleY = s.method == 4 ? 1.f : 0.f; // unused visibility cbuffer slot: host PSO selection only
     c.Passthrough = inverted ? 1u : 0u;
     c.DebugView = previous ? 1u : 0u;
     c.MvScaleX = std::isfinite(precision) && precision >= 0 && precision <= .001f ? precision : 1.f / 65535.f;
@@ -95,6 +99,9 @@ inline void SetGhostVisibility(DlssNrConstants& c, unsigned width, unsigned heig
 static_assert(offsetof(DlssNrConstants, Width) == 8 && offsetof(DlssNrConstants, Height) == 12 &&
               offsetof(DlssNrConstants, DebugView) == 24 && offsetof(DlssNrConstants, Passthrough) == 32 &&
               offsetof(DlssNrConstants, MvScaleX) == 36);
+// Stage 47 only; MvScaleY is the unused visibility slot at byte 40, not an MV multiplier here.
+inline bool FastCompactScatter(const DlssNrConstants& c) { return c.Mode == 47u && c.MvScaleY == 1.f; }
+static_assert(offsetof(DlssNrConstants, MvScaleY) == 40);
 // Final composition only: bit 0 retains the existing skin-mask preview; bit 1 selects the green ghost overlay PSO.
 inline void SetGhostMaskPreview(::DlssNrConstants& c, bool enabled)
 {

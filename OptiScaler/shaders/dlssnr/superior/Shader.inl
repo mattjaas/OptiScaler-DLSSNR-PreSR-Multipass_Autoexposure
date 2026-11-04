@@ -25,7 +25,10 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/private_carrier_temporal_ghost_Shader.h"
 #include "precompile/private_carrier_compact_simple_Shader.h"
 #include "precompile/private_carrier_compact_simple_answer_Shader.h"
+#include "precompile/private_carrier_compact_fast_Shader.h"
+#include "precompile/private_carrier_compact_fast_answer_Shader.h"
 #include "precompile/private_ghost_compact_1_Shader.h"
+#include "precompile/private_ghost_compact_wave_Shader.h"
 #include "precompile/private_ghost_compact_2_Shader.h"
 #include "precompile/private_ghost_clear_Shader.h"
 #include "precompile/private_ghost_scatter_Shader.h"
@@ -154,17 +157,29 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
                        : get(17u, private_carrier_ghost_cso, sizeof(private_carrier_ghost_cso));
     if (DlssNr::Superior::Fields::CompactGhostRejection(InConstants))
     {
-        pipeline =
-            InConstants.DirectDetailMode != 0u
-                ? get(26u, private_carrier_compact_simple_answer_cso, sizeof(private_carrier_compact_simple_answer_cso))
-                : get(25u, private_carrier_compact_simple_cso, sizeof(private_carrier_compact_simple_cso));
+        if (InConstants.GuideHeight == 4u)
+            pipeline =
+                InConstants.DirectDetailMode != 0u
+                    ? get(28u, private_carrier_compact_fast_answer_cso, sizeof(private_carrier_compact_fast_answer_cso))
+                    : get(27u, private_carrier_compact_fast_cso, sizeof(private_carrier_compact_fast_cso));
+        else
+            pipeline = InConstants.DirectDetailMode != 0u
+                           ? get(26u, private_carrier_compact_simple_answer_cso,
+                                 sizeof(private_carrier_compact_simple_answer_cso))
+                           : get(25u, private_carrier_compact_simple_cso, sizeof(private_carrier_compact_simple_cso));
         if (!pipeline)
             return false;
     }
     if (InConstants.Mode == 47u || InConstants.Mode == 48u)
     {
-        pipeline = InConstants.Mode == 47u ? get(23u, private_ghost_compact_1_cso, sizeof(private_ghost_compact_1_cso))
-                                           : get(24u, private_ghost_compact_2_cso, sizeof(private_ghost_compact_2_cso));
+        pipeline = nullptr;
+        if (DlssNr::Superior::Fields::FastCompactScatter(InConstants))
+            pipeline = get(29u, private_ghost_compact_wave_cso, sizeof(private_ghost_compact_wave_cso));
+        // Devices that cannot create the wave shader retain the same algorithm via the ordinary scatter.
+        if (!pipeline)
+            pipeline = InConstants.Mode == 47u
+                           ? get(23u, private_ghost_compact_1_cso, sizeof(private_ghost_compact_1_cso))
+                           : get(24u, private_ghost_compact_2_cso, sizeof(private_ghost_compact_2_cso));
         if (!pipeline)
             return false;
     }

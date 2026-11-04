@@ -4251,7 +4251,9 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             static const char* ghostMethods[] = { "Local range 3x3 (legacy)",
                                                   "Depth + motion + coherent foreground match",
                                                   "Recent disocclusion window (temporal MV)",
-                                                  "Recent disocclusion window (optimized mixed precision)" };
+                                                  "Recent disocclusion window (optimized mixed precision)",
+                                                  "Recent disocclusion window (fast blend, experimental)" };
+            // Keep the existing modes and defaults; fast blend is an explicit quality/performance experiment.
             int ghostMethod = int(ghost.method);
             if (ImGui::Combo("Ghost rejection method", &ghostMethod, ghostMethods, IM_ARRAYSIZE(ghostMethods)))
             {
@@ -4331,14 +4333,21 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                            "Missing/invalid guides cannot prove visibility. Projection matrices are unavailable; "
                            "this remains an experimental visibility estimate.");
             }
-            if (ghost.method == 3)
+            if (ghost.method == 4)
+                HelpMarker(
+                    "Experimental fast blend: the same disocclusion detection, MV history and depth checks. "
+                    "Mask weights use vector FP32 arithmetic with tiny rounding differences from option 4. "
+                    "Compatible scatter writes are merged to reduce atomics. The history grid, expansion and fade "
+                    "remain unchanged. Check moving edges in your game.");
+            if (ghost.method >= 3)
             {
                 if (ImGui::SliderFloat("Disocclusion soft mask expansion", &ghost.softExpansion, 0.f, 1.f, "%.2f"))
                     config->DlssNrSuperiorGhostSoftExpansion = ghost.softExpansion;
                 HelpMarker(
                     "Slightly broadens and softens the existing half-resolution mask fringe without another pass. "
                     "0 keeps bilinear interpolation; 1 uses the broadest tent inside the same four depth-checked taps. "
-                    "Default 0.5. Compact MV history and mask weights use FP16. Reprojection coordinates and "
+                    "Default 0.5. Compact MV history uses FP16; option 4 also uses FP16 mask weights. Reprojection "
+                    "coordinates and "
                     "depth comparisons remain FP32. Does not reset NR or DLSS history.");
             }
             if (ghost.method != 0)

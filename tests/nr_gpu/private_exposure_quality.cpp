@@ -77,7 +77,7 @@ struct Fixture
             auto b = r.buffer(bytes, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
             char* p; check(b->Map(0, nullptr, reinterpret_cast<void**>(&p)));
             const UINT channels = (format == DXGI_FORMAT_R32G32_FLOAT || format == DXGI_FORMAT_R32G32_UINT) ? 2u
-                                  : format == DXGI_FORMAT_R32_FLOAT                                         ? 1u
+                                  : (format == DXGI_FORMAT_R32_FLOAT || format == DXGI_FORMAT_R32_UINT)     ? 1u
                                                                                                             : 4u;
             for (UINT y = 0; y < h; ++y)
                 for (UINT x = 0; x < w; ++x)
@@ -189,7 +189,7 @@ struct Fixture
         char* p; check(b->Map(0, nullptr, reinterpret_cast<void**>(&p)));
         std::vector<float> out(size_t(d.Width) * d.Height * 4);
         const UINT channels = (d.Format == DXGI_FORMAT_R32G32_FLOAT || d.Format == DXGI_FORMAT_R32G32_UINT) ? 2u
-                              : d.Format == DXGI_FORMAT_R32_FLOAT                                           ? 1u
+                              : (d.Format == DXGI_FORMAT_R32_FLOAT || d.Format == DXGI_FORMAT_R32_UINT)     ? 1u
                                                                                                             : 4u;
         const bool half = d.Format == DXGI_FORMAT_R16G16B16A16_FLOAT;
         for (UINT y = 0; y < d.Height; ++y)
@@ -379,12 +379,19 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "guided_ghost_quality.inl"
 #include "temporal_ghost_quality.inl"
 #include "compact_ghost_quality.inl"
+#include "compact_fast_quality.inl"
 
 int main(int argc, char** argv)
 {
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc == 3 && std::string(argv[1]) == "--compact-fast-timing")
+        {
+            CompactGhostTiming(f, argv[2], true, false, true, true);
+            CompactGhostTiming(f, argv[2], true, true, true, true);
+            return 0;
+        }
         if (argc == 3 && std::string(argv[1]) == "--compact-retirement-timing")
         {
             CompactGhostTiming(f, argv[2], true, false, true);
@@ -470,6 +477,10 @@ int main(int argc, char** argv)
         TemporalGhostQuality(f);
         CompactGhostQuality(f);
         CompactTransportQuality(f);
+        CompactGhostQuality(f, true);
+        CompactTransportQuality(f, true);
+        CompactFastStressQuality(f);
+        CompactWaveScatterQuality(f);
         GhostMaskQuality(f);
         unsigned checks = 0;
         for (bool full : { false, true })

@@ -23,6 +23,9 @@ uint2 PreviousState(int2 p) { return Previous.Load(int3(p, 0)); }
 uint2 CurrentState(int2 p) { return WriteState[p]; }
 void StoreState(int2 p, uint2 bits) { WriteState[p] = bits; }
 bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height); }
+#ifdef DLSSNR_COMPACT_WAVE_SCATTER
+#include "CompactGhostWaveScatter.hlsli"
+#endif
 [numthreads(8, 8, 1)] void CompactGhostMain(uint3 id : SV_DispatchThreadID)
 {
     if (id.x >= width || id.y >= height)
@@ -46,6 +49,9 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
     bool valid = nearZ > 0 && all(isfinite(mv)) && all(abs(mv) < 65504);
     uint phase = (chosen.x & 1u) | ((chosen.y & 1u) << 1);
     StoreState(p, valid ? PackGhost(float4(nearZ, float(phase), mv)) : uint2(0, 0));
+#ifdef DLSSNR_COMPACT_WAVE_SCATTER
+    ScatterCompactWave(chosen, nearZ, mv, valid);
+#else
     if (initialized == 0 || !valid)
         return;
     // Scatter uses unquantized current MV/depth; the stored state's age slot temporarily holds phase.
@@ -59,6 +65,7 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
         if (Inside(q) && weight > .05)
             InterlockedMax(WriteDepth[q], asuint(nearZ));
     }
+#endif
 #else
     uint2 packed = CurrentState(p);
     float4 current = UnpackGhost(packed);

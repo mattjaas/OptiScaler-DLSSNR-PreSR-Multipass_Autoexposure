@@ -1,6 +1,6 @@
 // Production shaders, matched captures, complete visibility+decode region, FP16 colour.
 void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = false, bool residual = false,
-                        bool retirement = false)
+                        bool retirement = false, bool fast = false)
 {
     unsigned w, h, aw, ah, dw, dh, mw, mh;
     auto raw = GuidedPlane(stem + ".raw.dds", 4, 2, w, h), after = GuidedPlane(stem + ".after.dds", 4, 2, aw, ah),
@@ -40,8 +40,9 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
     f.r.finish();
     f.uploads.clear();
     std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    const std::string oldDir =
-        retirement ? "artifacts/ghost-study/carrier-retirement-baseline" : "artifacts/ghost-study/compact-baseline";
+    const std::string oldDir = fast         ? "artifacts/ghost-study/fast-blend-baseline"
+                               : retirement ? "artifacts/ghost-study/carrier-retirement-baseline"
+                                            : "artifacts/ghost-study/compact-baseline";
     auto clear = f.r.pipeline(dir, "private_ghost_clear"),
          baseScatter =
              f.r.pipeline(revision ? oldDir : dir, revision ? "private_ghost_compact_1" : "private_ghost_scatter"),
@@ -52,9 +53,11 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
                                                                           : "private_carrier_compact_simple_answer")
                                                    : revision ? "private_carrier_compact_native16"
                                                               : "private_carrier_temporal_ghost"),
-         scatter = f.r.pipeline(dir, "private_ghost_compact_1"), age = f.r.pipeline(dir, "private_ghost_compact_2"),
-         decode16 =
-             f.r.pipeline(dir, residual ? "private_carrier_compact_simple" : "private_carrier_compact_simple_answer");
+         scatter = f.r.pipeline(dir, fast ? "private_ghost_compact_wave" : "private_ghost_compact_1"),
+         age = f.r.pipeline(dir, "private_ghost_compact_2"),
+         decode16 = f.r.pipeline(
+             dir, fast ? (residual ? "private_carrier_compact_fast" : "private_carrier_compact_fast_answer")
+                       : (residual ? "private_carrier_compact_simple" : "private_carrier_compact_simple_answer"));
     ComPtr<ID3D12QueryHeap> queries;
     D3D12_QUERY_HEAP_DESC desc {};
     desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -151,9 +154,10 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
     const auto name = std::filesystem::path(stem).filename().string();
     std::ofstream csv(
         "artifacts/ghost-study/" + name +
-        (retirement ? (residual ? ".carrier-retirement-edit-timing.csv" : ".carrier-retirement-answer-timing.csv")
-         : revision ? (residual ? ".compact-revision-edit-timing.csv" : ".compact-revision-timing.csv")
-                    : (residual ? ".compact-final-edit-timing.csv" : ".compact-final-timing.csv")));
+        (fast         ? (residual ? ".compact-fast-edit-timing.csv" : ".compact-fast-answer-timing.csv")
+         : retirement ? (residual ? ".carrier-retirement-edit-timing.csv" : ".carrier-retirement-answer-timing.csv")
+         : revision   ? (residual ? ".compact-revision-edit-timing.csv" : ".compact-revision-timing.csv")
+                      : (residual ? ".compact-final-edit-timing.csv" : ".compact-final-timing.csv")));
     csv << "sample,width,height,comparison,block,position,variant,ms\n";
     const unsigned blocks = revision ? 64u : 16u;
     for (unsigned candidate = 1; candidate <= 1; ++candidate)
@@ -185,16 +189,64 @@ void CompactGhostTiming(Fixture& f, const std::string& stem, bool revision = fal
             std::memcmp(oldState.data(), newState.data(), oldState.size() * sizeof(float)))
             throw std::runtime_error("Compact revision changed history words");
         auto oldOutput = readSrv(outputs[0].Get()), newOutput = readSrv(outputs[1].Get());
-        if (oldOutput.size() != newOutput.size() ||
-            std::memcmp(oldOutput.data(), newOutput.data(), oldOutput.size() * sizeof(float)))
-            throw std::runtime_error("Compact revision changed decoded FP16 pixels");
-        std::cout << "Frozen reference history words and FP16 decode pixels: bit-exact PASS\n";
+        if (oldOutput.size() != newOutput.size())
+            throw std::runtime_error("Compact comparison output size");
+        if (!fast)
+        {
+            if (std::memcmp(oldOutput.data(), newOutput.data(), oldOutput.size() * sizeof(float)))
+                throw std::runtime_error("Compact revision changed decoded FP16 pixels");
+            std::cout << "Frozen reference history words and FP16 decode pixels: bit-exact PASS\n";
+        }
+        else
+        {
+            double sumRGB = 0, sumSquaredRGB = 0;
+            float maxRGB = 0, maxMask = 0;
+            size_t changedRGB = 0, changedMask = 0;
+            for (size_t i = 0; i < oldOutput.size(); ++i)
+            {
+                const float delta = std::abs(oldOutput[i] - newOutput[i]);
+                if (!std::isfinite(newOutput[i]))
+                    throw std::runtime_error("Fast blend nonfinite output");
+                if (i % 4 == 3)
+                {
+                    maxMask = std::max(maxMask, delta);
+                    changedMask += delta > 0;
+                    if (delta > .002f)
+                        throw std::runtime_error("Fast blend mask error bound");
+                }
+                else
+                {
+                    maxRGB = std::max(maxRGB, delta);
+                    sumRGB += delta;
+                    sumSquaredRGB += double(delta) * delta;
+                    changedRGB += delta > 0;
+                    // Quantization and a small fraction of the actual raw/filtered contrast.
+                    const float filtered = after[i] - (residual ? .5f : 0.f);
+                    const float bound = .003f * std::abs(raw[i] - filtered) +
+                                        .002f * std::max(std::abs(oldOutput[i]), std::abs(newOutput[i])) + 1e-6f;
+                    if (delta > bound)
+                        throw std::runtime_error("Fast blend RGB error bound");
+                }
+            }
+            const double channels = double(oldOutput.size() / 4) * 3;
+            const auto qualityPath =
+                "artifacts/ghost-study/" + name +
+                (residual ? ".compact-fast-edit-quality.json" : ".compact-fast-answer-quality.json");
+            std::ofstream quality(qualityPath);
+            quality << "{\n  \"pixels\": " << oldOutput.size() / 4 << ",\n  \"max_rgb_error\": " << maxRGB
+                    << ",\n  \"mean_rgb_error\": " << sumRGB / channels
+                    << ",\n  \"rms_rgb_error\": " << std::sqrt(sumSquaredRGB / channels)
+                    << ",\n  \"max_mask_error\": " << maxMask << ",\n  \"changed_rgb_channels\": " << changedRGB
+                    << ",\n  \"changed_mask_pixels\": " << changedMask << ",\n  \"history_bit_exact\": true\n}\n";
+            std::cout << "Fast blend: history bit-exact PASS; max RGB " << maxRGB << ", max mask " << maxMask
+                      << ", changed mask " << changedMask << " / " << oldOutput.size() / 4 << " pixels\n";
+        }
     }
-    std::cout << "Compact native16 GPU ABBA saved for " << name << '\n';
+    std::cout << "Compact GPU ABBA saved for " << name << '\n';
 }
 
 // Independent scalar decode reference: supplied integer timers, not the history implementation.
-void CompactGhostQuality(Fixture& f)
+void CompactGhostQuality(Fixture& f, bool fast = false)
 {
     D3D12_FEATURE_DATA_D3D12_OPTIONS4 options {};
     bool native = SUCCEEDED(f.r.device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS4, &options, sizeof(options))) &&
@@ -202,17 +254,18 @@ void CompactGhostQuality(Fixture& f)
     unsigned checks = 0;
     for (bool useNative : { true })
     {
-        if (useNative && !native)
+        if (useNative && !native && !fast)
         {
             std::cout << "Native FP16 mask quality skipped: unavailable device\n";
             continue;
         }
         for (bool staleFields : { false, true })
         {
-            auto decode =
-                f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", "private_carrier_compact_simple");
+            auto decode = f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile",
+                                       fast ? "private_carrier_compact_fast" : "private_carrier_compact_simple");
             auto answerDecode =
-                f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", "private_carrier_compact_simple_answer");
+                f.r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile",
+                             fast ? "private_carrier_compact_fast_answer" : "private_carrier_compact_simple_answer");
             for (float expansion : { 0.f, .5f, 1.f })
                 for (unsigned fade : { 0u, 3u })
                     for (bool full : { false, true })
@@ -306,7 +359,7 @@ void CompactGhostQuality(Fixture& f)
                                                 double expected =
                                                     .75 * ((1 - mask) * filtered[ch] + mask * raw[ch]) + .25 * raw[ch];
                                                 if (!std::isfinite(got[i + ch]) ||
-                                                    std::abs(got[i + ch] - expected) > (useNative ? 0.00025 : 0.000003))
+                                                    std::abs(got[i + ch] - expected) > (fast ? 0.000003 : 0.00025))
                                                     throw std::runtime_error(
                                                         "Compact decode independent RGB reference failed native=" +
                                                         std::to_string(useNative) + " expansion=" +
@@ -317,7 +370,7 @@ void CompactGhostQuality(Fixture& f)
                                                         " expected=" + std::to_string(expected) + " alpha=" +
                                                         std::to_string(got[i + 3]) + " mask=" + std::to_string(mask));
                                             }
-                                            if (std::abs(got[i + 3] - mask * .75) > (useNative ? .0015 : .000003))
+                                            if (std::abs(got[i + 3] - mask * .75) > (fast ? .000003 : .0015))
                                                 throw std::runtime_error(
                                                     "Compact tent/depth/fade mask reference failed");
                                         }
@@ -325,20 +378,21 @@ void CompactGhostQuality(Fixture& f)
                                 }
         }
     }
-    std::cout << "Compact mask PASS: " << checks
+    std::cout << (fast ? "Fast compact mask PASS: " : "Compact mask PASS: ") << checks
               << " independent expansion/zero-age/occluder/native16/transport/fade cases\n";
 }
 
 // The unchanged ordinary carrier has its own independent scalar suite.
-void CompactTransportQuality(Fixture& f)
+void CompactTransportQuality(Fixture& f, bool fast = false)
 {
     D3D12_FEATURE_DATA_D3D12_OPTIONS4 options {};
     if (FAILED(f.r.device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS4, &options, sizeof(options))) ||
         !options.Native16BitShaderOpsSupported)
         return;
     const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    auto simple = f.r.pipeline(dir, "private_carrier_compact_simple"),
-         answerSimple = f.r.pipeline(dir, "private_carrier_compact_simple_answer");
+    auto simple = f.r.pipeline(dir, fast ? "private_carrier_compact_fast" : "private_carrier_compact_simple"),
+         answerSimple =
+             f.r.pipeline(dir, fast ? "private_carrier_compact_fast_answer" : "private_carrier_compact_simple_answer");
     unsigned checks = 0;
     for (bool full : { false, true })
         for (bool reversed : { false, true })
@@ -406,6 +460,6 @@ void CompactTransportQuality(Fixture& f)
                             }
                             ++checks;
                         }
-    std::cout << "Compact combined transport PASS: " << checks
+    std::cout << (fast ? "Fast compact combined transport PASS: " : "Compact combined transport PASS: ") << checks
               << " gain/answer/Z cases with obsolete transform fields ignored\n";
 }
