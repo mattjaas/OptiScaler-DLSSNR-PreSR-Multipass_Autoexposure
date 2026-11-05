@@ -1,5 +1,7 @@
 # Niebo, kontrast po dodatnim gain i jednostronny miękki brzeg
 
+**Aktualna implementacja feather: [szybsze maksimum blokowe i zapis w miejscu](private-ghost-feather-fast.md). Poniższy opis i pomiary dwóch pełnych przebiegów dotyczą poprzedniej wersji ca52c0e3. Poprawki sky i kontrastu pozostają aktualne.**
+
 2026-11-06. Baza `c6a88c1d8f272b9a40e11b3e351488cf54883a47`. Wersja próbna, bez PR.
 
 ## Niebo w 011

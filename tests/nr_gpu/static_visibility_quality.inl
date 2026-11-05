@@ -233,14 +233,16 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
                field.Get());
     if (feather)
     {
-        auto horizontal = f.texture(w, h, nullptr, DXGI_FORMAT_R16_FLOAT), expanded = f.texture(w, h);
+        const unsigned step = std::clamp(unsigned(std::ceil(settings.outwardRadius * h / 1080.f)), 1u, 128u),
+                       fw = (w + step - 1) / step, fh = (h + step - 1) / step;
+        auto horizontal = f.texture(fw, fh, nullptr, DXGI_FORMAT_R32G32_FLOAT), expanded = f.texture(w, h);
         auto hp = f.visibilityPipeline("private_ghost_feather_horizontal"),
              vp = f.visibilityPipeline("private_ghost_feather_apply");
         f.r.barrier(out.Get(), UAV, SRV);
         DlssNr::Superior::Fields::SetGhostOutwardFeather(c, w, h, settings, true, 0, 0, false);
-        f.dispatch(hp.Get(), c, out.Get(), out.Get(), horizontal.Get(), (w + 7) / 8, (h + 7) / 8, d.Get());
+        f.dispatch(hp.Get(), c, out.Get(), out.Get(), horizontal.Get(), (fw + 7) / 8, (fh + 7) / 8, d.Get());
         f.r.barrier(horizontal.Get(), UAV, SRV);
-        c.Mode = 55;
+        DlssNr::Superior::Fields::SetGhostOutwardFeather(c, w, h, settings, true, 0, 0, true);
         f.dispatch(vp.Get(), c, out.Get(), horizontal.Get(), expanded.Get(), (w + 7) / 8, (h + 7) / 8, d.Get(), p.Get(),
                    r.Get());
         out = expanded;
@@ -267,7 +269,7 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
 
 void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false,
                             bool contrast = false, bool road = false, bool brightness = false, bool sky = false,
-                            bool feather = false)
+                            bool feather = false, bool fastCompare = false)
 {
     const unsigned radius = 1;
     const bool residual = true;
@@ -339,9 +341,12 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         s.field = f.texture(mw, mh, nullptr, DXGI_FORMAT_R16_FLOAT);
         for (auto& hist : s.state)
             hist = f.texture(mw, mh, nullptr, DXGI_FORMAT_R32G32_UINT);
-        if (feather && k == 1)
+        if (feather && (k == 1 || fastCompare))
         {
-            s.featherHorizontal = f.texture(w, h, nullptr, DXGI_FORMAT_R16_FLOAT);
+            const unsigned step = std::clamp(unsigned(std::ceil(4.f * h / 1080.f)), 1u, 128u);
+            s.featherHorizontal =
+                k == 0 ? f.texture(w, h, nullptr, DXGI_FORMAT_R16_FLOAT)
+                       : f.texture((w + step - 1) / step, (h + step - 1) / step, nullptr, DXGI_FORMAT_R32G32_FLOAT);
             s.featherOutput = f.texture(w, h);
         }
         if (contrast && (k == 1 || brightness || feather))
@@ -369,7 +374,13 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
          decode16 = f.r.pipeline(dir, "private_carrier_coarse");
     auto dilate = f.r.pipeline(dir, "private_ghost_coarse_dilate_1");
     auto featherH = feather ? f.r.pipeline(dir, "private_ghost_feather_horizontal") : ComPtr<ID3D12PipelineState> {};
-    auto featherV = feather ? f.r.pipeline(dir, "private_ghost_feather_apply") : ComPtr<ID3D12PipelineState> {};
+    auto featherApply = feather ? f.r.pipeline(dir, "private_ghost_feather_inplace") : ComPtr<ID3D12PipelineState> {};
+    auto oldFeatherH =
+        fastCompare ? f.r.pipeline("artifacts/ghost-study/feather-full-baseline", "private_ghost_feather_horizontal")
+                    : ComPtr<ID3D12PipelineState> {};
+    auto oldFeatherApply =
+        fastCompare ? f.r.pipeline("artifacts/ghost-study/feather-full-baseline", "private_ghost_feather_apply")
+                    : ComPtr<ID3D12PipelineState> {};
     auto contrastHistory =
         contrast ? f.r.pipeline(dir, "private_ghost_contrast_coarse") : ComPtr<ID3D12PipelineState> {};
     auto contrastDilate =
@@ -495,21 +506,41 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                    dc, a.Get(), settings.contrastEnabled ? s.expanded.Get() : p.Get(), out.Get(), (w + 7) / 8,
                    (h + 7) / 8, guideDepth, p.Get(), r.Get(), decodeGuide, nullptr, contrast ? 5 : 4, false);
         f.r.barrier(out.Get(), UAV, SRV);
-        if (feather && variant == 1)
+        if (feather && (variant == 1 || fastCompare))
         {
             if (s.valid)
             {
                 f.r.barrier(s.featherHorizontal.Get(), SRV, UAV);
-                f.r.barrier(s.featherOutput.Get(), SRV, UAV);
+                if (variant == 0)
+                    f.r.barrier(s.featherOutput.Get(), SRV, UAV);
             }
             DlssNr::Superior::Fields::SetGhostOutwardFeather(c, w, h, settings, true, 0, 0, false);
-            f.dispatch(featherH.Get(), c, out.Get(), out.Get(), s.featherHorizontal.Get(), (w + 7) / 8, (h + 7) / 8,
-                       guideDepth, nullptr, nullptr, nullptr, nullptr, 6, false);
-            f.r.barrier(s.featherHorizontal.Get(), UAV, SRV);
-            c.Mode = 55;
-            f.dispatch(featherV.Get(), c, out.Get(), s.featherHorizontal.Get(), s.featherOutput.Get(), (w + 7) / 8,
-                       (h + 7) / 8, guideDepth, p.Get(), r.Get(), nullptr, nullptr, 7, false);
-            f.r.barrier(s.featherOutput.Get(), UAV, SRV);
+            if (variant == 0)
+            {
+                c.Width = w;
+                c.Height = h;
+                f.dispatch(oldFeatherH.Get(), c, out.Get(), out.Get(), s.featherHorizontal.Get(), (w + 7) / 8,
+                           (h + 7) / 8, guideDepth, nullptr, nullptr, nullptr, nullptr, 6, false);
+                f.r.barrier(s.featherHorizontal.Get(), UAV, SRV);
+                c.Mode = 55;
+                f.dispatch(oldFeatherApply.Get(), c, out.Get(), s.featherHorizontal.Get(), s.featherOutput.Get(),
+                           (w + 7) / 8, (h + 7) / 8, guideDepth, p.Get(), r.Get(), nullptr, nullptr, 7, false);
+            }
+            else
+            {
+                const unsigned fw = c.Width, fh = c.Height;
+                f.dispatch(featherH.Get(), c, out.Get(), out.Get(), s.featherHorizontal.Get(), (fw + 7) / 8,
+                           (fh + 7) / 8, guideDepth, nullptr, nullptr, nullptr, nullptr, 6, false);
+                f.r.barrier(s.featherHorizontal.Get(), UAV, SRV);
+                DlssNr::Superior::Fields::SetGhostOutwardFeather(c, w, h, settings, true, 0, 0, true);
+                c.Mode = 56;
+                f.r.barrier(out.Get(), SRV, UAV);
+                f.dispatch(featherApply.Get(), c, p.Get(), s.featherHorizontal.Get(), out.Get(), (w + 7) / 8,
+                           (h + 7) / 8, guideDepth, p.Get(), r.Get(), nullptr, nullptr, 7, false);
+                f.r.barrier(out.Get(), UAV, SRV);
+            }
+            if (variant == 0)
+                f.r.barrier(s.featherOutput.Get(), UAV, SRV);
         }
         f.r.list->EndQuery(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
         f.r.list->ResolveQueryData(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, readback.Get(), 0);
@@ -525,7 +556,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     };
     const auto name = std::filesystem::path(stem).filename().string();
     const auto prefix = "artifacts/ghost-study/" + name +
-                        (feather      ? ".feather"
+                        (fastCompare  ? ".feather-fast"
+                         : feather    ? ".feather"
                          : sky        ? ".sky"
                          : brightness ? ".brightness"
                          : road       ? ".road"
@@ -558,8 +590,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
             f.r.barrier(resource, SRV, UAV);
             return f.read(resource);
         };
-        auto oldOutput = readSrv(outputs[0].Get()),
-             newOutput = readSrv(feather ? states[1].featherOutput.Get() : outputs[1].Get());
+        auto oldOutput = readSrv(fastCompare ? states[0].featherOutput.Get() : outputs[0].Get()),
+             newOutput = readSrv(outputs[1].Get());
         double sum = 0, sumSquared = 0;
         float maxRGB = 0, maxMask = 0;
         size_t changed = 0, increased = 0, decreased = 0, strongLost = 0, soft = 0, oldActive = 0, newActive = 0;
@@ -574,7 +606,7 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                     throw std::runtime_error("Invalid coarse weight");
                 if (contrast && !brightness && !feather && newOutput[i] > oldOutput[i] + .002f)
                     throw std::runtime_error("Contrast gate increased the visibility mask");
-                if (feather && newOutput[i] < oldOutput[i])
+                if (feather && !fastCompare && newOutput[i] < oldOutput[i])
                     throw std::runtime_error("Outward feather eroded the post-contrast mask");
                 if (brightness && newOutput[i] < oldOutput[i] - .002f)
                     throw std::runtime_error("Brightness metric removed a mask retained by maximum RGB");

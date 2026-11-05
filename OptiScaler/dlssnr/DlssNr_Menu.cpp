@@ -4364,12 +4364,13 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 HelpMarker(
                     "Soften by expanding the final mask after contrast cancellation. Existing coverage stays intact. "
                     "Depth prevents the new fringe from crossing onto closer occluding surfaces. Works with coarse "
-                    "expansion 1. Default Off; adds two optional passes and scratch textures.");
+                    "expansion 1. Default Off; adds a small mask field and one full-grid blend.");
                 ImGui::BeginDisabled(!ghost.outwardFeather);
                 if (ImGui::SliderFloat("Outward mask feather radius (1080p)", &ghost.outwardRadius, .25f, 32.f,
                                        "%.2f px"))
                     config->DlssNrSuperiorGhostOutwardRadius = ghost.outwardRadius;
-                HelpMarker("Width of the added soft fringe in pixels at 1080p height. Scales with the working raster. "
+                HelpMarker("Approximate soft fringe radius at 1080p height. Coarse max reconstruction changes the "
+                           "fringe slightly. "
                            "Default 4. Does not shrink the core or reset NR/DLSS history. A fringe can extend into a "
                            "neighbour cancelled by contrast, but not across a closer depth boundary.");
                 ImGui::EndDisabled();

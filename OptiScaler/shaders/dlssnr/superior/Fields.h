@@ -137,7 +137,8 @@ inline void SetCoarseGhostDilate(DlssNrConstants& c, unsigned w, unsigned h,
     c.DebugView = s.coarseRadius;
 }
 static_assert(offsetof(DlssNrConstants, TransferStrength) == 16 && offsetof(DlssNrConstants, DebugView) == 24);
-// Outward feather stages reinterpret bytes 0..31. Radius and depth gate are independent of transport gain.
+// Outward feather stages reinterpret bytes 0..51; GuideWidth is reduction step and GuideHeight full height. Radius and
+// depth gate are independent of transport gain.
 inline void SetGhostOutwardFeather(DlssNrConstants& c, unsigned w, unsigned h,
                                    DlssNr::GhostRejection::Settings settings, bool inverted, float globalRaw,
                                    float precision, bool apply)
@@ -147,6 +148,14 @@ inline void SetGhostOutwardFeather(DlssNrConstants& c, unsigned w, unsigned h,
     c.Mode = apply ? 55u : 54u;
     c.Width = w;
     c.Height = h;
+    const unsigned step = std::clamp(unsigned(std::ceil(s.outwardRadius * float(h) / 1080.f)), 1u, 128u);
+    c.GuideWidth = step;
+    c.GuideHeight = h;
+    if (!apply)
+    {
+        c.Width = (w + step - 1) / step;
+        c.Height = (h + step - 1) / step;
+    }
     c.WhitePoint = s.outwardRadius;
     c.TransferStrength = std::isfinite(globalRaw) ? std::clamp(globalRaw, 0.f, 1.f) : 0.f;
     c.ColourStrength = s.historyDepth;
@@ -154,7 +163,8 @@ inline void SetGhostOutwardFeather(DlssNrConstants& c, unsigned w, unsigned h,
     c.MaxRatio = std::isfinite(precision) && precision >= 0 && precision <= .001f ? precision : 1.f / 65535.f;
 }
 static_assert(offsetof(DlssNrConstants, WhitePoint) == 4 && offsetof(DlssNrConstants, ColourStrength) == 20 &&
-              offsetof(DlssNrConstants, DebugView) == 24 && offsetof(DlssNrConstants, MaxRatio) == 28);
+              offsetof(DlssNrConstants, DebugView) == 24 && offsetof(DlssNrConstants, MaxRatio) == 28 &&
+              offsetof(DlssNrConstants, GuideWidth) == 44 && offsetof(DlssNrConstants, GuideHeight) == 48);
 // Final composition only: bit 0 retains the existing skin-mask preview; bit 1 selects the green ghost overlay PSO.
 inline void SetGhostMaskPreview(::DlssNrConstants& c, bool enabled)
 {

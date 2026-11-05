@@ -421,11 +421,12 @@ int main(int argc, char** argv)
             OutwardFeatherQuality(f);
             return 0;
         }
-        if (argc == 4 && (std::string(argv[1]) == "--sky-timing" || std::string(argv[1]) == "--feather-timing"))
+        if (argc == 4 && (std::string(argv[1]) == "--sky-timing" || std::string(argv[1]) == "--feather-timing" ||
+                          std::string(argv[1]) == "--feather-fast-timing"))
         {
-            bool feather = std::string(argv[1]) == "--feather-timing";
+            bool feather = std::string(argv[1]) != "--sky-timing";
             StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, feather, false, false, !feather,
-                                   feather);
+                                   feather, std::string(argv[1]) == "--feather-fast-timing");
             return 0;
         }
         if (argc == 4 &&

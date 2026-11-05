@@ -1,0 +1,125 @@
+{
+  "feather-fast.static": {
+    "before": {
+      "mean_ms": 0.220632,
+      "sd_ms": 0.00346934722126977,
+      "samples": 128
+    },
+    "after": {
+      "mean_ms": 0.155088,
+      "sd_ms": 0.0034905984686427866,
+      "samples": 128
+    },
+    "delta_ms": -0.06554399999999999,
+    "mask": {
+      "pixels": 3504384,
+      "max_rgb_difference": 1.2583,
+      "mean_rgb_difference": 0.000363616,
+      "rms_rgb_difference": 0.00688077,
+      "max_mask_difference": 0.838867,
+      "changed_mask_pixels": 511200,
+      "increased_mask_pixels": 329015,
+      "decreased_mask_pixels": 117581,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 475026,
+      "old_active_mask_pixels": 716172,
+      "new_active_mask_pixels": 672978,
+      "history_bit_exact": false
+    }
+  },
+  "feather-fast.moving": {
+    "before": {
+      "mean_ms": 0.212312,
+      "sd_ms": 0.0028828150721399897,
+      "samples": 128
+    },
+    "after": {
+      "mean_ms": 0.15209599999999998,
+      "sd_ms": 0.0014982446421976678,
+      "samples": 128
+    },
+    "delta_ms": -0.06021600000000002,
+    "mask": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.0393689,
+      "mean_rgb_difference": 1.6851e-05,
+      "rms_rgb_difference": 0.000283285,
+      "max_mask_difference": 0.838867,
+      "changed_mask_pixels": 52380,
+      "increased_mask_pixels": 40576,
+      "decreased_mask_pixels": 6806,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 40976,
+      "old_active_mask_pixels": 122661,
+      "new_active_mask_pixels": 120294,
+      "history_bit_exact": false
+    }
+  },
+  "feather.static": {
+    "before": {
+      "mean_ms": 0.09325599999999999,
+      "sd_ms": 0.0025834641213188414,
+      "samples": 128
+    },
+    "after": {
+      "mean_ms": 0.152912,
+      "sd_ms": 0.001748345665744947,
+      "samples": 128
+    },
+    "delta_ms": 0.059656,
+    "mask": {
+      "pixels": 3504384,
+      "max_rgb_difference": 1.5,
+      "mean_rgb_difference": 0.000839489,
+      "rms_rgb_difference": 0.0170277,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 449679,
+      "increased_mask_pixels": 422643,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 475026,
+      "old_active_mask_pixels": 370508,
+      "new_active_mask_pixels": 672978,
+      "history_bit_exact": false
+    }
+  },
+  "feather.moving": {
+    "before": {
+      "mean_ms": 0.092408,
+      "sd_ms": 0.0018024621480840011,
+      "samples": 128
+    },
+    "after": {
+      "mean_ms": 0.150584,
+      "sd_ms": 0.0017958653475293402,
+      "samples": 128
+    },
+    "delta_ms": 0.05817599999999999,
+    "mask": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.0793457,
+      "mean_rgb_difference": 4.52178e-05,
+      "rms_rgb_difference": 0.000779842,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 48831,
+      "increased_mask_pixels": 47223,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 40976,
+      "old_active_mask_pixels": 87058,
+      "new_active_mask_pixels": 120294,
+      "history_bit_exact": false
+    }
+  },
+  "device": "NVIDIA GeForce RTX 4090",
+  "resolution": [
+    2496,
+    1404
+  ],
+  "reference_commit": "ca52c0e35119dee1a13ec7b02438a020a7844bd8",
+  "warmup_pairs": 16,
+  "abba_blocks": 64,
+  "radius_1080p": 4,
+  "step": 6,
+  "scope": "Whole ghost-mask region, excludes NR/NGX/game composition"
+}

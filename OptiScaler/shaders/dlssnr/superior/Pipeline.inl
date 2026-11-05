@@ -122,6 +122,7 @@ struct Generation
     Texture depth, motion, interLow, interWorking, finalLow;
     Texture carrier, temporalOutput, temporalMotion, unit;
     Texture ghostFeatherHorizontal, ghostFeatherOutput;
+    bool ghostFeatherFormatChecked = false, ghostFeatherTypedLoad = false;
     uint32_t expectedMask = 0, successfulMask = 0;
     unsigned previousPasses = 0, lastCompleted = 0, lastCovered = 0;
     bool haveSchedule = false;
@@ -1569,9 +1570,21 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
                                 : nullptr,
                   g.carrier))
         return nullptr;
+    if (effectiveGhost.outwardFeather && !g.ghostFeatherFormatChecked)
+    {
+        D3D12_FEATURE_DATA_FORMAT_SUPPORT support { DXGI_FORMAT_R16G16B16A16_FLOAT };
+        g.ghostFeatherTypedLoad =
+            SUCCEEDED(g.device->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support))) &&
+            (support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD) != 0;
+        g.ghostFeatherFormatChecked = true;
+    }
+    const unsigned featherStep =
+        std::clamp(unsigned(std::ceil(effectiveGhost.outwardRadius * float(g.workHeight) / 1080.f)), 1u, 128u);
     if (Fields::TemporalGhostRejection(decode) && effectiveGhost.outwardFeather &&
-        Ensure(g.ghostFeatherHorizontal, g.device.Get(), DXGI_FORMAT_R16_FLOAT, g.workWidth, g.workHeight) &&
-        Ensure(g.ghostFeatherOutput, g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, g.workWidth, g.workHeight))
+        Ensure(g.ghostFeatherHorizontal, g.device.Get(), DXGI_FORMAT_R32G32_FLOAT,
+               (g.workWidth + featherStep - 1) / featherStep, (g.workHeight + featherStep - 1) / featherStep) &&
+        (g.ghostFeatherTypedLoad ||
+         Ensure(g.ghostFeatherOutput, g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, g.workWidth, g.workHeight)))
     {
         Constants feather {};
         Fields::SetGhostOutwardFeather(feather, g.workWidth, g.workHeight, effectiveGhost, g.inverted, 1.f - mix,
@@ -1579,9 +1592,17 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         if (Dispatch(shader, cmd, feather, g.carrier.Get(), nullptr, nullptr, temporalDepth, nullptr, nullptr,
                      g.ghostFeatherHorizontal))
         {
-            feather.Mode = 55u;
-            if (Dispatch(shader, cmd, feather, g.carrier.Get(), g.ghostFeatherHorizontal.Get(), proxy, temporalDepth,
-                         answer, nullptr, g.ghostFeatherOutput))
+            Fields::SetGhostOutwardFeather(feather, g.workWidth, g.workHeight, effectiveGhost, g.inverted, 1.f - mix,
+                                           packedDepthPrecision, true);
+            if (g.ghostFeatherTypedLoad)
+            {
+                feather.Mode = 56u;
+                if (!Dispatch(shader, cmd, feather, proxy, g.ghostFeatherHorizontal.Get(), proxy, temporalDepth, answer,
+                              nullptr, g.carrier))
+                    g.carrier.To(cmd, Srv);
+            }
+            else if (Dispatch(shader, cmd, feather, g.carrier.Get(), g.ghostFeatherHorizontal.Get(), proxy,
+                              temporalDepth, answer, nullptr, g.ghostFeatherOutput))
                 std::swap(g.carrier, g.ghostFeatherOutput);
         }
     }
