@@ -195,9 +195,11 @@ int main(int argc, char** argv)
     fastMetadata.ghostRejection.method = 4;
     fastMetadata.ghostRejection.coarseRadius = 2;
     fastMetadata.ghostRejection.contrastEnabled = true;
+    fastMetadata.ghostRejection.contrastMetric = 1;
     fastMetadata.ghostRejection.contrastThreshold = .125f;
     fastMetadata.ghostRejection.contrastSoftness = .0625f;
     assert(MetadataJson(fastMetadata).find("\"ghost_edit_contrast_enabled\": true") != std::string::npos);
+    assert(MetadataJson(fastMetadata).find("\"ghost_edit_contrast_metric\": 1") != std::string::npos);
     assert(MetadataJson(fastMetadata).find("\"ghost_edit_contrast_threshold\": 0.125") != std::string::npos);
     assert(MetadataJson(fastMetadata).find("\"ghost_edit_contrast_softness\": 0.0625") != std::string::npos);
     assert(MetadataJson(fastMetadata).find("\"ghost_coarse_expansion_radius\": 2") != std::string::npos);

@@ -118,6 +118,11 @@ int main()
     assert(SanitizeMode(999) == Native);
     auto contrast = DlssNr::GhostRejection::Settings {};
     assert(!contrast.contrastEnabled && contrast.contrastThreshold == .02f && contrast.contrastSoftness == .005f);
+    assert(contrast.contrastMetric == 0);
+    contrast.contrastMetric = 1;
+    assert(DlssNr::GhostRejection::Sanitize(contrast).contrastMetric == 1);
+    contrast.contrastMetric = 99;
+    assert(DlssNr::GhostRejection::Sanitize(contrast).contrastMetric == 0);
     contrast.contrastEnabled = true;
     contrast.contrastThreshold = NAN;
     contrast.contrastSoftness = INFINITY;

@@ -4329,14 +4329,27 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                            "hard mask until the timer expires. Counter is carried by MV rather than screen position.");
                 if (ImGui::Checkbox("Only mask low-contrast disocclusions", &ghost.contrastEnabled))
                     config->DlssNrSuperiorGhostContrast = ghost.contrastEnabled;
-                HelpMarker("Compare the current signed RGB NR edit with the saved edit of the surface that hid it. "
+                HelpMarker("Compare the current signed NR edit with the saved edit of the surface that hid it. "
                            "Strong contrast keeps DLSS; similar edits allow the disocclusion mask. Measured before "
                            "the positive transport multiplier. Default Off; adds optional edit-reference history.");
                 ImGui::BeginDisabled(!ghost.contrastEnabled);
+                int contrastMetric = int(ghost.contrastMetric);
+                const char* contrastMetrics[] = { "RGB difference (strongest channel)", "Brightness only (Rec.709)" };
+                if (ImGui::Combo("Disocclusion edit contrast metric", &contrastMetric, contrastMetrics,
+                                 IM_ARRAYSIZE(contrastMetrics)))
+                {
+                    ghost.contrastMetric = uint32_t(contrastMetric);
+                    config->DlssNrSuperiorGhostContrastMetric = ghost.contrastMetric;
+                }
+                HelpMarker("RGB uses the largest R/G/B edit difference. Brightness compares only the weighted sum "
+                           "0.2126 R + 0.7152 G + 0.0722 B, so different colours with similar brightness can keep the "
+                           "mask. Both use the signed edit before the transport multiplier; switching does not reset "
+                           "history.");
+
                 if (ImGui::SliderFloat("Disocclusion edit contrast threshold", &ghost.contrastThreshold, 0.f, 1.f,
                                        "%.4f"))
                     config->DlssNrSuperiorGhostContrastThreshold = ghost.contrastThreshold;
-                HelpMarker("Maximum absolute R/G/B edit difference for the full mask. Higher values mask more. "
+                HelpMarker("Maximum difference in the selected metric for the full mask. Higher values mask more. "
                            "Signed edit units, zero neutral; default 0.02. The original occluder remains the reference "
                            "throughout the masking window.");
                 if (ImGui::SliderFloat("Disocclusion edit contrast softness", &ghost.contrastSoftness, 0.f, .25f,

@@ -194,12 +194,13 @@ Testy WARP rozszerzają produkcyjny ReadbackCopy do 1/3/5 różnych tekstur na D
 
 ### Warunek kontrastu editu dla metod 3–6
 
-**Only mask low-contrast disocclusions** (domyślnie Off) dodatkowo ogranicza maskę do obszarów, gdzie bieżący surowy edit NR przypomina edit powierzchni, która wcześniej je zasłaniała. Porównuje maksimum bezwzględnej różnicy R/G/B, przed dodatnim mnożnikiem transportowym; neutralny edit ma tu zero. Pamięta oryginalny occluder przez całe okno i przelicza różnicę z bieżącym editem, również po poszerzeniu maski. **Show DLSS ghost rejection mask** pokazuje już wynik po tym warunku.
+**Only mask low-contrast disocclusions** (domyślnie Off) dodatkowo ogranicza maskę do obszarów, gdzie bieżący surowy edit NR przypomina edit powierzchni, która wcześniej je zasłaniała. Porównuje edit według wybranej metryki, przed dodatnim mnożnikiem transportowym; neutralny edit ma tu zero. Pamięta oryginalny occluder przez całe okno i przelicza różnicę z bieżącym editem, również po poszerzeniu maski. **Show DLSS ghost rejection mask** pokazuje już wynik po tym warunku.
 
-- **Disocclusion edit contrast threshold**: 0–1, default 0.02. Do tej różnicy maska działa w pełnej dotychczasowej sile. Większy próg pozwala maskować więcej.
+- **Disocclusion edit contrast metric**: **RGB difference (strongest channel)** to dotychczasowy domyślny warunek maksimum R/G/B. **Brightness only (Rec.709)** porównuje tylko jasność `0.2126 R + 0.7152 G + 0.0722 B`; podobna jasność może zachować maskę mimo innego koloru. Moduł liczymy po ważonej sumie, więc nie jest to ważona suma osobnych różnic bezwzględnych.
+- **Disocclusion edit contrast threshold**: 0–1, default 0.02. Do tej różnicy w wybranej metryce maska działa w pełnej dotychczasowej sile. Większy próg pozwala maskować więcej.
 - **Disocclusion edit contrast softness**: UI 0–0.25, INI 0–1, default 0.005. W tym przedziale ponad progiem maska płynnie maleje do zera. Zero daje twarde odcięcie.
 
-Nie zmienia warunków wykrycia dysokluzji ani czasu N/fade; jest dodatkowym warunkiem zastosowania maski. Działa w edicie i pełnej odpowiedzi NR, niezależnie od rodziny/presetu prywatnego DLSS. Ustawienia zapisują się w INI i profilach NR. [Implementacja, weryfikacja i pomiar narzutu](validation/private-ghost-contrast.md).
+Nie zmienia warunków wykrycia dysokluzji ani czasu N/fade; jest dodatkowym warunkiem zastosowania maski. Działa w edicie i pełnej odpowiedzi NR, niezależnie od rodziny/presetu prywatnego DLSS. Ustawienia zapisują się w INI i profilach NR. [Implementacja, weryfikacja i pomiar narzutu](validation/private-ghost-contrast.md). [Tryb samej jasności i jego weryfikacja](validation/private-ghost-brightness.md).
 
 ### Recent disocclusion window (temporal MV)
 

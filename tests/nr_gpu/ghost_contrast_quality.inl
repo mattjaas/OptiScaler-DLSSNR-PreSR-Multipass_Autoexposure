@@ -12,81 +12,160 @@ void GhostContrastQuality(Fixture& f)
                                      : method == 4 ? "fast"
                                                    : "coarse";
             auto ps = f.r.pipeline(dir, "private_carrier_contrast_" + kind + "_" + std::to_string(full));
-            for (float gain : { .5f, 6.f })
-                for (unsigned channel : { 0u, 1u, 2u })
-                    for (float delta : { 0.f, .015625f, .0234375f, .03125f, .25f })
+            for (unsigned metric : { 0u, 1u })
+                for (float gain : { .5f, 6.f })
+                    for (unsigned channel : { 0u, 1u, 2u })
+                        for (float delta : { 0.f, .015625f, .0234375f, .03125f, .25f })
+                        {
+                            const UINT w = 16, h = 8, step = method == 5 ? 4 : 2, mw = w / step, mh = h / step;
+                            const float raw[3] = { .0625f, -.03125f, .015625f },
+                                        filtered[3] = { .125f, -.0625f, .09375f };
+                            std::vector<float> proxy(w * h * 4, .25f), answer(proxy), encoded(proxy),
+                                z(proxy.size(), 0), state(mw * mh * 4, 0), ref(state);
+                            for (size_t i = 0; i < proxy.size(); i += 4)
+                            {
+                                z[i] = .01f;
+                                for (unsigned c = 0; c < 3; ++c)
+                                {
+                                    answer[i + c] += (raw[c]);
+                                    encoded[i + c] = (full ? .25f : .5f) + filtered[c] * (filtered[c] > 0 ? gain : 1.f);
+                                }
+                            }
+                            for (size_t i = 0; i < state.size(); i += 4)
+                            {
+                                if (method >= 3)
+                                {
+                                    uint32_t bits;
+                                    float depth = .01f;
+                                    std::memcpy(&bits, &depth, 4);
+                                    bits = (bits & 0xffffff80u) | 4;
+                                    std::memcpy(&state[i], &bits, 4);
+                                }
+                                else
+                                {
+                                    state[i] = .01f;
+                                    state[i + 1] = 4;
+                                }
+                                for (unsigned c = 0; c < 3; ++c)
+                                    ref[i + c] = raw[c] - (c == channel ? delta : 0);
+                                ref[i + 3] = 1;
+                                if (method == 5)
+                                    state[i] = 1;
+                            }
+                            f.r.begin();
+                            auto p = f.texture(w, h, &proxy), a = f.texture(w, h, &answer),
+                                 e = f.texture(w, h, &encoded), d = f.texture(w, h, &z, DXGI_FORMAT_R32_FLOAT),
+                                 s = f.texture(mw, mh, &state,
+                                               method == 5   ? DXGI_FORMAT_R16_FLOAT
+                                               : method >= 3 ? DXGI_FORMAT_R32G32_UINT
+                                                             : DXGI_FORMAT_R32G32B32A32_FLOAT),
+                                 r = f.texture(mw, mh, &ref, DXGI_FORMAT_R16G16B16A16_FLOAT), out = f.texture(w, h);
+                            DlssNr::Superior::DlssNrConstants c {};
+                            c.Mode = 38;
+                            c.Width = w;
+                            c.Height = h;
+                            Fields::SetPositiveCarrierGain(c, gain);
+                            Fields::SetCarrierNrAnswer(c, full);
+                            Fields::SetCarrierDepthConvention(c, true);
+                            DlssNr::GhostRejection::Settings settings { true, .01f, .02f, .75f, false, method };
+                            settings.historyFade = 0;
+                            settings.contrastEnabled = true;
+                            settings.contrastMetric = metric;
+                            settings.contrastThreshold = .015625f;
+                            settings.contrastSoftness = .015625f;
+                            Fields::SetCarrierGhostRejection(c, settings);
+                            Fields::SetGhostDepthPrecision(c, 0);
+                            Fields::SetUnfilteredEditWeight(c, .25f);
+                            f.dispatch(ps.Get(), c, e.Get(), r.Get(), out.Get(), 2, 1, d.Get(), p.Get(), a.Get(),
+                                       s.Get());
+                            auto values = f.read(out.Get());
+                            const double channelWeights[3] = { .2126, .7152, .0722 };
+                            const double distance = double(delta) * (metric == 1 ? channelWeights[channel] : 1.);
+                            const double x = std::clamp((distance - .015625) / .015625, 0., 1.);
+                            const double rejection = .75 * (1 - x * x * (3 - 2 * x)), rawWeight = .25 + .75 * rejection;
+                            for (size_t i = 0; i < values.size(); i += 4)
+                            {
+                                Near(values[i + 3], float(.75 * rejection), "contrast alpha/global fade");
+                                for (unsigned ch = 0; ch < 3; ++ch)
+                                    Near(values[i + ch], float(filtered[ch] * (1 - rawWeight) + raw[ch] * rawWeight),
+                                         "contrast RGB/gain/full-answer");
+                            }
+                            ++checks;
+                        }
+        }
+    // Equal-brightness colour changes must KEEP the mask only in metric 1.
+    // Values are exactly binary16 representable; small brightness mismatch from weighting is <.001.
+    for (unsigned method : { 2u, 3u, 4u, 5u })
+        for (bool full : { false, true })
+            for (unsigned metric : { 0u, 1u, 99u, 100u })
+                for (int scenario : { 0, 1, 2 })
+                {
+                    const UINT w = 16, h = 8, step = method == 5 ? 4 : 2, mw = w / step, mh = h / step;
+                    std::vector<float> proxy(w * h * 4, .25f), after(proxy.size(), full ? .375f : .625f),
+                        depth(proxy.size(), .01f), state(mw * mh * 4, 0), reference(state);
+                    for (size_t i = 0; i < state.size(); i += 4)
                     {
-                        const UINT w = 16, h = 8, step = method == 5 ? 4 : 2, mw = w / step, mh = h / step;
-                        const float raw[3] = { .0625f, -.03125f, .015625f }, filtered[3] = { .125f, -.0625f, .09375f };
-                        std::vector<float> proxy(w * h * 4, .25f), answer(proxy), encoded(proxy), z(proxy.size(), 0),
-                            state(mw * mh * 4, 0), ref(state);
-                        for (size_t i = 0; i < proxy.size(); i += 4)
+                        if (method >= 3)
                         {
-                            z[i] = .01f;
-                            for (unsigned c = 0; c < 3; ++c)
-                            {
-                                answer[i + c] += (raw[c]);
-                                encoded[i + c] = (full ? .25f : .5f) + filtered[c] * (filtered[c] > 0 ? gain : 1.f);
-                            }
+                            uint32_t bits;
+                            float z = .01f;
+                            std::memcpy(&bits, &z, 4);
+                            bits = (bits & 0xffffff80u) | 4;
+                            std::memcpy(&state[i], &bits, 4);
                         }
-                        for (size_t i = 0; i < state.size(); i += 4)
+                        else
                         {
-                            if (method >= 3)
-                            {
-                                uint32_t bits;
-                                float depth = .01f;
-                                std::memcpy(&bits, &depth, 4);
-                                bits = (bits & 0xffffff80u) | 4;
-                                std::memcpy(&state[i], &bits, 4);
-                            }
-                            else
-                            {
-                                state[i] = .01f;
-                                state[i + 1] = 4;
-                            }
-                            for (unsigned c = 0; c < 3; ++c)
-                                ref[i + c] = raw[c] - (c == channel ? delta : 0);
-                            ref[i + 3] = 1;
-                            if (method == 5)
-                                state[i] = 1;
+                            state[i] = .01f;
+                            state[i + 1] = 4;
                         }
-                        f.r.begin();
-                        auto p = f.texture(w, h, &proxy), a = f.texture(w, h, &answer), e = f.texture(w, h, &encoded),
-                             d = f.texture(w, h, &z, DXGI_FORMAT_R32_FLOAT),
-                             s = f.texture(mw, mh, &state,
+                        if (method == 5)
+                            state[i] = 1;
+                        const float sign = scenario == 1 ? -1.f : 1.f;
+                        reference[i] = scenario == 2 ? .0625f : sign * -.5f;
+                        reference[i + 1] = scenario == 2 ? .0625f : sign * .148681640625f;
+                        reference[i + 2] = scenario == 2 ? .0625f : 0.f;
+                        reference[i + 3] = 1;
+                    }
+                    f.r.begin();
+                    auto p = f.texture(w, h, &proxy), e = f.texture(w, h, &after),
+                         d = f.texture(w, h, &depth, DXGI_FORMAT_R32_FLOAT),
+                         guide = f.texture(mw, mh, &state,
                                            method == 5   ? DXGI_FORMAT_R16_FLOAT
                                            : method >= 3 ? DXGI_FORMAT_R32G32_UINT
                                                          : DXGI_FORMAT_R32G32B32A32_FLOAT),
-                             r = f.texture(mw, mh, &ref, DXGI_FORMAT_R16G16B16A16_FLOAT), out = f.texture(w, h);
-                        DlssNr::Superior::DlssNrConstants c {};
-                        c.Mode = 38;
-                        c.Width = w;
-                        c.Height = h;
-                        Fields::SetPositiveCarrierGain(c, gain);
-                        Fields::SetCarrierNrAnswer(c, full);
-                        Fields::SetCarrierDepthConvention(c, true);
-                        DlssNr::GhostRejection::Settings settings { true, .01f, .02f, .75f, false, method };
-                        settings.historyFade = 0;
-                        settings.contrastEnabled = true;
-                        settings.contrastThreshold = .015625f;
-                        settings.contrastSoftness = .015625f;
-                        Fields::SetCarrierGhostRejection(c, settings);
-                        Fields::SetGhostDepthPrecision(c, 0);
-                        Fields::SetUnfilteredEditWeight(c, .25f);
-                        f.dispatch(ps.Get(), c, e.Get(), r.Get(), out.Get(), 2, 1, d.Get(), p.Get(), a.Get(), s.Get());
-                        auto values = f.read(out.Get());
-                        const double x = std::clamp((double(delta) - .015625) / .015625, 0., 1.);
-                        const double rejection = .75 * (1 - x * x * (3 - 2 * x)), rawWeight = .25 + .75 * rejection;
-                        for (size_t i = 0; i < values.size(); i += 4)
-                        {
-                            Near(values[i + 3], float(.75 * rejection), "contrast alpha/global fade");
-                            for (unsigned ch = 0; ch < 3; ++ch)
-                                Near(values[i + ch], float(filtered[ch] * (1 - rawWeight) + raw[ch] * rawWeight),
-                                     "contrast RGB/gain/full-answer");
-                        }
-                        ++checks;
+                         r = f.texture(mw, mh, &reference, DXGI_FORMAT_R16G16B16A16_FLOAT), out = f.texture(w, h);
+                    DlssNr::Superior::DlssNrConstants c {};
+                    c.Mode = 38;
+                    c.Width = w;
+                    c.Height = h;
+                    Fields::SetPositiveCarrierGain(c, 1);
+                    Fields::SetCarrierDepthConvention(c, true);
+                    Fields::SetCarrierNrAnswer(c, full);
+                    DlssNr::GhostRejection::Settings settings { true, .01f, .02f, 1, false, method };
+                    settings.historyFade = 0;
+                    settings.contrastEnabled = true;
+                    settings.contrastMetric = metric;
+                    settings.contrastThreshold = .001f;
+                    settings.contrastSoftness = 0;
+                    Fields::SetCarrierGhostRejection(c, settings);
+                    if (metric == 100)
+                        c.ExposureAnchors[15] = NAN; // Shader fallback independently of host sanitation.
+                    const std::string kind = method == 2   ? "temporal"
+                                             : method == 3 ? "simple"
+                                             : method == 4 ? "fast"
+                                                           : "coarse";
+                    auto ps = f.r.pipeline(dir, "private_carrier_contrast_" + kind + "_" + std::to_string(full));
+                    f.dispatch(ps.Get(), c, e.Get(), r.Get(), out.Get(), 2, 1, d.Get(), p.Get(), p.Get(), guide.Get());
+                    auto values = f.read(out.Get());
+                    const bool keepMask = metric == 1 && scenario != 2;
+                    for (size_t i = 0; i < values.size(); i += 4)
+                    {
+                        Near(values[i + 3], keepMask ? 1.f : 0.f, "equal brightness / RGB / invalid selector mask");
+                        for (unsigned ch = 0; ch < 3; ++ch)
+                            Near(values[i + ch], keepMask ? 0.f : .125f, "equal brightness / neutral contrast output");
                     }
-        }
+                    ++checks;
+                }
     // Invalid history fails open; opposite references cannot average into an artificial match.
     for (bool invalid : { false, true })
     {
@@ -249,5 +328,5 @@ void GhostContrastQuality(Fixture& f)
         ++checks;
     }
     std::cout << "Disocclusion edit contrast PASS: " << checks
-              << " RGB/threshold/softness/gain/full-answer/history/reset/guide/dilation cases\n";
+              << " RGB/brightness/threshold/softness/gain/full-answer/history/reset/guide/dilation cases\n";
 }

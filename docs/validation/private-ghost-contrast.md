@@ -10,7 +10,10 @@ Przy decode, już po przestrzennej rekonstrukcji/poszerzeniu maski, porównujemy
 
 `distance = max(abs(raw.r-reference.r), abs(raw.g-reference.g), abs(raw.b-reference.b))`.
 
-`mask *= 1-smoothstep(threshold,threshold+softness,distance)`; przy softness=0 maska jest dozwolona dla distance<=threshold. Domyślne wartości to .02 i .005. Każdy kanał może wyłączyć maskę; podobna luminancja nie ukrywa różnicy barwy. Próg jest absolutny w domenie NR, nie w nitach ani procentach kontrastu sceny. AutoExposure NR może zmienić wartości tego editu; mnożnik transportu nie bierze udziału w pomiarze.
+To domyślna metryka **RGB difference (strongest channel)**. Dodatkowy wybór **Disocclusion edit contrast metric → Brightness only (Rec.709)** używa `abs(dot(raw-reference, float3(.2126,.7152,.0722)))`; ignoruje różnicę samej barwy przy podobnej ważonej jasności. [Weryfikacja i pomiary trybu jasności](private-ghost-brightness.md). Przełącznik zmienia wyłącznie skalarny warunek w decode, bez resetu historii i nowych zasobów.
+
+
+`mask *= 1-smoothstep(threshold,threshold+softness,distance)`; przy softness=0 maska jest dozwolona dla distance<=threshold. Domyślne wartości to .02 i .005. W metryce RGB każdy kanał może wyłączyć maskę; podobna luminancja nie ukrywa różnicy barwy. Metryka jasności pomija różnicę samej barwy. Próg jest absolutny w domenie NR, nie w nitach ani procentach kontrastu sceny. AutoExposure NR może zmienić wartości tego editu; mnożnik transportu nie bierze udziału w pomiarze.
 
 Kontrolki: **Only mask low-contrast disocclusions**, **Disocclusion edit contrast threshold**, **Disocclusion edit contrast softness**. Dostępne dla metod temporalnych 3–6 (indeksy 2–5), w ramach istniejących ograniczeń DX12/Superior/prywatnego DLSS. Próg i miękkość mają efekt od bieżącego decode. Włączenie/wyłączenie inicjalizuje tylko lokalną historię maski; nie resetuje NR ani NGX. Brak poprawnego wzorca oznacza brak odrzucania DLSS. Początek historii wymaga rozgrzewki.
 
@@ -22,9 +25,9 @@ Metoda 6 używa dodatkowo jednej tekstury RGBA16F rozszerzonego wzorca. Istniej�
 
 Dodatkowe nominalne VRAM przy 2496×1404: około 26.74 MiB w metodach 3–5 i 8.35 MiB w metodzie 6, plus wyrównania. Stan należy do GhostHistory/Generation, więc uczestniczy w tym samym odroczonym zwalnianiu, odrzucaniu niezrealizowanej listy, zmianach rozmiaru i obsłudze widoków. Wyłączenie zwalnia zasoby bez oczekiwania CPU/GPU. Nie ma readbacków ani alokacji co klatkę. Off nie dodaje dispatchy ani tekstur; wszystkie 81 dotychczasowych blobów pozostaje identyczne.
 
-Używamy tych samych sześciu SRV/dwóch UAV i ABI 256 B. Opcjonalny decode ma wzorzec na t1, a proxy pełnej odpowiedzi czyta z już obecnego t2. Nowe parametry mieszczą się w ExposureAnchors[12..14] (224..232 B), z nazwanymi setterami i asercjami ABI. Dodano 13 opcjonalnych blobów, razem 94; liczba slotów PSO ma wspólną stałą 50. Przy błędzie przygotowania pomijana jest maska zamiast użycia nieprawidłowej referencji.
+Używamy tych samych sześciu SRV/dwóch UAV i ABI 256 B. Opcjonalny decode ma wzorzec na t1, a proxy pełnej odpowiedzi czyta z już obecnego t2. Parametry mieszczą się w ExposureAnchors[12..15] (224..236 B; ostatnia pozycja to metryka), z nazwanymi setterami i asercjami ABI. Dodano 13 opcjonalnych blobów, razem 94; liczba slotów PSO ma wspólną stałą 50. Przy błędzie przygotowania pomijana jest maska zamiast użycia nieprawidłowej referencji.
 
-INI: `[DlssNr] SuperiorGhostContrast`, `SuperiorGhostContrastThreshold`, `SuperiorGhostContrastSoftness`. Pełny obieg odczytu/zapisu/resetu/profili i kKeptKeys; zrzuty mają dodatkowe `ghost_edit_contrast_enabled`, `ghost_edit_contrast_threshold`, `ghost_edit_contrast_softness`. `.raw.dds` i `.after.dds` zachowują dotychczasowe znaczenie.
+INI: `[DlssNr] SuperiorGhostContrast`, `SuperiorGhostContrastThreshold`, `SuperiorGhostContrastSoftness` oraz `SuperiorGhostContrastMetric` (0=RGB, 1=brightness, inne wartości wracają do RGB). Pełny obieg odczytu/zapisu/resetu/profili i kKeptKeys; zrzuty mają dodatkowe `ghost_edit_contrast_enabled`, `ghost_edit_contrast_threshold`, `ghost_edit_contrast_softness` i `ghost_edit_contrast_metric`. `.raw.dds` i `.after.dds` zachowują dotychczasowe znaczenie.
 
 ## Weryfikacja
 

@@ -1,0 +1,100 @@
+{
+  "base_commit": "0ee40acfa0fa3d5c21593f7c87f8be030928b9af",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "size": [
+    2496,
+    1404
+  ],
+  "settings": {
+    "method": 6,
+    "radius": 1,
+    "N": 18,
+    "fade": 12,
+    "depth": 0.05,
+    "motion_gate": 2.02,
+    "gain": 1,
+    "threshold": 0.02,
+    "softness": 0.005,
+    "contrast_enabled_in_both": true
+  },
+  "changed_psos": [
+    "private_carrier_contrast_coarse_0_Shader.cso",
+    "private_carrier_contrast_coarse_1_Shader.cso",
+    "private_carrier_contrast_fast_0_Shader.cso",
+    "private_carrier_contrast_fast_1_Shader.cso",
+    "private_carrier_contrast_simple_0_Shader.cso",
+    "private_carrier_contrast_simple_1_Shader.cso",
+    "private_carrier_contrast_temporal_0_Shader.cso",
+    "private_carrier_contrast_temporal_1_Shader.cso"
+  ],
+  "unchanged_psos": 86,
+  "measurements": {
+    "007": {
+      "mean_ms": [
+        0.089336,
+        0.089568
+      ],
+      "sd_ms": [
+        0.000915407365968446,
+        0.000934963825145501
+      ],
+      "delta_ms": 0.00023199999999999957,
+      "paired_sd_ms": 0.0007896627369296574,
+      "approx_paired_95_ci_ms": [
+        3.458431576758522e-05,
+        0.00042941568423241394
+      ],
+      "samples_per_variant": 128,
+      "csv": "private-ghost-brightness-007.csv",
+      "quality": {
+        "pixels": 3504384,
+        "max_rgb_difference": 0,
+        "mean_rgb_difference": 0,
+        "rms_rgb_difference": 0,
+        "max_mask_difference": 0,
+        "changed_mask_pixels": 0,
+        "increased_mask_pixels": 0,
+        "decreased_mask_pixels": 0,
+        "strong_mask_lost_pixels": 0,
+        "soft_mask_pixels": 0,
+        "old_active_mask_pixels": 0,
+        "new_active_mask_pixels": 0,
+        "history_bit_exact": false
+      }
+    },
+    "009": {
+      "mean_ms": [
+        0.098696,
+        0.09871200000000001
+      ],
+      "sd_ms": [
+        0.001884753648347875,
+        0.0020453368511435146
+      ],
+      "delta_ms": 1.6000000000000172e-05,
+      "paired_sd_ms": 0.0016918980043557177,
+      "approx_paired_95_ci_ms": [
+        -0.00040697450108892924,
+        0.0004389745010889296
+      ],
+      "samples_per_variant": 128,
+      "csv": "private-ghost-brightness-009.csv",
+      "quality": {
+        "pixels": 3504384,
+        "max_rgb_difference": 0.543945,
+        "mean_rgb_difference": 0.000830578,
+        "rms_rgb_difference": 0.015929,
+        "max_mask_difference": 1,
+        "changed_mask_pixels": 197467,
+        "increased_mask_pixels": 190611,
+        "decreased_mask_pixels": 0,
+        "strong_mask_lost_pixels": 0,
+        "soft_mask_pixels": 147550,
+        "old_active_mask_pixels": 171004,
+        "new_active_mask_pixels": 317938,
+        "history_bit_exact": false
+      }
+    }
+  },
+  "notes": "RGB metric versus brightness metric in the same current shaders. Frozen guide replay, resident input, whole mask region with barriers/decode. Includes change in coverage; does not isolate regression versus the old RGB PSO."
+}

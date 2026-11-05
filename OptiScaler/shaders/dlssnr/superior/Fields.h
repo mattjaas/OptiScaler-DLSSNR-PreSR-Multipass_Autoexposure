@@ -68,6 +68,7 @@ inline void SetCarrierGhostRejection(DlssNrConstants& c, DlssNr::GhostRejection:
     c.ExposureAnchors[12] = s.contrastEnabled && s.method >= 2 ? 1.f : 0.f;
     c.ExposureAnchors[13] = s.contrastThreshold;
     c.ExposureAnchors[14] = s.contrastSoftness;
+    c.ExposureAnchors[15] = float(s.contrastMetric);
 }
 inline bool CarrierGhostRejection(const DlssNrConstants& c) { return c.Mode == 38u && c.GuideWidth == 1u; }
 inline bool GuidedGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 1u; }
@@ -111,7 +112,7 @@ static_assert(offsetof(DlssNrConstants, Width) == 8 && offsetof(DlssNrConstants,
 // Stage 47 only; MvScaleY is the unused visibility slot at byte 40, not an MV multiplier here.
 inline bool FastCompactScatter(const DlssNrConstants& c) { return c.Mode == 47u && c.MvScaleY == 1.f; }
 static_assert(offsetof(DlssNrConstants, MvScaleY) == 40);
-// Optional decode PSOs bind the original occluder edit at t1; fields occupy bytes 224..232.
+// Optional decode PSOs bind the original occluder edit at t1; fields occupy bytes 224..236.
 inline bool GhostEditContrast(const DlssNrConstants& c)
 {
     return TemporalGhostRejection(c) && c.ExposureAnchors[12] == 1.f;
@@ -123,7 +124,8 @@ inline void SetGhostContrastHistory(DlssNrConstants& c, unsigned method, bool pr
     c.DebugView = previous ? 1u : 0u;
 }
 static_assert(offsetof(DlssNrConstants, ExposureAnchors) + 12 * 4 == 224 &&
-              offsetof(DlssNrConstants, CompareMode) == 52);
+              offsetof(DlssNrConstants, CompareMode) == 52 &&
+              offsetof(DlssNrConstants, ExposureAnchors) + 15 * 4 == 236);
 inline void SetCoarseGhostDilate(DlssNrConstants& c, unsigned w, unsigned h,
                                  const DlssNr::GhostRejection::Settings& settings)
 {

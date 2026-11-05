@@ -32,8 +32,16 @@ float GhostContrastMask(int2 pixel, float mask)
     }
     if (!all(isfinite(reference)) || reference.a <= 0)
         return 0;
-    float3 difference = abs(GhostRawEdit(pixel) - reference.rgb / reference.a);
-    float distance = max(difference.r, max(difference.g, difference.b));
+    float3 signedDifference = GhostRawEdit(pixel) - reference.rgb / reference.a;
+    float distance;
+    // Compare one brightness scalar; take abs AFTER the sum so equal-brightness colours can cancel.
+    // Unknown/nonfinite selectors retain the existing RGB criterion.
+    [branch] if (gExposureAnchors[3].w == 1.0) distance = abs(dot(signedDifference, float3(.2126, .7152, .0722)));
+    else
+    {
+        float3 difference = abs(signedDifference);
+        distance = max(difference.r, max(difference.g, difference.b));
+    }
     float threshold = isfinite(gExposureAnchors[3].y) ? clamp(gExposureAnchors[3].y, 0, 1) : .02;
     float softness = isfinite(gExposureAnchors[3].z) ? clamp(gExposureAnchors[3].z, 0, 1) : .005;
     float keep =

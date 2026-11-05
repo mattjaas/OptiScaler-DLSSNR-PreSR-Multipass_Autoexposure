@@ -242,7 +242,7 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
 }
 
 void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false,
-                            bool contrast = false, bool road = false)
+                            bool contrast = false, bool road = false, bool brightness = false)
 {
     const unsigned radius = 1;
     const bool residual = true;
@@ -314,7 +314,7 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         s.field = f.texture(mw, mh, nullptr, DXGI_FORMAT_R16_FLOAT);
         for (auto& hist : s.state)
             hist = f.texture(mw, mh, nullptr, DXGI_FORMAT_R32G32_UINT);
-        if (contrast && k == 1)
+        if (contrast && (k == 1 || brightness))
         {
             for (auto& t : s.raw)
                 t = f.texture(mw, mh, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT);
@@ -326,8 +326,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     f.r.finish();
     f.uploads.clear();
     std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    const std::string oldDir = road       ? "artifacts/ghost-study/road-baseline"
-                               : contrast ? dir
+    const std::string oldDir = contrast   ? dir
+                               : road     ? "artifacts/ghost-study/road-baseline"
                                : interior ? "artifacts/ghost-study/occluded-interior-baseline"
                                           : "artifacts/ghost-study/static-baseline";
     auto clear = f.r.pipeline(dir, "private_ghost_clear"), baseScatter = f.r.pipeline(dir, "private_ghost_coarse_1"),
@@ -397,7 +397,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                    (mh + 7) / 8, s.recon.Get(), previous, nullptr, nullptr, nullptr, 2, false);
         f.r.barrier(s.state[next].Get(), UAV, SRV);
         settings.method = 5;
-        settings.contrastEnabled = contrast && variant == 1;
+        settings.contrastEnabled = contrast && (variant == 1 || brightness);
+        settings.contrastMetric = brightness && variant == 1 ? 1u : 0u;
         if (settings.contrastEnabled)
         {
             if (s.valid)
@@ -473,7 +474,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     };
     const auto name = std::filesystem::path(stem).filename().string();
     const auto prefix = "artifacts/ghost-study/" + name +
-                        (road       ? ".road"
+                        (brightness ? ".brightness"
+                         : road     ? ".road"
                          : contrast ? ".contrast"
                          : interior ? ".interior"
                                     : "") +
@@ -516,8 +518,10 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
             {
                 if (newOutput[i] < 0 || newOutput[i] > 1)
                     throw std::runtime_error("Invalid coarse weight");
-                if (contrast && newOutput[i] > oldOutput[i] + .002f)
+                if (contrast && !brightness && newOutput[i] > oldOutput[i] + .002f)
                     throw std::runtime_error("Contrast gate increased the visibility mask");
+                if (brightness && newOutput[i] < oldOutput[i] - .002f)
+                    throw std::runtime_error("Brightness metric removed a mask retained by maximum RGB");
                 maxMask = std::max(maxMask, delta);
                 oldActive += oldOutput[i] > 0;
                 newActive += newOutput[i] > 0;

@@ -19,6 +19,7 @@ struct Settings
     uint32_t coarseRadius = 1;
     bool contrastEnabled = false;
     float contrastThreshold = .02f, contrastSoftness = .005f;
+    uint32_t contrastMetric = 0; // 0 maximum RGB difference; 1 signed edit brightness (Rec.709)
 };
 inline Settings Sanitize(Settings s)
 {
@@ -34,6 +35,7 @@ inline Settings Sanitize(Settings s)
     s.historyDepth = std::isfinite(s.historyDepth) ? std::clamp(s.historyDepth, .001f, .5f) : .05f;
     s.coarseRadius = std::clamp(s.coarseRadius, 1u, 2u);
     s.softExpansion = std::isfinite(s.softExpansion) ? std::clamp(s.softExpansion, 0.f, 1.f) : .5f;
+    s.contrastMetric = s.contrastMetric <= 1u ? s.contrastMetric : 0u;
     s.contrastThreshold = std::isfinite(s.contrastThreshold) ? std::clamp(s.contrastThreshold, 0.f, 1.f) : .02f;
     s.contrastSoftness = std::isfinite(s.contrastSoftness) ? std::clamp(s.contrastSoftness, 0.f, 1.f) : .005f;
     return s;
@@ -49,7 +51,8 @@ template <class Config> Settings Read(const Config& c)
           c.DlssNrSuperiorGhostHistoryFade.value_or_default(), c.DlssNrSuperiorGhostHistoryDepth.value_or_default(),
           c.DlssNrSuperiorGhostSoftExpansion.value_or_default(), c.DlssNrSuperiorGhostCoarseRadius.value_or_default(),
           c.DlssNrSuperiorGhostContrast.value_or_default(), c.DlssNrSuperiorGhostContrastThreshold.value_or_default(),
-          c.DlssNrSuperiorGhostContrastSoftness.value_or_default() });
+          c.DlssNrSuperiorGhostContrastSoftness.value_or_default(),
+          c.DlssNrSuperiorGhostContrastMetric.value_or_default() });
     if (s.method == 1)
     {
         s.threshold = c.DlssNrSuperiorGhostGuidedThreshold.value_or_default();
