@@ -7,6 +7,7 @@
 #include <cmath>
 #include <DirectXPackedVector.h>
 #include <limits>
+#include <map>
 #include "../../OptiScaler/dlssnr/DlssNr_EditDump.h"
 
 namespace PE = DlssNr::PrivateExposure;
@@ -54,6 +55,16 @@ struct Fixture
     ComPtr<ID3D12Resource> timingReadback;
     UINT64 timingFrequency = 0;
     std::vector<ComPtr<ID3D12Resource>> uploads;
+    // Immutable PSOs belong to this device/root signature. Histories/resources remain per sequence.
+    std::map<std::string, ComPtr<ID3D12PipelineState>> visibilityPipelines;
+    ComPtr<ID3D12PipelineState> visibilityPipeline(const std::string& name)
+    {
+        auto& p = visibilityPipelines[name];
+        if (!p)
+            p = r.pipeline("OptiScaler/shaders/dlssnr/superior/precompile", name);
+        return p;
+    }
+
     Fixture(bool hardware) : r(hardware, 56)
     {
         const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
@@ -394,6 +405,7 @@ int main(int argc, char** argv)
 {
     try
     {
+        std::cout.setf(std::ios::unitbuf);
         Fixture f(argc < 2 || (std::string(argv[1]) != "--warp" && std::string(argv[1]) != "--contrast-quality-warp"));
         if (argc == 4 && std::string(argv[1]) == "--road-visibility-timing")
         {
