@@ -40,6 +40,7 @@ float4 CurrentGuide(uint2 p, out float2 previousPos)
     previousPos = (float2(chosen) + .5 + mv) * .5 - .5;
     return valid ? float4(nearZ, 0, mv) : float4(0, 0, 0, 0);
 }
+#include "GhostSurfaceContinuation.hlsli"
 bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height); }
 [numthreads(8, 8, 1)] void TemporalGhostMain(uint3 id : SV_DispatchThreadID)
 {
@@ -86,6 +87,17 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
         WriteState[p] = current;
         return;
     }
+    float gate =
+        isfinite(motionGate) ? clamp(motionGate, .1, 16) * float(fullHeight) / 1080 : 2.0 * float(fullHeight) / 1080;
+    float gateSquared = gate * gate;
+    float2 delta = current.zw - old.zw;
+    float errorSquared = dot(delta, delta), bestSquared = errorSquared;
+    if (old.y > 1 && (current.x > old.x * (1 + tolerance) + precision || errorSquared > gateSquared * 4) &&
+        ContinueGhostSurface(current, old, (previousPos + .5) * 2 - .5 - current.zw, tolerance, precision, gate))
+    {
+        WriteState[p] = float4(current.x, max(0, min(old.y, nFrames) - 1), current.zw);
+        return;
+    }
     bool occluding = current.x > old.x * (1 + tolerance) + precision;
     // A closer current object must not inherit a background's timer.
     if (occluding)
@@ -93,11 +105,6 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
         WriteState[p] = current;
         return;
     }
-    float gate =
-        isfinite(motionGate) ? clamp(motionGate, .1, 16) * float(fullHeight) / 1080 : 2.0 * float(fullHeight) / 1080;
-    float gateSquared = gate * gate;
-    float2 delta = current.zw - old.zw;
-    float errorSquared = dot(delta, delta), bestSquared = errorSquared;
     bool previousOccluder = old.x > current.x * (1 + tolerance) + precision;
     if (errorSquared <= gateSquared * 4 && !previousOccluder)
     {

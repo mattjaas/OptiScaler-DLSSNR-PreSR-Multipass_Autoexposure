@@ -183,6 +183,64 @@ void StaticVisibilityCapture(Fixture& f, const std::string& stem)
         }
 }
 
+// Diagnostic only: frozen nonzero guides approximate a mask, never replay recorded temporal state.
+void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frames, bool baseline = false)
+{
+    unsigned w, h, aw, ah, dw, dh, mw, mh;
+    auto raw = GuidedPlane(stem + ".raw.dds", 4, 2, w, h), after = GuidedPlane(stem + ".after.dds", 4, 2, aw, ah),
+         depth = GuidedPlane(stem + ".depth.dds", 1, 41, dw, dh),
+         motion = GuidedPlane(stem + ".motion.dds", 2, 16, mw, mh);
+    if (w != aw || h != ah || w != dw || h != dh || w != mw || h != mh || frames < 1 || frames > 120)
+        throw std::runtime_error("Frozen preview dimensions/frame count");
+    TemporalGhostFixture t(f, w, h, true, false, 4);
+    if (baseline)
+        t.age = f.r.pipeline("artifacts/ghost-study/road-baseline", "private_ghost_coarse_2");
+    for (unsigned frame = 0; frame < frames; ++frame)
+        t.FrameGuides(depth, motion, false, true, 0, 18, 12, .05f, 2.f);
+    const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
+    f.r.begin();
+    std::vector<float> zero(raw.size(), 0);
+    for (size_t i = 0; i < after.size(); i += 4)
+        for (unsigned ch = 0; ch < 3; ++ch)
+            after[i + ch] += .5f;
+    auto r = f.texture(w, h, &raw, DXGI_FORMAT_R16G16B16A16_FLOAT),
+         a = f.texture(w, h, &after, DXGI_FORMAT_R16G16B16A16_FLOAT),
+         p = f.texture(w, h, &zero, DXGI_FORMAT_R16G16B16A16_FLOAT), d = f.texture(w, h, &depth, DXGI_FORMAT_R32_FLOAT),
+         field = f.texture(t.mw, t.mh, nullptr, DXGI_FORMAT_R16_FLOAT), out = f.texture(w, h);
+    DlssNr::GhostRejection::Settings settings { true, .01f, .02f, 1, false, 5 };
+    settings.historyFrames = 18;
+    settings.historyFade = 12;
+    DlssNr::Superior::DlssNrConstants c {};
+    DlssNr::Superior::Fields::SetCoarseGhostDilate(c, t.mw, t.mh, settings);
+    auto dilate = f.r.pipeline(dir, "private_ghost_coarse_dilate_1");
+    f.dispatch(dilate.Get(), c, t.history[t.index].Get(), p.Get(), field.Get(), (t.mw + 7) / 8, (t.mh + 7) / 8);
+    f.r.barrier(field.Get(), UAV, SRV);
+    c = {};
+    c.Mode = 38;
+    c.Width = w;
+    c.Height = h;
+    DlssNr::Superior::Fields::SetPositiveCarrierGain(c, 1);
+    DlssNr::Superior::Fields::SetCarrierDepthConvention(c, true);
+    DlssNr::Superior::Fields::SetCarrierGhostRejection(c, settings);
+    auto decode = f.r.pipeline(dir, "private_carrier_coarse");
+    f.dispatch(decode.Get(), c, a.Get(), p.Get(), out.Get(), (w + 7) / 8, (h + 7) / 8, d.Get(), p.Get(), r.Get(),
+               field.Get());
+    auto values = f.read(out.Get());
+    const auto name = std::filesystem::path(stem).filename().string();
+    std::ofstream output("artifacts/ghost-study/" + name + (baseline ? ".frozen-mask-baseline-" : ".frozen-mask-") +
+                             std::to_string(frames) + ".dds",
+                         std::ios::binary);
+    if (!DlssNr::EditDump::WriteRows(w, h, values.data(), size_t(w) * 16,
+                                     [&](const void* data, size_t bytes)
+                                     {
+                                         output.write(static_cast<const char*>(data), bytes);
+                                         return bool(output);
+                                     }))
+        throw std::runtime_error("Frozen preview save failed");
+    std::cout << "Frozen-guide approximation saved: " << name << " frames=" << frames
+              << " (not recorded game history)\n";
+}
+
 void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false,
                             bool contrast = false)
 {

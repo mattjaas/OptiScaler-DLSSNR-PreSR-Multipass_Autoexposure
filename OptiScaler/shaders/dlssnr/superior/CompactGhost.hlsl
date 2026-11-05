@@ -25,6 +25,7 @@ RWTexture2D<uint2> WriteState : register(u1);
 uint2 PreviousState(int2 p) { return Previous.Load(int3(p, 0)); }
 uint2 CurrentState(int2 p) { return WriteState[p]; }
 void StoreState(int2 p, uint2 bits) { WriteState[p] = bits; }
+#include "GhostSurfaceContinuation.hlsli"
 bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height); }
 #ifdef DLSSNR_COMPACT_WAVE_SCATTER
 #include "CompactGhostWaveScatter.hlsli"
@@ -108,16 +109,22 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
                           : 2.0 / 65535;
     // Bound the depth packing error for the current pair; no half-precision depth comparison.
     precision = max(precision, max(old.x, current.x) * (1.0 / 65536.0));
-    if (current.x > old.x * (1 + tolerance) + precision)
-    {
-        StoreState(p, PackGhost(current));
-        return;
-    }
     float gate =
         isfinite(motionGate) ? clamp(motionGate, .1, 16) * float(fullHeight) / 1080 : 2.0 * float(fullHeight) / 1080;
     float gateSquared = gate * gate;
     float2 delta = current.zw - old.zw;
     float errorSquared = dot(delta, delta), bestSquared = errorSquared;
+    if (old.y > 1 && (current.x > old.x * (1 + tolerance) + precision || errorSquared > gateSquared * 4) &&
+        ContinueGhostSurface(current, old, chosen, tolerance, precision, gate))
+    {
+        StoreState(p, PackGhost(float4(current.x, max(0, min(old.y, nFrames) - 1), current.zw)));
+        return;
+    }
+    if (current.x > old.x * (1 + tolerance) + precision)
+    {
+        StoreState(p, PackGhost(current));
+        return;
+    }
     bool previousOccluder = old.x > current.x * (1 + tolerance) + precision;
     if (errorSquared <= gateSquared * 4 && !previousOccluder)
     {

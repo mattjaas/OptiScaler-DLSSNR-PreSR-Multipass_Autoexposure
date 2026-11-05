@@ -388,12 +388,33 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "coarse_ghost_quality.inl"
 #include "static_visibility_quality.inl"
 #include "ghost_contrast_quality.inl"
+#include "road_visibility_quality.inl"
 
 int main(int argc, char** argv)
 {
     try
     {
         Fixture f(argc < 2 || (std::string(argv[1]) != "--warp" && std::string(argv[1]) != "--contrast-quality-warp"));
+        if (argc == 2 && std::string(argv[1]) == "--road-quality")
+        {
+            RoadVisibilityQuality(f);
+            return 0;
+        }
+        if (argc == 2 && std::string(argv[1]) == "--road-baseline")
+        {
+            RoadVisibilityQuality(f, true);
+            return 0;
+        }
+        if (argc == 4 && std::string(argv[1]) == "--frozen-visibility-baseline")
+        {
+            FrozenVisibilityPreview(f, argv[2], unsigned(std::stoul(argv[3])), true);
+            return 0;
+        }
+        if (argc == 4 && std::string(argv[1]) == "--frozen-visibility-preview")
+        {
+            FrozenVisibilityPreview(f, argv[2], unsigned(std::stoul(argv[3])));
+            return 0;
+        }
         if (argc == 4 && std::string(argv[1]) == "--contrast-timing")
         {
             StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, true);
@@ -551,6 +572,7 @@ int main(int argc, char** argv)
         StaticVisibilityQuality(f);
         RelativeVisibilityQuality(f);
         WideVisibilityQuality(f);
+        RoadVisibilityQuality(f);
         GhostContrastQuality(f);
         CompactGhostQuality(f);
         CompactTransportQuality(f);

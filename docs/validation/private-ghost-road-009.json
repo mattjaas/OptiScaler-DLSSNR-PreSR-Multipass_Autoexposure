@@ -1,0 +1,63 @@
+{
+  "date": "2026-11-05",
+  "baseline_commit": "95dbc4810f9a716bc642ec48b1698bb974834089",
+  "capture": "nr-edit-009",
+  "size": [
+    2496,
+    1404
+  ],
+  "simulation": {
+    "frozen_frames": 19,
+    "method": 6,
+    "window": 18,
+    "fade": 12,
+    "depth_separation": 0.05,
+    "motion_gate": 2,
+    "coarse_radius": 1,
+    "contrast": false
+  },
+  "note": "Frozen-guide approximation, not an exact replay. User confirmed it reproduces the reported hole. No performance measurements were run for this task.",
+  "road_audit": {
+    "near_depth_plane_slope": 3.3024672176390755e-05,
+    "intercept": -0.014570569625803732,
+    "road_samples": 15608,
+    "wrong_closer_candidates": 11472,
+    "large_temporal_mv_difference": 9191,
+    "current_to_previous_near_ratio_quantiles": [
+      1.0394277572631836,
+      1.062693476676941,
+      1.0803954601287842,
+      1.0856274366378784
+    ],
+    "note": "One repeated guide field diagnoses an ambiguity; this is not the actual preceding frame nor recorded mask."
+  },
+  "quality": {
+    "old_active": 298671,
+    "new_active": 537899,
+    "roi_old_above_half": 99921,
+    "roi_new_above_half": 216560,
+    "roi_recovered_above_half": 113684,
+    "max_mask_increase": 1.0,
+    "max_mask_decrease": 0.0
+  },
+  "independent_test": {
+    "sequences": 24,
+    "active_reference_samples": 496272,
+    "baseline_incorrect": 375318,
+    "after_incorrect": 0
+  },
+  "sha256": {
+    ".json": "5bf312c8863d3ec824c61edca5c36fd93cfcd2758ed175454b87d3dbe2ae467f",
+    ".depth.dds": "410bd11b1429e7f48472f3753d26280d8ebfbd9773efd3203374e1955eb65af0",
+    ".motion.dds": "3d69638c58cdf023bc868991b30763924a6104217087d6af888390adc80f252f",
+    ".dds": "014cc137af68e80e8b24a7dceeafa1ad563873f6ddaaab73ed7f782e19997c51",
+    ".raw.dds": "014cc137af68e80e8b24a7dceeafa1ad563873f6ddaaab73ed7f782e19997c51",
+    ".after.dds": "69618c22f27632f5ae77c23673d8ce1757e04bf39b2d73fc7113fff972a2b7ab"
+  },
+  "changed_psos": [
+    "private_ghost_coarse_2_Shader.cso",
+    "private_ghost_compact_2_Shader.cso",
+    "private_ghost_history_Shader.cso"
+  ],
+  "unchanged_psos": 91
+}
