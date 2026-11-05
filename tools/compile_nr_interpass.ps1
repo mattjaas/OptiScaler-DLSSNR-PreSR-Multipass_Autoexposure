@@ -135,6 +135,21 @@ try {
     for($stage=0;$stage -lt $ghostStages.Count;++$stage) {
         Build (Join-Path $shaders 'superior/TemporalGhost.hlsl') 'TemporalGhostMain' @('-D',"DLSSNR_TEMPORAL_GHOST_STAGE=$stage") "private_ghost_$($ghostStages[$stage])"
     }
+    Build (Join-Path $shaders 'superior/GhostContrastHistory.hlsl') 'GhostContrastHistory' @() 'private_ghost_contrast_history'
+    Build (Join-Path $shaders 'superior/GhostContrastHistory.hlsl') 'GhostContrastHistory' @('-D','DLSSNR_CONTRAST_COMPACT=1') 'private_ghost_contrast_compact'
+    Build (Join-Path $shaders 'superior/GhostContrastHistory.hlsl') 'GhostContrastHistory' @('-D','DLSSNR_CONTRAST_COMPACT=1','-D','DLSSNR_GHOST_STEP=4') 'private_ghost_contrast_coarse'
+    foreach($radius in @(1,2)) {
+        Build (Join-Path $shaders 'superior/CoarseGhostDilate.hlsl') 'CoarseGhostDilate' @('-D',"DLSSNR_COARSE_RADIUS=$radius",'-D','DLSSNR_GHOST_CONTRAST=1') "private_ghost_contrast_dilate_$radius"
+    }
+    foreach($kind in @('temporal','simple','fast','coarse')) { foreach($answer in @(0,1)) {
+        $contrastArgs=@('-D','DLSSNR_GHOST_REJECTION=1','-D','DLSSNR_GHOST_CONTRAST=1','-D',"DLSSNR_COMPACT_NR_ANSWER=$answer")
+        if($kind -eq 'temporal') { $contrastArgs+=@('-D','DLSSNR_TEMPORAL_GHOST=1') }
+        else { $contrastArgs+=@('-D','DLSSNR_COMPACT_GHOST=1') }
+        if($kind -eq 'fast') { $contrastArgs+=@('-D','DLSSNR_COMPACT_FAST_BLEND=1','-D','DLSSNR_COMPACT_FUSED_DECODE=1') }
+        if($kind -eq 'coarse') { $contrastArgs+=@('-D','DLSSNR_COARSE_GHOST=1') }
+        if($kind -eq 'simple') { Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' $contrastArgs "private_carrier_contrast_${kind}_$answer" -Native16 }
+        else { Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' $contrastArgs "private_carrier_contrast_${kind}_$answer" }
+    } }
     Build (Join-Path $shaders 'superior/PrivateExposure.hlsl') 'PrivateExposureMain' @() 'private_exposure'
     Build (Join-Path $shaders 'superior/GainPreview.hlsl') 'GainPreviewMain' @() 'private_gain_preview'
     Build (Join-Path $shaders 'superior/MotionWatch.hlsl') 'MotionWatchMain' @() 'private_motion_watch'

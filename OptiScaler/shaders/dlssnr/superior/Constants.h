@@ -34,7 +34,9 @@ enum DlssNrMode : uint32_t
     DlssNrMode_PrivateGhostCompactHistory = 48,
     DlssNrMode_PrivateGhostCoarseDilate = 49,
     DlssNrMode_PrivateGhostCoarseScatter = 50,
-    DlssNrMode_PrivateGhostCoarseHistory = 51
+    DlssNrMode_PrivateGhostCoarseHistory = 51,
+    DlssNrMode_PrivateGhostContrastHistory = 52,
+    DlssNrMode_PrivateGhostContrastDilate = 53
 };
 
 struct alignas(256) DlssNrConstants

@@ -2,11 +2,24 @@
 #ifdef DLSSNR_COMPACT_GHOST
 #define gAux2 gUnusedFloatAux2
 #endif
+#ifdef DLSSNR_GHOST_CONTRAST
+#define gModel gUnusedContrastModel
+#endif
 #include "precompile/dlssnr.hlsl"
+#ifdef DLSSNR_GHOST_CONTRAST
+#undef gModel
+#define gModel gOriginal
+#define gMode 38u
+#ifndef DLSSNR_COMPACT_GHOST
+#define gDirectDetailMode DLSSNR_COMPACT_NR_ANSWER
+#endif
+#endif
 #ifdef DLSSNR_COMPACT_GHOST
 #undef gAux2
 // The host selects this PSO only for Mode 38; keep the general carrier unchanged.
+#ifndef DLSSNR_GHOST_CONTRAST
 #define gMode 38u
+#endif
 #ifdef DLSSNR_COMPACT_NR_ANSWER
 #define gDirectDetailMode DLSSNR_COMPACT_NR_ANSWER
 #endif
@@ -14,6 +27,9 @@
 #include "PositiveCarrier.hlsli"
 #ifdef DLSSNR_GHOST_REJECTION
 #include "GhostRejection.hlsli"
+#ifdef DLSSNR_GHOST_CONTRAST
+#include "GhostContrastDecode.hlsli"
+#endif
 #ifdef DLSSNR_COMPACT_GHOST
 #ifdef DLSSNR_COARSE_GHOST
 #include "CoarseGhostDecode.hlsli"

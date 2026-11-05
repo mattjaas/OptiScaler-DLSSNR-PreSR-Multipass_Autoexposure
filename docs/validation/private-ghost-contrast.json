@@ -1,0 +1,104 @@
+{
+  "007-static": {
+    "mean_ms": [
+      0.06732,
+      0.090408
+    ],
+    "sd_ms": [
+      0.0030927488270285717,
+      0.004300823696972585
+    ],
+    "delta_ms": 0.023087999999999997,
+    "samples_per_variant": 128,
+    "csv": "private-ghost-contrast-007-static.csv",
+    "quality": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0,
+      "mean_rgb_difference": 0,
+      "rms_rgb_difference": 0,
+      "max_mask_difference": 0,
+      "changed_mask_pixels": 0,
+      "increased_mask_pixels": 0,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 0,
+      "old_active_mask_pixels": 0,
+      "new_active_mask_pixels": 0,
+      "history_bit_exact": false
+    }
+  },
+  "008-static": {
+    "mean_ms": [
+      0.074848,
+      0.098328
+    ],
+    "sd_ms": [
+      0.003767213586289528,
+      0.0017310489287425664
+    ],
+    "delta_ms": 0.02348,
+    "samples_per_variant": 128,
+    "csv": "private-ghost-contrast-008-static.csv",
+    "quality": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.171387,
+      "mean_rgb_difference": 0.00129229,
+      "rms_rgb_difference": 0.00438133,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 564645,
+      "increased_mask_pixels": 0,
+      "decreased_mask_pixels": 552064,
+      "strong_mask_lost_pixels": 279430,
+      "soft_mask_pixels": 207654,
+      "old_active_mask_pixels": 982394,
+      "new_active_mask_pixels": 572957,
+      "history_bit_exact": false
+    }
+  },
+  "008-moving": {
+    "mean_ms": [
+      0.072496,
+      0.09083200000000001
+    ],
+    "sd_ms": [
+      0.0005798228347392364,
+      0.0029593628597103586
+    ],
+    "delta_ms": 0.018336000000000005,
+    "samples_per_variant": 128,
+    "csv": "private-ghost-contrast-008-moving.csv",
+    "quality": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.143799,
+      "mean_rgb_difference": 6.09318e-05,
+      "rms_rgb_difference": 0.000855267,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 38506,
+      "increased_mask_pixels": 0,
+      "decreased_mask_pixels": 37917,
+      "strong_mask_lost_pixels": 25559,
+      "soft_mask_pixels": 18372,
+      "old_active_mask_pixels": 133280,
+      "new_active_mask_pixels": 107249,
+      "history_bit_exact": false
+    }
+  },
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "size": [
+    2496,
+    1404
+  ],
+  "base_commit": "d18852b38d66c5bc01b8f9f3c521441306ddcc05",
+  "settings": {
+    "method": 6,
+    "radius": 1,
+    "N": 19,
+    "fade": 9,
+    "gain": 1,
+    "threshold": 0.02,
+    "softness": 0.005,
+    "global_fade": 0
+  },
+  "original_81_blobs_unchanged": true,
+  "note": "Resident captured guides repeat for cost only, not replay of real preceding frames. Moving case uses alternating background MV +/-128 and a stationary rectangular foreground."
+}

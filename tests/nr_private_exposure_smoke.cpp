@@ -116,4 +116,15 @@ int main()
     assert(ManualValue(-1) == 1 && ManualValue(INFINITY) == 1 && ManualValue(0) == 1);
     assert(ManualValue(99999) == 65504 && ManualValue(.00000001f) == .000001f);
     assert(SanitizeMode(999) == Native);
+    auto contrast = DlssNr::GhostRejection::Settings {};
+    assert(!contrast.contrastEnabled && contrast.contrastThreshold == .02f && contrast.contrastSoftness == .005f);
+    contrast.contrastEnabled = true;
+    contrast.contrastThreshold = NAN;
+    contrast.contrastSoftness = INFINITY;
+    contrast = DlssNr::GhostRejection::Sanitize(contrast);
+    assert(contrast.contrastEnabled && contrast.contrastThreshold == .02f && contrast.contrastSoftness == .005f);
+    contrast.contrastThreshold = -1;
+    contrast.contrastSoftness = 9;
+    contrast = DlssNr::GhostRejection::Sanitize(contrast);
+    assert(contrast.contrastThreshold == 0 && contrast.contrastSoftness == 1);
 }

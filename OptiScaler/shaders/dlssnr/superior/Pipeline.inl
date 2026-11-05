@@ -62,6 +62,8 @@ struct ResidentCnn
 struct GhostHistory
 {
     Texture state[2], reconstructed, softField;
+    Texture contrastRaw[2], contrastReference[2], expandedReference;
+    bool contrastEnabled = false, contrastInitialized = false;
     unsigned index = 0, method = 2;
     bool initialized = false, submitted = false;
     uint64_t epoch = 0;
@@ -1130,10 +1132,18 @@ DlssNr::GainPreview::Status ObserveScreenMotion(
 }
 
 Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Resource* depth,
-                           ID3D12Resource* motion, const DlssNrFrameInfo& frame, bool reset,
-                           const DlssNr::GhostRejection::Settings& settings, float precision)
+                           ID3D12Resource* motion, ID3D12Resource* proxy, ID3D12Resource* answer,
+                           const DlssNrFrameInfo& frame, bool reset, const DlssNr::GhostRejection::Settings& settings,
+                           float precision)
 {
     auto& h = g.ghostHistory;
+    if (h.contrastEnabled != settings.contrastEnabled)
+    {
+        auto old = std::make_shared<GhostHistory>(std::move(h));
+        h = {};
+        GetState().lifetime.Retire([old] {});
+        h.contrastEnabled = settings.contrastEnabled;
+    }
     const auto identity = Util::RealObjectIdentity(cmd);
     const bool coarse = settings.method == 5;
     if (h.initialized && h.method == settings.method && !reset && h.epoch == frame.SubmissionEpoch &&
@@ -1146,8 +1156,10 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
     if (!coarse && h.softField.resource)
     {
         auto old = std::move(h.softField.resource);
-        GetState().lifetime.Retire([old] {});
+        auto oldReference = std::move(h.expandedReference.resource);
+        GetState().lifetime.Retire([old, oldReference] {});
         h.softField = {};
+        h.expandedReference = {};
     }
     bool previous = h.initialized && h.method == settings.method && h.submitted && !reset;
     if (h.state[0].resource && (h.state[0].Get()->GetDesc().Width != w || h.state[0].Get()->GetDesc().Height != ht))
@@ -1157,6 +1169,17 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
         (coarse && !Ensure(h.softField, g.device.Get(), DXGI_FORMAT_R16_FLOAT, w, ht)))
     {
         h.initialized = false;
+        return nullptr;
+    }
+    if (settings.contrastEnabled &&
+        (!proxy || !answer || !Ensure(h.contrastRaw[0], g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, w, ht) ||
+         !Ensure(h.contrastRaw[1], g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, w, ht) ||
+         !Ensure(h.contrastReference[0], g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, w, ht) ||
+         !Ensure(h.contrastReference[1], g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, w, ht) ||
+         (coarse && !Ensure(h.expandedReference, g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, w, ht))))
+    {
+        h.initialized = false;
+        h.contrastInitialized = false;
         return nullptr;
     }
     if (compact && !previous)
@@ -1210,10 +1233,29 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
         h.initialized = false;
         return nullptr;
     }
+    if (settings.contrastEnabled)
+    {
+        const bool colorPrevious = previous && h.contrastInitialized;
+        auto* oldRaw = colorPrevious ? h.contrastRaw[h.index].Get() : proxy;
+        auto* oldReference = colorPrevious ? h.contrastReference[h.index].Get() : proxy;
+        Fields::SetGhostContrastHistory(c, settings.method, colorPrevious);
+        if (!Dispatch(shader, cmd, c, h.state[next].Get(), oldRaw, oldReference, proxy, answer, depth,
+                      h.contrastRaw[next], &h.contrastReference[next]))
+        {
+            h.initialized = false;
+            h.contrastInitialized = false;
+            return nullptr;
+        }
+        h.contrastInitialized = true;
+    }
     if (coarse)
     {
         Fields::SetCoarseGhostDilate(c, w, ht, settings);
-        if (!Dispatch(shader, cmd, c, h.state[next].Get(), nullptr, nullptr, nullptr, nullptr, nullptr, h.softField))
+        if (settings.contrastEnabled)
+            c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostContrastDilate;
+        if (!Dispatch(shader, cmd, c, h.state[next].Get(),
+                      settings.contrastEnabled ? h.contrastReference[next].Get() : nullptr, nullptr, nullptr, nullptr,
+                      nullptr, h.softField, settings.contrastEnabled ? &h.expandedReference : nullptr))
         {
             h.initialized = false;
             return nullptr;
@@ -1501,15 +1543,24 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     RecordAfterEditDump(pairedDump, g, shader, cmd, decode, proxy, nullptr);
     Fields::SetUnfilteredEditWeight(decode, 1.f - mix);
     auto effectiveGhost = ghostSettings;
-    auto* history = temporalGhost ? TemporalGhostMask(g, shader, cmd, temporalDepth, g.temporalMotion.Get(), frame,
-                                                      reset || g.reset, ghostSettings, packedDepthPrecision)
-                                  : nullptr;
+    auto* history = temporalGhost
+                        ? TemporalGhostMask(g, shader, cmd, temporalDepth, g.temporalMotion.Get(), proxy, answer, frame,
+                                            reset || g.reset, ghostSettings, packedDepthPrecision)
+                        : nullptr;
     if (temporalGhost && !history)
         effectiveGhost.enabled = false;
     Fields::SetCarrierGhostRejection(decode, effectiveGhost);
     Fields::SetGhostDepthPrecision(decode, packedDepthPrecision);
     const bool needsRawEdit = mix < 1.f || Fields::CarrierGhostRejection(decode);
-    if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(), filterNrAnswer ? proxy : nullptr,
+    auto* contrastReference =
+        Fields::GhostEditContrast(decode)
+            ? (ghostSettings.method == 5 ? g.ghostHistory.expandedReference.Get()
+                                         : g.ghostHistory.contrastReference[g.ghostHistory.index].Get())
+            : nullptr;
+    if (!Dispatch(shader, cmd, decode, g.temporalOutput.Get(),
+                  contrastReference ? contrastReference
+                  : filterNrAnswer  ? proxy
+                                    : nullptr,
                   needsRawEdit ? proxy : nullptr, guidedGhost ? temporalDepth : nullptr,
                   needsRawEdit ? answer : nullptr,
                   history       ? history->Get()

@@ -4327,6 +4327,24 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     config->DlssNrSuperiorGhostHistoryFade = uint32_t(fade);
                 HelpMarker("Gradually restore DLSS during the last frames of the window. Default 3; zero keeps a "
                            "hard mask until the timer expires. Counter is carried by MV rather than screen position.");
+                if (ImGui::Checkbox("Only mask low-contrast disocclusions", &ghost.contrastEnabled))
+                    config->DlssNrSuperiorGhostContrast = ghost.contrastEnabled;
+                HelpMarker("Compare the current signed RGB NR edit with the saved edit of the surface that hid it. "
+                           "Strong contrast keeps DLSS; similar edits allow the disocclusion mask. Measured before "
+                           "the positive transport multiplier. Default Off; adds optional edit-reference history.");
+                ImGui::BeginDisabled(!ghost.contrastEnabled);
+                if (ImGui::SliderFloat("Disocclusion edit contrast threshold", &ghost.contrastThreshold, 0.f, 1.f,
+                                       "%.4f"))
+                    config->DlssNrSuperiorGhostContrastThreshold = ghost.contrastThreshold;
+                HelpMarker("Maximum absolute R/G/B edit difference for the full mask. Higher values mask more. "
+                           "Signed edit units, zero neutral; default 0.02. The original occluder remains the reference "
+                           "throughout the masking window.");
+                if (ImGui::SliderFloat("Disocclusion edit contrast softness", &ghost.contrastSoftness, 0.f, .25f,
+                                       "%.4f"))
+                    config->DlssNrSuperiorGhostContrastSoftness = ghost.contrastSoftness;
+                HelpMarker("Fade the mask to zero above the contrast threshold across this interval. Default 0.005; "
+                           "zero uses a hard cutoff. Does not change NR or DLSS history.");
+                ImGui::EndDisabled();
                 if (ImGui::SliderFloat("Disocclusion depth separation", &ghost.historyDepth, .001f, .5f, "%.3f"))
                     config->DlssNrSuperiorGhostHistoryDepth = ghost.historyDepth;
                 HelpMarker("Relative separation required by reconstructed-depth clipping. Default 0.05. "

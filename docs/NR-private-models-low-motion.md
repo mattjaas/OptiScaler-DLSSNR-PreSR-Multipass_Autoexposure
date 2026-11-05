@@ -192,6 +192,15 @@ Testy WARP rozszerzają produkcyjny ReadbackCopy do 1/3/5 różnych tekstur na D
 
 **Ghost rejection method** ma trzy podstawowe warianty opisane w tej sekcji oraz czwarty zoptymalizowany wariant opisany dalej. Nowym domyślnym wyborem pola jest **Recent disocclusion window (temporal MV)**, ale **Experimental DLSS ghost rejection** pozostaje domyślnie wyłączone. Progi legacy są zachowane przy powrocie do **Local range 3x3 (legacy)**. Wszystkie warianty działają po odwróceniu transportu, przed globalnym wygaszaniem, frequency shaping i guided reconstruction. **Ghost rejection strength** jest wspólne; przy 1 pełna maska daje bieżący `answer - proxy`. **Show DLSS ghost rejection mask** pokazuje faktyczną maskę na zielono. Błąd przygotowania historii omija odrzucanie i nie pokazuje fikcyjnej maski. Funkcja nie resetuje historii NR ani NGX.
 
+### Warunek kontrastu editu dla metod 3–6
+
+**Only mask low-contrast disocclusions** (domyślnie Off) dodatkowo ogranicza maskę do obszarów, gdzie bieżący surowy edit NR przypomina edit powierzchni, która wcześniej je zasłaniała. Porównuje maksimum bezwzględnej różnicy R/G/B, przed dodatnim mnożnikiem transportowym; neutralny edit ma tu zero. Pamięta oryginalny occluder przez całe okno i przelicza różnicę z bieżącym editem, również po poszerzeniu maski. **Show DLSS ghost rejection mask** pokazuje już wynik po tym warunku.
+
+- **Disocclusion edit contrast threshold**: 0–1, default 0.02. Do tej różnicy maska działa w pełnej dotychczasowej sile. Większy próg pozwala maskować więcej.
+- **Disocclusion edit contrast softness**: UI 0–0.25, INI 0–1, default 0.005. W tym przedziale ponad progiem maska płynnie maleje do zera. Zero daje twarde odcięcie.
+
+Nie zmienia warunków wykrycia dysokluzji ani czasu N/fade; jest dodatkowym warunkiem zastosowania maski. Działa w edicie i pełnej odpowiedzi NR, niezależnie od rodziny/presetu prywatnego DLSS. Ustawienia zapisują się w INI i profilach NR. [Implementacja, weryfikacja i pomiar narzutu](validation/private-ghost-contrast.md).
+
 ### Recent disocclusion window (temporal MV)
 
 Ta metoda szacuje, czy obecnie widoczna powierzchnia była wcześniej zasłonięta. Nie porównuje kolorów editu i nie rozpoznaje postaci. Tymczasowo oddaje odsłonięty fragment czystemu NR, również gdy DLSS działałby na nim poprawnie: to świadomy kompromis stabilności i odrzucania smug, nie pewny klasyfikator ghostingu.

@@ -50,6 +50,9 @@ float3 RejectCompactGhost(float3 filtered, int2 pixel, out float mask)
     float age = max(baseMask, lerp(baseMask, expanded, expansion));
     float strength = isfinite(gCompareSplit) ? saturate(gCompareSplit) : 1;
     mask = strength * (fade > 0 ? saturate(age / fade) : 1);
+#ifdef DLSSNR_GHOST_CONTRAST
+    mask = GhostContrastMask(pixel, mask);
+#endif
     float3 raw = GhostRawEdit(pixel);
     return mask >= 1 ? raw : lerp(filtered, raw, mask);
 }

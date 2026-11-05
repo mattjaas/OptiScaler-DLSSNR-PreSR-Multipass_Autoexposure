@@ -54,7 +54,7 @@ struct Fixture
     ComPtr<ID3D12Resource> timingReadback;
     UINT64 timingFrequency = 0;
     std::vector<ComPtr<ID3D12Resource>> uploads;
-    Fixture(bool hardware) : r(hardware, 40)
+    Fixture(bool hardware) : r(hardware, 56)
     {
         const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
         meter = r.pipeline(dir, "private_exposure");
@@ -387,12 +387,24 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "compact_fast_quality.inl"
 #include "coarse_ghost_quality.inl"
 #include "static_visibility_quality.inl"
+#include "ghost_contrast_quality.inl"
 
 int main(int argc, char** argv)
 {
     try
     {
-        Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        Fixture f(argc < 2 || (std::string(argv[1]) != "--warp" && std::string(argv[1]) != "--contrast-quality-warp"));
+        if (argc == 4 && std::string(argv[1]) == "--contrast-timing")
+        {
+            StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, true);
+            return 0;
+        }
+        if (argc == 2 &&
+            (std::string(argv[1]) == "--contrast-quality" || std::string(argv[1]) == "--contrast-quality-warp"))
+        {
+            GhostContrastQuality(f);
+            return 0;
+        }
         if (argc == 4 && std::string(argv[1]) == "--interior-visibility-timing")
         {
             StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true);
@@ -539,6 +551,7 @@ int main(int argc, char** argv)
         StaticVisibilityQuality(f);
         RelativeVisibilityQuality(f);
         WideVisibilityQuality(f);
+        GhostContrastQuality(f);
         CompactGhostQuality(f);
         CompactTransportQuality(f);
         CompactGhostQuality(f, true);

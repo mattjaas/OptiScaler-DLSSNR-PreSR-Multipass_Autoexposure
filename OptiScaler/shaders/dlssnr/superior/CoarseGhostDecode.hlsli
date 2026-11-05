@@ -13,6 +13,9 @@ float3 RejectCompactGhost(float3 filtered, int2 pixel, out float mask)
     mask = isfinite(field) ? strength * saturate(field) : 0;
     if (mask <= 0)
         return filtered;
+#ifdef DLSSNR_GHOST_CONTRAST
+    mask = GhostContrastMask(pixel, mask);
+#endif
     float3 raw = GhostRawEdit(pixel);
     return mask >= 1 ? raw : lerp(filtered, raw, mask);
 }

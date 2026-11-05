@@ -183,7 +183,8 @@ void StaticVisibilityCapture(Fixture& f, const std::string& stem)
         }
 }
 
-void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false)
+void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false,
+                            bool contrast = false)
 {
     const unsigned radius = 1;
     const bool residual = true;
@@ -230,7 +231,7 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                                           f.texture(w, h, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT) };
     struct State
     {
-        ComPtr<ID3D12Resource> recon, state[2], field;
+        ComPtr<ID3D12Resource> recon, state[2], field, raw[2], reference[2], expanded;
         unsigned index = 0, frame = 0;
         bool valid = false;
     };
@@ -244,18 +245,33 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         s.field = f.texture(mw, mh, nullptr, DXGI_FORMAT_R16_FLOAT);
         for (auto& hist : s.state)
             hist = f.texture(mw, mh, nullptr, DXGI_FORMAT_R32G32_UINT);
+        if (contrast && k == 1)
+        {
+            for (auto& t : s.raw)
+                t = f.texture(mw, mh, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT);
+            for (auto& t : s.reference)
+                t = f.texture(mw, mh, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT);
+            s.expanded = f.texture(mw, mh, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT);
+        }
     }
     f.r.finish();
     f.uploads.clear();
     std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    const std::string oldDir =
-        interior ? "artifacts/ghost-study/occluded-interior-baseline" : "artifacts/ghost-study/static-baseline";
+    const std::string oldDir = contrast   ? dir
+                               : interior ? "artifacts/ghost-study/occluded-interior-baseline"
+                                          : "artifacts/ghost-study/static-baseline";
     auto clear = f.r.pipeline(dir, "private_ghost_clear"), baseScatter = f.r.pipeline(dir, "private_ghost_coarse_1"),
          baseAge = f.r.pipeline(oldDir, "private_ghost_coarse_2"),
          baseDecode = f.r.pipeline(dir, "private_carrier_coarse"),
          scatter = f.r.pipeline(dir, "private_ghost_coarse_1"), age = f.r.pipeline(dir, "private_ghost_coarse_2"),
          decode16 = f.r.pipeline(dir, "private_carrier_coarse");
     auto dilate = f.r.pipeline(dir, "private_ghost_coarse_dilate_1");
+    auto contrastHistory =
+        contrast ? f.r.pipeline(dir, "private_ghost_contrast_coarse") : ComPtr<ID3D12PipelineState> {};
+    auto contrastDilate =
+        contrast ? f.r.pipeline(dir, "private_ghost_contrast_dilate_1") : ComPtr<ID3D12PipelineState> {};
+    auto contrastDecode =
+        contrast ? f.r.pipeline(dir, "private_carrier_contrast_coarse_0") : ComPtr<ID3D12PipelineState> {};
     ComPtr<ID3D12QueryHeap> queries;
     D3D12_QUERY_HEAP_DESC desc {};
     desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -310,14 +326,46 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         f.dispatch(variant ? age.Get() : baseAge.Get(), c, guideDepth, guideMotion, s.state[next].Get(), (mw + 7) / 8,
                    (mh + 7) / 8, s.recon.Get(), previous, nullptr, nullptr, nullptr, 2, false);
         f.r.barrier(s.state[next].Get(), UAV, SRV);
+        settings.method = 5;
+        settings.contrastEnabled = contrast && variant == 1;
+        if (settings.contrastEnabled)
+        {
+            if (s.valid)
+            {
+                f.r.barrier(s.raw[next].Get(), SRV, UAV);
+                f.r.barrier(s.reference[next].Get(), SRV, UAV);
+            }
+            else
+            {
+                f.r.barrier(s.raw[1].Get(), UAV, SRV);
+                f.r.barrier(s.reference[1].Get(), UAV, SRV);
+            }
+            DlssNr::Superior::Fields::SetGhostContrastHistory(c, 5, s.valid);
+            auto* oldRaw = s.valid ? s.raw[s.index].Get() : p.Get();
+            auto* oldRef = s.valid ? s.reference[s.index].Get() : p.Get();
+            f.dispatch(contrastHistory.Get(), c, s.state[next].Get(), oldRaw, s.raw[next].Get(), (mw + 7) / 8,
+                       (mh + 7) / 8, p.Get(), oldRef, r.Get(), guideDepth, nullptr, 3, false, s.reference[next].Get());
+            f.r.barrier(s.raw[next].Get(), UAV, SRV);
+            f.r.barrier(s.reference[next].Get(), UAV, SRV);
+        }
         ID3D12Resource* decodeGuide = s.state[next].Get();
         if (s.field)
         {
             if (s.valid)
                 f.r.barrier(s.field.Get(), SRV, UAV);
             DlssNr::Superior::Fields::SetCoarseGhostDilate(c, mw, mh, settings);
-            f.dispatch(dilate.Get(), c, s.state[next].Get(), s.state[next].Get(), s.field.Get(), (mw + 7) / 8,
-                       (mh + 7) / 8, nullptr, nullptr, nullptr, nullptr, nullptr, 3, false);
+            if (settings.contrastEnabled)
+            {
+                c.Mode = 53;
+                if (s.valid)
+                    f.r.barrier(s.expanded.Get(), SRV, UAV);
+            }
+            f.dispatch(settings.contrastEnabled ? contrastDilate.Get() : dilate.Get(), c, s.state[next].Get(),
+                       settings.contrastEnabled ? s.reference[next].Get() : s.state[next].Get(), s.field.Get(),
+                       (mw + 7) / 8, (mh + 7) / 8, nullptr, nullptr, nullptr, nullptr, nullptr, contrast ? 4 : 3, false,
+                       settings.contrastEnabled ? s.expanded.Get() : nullptr);
+            if (settings.contrastEnabled)
+                f.r.barrier(s.expanded.Get(), UAV, SRV);
             f.r.barrier(s.field.Get(), UAV, SRV);
             decodeGuide = s.field.Get();
         }
@@ -334,8 +382,11 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         settings.softExpansion = .5f;
         DlssNr::Superior::Fields::SetCarrierGhostRejection(dc, settings);
         DlssNr::Superior::Fields::SetGhostDepthPrecision(dc, 0);
-        f.dispatch(variant ? decode16.Get() : baseDecode.Get(), dc, a.Get(), p.Get(), out.Get(), (w + 7) / 8,
-                   (h + 7) / 8, guideDepth, p.Get(), r.Get(), decodeGuide, nullptr, 4, false);
+        f.dispatch(settings.contrastEnabled ? contrastDecode.Get()
+                   : variant                ? decode16.Get()
+                                            : baseDecode.Get(),
+                   dc, a.Get(), settings.contrastEnabled ? s.expanded.Get() : p.Get(), out.Get(), (w + 7) / 8,
+                   (h + 7) / 8, guideDepth, p.Get(), r.Get(), decodeGuide, nullptr, contrast ? 5 : 4, false);
         f.r.barrier(out.Get(), UAV, SRV);
         f.r.list->EndQuery(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
         f.r.list->ResolveQueryData(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, readback.Get(), 0);
@@ -351,8 +402,11 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         return ms;
     };
     const auto name = std::filesystem::path(stem).filename().string();
-    const auto prefix =
-        "artifacts/ghost-study/" + name + (interior ? ".interior" : "") + (moving ? ".moving-fix" : ".static-fix");
+    const auto prefix = "artifacts/ghost-study/" + name +
+                        (contrast   ? ".contrast"
+                         : interior ? ".interior"
+                                    : "") +
+                        (moving ? ".moving-fix" : ".static-fix");
     std::ofstream csv(prefix + "-timing.csv");
     csv << "sample,width,height,comparison,block,position,variant,ms\n";
     const unsigned blocks = 64;
@@ -391,6 +445,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
             {
                 if (newOutput[i] < 0 || newOutput[i] > 1)
                     throw std::runtime_error("Invalid coarse weight");
+                if (contrast && newOutput[i] > oldOutput[i] + .002f)
+                    throw std::runtime_error("Contrast gate increased the visibility mask");
                 maxMask = std::max(maxMask, delta);
                 oldActive += oldOutput[i] > 0;
                 newActive += newOutput[i] > 0;
