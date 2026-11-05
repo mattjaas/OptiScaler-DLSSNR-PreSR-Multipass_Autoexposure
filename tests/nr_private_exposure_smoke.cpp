@@ -119,6 +119,13 @@ int main()
     auto contrast = DlssNr::GhostRejection::Settings {};
     assert(!contrast.contrastEnabled && contrast.contrastThreshold == .02f && contrast.contrastSoftness == .005f);
     assert(contrast.contrastMetric == 0);
+    assert(!contrast.outwardFeather && contrast.outwardRadius == 4);
+    contrast.outwardRadius = NAN;
+    assert(DlssNr::GhostRejection::Sanitize(contrast).outwardRadius == 4);
+    contrast.outwardRadius = -1;
+    assert(DlssNr::GhostRejection::Sanitize(contrast).outwardRadius == .25f);
+    contrast.outwardRadius = 99;
+    assert(DlssNr::GhostRejection::Sanitize(contrast).outwardRadius == 32);
     contrast.contrastMetric = 1;
     assert(DlssNr::GhostRejection::Sanitize(contrast).contrastMetric == 1);
     contrast.contrastMetric = 99;

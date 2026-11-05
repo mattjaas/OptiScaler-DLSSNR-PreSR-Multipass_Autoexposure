@@ -121,6 +121,7 @@ struct Generation
     NVSDK_NGX_Handle* feature = nullptr;
     Texture depth, motion, interLow, interWorking, finalLow;
     Texture carrier, temporalOutput, temporalMotion, unit;
+    Texture ghostFeatherHorizontal, ghostFeatherOutput;
     uint32_t expectedMask = 0, successfulMask = 0;
     unsigned previousPasses = 0, lastCompleted = 0, lastCovered = 0;
     bool haveSchedule = false;
@@ -1568,6 +1569,32 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
                                 : nullptr,
                   g.carrier))
         return nullptr;
+    if (Fields::TemporalGhostRejection(decode) && effectiveGhost.outwardFeather &&
+        Ensure(g.ghostFeatherHorizontal, g.device.Get(), DXGI_FORMAT_R16_FLOAT, g.workWidth, g.workHeight) &&
+        Ensure(g.ghostFeatherOutput, g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, g.workWidth, g.workHeight))
+    {
+        Constants feather {};
+        Fields::SetGhostOutwardFeather(feather, g.workWidth, g.workHeight, effectiveGhost, g.inverted, 1.f - mix,
+                                       packedDepthPrecision, false);
+        if (Dispatch(shader, cmd, feather, g.carrier.Get(), nullptr, nullptr, temporalDepth, nullptr, nullptr,
+                     g.ghostFeatherHorizontal))
+        {
+            feather.Mode = 55u;
+            if (Dispatch(shader, cmd, feather, g.carrier.Get(), g.ghostFeatherHorizontal.Get(), proxy, temporalDepth,
+                         answer, nullptr, g.ghostFeatherOutput))
+                std::swap(g.carrier, g.ghostFeatherOutput);
+        }
+    }
+    else if (!effectiveGhost.outwardFeather || !Fields::TemporalGhostRejection(decode))
+    {
+        // Toggle-off retires optional resources only after all lists that used them have completed.
+        auto horizontal = std::move(g.ghostFeatherHorizontal.resource);
+        auto output = std::move(g.ghostFeatherOutput.resource);
+        if (horizontal || output)
+            GetState().lifetime.Retire([horizontal, output] {});
+        g.ghostFeatherHorizontal = {};
+        g.ghostFeatherOutput = {};
+    }
     g.ghostMaskWritten = Fields::CarrierGhostRejection(decode);
     g.reset = false;
     return g.carrier.Get();

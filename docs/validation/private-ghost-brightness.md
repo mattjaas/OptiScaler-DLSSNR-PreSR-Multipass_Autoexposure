@@ -7,9 +7,9 @@
 - **RGB difference (strongest channel)**, default: `max(abs(delta.R),abs(delta.G),abs(delta.B))`.
 - **Brightness only (Rec.709)**: `abs(.2126*delta.R+.7152*delta.G+.0722*delta.B)`.
 
-`delta` to podpisana różnica bieżącego surowego editu NR i zapamiętanego oryginalnego occludera. W trybie jasności najpierw liczymy jedną ważoną sumę, a dopiero potem moduł. Zatem różnice kanałów wynikające z samej zmiany barwy mogą się znosić. Nie używamy sumy ważonych modułów, maksimum kanałów ani długości RGB. To jasność w domenie NR proxy, nie fizyczna luminancja w nitach.
+`delta` to różnica bieżącego editu NR i zapamiętanego oryginalnego occludera po zastosowaniu bieżącego dodatniego gain osobno do obu editów: `boost(raw)-boost(reference)`. Historia przechowuje wartości surowe. W trybie jasności najpierw liczymy jedną ważoną sumę, a dopiero potem moduł. Zatem różnice kanałów wynikające z samej zmiany barwy mogą się znosić. Nie używamy sumy ważonych modułów, maksimum kanałów ani długości RGB. To jasność w domenie NR proxy, nie fizyczna luminancja w nitach.
 
-Dotychczasowe **Only mask low-contrast disocclusions**, próg i miękkość są wspólne. Wartości poniżej progu zachowują maskę; większy kontrast stopniowo ją usuwa. Próg większy oznacza więcej maskowania. Obie metryki są przed dodatnim mnożnikiem transportu i działają w edicie / pełnej odpowiedzi NR oraz metodach 3–6, bez zależności od rodziny/presetu prywatnego DLSS. Zielony podgląd pokazuje wynik wybranej metryki.
+Dotychczasowe **Only mask low-contrast disocclusions**, próg i miękkość są wspólne. Wartości poniżej progu zachowują maskę; większy kontrast stopniowo ją usuwa. Próg większy oznacza więcej maskowania. Od poprawki 2026-11-06 obie metryki uwzględniają dodatni mnożnik transportu i działają w edicie / pełnej odpowiedzi NR oraz metodach 3–6, bez zależności od rodziny/presetu prywatnego DLSS. Zielony podgląd pokazuje wynik wybranej metryki.
 
 Przełączenie metryki nie resetuje historii maski, NR ani NGX. Referencje nadal przechowują RGB, więc nowy wybór działa od bieżącego decode bez ponownej rozgrzewki. Bez dodatkowego przebiegu, tekstur, odczytów tekstur, synchronizacji czy alokacji; zmienia się uniform branch i kilka operacji skalarnych w opcjonalnym decode. Ten opis nie zastępuje pomiaru.
 
@@ -35,3 +35,5 @@ Timestampy obejmują clear, scatter, widoczność, referencje RGB, dilation, dec
 Różnice są małe i mniejsze niż SD pojedynczych próbek. Metryka jasności może zachować więcej maski; próba 009 sprawdza, że nie usunęła maski zachowanej przez maksimum RGB (tolerancja alpha .002). Zmienione pokrycie wpływa na koszt decode. Powtarzane guides nie odtwarzają rzeczywistej poprzedniej historii gry, a pokrycie maski nie jest precision/recall ghostingu. Nie zmierzono pełnego toru gry ani innych GPU.
 
 Zmienia się tylko 8 opcjonalnych blobów kontrastu; pozostałe 86 jest identyczne z bazą. Off nadal wybiera stare shadery. [Dane, SD, sparowane przedziały różnic i CSV](private-ghost-brightness.json). Powtórzenie: `private_exposure_quality.exe --brightness-contrast-timing <stem> static`; `--contrast-quality` / `--contrast-quality-warp` oraz pełne domyślne testy sprawdzają obie metryki.
+
+Aktualizacja: [niebo i jednostronny miękki brzeg po anulowaniu kontrastem](private-ghost-sky-feather.md). Podane poniżej pomiary są historyczne dla wersji sprzed tej zmiany.

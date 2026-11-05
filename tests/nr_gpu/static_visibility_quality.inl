@@ -184,7 +184,8 @@ void StaticVisibilityCapture(Fixture& f, const std::string& stem)
 }
 
 // Diagnostic only: frozen nonzero guides approximate a mask, never replay recorded temporal state.
-void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frames, bool baseline = false)
+void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frames, bool baseline = false,
+                             bool skyBaseline = false, bool feather = false)
 {
     unsigned w, h, aw, ah, dw, dh, mw, mh;
     auto raw = GuidedPlane(stem + ".raw.dds", 4, 2, w, h), after = GuidedPlane(stem + ".after.dds", 4, 2, aw, ah),
@@ -193,6 +194,11 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
     if (w != aw || h != ah || w != dw || h != dh || w != mw || h != mh || frames < 1 || frames > 120)
         throw std::runtime_error("Frozen preview dimensions/frame count");
     TemporalGhostFixture t(f, w, h, true, false, 4);
+    if (skyBaseline)
+    {
+        t.scatter = f.r.pipeline("artifacts/ghost-study/sky-baseline", "private_ghost_coarse_1");
+        t.age = f.r.pipeline("artifacts/ghost-study/sky-baseline", "private_ghost_coarse_2");
+    }
     if (baseline)
         t.age = f.r.pipeline("artifacts/ghost-study/road-baseline", "private_ghost_coarse_2");
     for (unsigned frame = 0; frame < frames; ++frame)
@@ -222,12 +228,30 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
     DlssNr::Superior::Fields::SetPositiveCarrierGain(c, 1);
     DlssNr::Superior::Fields::SetCarrierDepthConvention(c, true);
     DlssNr::Superior::Fields::SetCarrierGhostRejection(c, settings);
-    auto decode = f.r.pipeline(dir, "private_carrier_coarse");
+    auto decode = f.r.pipeline(skyBaseline ? "artifacts/ghost-study/sky-baseline" : dir, "private_carrier_coarse");
     f.dispatch(decode.Get(), c, a.Get(), p.Get(), out.Get(), (w + 7) / 8, (h + 7) / 8, d.Get(), p.Get(), r.Get(),
                field.Get());
+    if (feather)
+    {
+        auto horizontal = f.texture(w, h, nullptr, DXGI_FORMAT_R16_FLOAT), expanded = f.texture(w, h);
+        auto hp = f.visibilityPipeline("private_ghost_feather_horizontal"),
+             vp = f.visibilityPipeline("private_ghost_feather_apply");
+        f.r.barrier(out.Get(), UAV, SRV);
+        DlssNr::Superior::Fields::SetGhostOutwardFeather(c, w, h, settings, true, 0, 0, false);
+        f.dispatch(hp.Get(), c, out.Get(), out.Get(), horizontal.Get(), (w + 7) / 8, (h + 7) / 8, d.Get());
+        f.r.barrier(horizontal.Get(), UAV, SRV);
+        c.Mode = 55;
+        f.dispatch(vp.Get(), c, out.Get(), horizontal.Get(), expanded.Get(), (w + 7) / 8, (h + 7) / 8, d.Get(), p.Get(),
+                   r.Get());
+        out = expanded;
+    }
     auto values = f.read(out.Get());
     const auto name = std::filesystem::path(stem).filename().string();
-    std::ofstream output("artifacts/ghost-study/" + name + (baseline ? ".frozen-mask-baseline-" : ".frozen-mask-") +
+    std::ofstream output("artifacts/ghost-study/" + name +
+                             (skyBaseline ? ".sky-baseline-"
+                              : feather   ? ".feather-mask-"
+                              : baseline  ? ".frozen-mask-baseline-"
+                                          : ".frozen-mask-") +
                              std::to_string(frames) + ".dds",
                          std::ios::binary);
     if (!DlssNr::EditDump::WriteRows(w, h, values.data(), size_t(w) * 16,
@@ -242,7 +266,8 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
 }
 
 void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false,
-                            bool contrast = false, bool road = false, bool brightness = false)
+                            bool contrast = false, bool road = false, bool brightness = false, bool sky = false,
+                            bool feather = false)
 {
     const unsigned radius = 1;
     const bool residual = true;
@@ -300,7 +325,7 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                                           f.texture(w, h, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT) };
     struct State
     {
-        ComPtr<ID3D12Resource> recon, state[2], field, raw[2], reference[2], expanded;
+        ComPtr<ID3D12Resource> recon, state[2], field, raw[2], reference[2], expanded, featherHorizontal, featherOutput;
         unsigned index = 0, frame = 0;
         bool valid = false;
     };
@@ -314,7 +339,12 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         s.field = f.texture(mw, mh, nullptr, DXGI_FORMAT_R16_FLOAT);
         for (auto& hist : s.state)
             hist = f.texture(mw, mh, nullptr, DXGI_FORMAT_R32G32_UINT);
-        if (contrast && (k == 1 || brightness))
+        if (feather && k == 1)
+        {
+            s.featherHorizontal = f.texture(w, h, nullptr, DXGI_FORMAT_R16_FLOAT);
+            s.featherOutput = f.texture(w, h);
+        }
+        if (contrast && (k == 1 || brightness || feather))
         {
             for (auto& t : s.raw)
                 t = f.texture(mw, mh, nullptr, DXGI_FORMAT_R16G16B16A16_FLOAT);
@@ -326,16 +356,20 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     f.r.finish();
     f.uploads.clear();
     std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    const std::string oldDir = contrast   ? dir
-                               : road     ? "artifacts/ghost-study/road-baseline"
-                               : interior ? "artifacts/ghost-study/occluded-interior-baseline"
-                                          : "artifacts/ghost-study/static-baseline";
-    auto clear = f.r.pipeline(dir, "private_ghost_clear"), baseScatter = f.r.pipeline(dir, "private_ghost_coarse_1"),
+    const std::string oldDir = sky                     ? "artifacts/ghost-study/sky-baseline"
+                               : (contrast || feather) ? dir
+                               : road                  ? "artifacts/ghost-study/road-baseline"
+                               : interior              ? "artifacts/ghost-study/occluded-interior-baseline"
+                                                       : "artifacts/ghost-study/static-baseline";
+    auto clear = f.r.pipeline(dir, "private_ghost_clear"),
+         baseScatter = f.r.pipeline(sky ? oldDir : dir, "private_ghost_coarse_1"),
          baseAge = f.r.pipeline(oldDir, "private_ghost_coarse_2"),
-         baseDecode = f.r.pipeline(dir, "private_carrier_coarse"),
+         baseDecode = f.r.pipeline(sky ? oldDir : dir, "private_carrier_coarse"),
          scatter = f.r.pipeline(dir, "private_ghost_coarse_1"), age = f.r.pipeline(dir, "private_ghost_coarse_2"),
          decode16 = f.r.pipeline(dir, "private_carrier_coarse");
     auto dilate = f.r.pipeline(dir, "private_ghost_coarse_dilate_1");
+    auto featherH = feather ? f.r.pipeline(dir, "private_ghost_feather_horizontal") : ComPtr<ID3D12PipelineState> {};
+    auto featherV = feather ? f.r.pipeline(dir, "private_ghost_feather_apply") : ComPtr<ID3D12PipelineState> {};
     auto contrastHistory =
         contrast ? f.r.pipeline(dir, "private_ghost_contrast_coarse") : ComPtr<ID3D12PipelineState> {};
     auto contrastDilate =
@@ -361,6 +395,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         auto* guideMotion = moving ? movingMotion[s.frame & 1].Get() : m.Get();
         ++s.frame;
         f.r.begin();
+        if (s.valid)
+            f.r.barrier(out.Get(), SRV, UAV);
         f.r.list->EndQuery(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0);
         if (s.valid)
             f.r.barrier(s.recon.Get(), SRV, UAV);
@@ -397,7 +433,7 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                    (mh + 7) / 8, s.recon.Get(), previous, nullptr, nullptr, nullptr, 2, false);
         f.r.barrier(s.state[next].Get(), UAV, SRV);
         settings.method = 5;
-        settings.contrastEnabled = contrast && (variant == 1 || brightness);
+        settings.contrastEnabled = contrast && (variant == 1 || brightness || feather);
         settings.contrastMetric = brightness && variant == 1 ? 1u : 0u;
         if (settings.contrastEnabled)
         {
@@ -459,9 +495,24 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                    dc, a.Get(), settings.contrastEnabled ? s.expanded.Get() : p.Get(), out.Get(), (w + 7) / 8,
                    (h + 7) / 8, guideDepth, p.Get(), r.Get(), decodeGuide, nullptr, contrast ? 5 : 4, false);
         f.r.barrier(out.Get(), UAV, SRV);
+        if (feather && variant == 1)
+        {
+            if (s.valid)
+            {
+                f.r.barrier(s.featherHorizontal.Get(), SRV, UAV);
+                f.r.barrier(s.featherOutput.Get(), SRV, UAV);
+            }
+            DlssNr::Superior::Fields::SetGhostOutwardFeather(c, w, h, settings, true, 0, 0, false);
+            f.dispatch(featherH.Get(), c, out.Get(), out.Get(), s.featherHorizontal.Get(), (w + 7) / 8, (h + 7) / 8,
+                       guideDepth, nullptr, nullptr, nullptr, nullptr, 6, false);
+            f.r.barrier(s.featherHorizontal.Get(), UAV, SRV);
+            c.Mode = 55;
+            f.dispatch(featherV.Get(), c, out.Get(), s.featherHorizontal.Get(), s.featherOutput.Get(), (w + 7) / 8,
+                       (h + 7) / 8, guideDepth, p.Get(), r.Get(), nullptr, nullptr, 7, false);
+            f.r.barrier(s.featherOutput.Get(), UAV, SRV);
+        }
         f.r.list->EndQuery(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 1);
         f.r.list->ResolveQueryData(queries.Get(), D3D12_QUERY_TYPE_TIMESTAMP, 0, 2, readback.Get(), 0);
-        f.r.barrier(out.Get(), SRV, UAV);
         f.r.finish();
         f.uploads.clear();
         s.index = next;
@@ -474,11 +525,13 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     };
     const auto name = std::filesystem::path(stem).filename().string();
     const auto prefix = "artifacts/ghost-study/" + name +
-                        (brightness ? ".brightness"
-                         : road     ? ".road"
-                         : contrast ? ".contrast"
-                         : interior ? ".interior"
-                                    : "") +
+                        (feather      ? ".feather"
+                         : sky        ? ".sky"
+                         : brightness ? ".brightness"
+                         : road       ? ".road"
+                         : contrast   ? ".contrast"
+                         : interior   ? ".interior"
+                                      : "") +
                         (moving ? ".moving-fix" : ".static-fix");
     std::ofstream csv(prefix + "-timing.csv");
     csv << "sample,width,height,comparison,block,position,variant,ms\n";
@@ -505,7 +558,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
             f.r.barrier(resource, SRV, UAV);
             return f.read(resource);
         };
-        auto oldOutput = readSrv(outputs[0].Get()), newOutput = readSrv(outputs[1].Get());
+        auto oldOutput = readSrv(outputs[0].Get()),
+             newOutput = readSrv(feather ? states[1].featherOutput.Get() : outputs[1].Get());
         double sum = 0, sumSquared = 0;
         float maxRGB = 0, maxMask = 0;
         size_t changed = 0, increased = 0, decreased = 0, strongLost = 0, soft = 0, oldActive = 0, newActive = 0;
@@ -518,8 +572,10 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
             {
                 if (newOutput[i] < 0 || newOutput[i] > 1)
                     throw std::runtime_error("Invalid coarse weight");
-                if (contrast && !brightness && newOutput[i] > oldOutput[i] + .002f)
+                if (contrast && !brightness && !feather && newOutput[i] > oldOutput[i] + .002f)
                     throw std::runtime_error("Contrast gate increased the visibility mask");
+                if (feather && newOutput[i] < oldOutput[i])
+                    throw std::runtime_error("Outward feather eroded the post-contrast mask");
                 if (brightness && newOutput[i] < oldOutput[i] - .002f)
                     throw std::runtime_error("Brightness metric removed a mask retained by maximum RGB");
                 maxMask = std::max(maxMask, delta);

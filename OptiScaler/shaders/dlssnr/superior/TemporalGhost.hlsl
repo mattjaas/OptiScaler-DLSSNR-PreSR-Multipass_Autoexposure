@@ -1,3 +1,4 @@
+#include "GhostDepth.hlsli"
 // Guides only. Reconstruction scatters current camera-space depth through current->previous MV,
 // so ordinary camera depth changes are not mistaken for an occluder by comparing two NDC frames directly.
 cbuffer Params : register(b0)
@@ -28,7 +29,7 @@ float4 CurrentGuide(uint2 p, out float2 previousPos)
     {
         uint2 q = min(p * 2 + uint2(x, y), uint2(fullWidth, fullHeight) - 1);
         float z = Depth.Load(int3(q, 0));
-        float n = isfinite(z) && z >= 0 && z <= 1 ? (inverted != 0 ? z : 1 - z) : -1;
+        float n = GhostNearDepth(z, inverted);
         if (n > nearZ)
         {
             nearZ = n;
@@ -174,7 +175,7 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
         if (all(source >= 0) && source.x < int(fullWidth) && source.y < int(fullHeight))
         {
             float z = Depth.Load(int3(source, 0));
-            float nearZ = isfinite(z) && z >= 0 && z <= 1 ? (inverted != 0 ? z : 1 - z) : -1;
+            float nearZ = GhostNearDepth(z, inverted);
             if (nearZ > current.x + precision && abs(nearZ - old.x) <= old.x * tolerance + precision)
             {
                 float2 foreground = Motion.Load(int3(source, 0));
@@ -196,7 +197,7 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
                 continue;
             uint2 source = min(uint2(q) * 2 + 2 / 2, uint2(fullWidth, fullHeight) - 1);
             float z = Depth.Load(int3(source, 0));
-            float nearZ = isfinite(z) && z >= 0 && z <= 1 ? (inverted != 0 ? z : 1 - z) : -1;
+            float nearZ = GhostNearDepth(z, inverted);
             if (nearZ <= current.x + precision || abs(nearZ - old.x) > old.x * tolerance + precision)
                 continue;
             float2 foreground = Motion.Load(int3(source, 0));

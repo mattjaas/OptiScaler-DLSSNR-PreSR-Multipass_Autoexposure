@@ -12,8 +12,8 @@ bool ContinueGhostSurface(float4 current, float4 old, float2 chosen, float toler
     float endZ = Depth.Load(int3(endPixel, 0)), midZ = Depth.Load(int3(midPixel, 0));
     if (!isfinite(endZ) || !isfinite(midZ) || endZ < 0 || endZ > 1 || midZ < 0 || midZ > 1)
         return false;
-    endZ = inverted != 0 ? endZ : 1 - endZ;
-    midZ = inverted != 0 ? midZ : 1 - midZ;
+    endZ = GhostNearDepth(endZ, inverted);
+    midZ = GhostNearDepth(midZ, inverted);
     if (endZ <= 0 || midZ <= 0)
         return false;
     // The reprojected point must still belong to the old surface at its screen position.

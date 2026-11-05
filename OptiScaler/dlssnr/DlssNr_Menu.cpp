@@ -4330,7 +4330,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 if (ImGui::Checkbox("Only mask low-contrast disocclusions", &ghost.contrastEnabled))
                     config->DlssNrSuperiorGhostContrast = ghost.contrastEnabled;
                 HelpMarker("Compare the current signed NR edit with the saved edit of the surface that hid it. "
-                           "Strong contrast keeps DLSS; similar edits allow the disocclusion mask. Measured before "
+                           "Strong contrast keeps DLSS; similar edits allow the disocclusion mask. Measured after "
                            "the positive transport multiplier. Default Off; adds optional edit-reference history.");
                 ImGui::BeginDisabled(!ghost.contrastEnabled);
                 int contrastMetric = int(ghost.contrastMetric);
@@ -4343,7 +4343,8 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 }
                 HelpMarker("RGB uses the largest R/G/B edit difference. Brightness compares only the weighted sum "
                            "0.2126 R + 0.7152 G + 0.0722 B, so different colours with similar brightness can keep the "
-                           "mask. Both use the signed edit before the transport multiplier; switching does not reset "
+                           "mask. Both apply the current positive multiplier to each edit before comparing; switching "
+                           "does not reset "
                            "history.");
 
                 if (ImGui::SliderFloat("Disocclusion edit contrast threshold", &ghost.contrastThreshold, 0.f, 1.f,
@@ -4357,6 +4358,20 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     config->DlssNrSuperiorGhostContrastSoftness = ghost.contrastSoftness;
                 HelpMarker("Fade the mask to zero above the contrast threshold across this interval. Default 0.005; "
                            "zero uses a hard cutoff. Does not change NR or DLSS history.");
+                ImGui::EndDisabled();
+                if (ImGui::Checkbox("Outward-only mask feather", &ghost.outwardFeather))
+                    config->DlssNrSuperiorGhostOutwardFeather = ghost.outwardFeather;
+                HelpMarker(
+                    "Soften by expanding the final mask after contrast cancellation. Existing coverage stays intact. "
+                    "Depth prevents the new fringe from crossing onto closer occluding surfaces. Works with coarse "
+                    "expansion 1. Default Off; adds two optional passes and scratch textures.");
+                ImGui::BeginDisabled(!ghost.outwardFeather);
+                if (ImGui::SliderFloat("Outward mask feather radius (1080p)", &ghost.outwardRadius, .25f, 32.f,
+                                       "%.2f px"))
+                    config->DlssNrSuperiorGhostOutwardRadius = ghost.outwardRadius;
+                HelpMarker("Width of the added soft fringe in pixels at 1080p height. Scales with the working raster. "
+                           "Default 4. Does not shrink the core or reset NR/DLSS history. A fringe can extend into a "
+                           "neighbour cancelled by contrast, but not across a closer depth boundary.");
                 ImGui::EndDisabled();
                 if (ImGui::SliderFloat("Disocclusion depth separation", &ghost.historyDepth, .001f, .5f, "%.3f"))
                     config->DlssNrSuperiorGhostHistoryDepth = ghost.historyDepth;

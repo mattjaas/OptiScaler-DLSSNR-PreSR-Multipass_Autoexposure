@@ -1160,6 +1160,8 @@ void Config::ReadDlssNr()
     DlssNrSuperiorGhostCoarseRadius.set_from_config(readUInt("DlssNr", "SuperiorGhostCoarseRadius"));
     DlssNrSuperiorGhostContrast.set_from_config(readBool("DlssNr", "SuperiorGhostContrast"));
     DlssNrSuperiorGhostContrastMetric.set_from_config(readUInt("DlssNr", "SuperiorGhostContrastMetric"));
+    DlssNrSuperiorGhostOutwardFeather.set_from_config(readBool("DlssNr", "SuperiorGhostOutwardFeather"));
+    DlssNrSuperiorGhostOutwardRadius.set_from_config(readFloat("DlssNr", "SuperiorGhostOutwardRadius"));
     DlssNrSuperiorGhostContrastThreshold.set_from_config(readFloat("DlssNr", "SuperiorGhostContrastThreshold"));
     DlssNrSuperiorGhostContrastSoftness.set_from_config(readFloat("DlssNr", "SuperiorGhostContrastSoftness"));
     DlssNrSuperiorGhostGuidedThreshold.set_from_config(readFloat("DlssNr", "SuperiorGhostGuidedThreshold"));
@@ -1481,6 +1483,10 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetBoolValue(c.DlssNrSuperiorGhostContrast.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostContrastMetric",
                  GetIntValue(c.DlssNrSuperiorGhostContrastMetric.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostOutwardFeather",
+                 GetBoolValue(c.DlssNrSuperiorGhostOutwardFeather.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostOutwardRadius",
+                 GetFloatValue(c.DlssNrSuperiorGhostOutwardRadius.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostContrastThreshold",
                  GetFloatValue(c.DlssNrSuperiorGhostContrastThreshold.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostContrastSoftness",
@@ -1913,6 +1919,8 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorGhostSoftExpansion", DlssNrSuperiorGhostSoftExpansion),
         NR_PROFILE_FIELD("SuperiorGhostContrast", DlssNrSuperiorGhostContrast),
         NR_PROFILE_FIELD("SuperiorGhostContrastMetric", DlssNrSuperiorGhostContrastMetric),
+        NR_PROFILE_FIELD("SuperiorGhostOutwardFeather", DlssNrSuperiorGhostOutwardFeather),
+        NR_PROFILE_FIELD("SuperiorGhostOutwardRadius", DlssNrSuperiorGhostOutwardRadius),
         NR_PROFILE_FIELD("SuperiorGhostContrastThreshold", DlssNrSuperiorGhostContrastThreshold),
         NR_PROFILE_FIELD("SuperiorGhostContrastSoftness", DlssNrSuperiorGhostContrastSoftness),
         NR_PROFILE_FIELD("SuperiorGhostCoarseRadius", DlssNrSuperiorGhostCoarseRadius),

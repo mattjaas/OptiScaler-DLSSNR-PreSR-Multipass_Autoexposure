@@ -204,6 +204,9 @@ inline std::string MetadataJson(const Metadata& m)
     value("ghost_coarse_expansion_radius", m.ghostRejection.coarseRadius);
     value("ghost_edit_contrast_enabled", m.ghostRejection.contrastEnabled);
     value("ghost_edit_contrast_metric", m.ghostRejection.contrastMetric);
+    value("ghost_edit_contrast_after_positive_gain", true);
+    value("ghost_outward_feather_enabled", m.ghostRejection.outwardFeather);
+    value("ghost_outward_feather_radius_1080p", m.ghostRejection.outwardRadius);
     value("ghost_edit_contrast_threshold", m.ghostRejection.contrastThreshold);
     value("ghost_edit_contrast_softness", m.ghostRejection.contrastSoftness);
     value("resident_cnn_e_enabled", m.residentCnnEnabled);

@@ -150,6 +150,8 @@ try {
         if($kind -eq 'simple') { Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' $contrastArgs "private_carrier_contrast_${kind}_$answer" -Native16 }
         else { Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' $contrastArgs "private_carrier_contrast_${kind}_$answer" }
     } }
+    Build (Join-Path $shaders 'superior/GhostOutwardFeather.hlsl') 'GhostOutwardFeather' @('-D','DLSSNR_GHOST_FEATHER_STAGE=0') 'private_ghost_feather_horizontal'
+    Build (Join-Path $shaders 'superior/GhostOutwardFeather.hlsl') 'GhostOutwardFeather' @('-D','DLSSNR_GHOST_FEATHER_STAGE=1') 'private_ghost_feather_apply'
     Build (Join-Path $shaders 'superior/PrivateExposure.hlsl') 'PrivateExposureMain' @() 'private_exposure'
     Build (Join-Path $shaders 'superior/GainPreview.hlsl') 'GainPreviewMain' @() 'private_gain_preview'
     Build (Join-Path $shaders 'superior/MotionWatch.hlsl') 'MotionWatchMain' @() 'private_motion_watch'

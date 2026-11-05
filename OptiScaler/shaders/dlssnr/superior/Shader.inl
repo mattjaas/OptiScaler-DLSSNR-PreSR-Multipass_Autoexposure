@@ -38,6 +38,8 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/private_carrier_coarse_answer_Shader.h"
 #include "precompile/private_ghost_compact_2_Shader.h"
 #include "precompile/private_ghost_clear_Shader.h"
+#include "precompile/private_ghost_feather_horizontal_Shader.h"
+#include "precompile/private_ghost_feather_apply_Shader.h"
 #include "precompile/private_ghost_scatter_Shader.h"
 #include "precompile/private_ghost_history_Shader.h"
 #include "precompile/private_ghost_contrast_history_Shader.h"
@@ -157,7 +159,7 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
 {
     using namespace DlssNr::Superior::Bytecode;
     const bool ghostRejection = DlssNr::Superior::Fields::CarrierGhostRejection(InConstants);
-    ID3D12PipelineState* pipeline = ghostRejection || (InConstants.Mode >= 49u && InConstants.Mode <= 53u)
+    ID3D12PipelineState* pipeline = ghostRejection || (InConstants.Mode >= 49u && InConstants.Mode <= 55u)
                                         ? nullptr
                                         : SuperiorPipeline(InConstants, InSource);
     const auto get = [&](unsigned index, const void* blob, size_t size)
@@ -252,6 +254,14 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
         pipeline = InConstants.DebugView == 2u
                        ? get(41u, private_ghost_contrast_dilate_2_cso, sizeof(private_ghost_contrast_dilate_2_cso))
                        : get(40u, private_ghost_contrast_dilate_1_cso, sizeof(private_ghost_contrast_dilate_1_cso));
+        if (!pipeline)
+            return false;
+    }
+    if (InConstants.Mode == 54u || InConstants.Mode == 55u)
+    {
+        pipeline = InConstants.Mode == 54u
+                       ? get(50u, private_ghost_feather_horizontal_cso, sizeof(private_ghost_feather_horizontal_cso))
+                       : get(51u, private_ghost_feather_apply_cso, sizeof(private_ghost_feather_apply_cso));
         if (!pipeline)
             return false;
     }

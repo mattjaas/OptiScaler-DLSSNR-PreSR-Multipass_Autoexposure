@@ -80,7 +80,9 @@ void GhostContrastQuality(Fixture& f)
                                        s.Get());
                             auto values = f.read(out.Get());
                             const double channelWeights[3] = { .2126, .7152, .0722 };
-                            const double distance = double(delta) * (metric == 1 ? channelWeights[channel] : 1.);
+                            const auto boost = [gain](double v) { return v > 0 ? v * gain : v; };
+                            const double difference = boost(raw[channel]) - boost(double(raw[channel]) - delta);
+                            const double distance = std::abs(difference) * (metric == 1 ? channelWeights[channel] : 1.);
                             const double x = std::clamp((distance - .015625) / .015625, 0., 1.);
                             const double rejection = .75 * (1 - x * x * (3 - 2 * x)), rawWeight = .25 + .75 * rejection;
                             for (size_t i = 0; i < values.size(); i += 4)

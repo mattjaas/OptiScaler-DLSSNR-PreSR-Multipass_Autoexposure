@@ -1,3 +1,4 @@
+#include "GhostDepth.hlsli"
 // Optional low-grid raw edit and original occluder reference. No readback or NGX history changes.
 #ifndef DLSSNR_GHOST_STEP
 #define DLSSNR_GHOST_STEP 2
@@ -43,7 +44,7 @@ RWTexture2D<float4> Reference : register(u1);
     {
         uint2 q = min(id.xy * DLSSNR_GHOST_STEP + uint2(x, y), uint2(fullWidth, fullHeight) - 1);
         float z = Depth.Load(int3(q, 0));
-        float n = isfinite(z) && z >= 0 && z <= 1 ? (inverted != 0 ? z : 1 - z) : -1;
+        float n = GhostNearDepth(z, inverted);
         if (n > nearZ)
         {
             nearZ = n;

@@ -1,3 +1,4 @@
+#include "GhostDepth.hlsli"
 #include "CompactGhostState.hlsli"
 Texture2D<uint2> gCompactGhost : register(t5);
 typedef float16_t MaskScalar;
@@ -6,7 +7,7 @@ float3 RejectCompactGhost(float3 filtered, int2 pixel, out float mask)
 {
     mask = 0;
     float depth = gMotion.Load(int3(pixel, 0)).x;
-    float nearZ = isfinite(depth) && depth >= 0 && depth <= 1 ? (gPassthrough != 0 ? depth : 1 - depth) : 0;
+    float nearZ = GhostNearDepth(depth, gPassthrough);
     if (nearZ <= 0)
         return filtered;
     uint w, h;

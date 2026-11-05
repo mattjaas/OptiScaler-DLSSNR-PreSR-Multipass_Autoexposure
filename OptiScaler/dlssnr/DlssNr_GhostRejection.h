@@ -20,6 +20,8 @@ struct Settings
     bool contrastEnabled = false;
     float contrastThreshold = .02f, contrastSoftness = .005f;
     uint32_t contrastMetric = 0; // 0 maximum RGB difference; 1 signed edit brightness (Rec.709)
+    bool outwardFeather = false;
+    float outwardRadius = 4.f; // 1080p-height reference pixels, applied after contrast cancellation
 };
 inline Settings Sanitize(Settings s)
 {
@@ -38,21 +40,31 @@ inline Settings Sanitize(Settings s)
     s.contrastMetric = s.contrastMetric <= 1u ? s.contrastMetric : 0u;
     s.contrastThreshold = std::isfinite(s.contrastThreshold) ? std::clamp(s.contrastThreshold, 0.f, 1.f) : .02f;
     s.contrastSoftness = std::isfinite(s.contrastSoftness) ? std::clamp(s.contrastSoftness, 0.f, 1.f) : .005f;
+    s.outwardRadius = std::isfinite(s.outwardRadius) ? std::clamp(s.outwardRadius, .25f, 32.f) : 4.f;
     return s;
 }
 template <class Config> Settings Read(const Config& c)
 {
-    auto s = Sanitize(
-        { c.DlssNrSuperiorGhostRejection.value_or_default(), c.DlssNrSuperiorGhostThreshold.value_or_default(),
-          c.DlssNrSuperiorGhostSoftness.value_or_default(), c.DlssNrSuperiorGhostStrength.value_or_default(),
-          c.DlssNrSuperiorShowGhostMask.value_or_default(), c.DlssNrSuperiorGhostMethod.value_or_default(),
-          c.DlssNrSuperiorGhostRadius.value_or_default(), c.DlssNrSuperiorGhostDepthRatio.value_or_default(),
-          c.DlssNrSuperiorGhostMotionGate.value_or_default(), c.DlssNrSuperiorGhostHistoryFrames.value_or_default(),
-          c.DlssNrSuperiorGhostHistoryFade.value_or_default(), c.DlssNrSuperiorGhostHistoryDepth.value_or_default(),
-          c.DlssNrSuperiorGhostSoftExpansion.value_or_default(), c.DlssNrSuperiorGhostCoarseRadius.value_or_default(),
-          c.DlssNrSuperiorGhostContrast.value_or_default(), c.DlssNrSuperiorGhostContrastThreshold.value_or_default(),
-          c.DlssNrSuperiorGhostContrastSoftness.value_or_default(),
-          c.DlssNrSuperiorGhostContrastMetric.value_or_default() });
+    auto s = Sanitize({ c.DlssNrSuperiorGhostRejection.value_or_default(),
+                        c.DlssNrSuperiorGhostThreshold.value_or_default(),
+                        c.DlssNrSuperiorGhostSoftness.value_or_default(),
+                        c.DlssNrSuperiorGhostStrength.value_or_default(),
+                        c.DlssNrSuperiorShowGhostMask.value_or_default(),
+                        c.DlssNrSuperiorGhostMethod.value_or_default(),
+                        c.DlssNrSuperiorGhostRadius.value_or_default(),
+                        c.DlssNrSuperiorGhostDepthRatio.value_or_default(),
+                        c.DlssNrSuperiorGhostMotionGate.value_or_default(),
+                        c.DlssNrSuperiorGhostHistoryFrames.value_or_default(),
+                        c.DlssNrSuperiorGhostHistoryFade.value_or_default(),
+                        c.DlssNrSuperiorGhostHistoryDepth.value_or_default(),
+                        c.DlssNrSuperiorGhostSoftExpansion.value_or_default(),
+                        c.DlssNrSuperiorGhostCoarseRadius.value_or_default(),
+                        c.DlssNrSuperiorGhostContrast.value_or_default(),
+                        c.DlssNrSuperiorGhostContrastThreshold.value_or_default(),
+                        c.DlssNrSuperiorGhostContrastSoftness.value_or_default(),
+                        c.DlssNrSuperiorGhostContrastMetric.value_or_default(),
+                        c.DlssNrSuperiorGhostOutwardFeather.value_or_default(),
+                        c.DlssNrSuperiorGhostOutwardRadius.value_or_default() });
     if (s.method == 1)
     {
         s.threshold = c.DlssNrSuperiorGhostGuidedThreshold.value_or_default();

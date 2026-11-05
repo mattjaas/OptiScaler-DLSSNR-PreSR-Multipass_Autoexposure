@@ -6,14 +6,14 @@
 
 `raw = NR answer - NR input proxy`, w podpisanych jednostkach editu z neutralnym zerem, przed dodatnim gain i transportem do DLSS. Po wykryciu nowego odsłonięcia zapisujemy poprzedni raw edit powierzchni wskazanej reprojekcją. Przez pozostałe klatki N przenosimy ten oryginalny wzorzec MV wraz z licznikiem. Bieżący raw edit jest przechowywany osobno: jeżeli powierzchnia mająca już maskę później sama zasłania dalszy obiekt, nowy wzorzec pochodzi z jej rzeczywistego editu, nie z wcześniejszego occludera.
 
-Przy decode, już po przestrzennej rekonstrukcji/poszerzeniu maski, porównujemy bieżący pełnorozdzielczy raw edit z wybranym wzorcem:
+Od poprawki sky/feather przy decode, po rekonstrukcji coarse, oba edity przeliczamy bieżącym dodatnim gain: `boost(x)=min(x,0)+max(x,0)*gain`. Historia nadal przechowuje surowy edit, więc automat może zmieniać gain bez resetu. Porównujemy pełnorozdzielczy `boost(raw)` z `boost(reference)`; miękki brzeg jest dodawany dopiero po anulowaniu maski:
 
-`distance = max(abs(raw.r-reference.r), abs(raw.g-reference.g), abs(raw.b-reference.b))`.
+`delta = boost(raw)-boost(reference); distance = max(abs(delta.r), abs(delta.g), abs(delta.b))`.
 
-To domyślna metryka **RGB difference (strongest channel)**. Dodatkowy wybór **Disocclusion edit contrast metric → Brightness only (Rec.709)** używa `abs(dot(raw-reference, float3(.2126,.7152,.0722)))`; ignoruje różnicę samej barwy przy podobnej ważonej jasności. [Weryfikacja i pomiary trybu jasności](private-ghost-brightness.md). Przełącznik zmienia wyłącznie skalarny warunek w decode, bez resetu historii i nowych zasobów.
+To domyślna metryka **RGB difference (strongest channel)**. Dodatkowy wybór **Disocclusion edit contrast metric → Brightness only (Rec.709)** używa `abs(dot(boost(raw)-boost(reference), float3(.2126,.7152,.0722)))`; ignoruje różnicę samej barwy przy podobnej ważonej jasności. [Weryfikacja i pomiary trybu jasności](private-ghost-brightness.md). Przełącznik zmienia wyłącznie skalarny warunek w decode, bez resetu historii i nowych zasobów.
 
 
-`mask *= 1-smoothstep(threshold,threshold+softness,distance)`; przy softness=0 maska jest dozwolona dla distance<=threshold. Domyślne wartości to .02 i .005. W metryce RGB każdy kanał może wyłączyć maskę; podobna luminancja nie ukrywa różnicy barwy. Metryka jasności pomija różnicę samej barwy. Próg jest absolutny w domenie NR, nie w nitach ani procentach kontrastu sceny. AutoExposure NR może zmienić wartości tego editu; mnożnik transportu nie bierze udziału w pomiarze.
+`mask *= 1-smoothstep(threshold,threshold+softness,distance)`; przy softness=0 maska jest dozwolona dla distance<=threshold. Domyślne wartości to .02 i .005. W metryce RGB każdy kanał może wyłączyć maskę; podobna luminancja nie ukrywa różnicy barwy. Metryka jasności pomija różnicę samej barwy. Próg jest absolutny w domenie NR, nie w nitach ani procentach kontrastu sceny. AutoExposure NR może zmienić wartości tego editu; bieżący dodatni mnożnik transportu jest uwzględniany dla obu editów, przed obliczeniem metryki. Ujemne części pozostają bez wzmocnienia.
 
 Kontrolki: **Only mask low-contrast disocclusions**, **Disocclusion edit contrast threshold**, **Disocclusion edit contrast softness**. Dostępne dla metod temporalnych 3–6 (indeksy 2–5), w ramach istniejących ograniczeń DX12/Superior/prywatnego DLSS. Próg i miękkość mają efekt od bieżącego decode. Włączenie/wyłączenie inicjalizuje tylko lokalną historię maski; nie resetuje NR ani NGX. Brak poprawnego wzorca oznacza brak odrzucania DLSS. Początek historii wymaga rozgrzewki.
 
@@ -48,3 +48,5 @@ RTX 4090, D3D12, NR 2496×1404, metoda 6/radius1, N19/fade9, separacja .05, MV g
 Powtarzane guides służą do kosztu, nie do odtworzenia prawdziwej sekwencji gry. Próba ruchu używa nieruchomego prostokąta i naprzemiennych MV tła ±128 px. Zmiana pokrycia maski wpływa również na decode. Jest mierzalny narzut po włączeniu opcji; nie przedstawiamy go jako darmowej operacji. Pełnego toru gry i innych GPU nie zmierzono.
 
 [Metadane i CSV](private-ghost-contrast.json). Odtworzenie: kompilacja `tests/nr_gpu/private_exposure_quality.cpp`, `--contrast-quality`, `--contrast-quality-warp`, `--contrast-timing <capture stem> static` / `moving`. Domyślne testy i `--warp` również zawierają nową grupę.
+
+Aktualizacja 2026-11-06: [prawidłowe niebo, kontrast po gain i opcjonalny jednostronny miękki brzeg](private-ghost-sky-feather.md). Historyczne pomiary poniżej dotyczą pierwotnej wersji.

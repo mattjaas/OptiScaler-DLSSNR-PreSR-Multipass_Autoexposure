@@ -1,0 +1,63 @@
+{
+  "sky.static": {
+    "before": {
+      "samples": 128,
+      "mean_ms": 0.070272,
+      "sd_ms": 0.004955284321677356,
+      "median_ms": 0.069632
+    },
+    "after": {
+      "samples": 128,
+      "mean_ms": 0.07103999999999999,
+      "sd_ms": 0.004104055071693856,
+      "median_ms": 0.070656
+    },
+    "delta_ms": 0.0007679999999999909
+  },
+  "feather.static": {
+    "before": {
+      "samples": 128,
+      "mean_ms": 0.095112,
+      "sd_ms": 0.005263323126192108,
+      "median_ms": 0.096256
+    },
+    "after": {
+      "samples": 128,
+      "mean_ms": 0.220144,
+      "sd_ms": 0.00823420623466285,
+      "median_ms": 0.219136
+    },
+    "delta_ms": 0.125032
+  },
+  "feather.moving": {
+    "before": {
+      "samples": 128,
+      "mean_ms": 0.093248,
+      "sd_ms": 0.0036679658075497823,
+      "median_ms": 0.09216
+    },
+    "after": {
+      "samples": 128,
+      "mean_ms": 0.209592,
+      "sd_ms": 0.00690448818996414,
+      "median_ms": 0.20992
+    },
+    "delta_ms": 0.116344
+  },
+  "preview": {
+    "sky_pixels": 1135119,
+    "sky_active": [
+      0,
+      11766,
+      24299
+    ],
+    "feather_eroded": 0
+  },
+  "device": "NVIDIA GeForce RTX 4090",
+  "resolution": [
+    2496,
+    1404
+  ],
+  "baseline_commit": "c6a88c1d8f272b9a40e11b3e351488cf54883a47",
+  "scope": "Whole mask region (clear, scatter, history, optional contrast, coarse radius1, decode, optional two feather passes); excludes NGX/NR/game composition."
+}

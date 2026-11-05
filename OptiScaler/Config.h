@@ -488,6 +488,8 @@ class Config
     CustomOptional<uint32_t> DlssNrSuperiorGhostCoarseRadius { 1 };
     CustomOptional<bool> DlssNrSuperiorGhostContrast { false };
     CustomOptional<uint32_t> DlssNrSuperiorGhostContrastMetric { 0 };
+    CustomOptional<bool> DlssNrSuperiorGhostOutwardFeather { false };
+    CustomOptional<float> DlssNrSuperiorGhostOutwardRadius { 4.0f };
     CustomOptional<float> DlssNrSuperiorGhostContrastThreshold { .02f };
     CustomOptional<float> DlssNrSuperiorGhostContrastSoftness { .005f };
     CustomOptional<float> DlssNrSuperiorGhostGuidedThreshold { .004f };

@@ -32,7 +32,12 @@ float GhostContrastMask(int2 pixel, float mask)
     }
     if (!all(isfinite(reference)) || reference.a <= 0)
         return 0;
-    float3 signedDifference = GhostRawEdit(pixel) - reference.rgb / reference.a;
+    // Apply the CURRENT effective transport gain independently to both signed edits.
+    // Multiplying their difference is wrong when only one edit component is positive.
+    float gain = PositiveCarrierGain(gWhitePoint);
+    float3 currentEdit = GhostRawEdit(pixel), oldEdit = reference.rgb / reference.a;
+    float3 signedDifference =
+        min(currentEdit, 0) + max(currentEdit, 0) * gain - (min(oldEdit, 0) + max(oldEdit, 0) * gain);
     float distance;
     // Compare one brightness scalar; take abs AFTER the sum so equal-brightness colours can cancel.
     // Unknown/nonfinite selectors retain the existing RGB criterion.

@@ -30,6 +30,9 @@ def extract(commit,dest,stems):
 
 
 def main():
+    extract('c6a88c1d8f272b9a40e11b3e351488cf54883a47',ROOT/'artifacts/ghost-study/sky-baseline',
+            ('private_ghost_coarse_1','private_ghost_coarse_2','private_carrier_coarse',
+             'private_ghost_coarse_dilate_1'))
     extract('95dbc4810f9a716bc642ec48b1698bb974834089',ROOT/'artifacts/ghost-study/road-baseline',
             ('private_ghost_history','private_ghost_compact_2','private_ghost_coarse_2'))
     extract('b9924012a82022e4424931019d6ef6bccba54ace',ROOT/'artifacts/ghost-study/occluded-interior-baseline',

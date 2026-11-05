@@ -65,7 +65,7 @@ struct Fixture
         return p;
     }
 
-    Fixture(bool hardware) : r(hardware, 56)
+    Fixture(bool hardware) : r(hardware, 64)
     {
         const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
         meter = r.pipeline(dir, "private_exposure");
@@ -400,16 +400,39 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "static_visibility_quality.inl"
 #include "ghost_contrast_quality.inl"
 #include "road_visibility_quality.inl"
+#include "sky_feather_quality.inl"
 
 int main(int argc, char** argv)
 {
     try
     {
         std::cout.setf(std::ios::unitbuf);
-        Fixture f(argc < 2 || (std::string(argv[1]) != "--warp" && std::string(argv[1]) != "--contrast-quality-warp"));
+        Fixture f(argc < 2 || (std::string(argv[1]) != "--warp" && std::string(argv[1]) != "--contrast-quality-warp" &&
+                               std::string(argv[1]) != "--sky-feather-quality-warp"));
         if (argc == 4 && std::string(argv[1]) == "--brightness-contrast-timing")
         {
             StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, true, true, true);
+            return 0;
+        }
+        if (argc == 2 &&
+            (std::string(argv[1]) == "--sky-feather-quality" || std::string(argv[1]) == "--sky-feather-quality-warp"))
+        {
+            SkyVisibilityQuality(f);
+            OutwardFeatherQuality(f);
+            return 0;
+        }
+        if (argc == 4 && (std::string(argv[1]) == "--sky-timing" || std::string(argv[1]) == "--feather-timing"))
+        {
+            bool feather = std::string(argv[1]) == "--feather-timing";
+            StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, feather, false, false, !feather,
+                                   feather);
+            return 0;
+        }
+        if (argc == 4 &&
+            (std::string(argv[1]) == "--sky-baseline-preview" || std::string(argv[1]) == "--feather-preview"))
+        {
+            bool old = std::string(argv[1]) == "--sky-baseline-preview";
+            FrozenVisibilityPreview(f, argv[2], unsigned(std::stoul(argv[3])), false, old, !old);
             return 0;
         }
         if (argc == 4 && std::string(argv[1]) == "--road-visibility-timing")
@@ -596,6 +619,8 @@ int main(int argc, char** argv)
         WideVisibilityQuality(f);
         RoadVisibilityQuality(f);
         GhostContrastQuality(f);
+        SkyVisibilityQuality(f);
+        OutwardFeatherQuality(f);
         CompactGhostQuality(f);
         CompactTransportQuality(f);
         CompactGhostQuality(f, true);

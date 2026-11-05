@@ -1,3 +1,4 @@
+#include "GhostDepth.hlsli"
 // Compact guide storage; shares the visibility / relative-motion policy with TemporalGhost.hlsl.
 #include "CompactGhostState.hlsli"
 #ifndef DLSSNR_GHOST_STEP
@@ -42,7 +43,7 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
     {
         uint2 q = min(id.xy * DLSSNR_GHOST_STEP + uint2(x, y), uint2(fullWidth, fullHeight) - 1);
         float z = Depth.Load(int3(q, 0));
-        float n = isfinite(z) && z >= 0 && z <= 1 ? (inverted != 0 ? z : 1 - z) : -1;
+        float n = GhostNearDepth(z, inverted);
         if (n > nearZ)
         {
             nearZ = n;
@@ -194,7 +195,7 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
         if (all(source >= 0) && source.x < int(fullWidth) && source.y < int(fullHeight))
         {
             float z = Depth.Load(int3(source, 0));
-            float nearZ = isfinite(z) && z >= 0 && z <= 1 ? (inverted != 0 ? z : 1 - z) : -1;
+            float nearZ = GhostNearDepth(z, inverted);
             if (nearZ > current.x + precision && abs(nearZ - old.x) <= old.x * tolerance + precision)
             {
                 float2 foreground = Motion.Load(int3(source, 0));
@@ -216,7 +217,7 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
                 continue;
             uint2 source = min(uint2(q) * DLSSNR_GHOST_STEP + DLSSNR_GHOST_STEP / 2, uint2(fullWidth, fullHeight) - 1);
             float z = Depth.Load(int3(source, 0));
-            float nearZ = isfinite(z) && z >= 0 && z <= 1 ? (inverted != 0 ? z : 1 - z) : -1;
+            float nearZ = GhostNearDepth(z, inverted);
             if (nearZ <= current.x + precision || abs(nearZ - old.x) > old.x * tolerance + precision)
                 continue;
             float2 foreground = Motion.Load(int3(source, 0));
