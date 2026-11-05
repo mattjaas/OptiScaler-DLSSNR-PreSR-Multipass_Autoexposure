@@ -114,11 +114,14 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
     float gateSquared = gate * gate;
     float2 delta = current.zw - old.zw;
     float errorSquared = dot(delta, delta), bestSquared = errorSquared;
-    if (old.y > 1 && (current.x > old.x * (1 + tolerance) + precision || errorSquared > gateSquared * 4) &&
-        ContinueGhostSurface(current, old, chosen, tolerance, precision, gate))
+    // Keep the extra texture reads inside a real branch: HLSL 2018 && does not short-circuit calls.
+    [branch] if (old.y > 1 && (current.x > old.x * (1 + tolerance) + precision || errorSquared > gateSquared * 4))
     {
-        StoreState(p, PackGhost(float4(current.x, max(0, min(old.y, nFrames) - 1), current.zw)));
-        return;
+        if (ContinueGhostSurface(current, old, chosen, tolerance, precision, gate))
+        {
+            StoreState(p, PackGhost(float4(current.x, max(0, min(old.y, nFrames) - 1), current.zw)));
+            return;
+        }
     }
     if (current.x > old.x * (1 + tolerance) + precision)
     {

@@ -395,6 +395,11 @@ int main(int argc, char** argv)
     try
     {
         Fixture f(argc < 2 || (std::string(argv[1]) != "--warp" && std::string(argv[1]) != "--contrast-quality-warp"));
+        if (argc == 4 && std::string(argv[1]) == "--road-visibility-timing")
+        {
+            StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, false, true);
+            return 0;
+        }
         if (argc == 2 && std::string(argv[1]) == "--road-quality")
         {
             RoadVisibilityQuality(f);

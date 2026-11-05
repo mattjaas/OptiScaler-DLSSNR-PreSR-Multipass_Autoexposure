@@ -16,7 +16,7 @@
     "coarse_radius": 1,
     "contrast": false
   },
-  "note": "Frozen-guide approximation, not an exact replay. User confirmed it reproduces the reported hole. No performance measurements were run for this task.",
+  "note": "Frozen-guide approximation, not an exact replay. User confirmed it reproduces the reported hole. Performance tests were subsequently explicitly authorized and executed; see performance section.",
   "road_audit": {
     "near_depth_plane_slope": 3.3024672176390755e-05,
     "intercept": -0.014570569625803732,
@@ -59,5 +59,121 @@
     "private_ghost_compact_2_Shader.cso",
     "private_ghost_history_Shader.cso"
   ],
-  "unchanged_psos": 91
+  "unchanged_psos": 91,
+  "performance": {
+    "007-static": {
+      "csv": "private-ghost-road-009-007-static.csv",
+      "gpu": "NVIDIA GeForce RTX 4090",
+      "size": [
+        2496,
+        1404
+      ],
+      "samples_per_variant": 128,
+      "mean_ms": [
+        0.0662,
+        0.065024
+      ],
+      "sd_ms": [
+        0.003515888221239687,
+        0.0022145797205299867
+      ],
+      "delta_ms": -0.001175999999999999,
+      "paired_difference_sd_ms": 0.0031146144809718226,
+      "approx_paired_95_ci_ms": [
+        -0.001954653620242955,
+        -0.00039734637975704344
+      ],
+      "quality": {
+        "pixels": 3504384,
+        "max_rgb_difference": 0,
+        "mean_rgb_difference": 0,
+        "rms_rgb_difference": 0,
+        "max_mask_difference": 0,
+        "changed_mask_pixels": 0,
+        "increased_mask_pixels": 0,
+        "decreased_mask_pixels": 0,
+        "strong_mask_lost_pixels": 0,
+        "soft_mask_pixels": 0,
+        "old_active_mask_pixels": 0,
+        "new_active_mask_pixels": 0,
+        "history_bit_exact": false
+      }
+    },
+    "009-static": {
+      "csv": "private-ghost-road-009-009-static.csv",
+      "gpu": "NVIDIA GeForce RTX 4090",
+      "size": [
+        2496,
+        1404
+      ],
+      "samples_per_variant": 128,
+      "mean_ms": [
+        0.070616,
+        0.07088
+      ],
+      "sd_ms": [
+        0.001996566753992864,
+        0.0010434684742209087
+      ],
+      "delta_ms": 0.0002639999999999986,
+      "paired_difference_sd_ms": 0.001306120780044285,
+      "approx_paired_95_ci_ms": [
+        -6.253019501107265e-05,
+        0.0005905301950110699
+      ],
+      "quality": {
+        "pixels": 3504384,
+        "max_rgb_difference": 1.25,
+        "mean_rgb_difference": 0.00302722,
+        "rms_rgb_difference": 0.0350683,
+        "max_mask_difference": 1,
+        "changed_mask_pixels": 249028,
+        "increased_mask_pixels": 248736,
+        "decreased_mask_pixels": 0,
+        "strong_mask_lost_pixels": 0,
+        "soft_mask_pixels": 233394,
+        "old_active_mask_pixels": 298368,
+        "new_active_mask_pixels": 537596,
+        "history_bit_exact": false
+      }
+    },
+    "009-moving": {
+      "csv": "private-ghost-road-009-009-moving.csv",
+      "gpu": "NVIDIA GeForce RTX 4090",
+      "size": [
+        2496,
+        1404
+      ],
+      "samples_per_variant": 128,
+      "mean_ms": [
+        0.0696,
+        0.07088
+      ],
+      "sd_ms": [
+        0.0029357721381681025,
+        0.0028847051678658263
+      ],
+      "delta_ms": 0.001280000000000004,
+      "paired_difference_sd_ms": 0.0005396953873354087,
+      "approx_paired_95_ci_ms": [
+        0.0011450761531661517,
+        0.0014149238468338563
+      ],
+      "quality": {
+        "pixels": 3504384,
+        "max_rgb_difference": 1.125,
+        "mean_rgb_difference": 0.00261915,
+        "rms_rgb_difference": 0.0313188,
+        "max_mask_difference": 1,
+        "changed_mask_pixels": 210436,
+        "increased_mask_pixels": 210380,
+        "decreased_mask_pixels": 0,
+        "strong_mask_lost_pixels": 0,
+        "soft_mask_pixels": 201820,
+        "old_active_mask_pixels": 188016,
+        "new_active_mask_pixels": 393908,
+        "history_bit_exact": false
+      }
+    }
+  }
 }

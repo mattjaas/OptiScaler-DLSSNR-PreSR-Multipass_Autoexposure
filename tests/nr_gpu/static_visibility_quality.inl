@@ -242,7 +242,7 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
 }
 
 void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false,
-                            bool contrast = false)
+                            bool contrast = false, bool road = false)
 {
     const unsigned radius = 1;
     const bool residual = true;
@@ -281,6 +281,17 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                                   x < left + (interior ? 0 : phase * 8) + w / 12 && y >= h / 6 && y < h * 5 / 6;
                     z[i] = object ? .03f : .01f;
                     mv[i] = interior ? (object ? 0.f : (phase ? -128.f : 128.f)) : object ? (phase ? -8.f : 8.f) : 0.f;
+                    if (road)
+                    {
+                        // Constant forward camera over an infinite plane; foreground moves with the camera.
+                        object = x >= w / 4 && x < w * 7 / 20 && y >= h / 2 && y < h * 9 / 10;
+                        const float roadDepth =
+                            std::max(.0001f, .046365f * (float(y) + .5f - float(h) * .314f) / float(h));
+                        z[i] = object ? .045f : roadDepth;
+                        const float k = 1.f / (1 + 2.5f * roadDepth);
+                        mv[i] = object ? 0.f : (float(x) + .5f - float(w) * .52f) * (k - 1);
+                        mv[i + 1] = object ? 0.f : (float(y) + .5f - float(h) * .314f) * (k - 1);
+                    }
                 }
             movingDepth[phase] = f.texture(w, h, &z, DXGI_FORMAT_R32_FLOAT);
             movingMotion[phase] = f.texture(w, h, &mv, DXGI_FORMAT_R32G32_FLOAT);
@@ -315,7 +326,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     f.r.finish();
     f.uploads.clear();
     std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    const std::string oldDir = contrast   ? dir
+    const std::string oldDir = road       ? "artifacts/ghost-study/road-baseline"
+                               : contrast ? dir
                                : interior ? "artifacts/ghost-study/occluded-interior-baseline"
                                           : "artifacts/ghost-study/static-baseline";
     auto clear = f.r.pipeline(dir, "private_ghost_clear"), baseScatter = f.r.pipeline(dir, "private_ghost_coarse_1"),
@@ -356,8 +368,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
             f.r.barrier(s.state[next].Get(), SRV, UAV);
         DlssNr::Superior::DlssNrConstants c {};
         DlssNr::GhostRejection::Settings settings { true, .01f, .02f, 1, false, 2 };
-        settings.historyFrames = 19;
-        settings.historyFade = 9;
+        settings.historyFrames = road ? 18 : 19;
+        settings.historyFade = road ? 12 : 9;
         settings.motionGate = 2.02f;
         DlssNr::Superior::Fields::SetGhostVisibility(c, mw, mh, w, h, settings, true, s.valid, 0);
 
@@ -461,7 +473,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     };
     const auto name = std::filesystem::path(stem).filename().string();
     const auto prefix = "artifacts/ghost-study/" + name +
-                        (contrast   ? ".contrast"
+                        (road       ? ".road"
+                         : contrast ? ".contrast"
                          : interior ? ".interior"
                                     : "") +
                         (moving ? ".moving-fix" : ".static-fix");
