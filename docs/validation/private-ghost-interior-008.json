@@ -1,0 +1,119 @@
+{
+  "007-static": {
+    "mean_ms": [
+      0.064976,
+      0.06484
+    ],
+    "sd_ms": [
+      0.0017937988721428012,
+      0.0016097967788796627
+    ],
+    "delta_ms": -0.0001360000000000111,
+    "samples_per_variant": 128,
+    "csv": "private-ghost-interior-008-007-static.csv",
+    "quality": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0,
+      "mean_rgb_difference": 0,
+      "rms_rgb_difference": 0,
+      "max_mask_difference": 0,
+      "changed_mask_pixels": 0,
+      "increased_mask_pixels": 0,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 0,
+      "old_active_mask_pixels": 0,
+      "new_active_mask_pixels": 0,
+      "history_bit_exact": false
+    }
+  },
+  "008-static": {
+    "mean_ms": [
+      0.072272,
+      0.07256
+    ],
+    "sd_ms": [
+      0.0019386890935822612,
+      0.0013883931912622278
+    ],
+    "delta_ms": 0.0002879999999999966,
+    "samples_per_variant": 128,
+    "csv": "private-ghost-interior-008-008-static.csv",
+    "quality": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.0844727,
+      "mean_rgb_difference": 0.000816727,
+      "rms_rgb_difference": 0.00285996,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 495576,
+      "increased_mask_pixels": 494727,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 234386,
+      "old_active_mask_pixels": 587474,
+      "new_active_mask_pixels": 982394,
+      "history_bit_exact": false
+    }
+  },
+  "008-moving": {
+    "mean_ms": [
+      0.072216,
+      0.070616
+    ],
+    "sd_ms": [
+      0.0028790535627742043,
+      0.0022048737425241476
+    ],
+    "delta_ms": -0.0016000000000000042,
+    "samples_per_variant": 128,
+    "csv": "private-ghost-interior-008-008-moving.csv",
+    "quality": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.0629883,
+      "mean_rgb_difference": 0.000237177,
+      "rms_rgb_difference": 0.0019497,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 91200,
+      "increased_mask_pixels": 91200,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 8672,
+      "old_active_mask_pixels": 50112,
+      "new_active_mask_pixels": 133280,
+      "history_bit_exact": false
+    }
+  },
+  "baseline": "b9924012a82022e4424931019d6ef6bccba54ace",
+  "gpu": "NVIDIA GeForce RTX 4090",
+  "size": [
+    2496,
+    1404
+  ],
+  "capture_008_sha256": {
+    ".json": "d746d3d4df7cead1b9f55eb767c716afd0eef4bbe9f1adffbf1c41d66a1d8772",
+    ".depth.dds": "23c5e87c3c63649db0c6df2bae952c9898c53ad886f935576ce7802aeaa8e22f",
+    ".motion.dds": "867b3e663a0bc1f1acbe41e50caf2fad7dea558e66c793e41c2fbf9ba541f152",
+    ".dds": "9e315bdc70bb1963eaaf946e1c98e3adc9a5e02fcb0bd3a3cabdb6a0ef123b27",
+    ".raw.dds": "9e315bdc70bb1963eaaf946e1c98e3adc9a5e02fcb0bd3a3cabdb6a0ef123b27",
+    ".after.dds": "40dd7ecded283715415e20d959a37466deea49d5f3b9bf2bf34213d000a7d480"
+  },
+  "settings": {
+    "method": 6,
+    "window": 19,
+    "fade": 9,
+    "radius": 1,
+    "depth_separation": 0.05,
+    "motion_gate_1080p": 2.02,
+    "gain": 1,
+    "global_fade": 0
+  },
+  "baseline_sha256": {
+    "private_ghost_history": "26a512917e41bff68aa47770aac8e18aa8c96d7864d258f31b45a24c76ba8cb3",
+    "private_ghost_compact_2": "e24d9757a5900aac0e81a23d0db88bc699159ab1e57ce4ee56fb2188a71c4c16",
+    "private_ghost_coarse_2": "60b78ce677cb1ffab4a91c8bdfc0531ef1cc57d998b18cd318d837879321d197"
+  },
+  "whole_region_sequences": 192,
+  "whole_region_active_expected_samples": 474240,
+  "whole_region_incorrect_baseline": 371184,
+  "whole_region_incorrect_after": 0
+}

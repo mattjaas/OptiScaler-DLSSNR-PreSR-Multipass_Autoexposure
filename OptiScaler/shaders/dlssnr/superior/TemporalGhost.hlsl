@@ -105,6 +105,29 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
         return;
     }
     bool relativeMotion = false;
+    // A fast background can reproject into the MIDDLE of a wide old occluder.
+    // Follow relative displacement to a previous background witness instead of requiring a nearby edge.
+    if (old.x > current.x + precision)
+    {
+        int2 q = int2(round(previousPos + (old.zw - current.zw) / 2));
+        if (Inside(q))
+        {
+            float4 neighbour = Previous.Load(int3(q, 0));
+            if (all(isfinite(neighbour)) && neighbour.x > 0 && neighbour.x <= current.x * 1.25 + precision &&
+                abs(neighbour.x - current.x) + precision < abs(old.x - current.x) * .5)
+            {
+                float2 neighbourDelta = current.zw - neighbour.zw;
+                bestSquared = min(bestSquared, dot(neighbourDelta, neighbourDelta));
+                float2 layerDelta = old.zw - neighbour.zw;
+                relativeMotion = dot(layerDelta, layerDelta) >= gateSquared;
+                if (relativeMotion && previousOccluder && old.x > neighbour.x * (1 + tolerance) + precision)
+                {
+                    WriteState[p] = float4(current.x, nFrames, current.zw);
+                    return;
+                }
+            }
+        }
+    }
     const int2 axis[4] = { int2(-1, 0), int2(1, 0), int2(0, -1), int2(0, 1) };
     [unroll] for (uint ring = 0; ring < 2; ++ring)[unroll] for (uint k = 0; k < 4; ++k)
     {
@@ -130,6 +153,24 @@ bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height
                 // A matching visible background layer and a different foreground motion prove disappearance.
                 WriteState[p] = float4(current.x, nFrames, current.zw);
                 return;
+            }
+        }
+    }
+    // For motion starting this frame, look where the old occluder would be now.
+    // Compare two CURRENT-frame MVs; this also handles a fast background around a still foreground.
+    if (!relativeMotion && old.x > current.x + precision)
+    {
+        int2 source = int2(round((previousPos + .5) * 2 - .5 - old.zw));
+        if (all(source >= 0) && source.x < int(fullWidth) && source.y < int(fullHeight))
+        {
+            float z = Depth.Load(int3(source, 0));
+            float nearZ = isfinite(z) && z >= 0 && z <= 1 ? (inverted != 0 ? z : 1 - z) : -1;
+            if (nearZ > current.x + precision && abs(nearZ - old.x) <= old.x * tolerance + precision)
+            {
+                float2 foreground = Motion.Load(int3(source, 0));
+                float2 layerDelta = foreground - current.zw;
+                relativeMotion = all(isfinite(foreground)) && all(abs(foreground) < 65504) &&
+                                 dot(layerDelta, layerDelta) >= gateSquared;
             }
         }
     }

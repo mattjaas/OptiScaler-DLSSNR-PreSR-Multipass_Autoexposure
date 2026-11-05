@@ -393,6 +393,21 @@ int main(int argc, char** argv)
     try
     {
         Fixture f(argc < 2 || std::string(argv[1]) != "--warp");
+        if (argc == 4 && std::string(argv[1]) == "--interior-visibility-timing")
+        {
+            StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true);
+            return 0;
+        }
+        if (argc == 2 && std::string(argv[1]) == "--wide-visibility-quality")
+        {
+            WideVisibilityQuality(f);
+            return 0;
+        }
+        if (argc == 2 && std::string(argv[1]) == "--wide-visibility-baseline")
+        {
+            WideVisibilityQuality(f, true);
+            return 0;
+        }
         if (argc == 3 && std::string(argv[1]) == "--moving-visibility-timing")
         {
             StaticVisibilityTiming(f, argv[2], true);
@@ -523,6 +538,7 @@ int main(int argc, char** argv)
         TemporalGhostQuality(f);
         StaticVisibilityQuality(f);
         RelativeVisibilityQuality(f);
+        WideVisibilityQuality(f);
         CompactGhostQuality(f);
         CompactTransportQuality(f);
         CompactGhostQuality(f, true);

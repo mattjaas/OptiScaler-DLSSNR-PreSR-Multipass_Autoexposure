@@ -1,4 +1,4 @@
-"""Extract the immutable d419c5e7 compact shaders for independent A/B and parity checks.
+"""Extract pinned historical shaders for independent A/B, regression and parity checks.
 
 No fallback to current blobs. Requires that commit in the local Git object database.
 """
@@ -30,6 +30,8 @@ def extract(commit,dest,stems):
 
 
 def main():
+    extract('b9924012a82022e4424931019d6ef6bccba54ace',ROOT/'artifacts/ghost-study/occluded-interior-baseline',
+            ('private_ghost_history','private_ghost_compact_2','private_ghost_coarse_2'))
     extract('21b0ce92d3c54956b87b11e535f3244fe7213b21',ROOT/'artifacts/ghost-study/static-baseline',
             ('private_ghost_history','private_ghost_compact_2','private_ghost_coarse_2'))
     extract('a13e22743e6d7e6324aacc581c64edcc403b4258',ROOT/'artifacts/ghost-study/compact-math-baseline',

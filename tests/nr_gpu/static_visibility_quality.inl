@@ -92,6 +92,69 @@ void RelativeVisibilityQuality(Fixture& f)
     std::cout << "Relative-layer visibility PASS: " << checks
               << " direction/speed/minimum/camera/frozen-expiry cases\n";
 }
+// Whole revealed regions, not just a few samples near a depth edge.
+void WideVisibilityQuality(Fixture& f, bool baseline = false)
+{
+    unsigned checks = 0, missing = 0, revealed = 0;
+    for (unsigned variant : { 0u, 1u, 2u, 3u })
+        for (bool reversed : { false, true })
+            for (unsigned bits : { 0u, 16u, 24u })
+                for (int speed : { -80, -40, 40, 80 })
+                    for (bool starting : { false, true })
+                    {
+                        const unsigned step = variant == 3 ? 4 : 2;
+                        TemporalGhostFixture t(f, 256, 64, variant != 0, variant == 2, step);
+                        if (baseline)
+                            t.age = f.r.pipeline("artifacts/ghost-study/occluded-interior-baseline",
+                                                 variant == 3 ? "private_ghost_coarse_2"
+                                                 : variant    ? "private_ghost_compact_2"
+                                                              : "private_ghost_history");
+                        t.Frame(80, 64, .03f, starting ? 0.f : float(speed), 0, false, reversed, false, bits);
+                        std::vector<unsigned> expected(t.mw * t.mh, 0);
+                        for (unsigned frame = 0; frame < 5; ++frame)
+                        {
+                            auto state = t.Frame(80, 64, .03f, float(speed), 0, false, reversed, false, bits);
+                            auto previous = expected;
+                            for (unsigned y = 0; y < t.mh; ++y)
+                                for (unsigned x = 0; x < t.mw; ++x)
+                                {
+                                    const int px = int(x * step), py = int(y * step), oldX = px + speed;
+                                    const bool currentObject = px >= 80 && px < 144 && py >= 16 && py < 48;
+                                    const bool oldObject = oldX >= 80 && oldX < 144 && py >= 16 && py < 48;
+                                    const size_t i = y * t.mw + x;
+                                    expected[i] = 0;
+                                    if (!currentObject && oldX >= 0 && oldX < 256)
+                                    {
+                                        if (oldObject)
+                                            expected[i] = 4;
+                                        else
+                                            expected[i] = previous[y * t.mw + unsigned(oldX) / step] > 0
+                                                              ? previous[y * t.mw + unsigned(oldX) / step] - 1
+                                                              : 0;
+                                    }
+                                    const float age = state[i * 4 + 1];
+                                    if (expected[i] > 0)
+                                        ++revealed;
+                                    if (age != expected[i])
+                                    {
+                                        ++missing;
+                                        if (!baseline)
+                                            throw std::runtime_error(
+                                                "Wide disocclusion coverage/expiry failed variant=" +
+                                                std::to_string(variant) + " starting=" + std::to_string(starting) +
+                                                " speed=" + std::to_string(speed) + " frame=" + std::to_string(frame) +
+                                                " x=" + std::to_string(px) + " y=" + std::to_string(py) + " age=" +
+                                                std::to_string(age) + " expected=" + std::to_string(expected[i]));
+                                    }
+                                }
+                        }
+                        ++checks;
+                    }
+    if (baseline && !missing)
+        throw std::runtime_error("Pinned interior-hole baseline did not reproduce missing timers");
+    std::cout << "Whole revealed-area " << (baseline ? "baseline" : "PASS") << ": " << checks << " sequences, "
+              << revealed << " active expected samples, " << missing << " incorrect timers\n";
+}
 void StaticVisibilityCapture(Fixture& f, const std::string& stem)
 {
     unsigned w, h, mw, mh;
@@ -120,7 +183,7 @@ void StaticVisibilityCapture(Fixture& f, const std::string& stem)
         }
 }
 
-void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false)
+void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false)
 {
     const unsigned radius = 1;
     const bool residual = true;
@@ -155,9 +218,10 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                 for (unsigned x = 0; x < w; ++x)
                 {
                     const size_t i = (size_t(y) * w + x) * 4;
-                    bool object = x >= left + phase * 8 && x < left + phase * 8 + w / 12 && y >= h / 6 && y < h * 5 / 6;
+                    bool object = x >= left + (interior ? 0 : phase * 8) &&
+                                  x < left + (interior ? 0 : phase * 8) + w / 12 && y >= h / 6 && y < h * 5 / 6;
                     z[i] = object ? .03f : .01f;
-                    mv[i] = object ? (phase ? -8.f : 8.f) : 0.f;
+                    mv[i] = interior ? (object ? 0.f : (phase ? -128.f : 128.f)) : object ? (phase ? -8.f : 8.f) : 0.f;
                 }
             movingDepth[phase] = f.texture(w, h, &z, DXGI_FORMAT_R32_FLOAT);
             movingMotion[phase] = f.texture(w, h, &mv, DXGI_FORMAT_R32G32_FLOAT);
@@ -184,7 +248,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     f.r.finish();
     f.uploads.clear();
     std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    const std::string oldDir = "artifacts/ghost-study/static-baseline";
+    const std::string oldDir =
+        interior ? "artifacts/ghost-study/occluded-interior-baseline" : "artifacts/ghost-study/static-baseline";
     auto clear = f.r.pipeline(dir, "private_ghost_clear"), baseScatter = f.r.pipeline(dir, "private_ghost_coarse_1"),
          baseAge = f.r.pipeline(oldDir, "private_ghost_coarse_2"),
          baseDecode = f.r.pipeline(dir, "private_carrier_coarse"),
@@ -286,7 +351,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         return ms;
     };
     const auto name = std::filesystem::path(stem).filename().string();
-    const auto prefix = "artifacts/ghost-study/" + name + (moving ? ".moving-fix" : ".static-fix");
+    const auto prefix =
+        "artifacts/ghost-study/" + name + (interior ? ".interior" : "") + (moving ? ".moving-fix" : ".static-fix");
     std::ofstream csv(prefix + "-timing.csv");
     csv << "sample,width,height,comparison,block,position,variant,ms\n";
     const unsigned blocks = 64;
