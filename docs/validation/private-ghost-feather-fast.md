@@ -34,3 +34,5 @@ RTX4090, 2496×1404, radius4@1080p, gain1, coarse radius1, kontrast RGB .02/.005
 `feather-fast`: poprzedni pełny feather vs uproszczony in-place. `feather`: feather Off vs nowy On. Narzut w tych warunkach spada z około .12ms do około .06ms. Sam cały tor maski skraca się o około .06ms (około30%). Nie przenosimy procentu na pełną klatkę ani inne GPU/promienie. [Statystyki i pokrycie](private-ghost-feather-fast.json); CSV obok.
 
 Odtworzenie: `tools/prepare_nr_compact_reference.py` pobiera **przypięte** shadery poprzedniej wersji, bez zastępowania ich bieżącymi. `private_exposure_quality --feather-fast-timing <stem> static|moving` oraz `--feather-timing <stem> static|moving`; pełne testy domyślne i `--warp` obejmują obie ścieżki jakości. Pojedyncza próbka nie przechowuje poprzednich klatek gry.
+
+Dodatkowy wariant dla metody6: [Coarse boundary rings,1–3warstwy o równomiernie malejącym kryciu](private-ghost-coarse-rings.md). Wariant Fast soft reconstruction pozostaje dostępny.

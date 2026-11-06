@@ -41,6 +41,9 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/private_ghost_feather_horizontal_Shader.h"
 #include "precompile/private_ghost_feather_apply_Shader.h"
 #include "precompile/private_ghost_feather_inplace_Shader.h"
+#include "precompile/private_ghost_feather_rings_Shader.h"
+#include "precompile/private_ghost_feather_rings_apply_Shader.h"
+#include "precompile/private_ghost_feather_rings_inplace_Shader.h"
 #include "precompile/private_ghost_scatter_Shader.h"
 #include "precompile/private_ghost_history_Shader.h"
 #include "precompile/private_ghost_contrast_history_Shader.h"
@@ -160,7 +163,7 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
 {
     using namespace DlssNr::Superior::Bytecode;
     const bool ghostRejection = DlssNr::Superior::Fields::CarrierGhostRejection(InConstants);
-    ID3D12PipelineState* pipeline = ghostRejection || (InConstants.Mode >= 49u && InConstants.Mode <= 56u)
+    ID3D12PipelineState* pipeline = ghostRejection || (InConstants.Mode >= 49u && InConstants.Mode <= 59u)
                                         ? nullptr
                                         : SuperiorPipeline(InConstants, InSource);
     const auto get = [&](unsigned index, const void* blob, size_t size)
@@ -265,6 +268,16 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
                    : InConstants.Mode == 56u
                        ? get(52u, private_ghost_feather_inplace_cso, sizeof(private_ghost_feather_inplace_cso))
                        : get(51u, private_ghost_feather_apply_cso, sizeof(private_ghost_feather_apply_cso));
+        if (!pipeline)
+            return false;
+    }
+    if (InConstants.Mode >= 57u && InConstants.Mode <= 59u)
+    {
+        pipeline =
+            InConstants.Mode == 57u ? get(53u, private_ghost_feather_rings_cso, sizeof(private_ghost_feather_rings_cso))
+            : InConstants.Mode == 58u
+                ? get(54u, private_ghost_feather_rings_apply_cso, sizeof(private_ghost_feather_rings_apply_cso))
+                : get(55u, private_ghost_feather_rings_inplace_cso, sizeof(private_ghost_feather_rings_inplace_cso));
         if (!pipeline)
             return false;
     }

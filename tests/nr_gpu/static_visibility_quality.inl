@@ -269,7 +269,7 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
 
 void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false,
                             bool contrast = false, bool road = false, bool brightness = false, bool sky = false,
-                            bool feather = false, bool fastCompare = false)
+                            bool feather = false, bool fastCompare = false, unsigned ringLayers = 0)
 {
     const unsigned radius = 1;
     const bool residual = true;
@@ -343,7 +343,7 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
             hist = f.texture(mw, mh, nullptr, DXGI_FORMAT_R32G32_UINT);
         if (feather && (k == 1 || fastCompare))
         {
-            const unsigned step = std::clamp(unsigned(std::ceil(4.f * h / 1080.f)), 1u, 128u);
+            const unsigned step = ringLayers ? 4u : std::clamp(unsigned(std::ceil(4.f * h / 1080.f)), 1u, 128u);
             s.featherHorizontal =
                 k == 0 ? f.texture(w, h, nullptr, DXGI_FORMAT_R16_FLOAT)
                        : f.texture((w + step - 1) / step, (h + step - 1) / step, nullptr, DXGI_FORMAT_R32G32_FLOAT);
@@ -373,8 +373,12 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
          scatter = f.r.pipeline(dir, "private_ghost_coarse_1"), age = f.r.pipeline(dir, "private_ghost_coarse_2"),
          decode16 = f.r.pipeline(dir, "private_carrier_coarse");
     auto dilate = f.r.pipeline(dir, "private_ghost_coarse_dilate_1");
-    auto featherH = feather ? f.r.pipeline(dir, "private_ghost_feather_horizontal") : ComPtr<ID3D12PipelineState> {};
-    auto featherApply = feather ? f.r.pipeline(dir, "private_ghost_feather_inplace") : ComPtr<ID3D12PipelineState> {};
+    auto featherH =
+        feather ? f.r.pipeline(dir, ringLayers ? "private_ghost_feather_rings" : "private_ghost_feather_horizontal")
+                : ComPtr<ID3D12PipelineState> {};
+    auto featherApply = feather ? f.r.pipeline(dir, ringLayers ? "private_ghost_feather_rings_inplace"
+                                                               : "private_ghost_feather_inplace")
+                                : ComPtr<ID3D12PipelineState> {};
     auto oldFeatherH =
         fastCompare ? f.r.pipeline("artifacts/ghost-study/feather-full-baseline", "private_ghost_feather_horizontal")
                     : ComPtr<ID3D12PipelineState> {};
@@ -444,6 +448,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                    (mh + 7) / 8, s.recon.Get(), previous, nullptr, nullptr, nullptr, 2, false);
         f.r.barrier(s.state[next].Get(), UAV, SRV);
         settings.method = 5;
+        settings.outwardMethod = ringLayers ? 1u : 0u;
+        settings.outwardLayers = ringLayers ? ringLayers : 1u;
         settings.contrastEnabled = contrast && (variant == 1 || brightness || feather);
         settings.contrastMetric = brightness && variant == 1 ? 1u : 0u;
         if (settings.contrastEnabled)
@@ -533,7 +539,7 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                            (fh + 7) / 8, guideDepth, nullptr, nullptr, nullptr, nullptr, 6, false);
                 f.r.barrier(s.featherHorizontal.Get(), UAV, SRV);
                 DlssNr::Superior::Fields::SetGhostOutwardFeather(c, w, h, settings, true, 0, 0, true);
-                c.Mode = 56;
+                c.Mode = ringLayers ? 59u : 56u;
                 f.r.barrier(out.Get(), SRV, UAV);
                 f.dispatch(featherApply.Get(), c, p.Get(), s.featherHorizontal.Get(), out.Get(), (w + 7) / 8,
                            (h + 7) / 8, guideDepth, p.Get(), r.Get(), nullptr, nullptr, 7, false);
@@ -556,14 +562,15 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     };
     const auto name = std::filesystem::path(stem).filename().string();
     const auto prefix = "artifacts/ghost-study/" + name +
-                        (fastCompare  ? ".feather-fast"
-                         : feather    ? ".feather"
-                         : sky        ? ".sky"
-                         : brightness ? ".brightness"
-                         : road       ? ".road"
-                         : contrast   ? ".contrast"
-                         : interior   ? ".interior"
-                                      : "") +
+                        (ringLayers    ? ".rings" + std::to_string(ringLayers)
+                         : fastCompare ? ".feather-fast"
+                         : feather     ? ".feather"
+                         : sky         ? ".sky"
+                         : brightness  ? ".brightness"
+                         : road        ? ".road"
+                         : contrast    ? ".contrast"
+                         : interior    ? ".interior"
+                                       : "") +
                         (moving ? ".moving-fix" : ".static-fix");
     std::ofstream csv(prefix + "-timing.csv");
     csv << "sample,width,height,comparison,block,position,variant,ms\n";

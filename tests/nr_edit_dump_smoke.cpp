@@ -198,6 +198,10 @@ int main(int argc, char** argv)
     fastMetadata.ghostRejection.contrastMetric = 1;
     fastMetadata.ghostRejection.outwardFeather = true;
     fastMetadata.ghostRejection.outwardRadius = 6;
+    fastMetadata.ghostRejection.outwardMethod = 1;
+    fastMetadata.ghostRejection.outwardLayers = 3;
+    assert(MetadataJson(fastMetadata).find("\"ghost_outward_feather_method\": 1") != std::string::npos);
+    assert(MetadataJson(fastMetadata).find("\"ghost_outward_feather_layers\": 3") != std::string::npos);
     assert(MetadataJson(fastMetadata).find("\"ghost_edit_contrast_after_positive_gain\": true") != std::string::npos);
     assert(MetadataJson(fastMetadata).find("\"ghost_outward_feather_enabled\": true") != std::string::npos);
     assert(MetadataJson(fastMetadata).find("\"ghost_outward_feather_radius_1080p\": 6") != std::string::npos);

@@ -401,6 +401,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "ghost_contrast_quality.inl"
 #include "road_visibility_quality.inl"
 #include "sky_feather_quality.inl"
+#include "coarse_boundary_rings_quality.inl"
 
 int main(int argc, char** argv)
 {
@@ -419,6 +420,16 @@ int main(int argc, char** argv)
         {
             SkyVisibilityQuality(f);
             OutwardFeatherQuality(f);
+            CoarseBoundaryRingsQuality(f);
+            return 0;
+        }
+        if (argc == 5 && std::string(argv[1]) == "--rings-timing")
+        {
+            unsigned layers = unsigned(std::stoul(argv[4]));
+            if (layers < 1 || layers > 3)
+                throw std::runtime_error("Expected 1-3 coarse layers");
+            StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, true, false, false, false, true,
+                                   false, layers);
             return 0;
         }
         if (argc == 4 && (std::string(argv[1]) == "--sky-timing" || std::string(argv[1]) == "--feather-timing" ||
@@ -622,6 +633,7 @@ int main(int argc, char** argv)
         GhostContrastQuality(f);
         SkyVisibilityQuality(f);
         OutwardFeatherQuality(f);
+        CoarseBoundaryRingsQuality(f);
         CompactGhostQuality(f);
         CompactTransportQuality(f);
         CompactGhostQuality(f, true);

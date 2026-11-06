@@ -145,10 +145,11 @@ inline void SetGhostOutwardFeather(DlssNrConstants& c, unsigned w, unsigned h,
 {
     const auto s = DlssNr::GhostRejection::Sanitize(settings);
     c = {};
-    c.Mode = apply ? 55u : 54u;
+    c.Mode = apply ? (s.outwardMethod == 1 ? 58u : 55u) : (s.outwardMethod == 1 ? 57u : 54u);
     c.Width = w;
     c.Height = h;
-    const unsigned step = std::clamp(unsigned(std::ceil(s.outwardRadius * float(h) / 1080.f)), 1u, 128u);
+    const unsigned step =
+        s.outwardMethod == 1 ? 4u : std::clamp(unsigned(std::ceil(s.outwardRadius * float(h) / 1080.f)), 1u, 128u);
     c.GuideWidth = step;
     c.GuideHeight = h;
     if (!apply)
@@ -156,6 +157,7 @@ inline void SetGhostOutwardFeather(DlssNrConstants& c, unsigned w, unsigned h,
         c.Width = (w + step - 1) / step;
         c.Height = (h + step - 1) / step;
     }
+    c.Passthrough = s.outwardLayers;
     c.WhitePoint = s.outwardRadius;
     c.TransferStrength = std::isfinite(globalRaw) ? std::clamp(globalRaw, 0.f, 1.f) : 0.f;
     c.ColourStrength = s.historyDepth;

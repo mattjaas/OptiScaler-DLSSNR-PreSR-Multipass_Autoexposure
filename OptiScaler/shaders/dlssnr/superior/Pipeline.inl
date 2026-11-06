@@ -1579,7 +1579,9 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         g.ghostFeatherFormatChecked = true;
     }
     const unsigned featherStep =
-        std::clamp(unsigned(std::ceil(effectiveGhost.outwardRadius * float(g.workHeight) / 1080.f)), 1u, 128u);
+        effectiveGhost.outwardMethod == 1
+            ? 4u
+            : std::clamp(unsigned(std::ceil(effectiveGhost.outwardRadius * float(g.workHeight) / 1080.f)), 1u, 128u);
     if (Fields::TemporalGhostRejection(decode) && effectiveGhost.outwardFeather &&
         Ensure(g.ghostFeatherHorizontal, g.device.Get(), DXGI_FORMAT_R32G32_FLOAT,
                (g.workWidth + featherStep - 1) / featherStep, (g.workHeight + featherStep - 1) / featherStep) &&
@@ -1596,7 +1598,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
                                            packedDepthPrecision, true);
             if (g.ghostFeatherTypedLoad)
             {
-                feather.Mode = 56u;
+                feather.Mode = effectiveGhost.outwardMethod == 1 ? 59u : 56u;
                 if (!Dispatch(shader, cmd, feather, proxy, g.ghostFeatherHorizontal.Get(), proxy, temporalDepth, answer,
                               nullptr, g.carrier))
                     g.carrier.To(cmd, Srv);

@@ -39,7 +39,10 @@ enum DlssNrMode : uint32_t
     DlssNrMode_PrivateGhostContrastDilate = 53,
     DlssNrMode_PrivateGhostFeatherHorizontal = 54,
     DlssNrMode_PrivateGhostFeatherApply = 55,
-    DlssNrMode_PrivateGhostFeatherInPlace = 56
+    DlssNrMode_PrivateGhostFeatherInPlace = 56,
+    DlssNrMode_PrivateGhostFeatherRings = 57,
+    DlssNrMode_PrivateGhostFeatherRingsApply = 58,
+    DlssNrMode_PrivateGhostFeatherRingsInPlace = 59
 };
 
 struct alignas(256) DlssNrConstants

@@ -1,0 +1,102 @@
+{
+  "1": {
+    "before": {
+      "mean_ms": 0.092152,
+      "sd_ms": 0.0024900943662351255,
+      "samples": 128
+    },
+    "after": {
+      "mean_ms": 0.158032,
+      "sd_ms": 0.004142320761522284,
+      "samples": 128
+    },
+    "delta_ms": 0.06588000000000001,
+    "mask": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.0793457,
+      "mean_rgb_difference": 4.22495e-05,
+      "rms_rgb_difference": 0.000726497,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 47187,
+      "increased_mask_pixels": 46382,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 38038,
+      "old_active_mask_pixels": 87058,
+      "new_active_mask_pixels": 120150,
+      "history_bit_exact": false
+    }
+  },
+  "2": {
+    "before": {
+      "mean_ms": 0.09009600000000001,
+      "sd_ms": 0.0037354027410434966,
+      "samples": 128
+    },
+    "after": {
+      "mean_ms": 0.169728,
+      "sd_ms": 0.004116108122819432,
+      "samples": 128
+    },
+    "delta_ms": 0.07963199999999998,
+    "mask": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.0793457,
+      "mean_rgb_difference": 5.56735e-05,
+      "rms_rgb_difference": 0.000827106,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 61985,
+      "increased_mask_pixels": 61245,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 52526,
+      "old_active_mask_pixels": 87058,
+      "new_active_mask_pixels": 134638,
+      "history_bit_exact": false
+    }
+  },
+  "3": {
+    "before": {
+      "mean_ms": 0.091928,
+      "sd_ms": 0.0010297476489278558,
+      "samples": 128
+    },
+    "after": {
+      "mean_ms": 0.184584,
+      "sd_ms": 0.003299414483966496,
+      "samples": 128
+    },
+    "delta_ms": 0.092656,
+    "mask": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.0793457,
+      "mean_rgb_difference": 6.68271e-05,
+      "rms_rgb_difference": 0.000910184,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 74757,
+      "increased_mask_pixels": 73802,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 65210,
+      "old_active_mask_pixels": 87058,
+      "new_active_mask_pixels": 147322,
+      "history_bit_exact": false
+    }
+  },
+  "device": "NVIDIA GeForce RTX 4090",
+  "resolution": [
+    2496,
+    1404
+  ],
+  "settings": {
+    "radius1080p": 4,
+    "coarse_radius": 1,
+    "history_window": 19,
+    "history_fade": 9,
+    "motion_gate1080p": 2.02,
+    "contrast_metric": 0,
+    "contrast_threshold": 0.02,
+    "contrast_softness": 0.005,
+    "gain": 1
+  }
+}

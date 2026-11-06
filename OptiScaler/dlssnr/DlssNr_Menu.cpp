@@ -4366,6 +4366,31 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                     "Depth prevents the new fringe from crossing onto closer occluding surfaces. Works with coarse "
                     "expansion 1. Default Off; adds a small mask field and one full-grid blend.");
                 ImGui::BeginDisabled(!ghost.outwardFeather);
+                const char* featherMethods[] = { "Fast soft reconstruction", "Coarse boundary rings (method 6)" };
+                if (ImGui::BeginCombo("Outward mask feather method", featherMethods[ghost.outwardMethod]))
+                {
+                    for (unsigned i = 0; i < 2; ++i)
+                    {
+                        ImGui::BeginDisabled(i == 1 && ghost.method != 5);
+                        if (ImGui::Selectable(featherMethods[i], ghost.outwardMethod == i))
+                        {
+                            ghost.outwardMethod = i;
+                            config->DlssNrSuperiorGhostOutwardMethod = i;
+                        }
+                        ImGui::EndDisabled();
+                    }
+                    ImGui::EndCombo();
+                }
+                HelpMarker(
+                    "Coarse boundary rings adds 1-3 square-cell layers outside method 6's final mask. "
+                    "Each layer fades equally: 1 = 50%; 2 = 67%, 33%; 3 = 75%, 50%, 25%. "
+                    "Uses the post-contrast mask and protects closer occluding depth. Existing coverage stays intact.");
+                ImGui::BeginDisabled(ghost.outwardMethod != 1);
+                int layers = int(ghost.outwardLayers);
+                if (ImGui::SliderInt("Added coarse boundary layers", &layers, 1, 3))
+                    config->DlssNrSuperiorGhostOutwardLayers = uint32_t(layers);
+                ImGui::EndDisabled();
+                ImGui::BeginDisabled(ghost.outwardMethod == 1);
                 if (ImGui::SliderFloat("Outward mask feather radius (1080p)", &ghost.outwardRadius, .25f, 32.f,
                                        "%.2f px"))
                     config->DlssNrSuperiorGhostOutwardRadius = ghost.outwardRadius;
@@ -4373,6 +4398,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                            "fringe slightly. "
                            "Default 4. Does not shrink the core or reset NR/DLSS history. A fringe can extend into a "
                            "neighbour cancelled by contrast, but not across a closer depth boundary.");
+                ImGui::EndDisabled();
                 ImGui::EndDisabled();
                 if (ImGui::SliderFloat("Disocclusion depth separation", &ghost.historyDepth, .001f, .5f, "%.3f"))
                     config->DlssNrSuperiorGhostHistoryDepth = ghost.historyDepth;
