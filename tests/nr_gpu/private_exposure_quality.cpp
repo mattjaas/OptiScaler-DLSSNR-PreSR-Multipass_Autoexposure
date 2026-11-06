@@ -410,6 +410,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "static_visibility_quality.inl"
 #include "ghost_contrast_quality.inl"
 #include "road_visibility_quality.inl"
+#include "pitch_road_quality.inl"
 #include "sky_feather_quality.inl"
 #include "coarse_boundary_rings_quality.inl"
 #include "edit_transport_quality.inl"
@@ -445,6 +446,31 @@ int main(int argc, char** argv)
             SkyVisibilityQuality(f);
             OutwardFeatherQuality(f);
             CoarseBoundaryRingsQuality(f);
+            return 0;
+        }
+        if (argc == 6 && std::string(argv[1]) == "--rings-preview")
+        {
+            auto layers = unsigned(std::stoul(argv[4]));
+            if (layers > 3)
+                throw std::runtime_error("Expected 0-3 preview layers");
+            FrozenVisibilityPreview(f, argv[2], unsigned(std::stoul(argv[3])), false, false, layers != 0, layers,
+                                    std::stof(argv[5]));
+            return 0;
+        }
+        if (argc == 4 && std::string(argv[1]) == "--pitch-timing")
+        {
+            StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", false, false, false, false, false,
+                                   false, false, 0, true);
+            return 0;
+        }
+        if (argc == 2 && std::string(argv[1]) == "--pitch-road-audit")
+        {
+            PitchRoadQuality(f, true, true);
+            return 0;
+        }
+        if (argc == 2 && std::string(argv[1]) == "--pitch-road-quality")
+        {
+            PitchRoadQuality(f);
             return 0;
         }
         if (argc == 5 && std::string(argv[1]) == "--rings-timing")
@@ -656,6 +682,7 @@ int main(int argc, char** argv)
         RelativeVisibilityQuality(f);
         WideVisibilityQuality(f);
         RoadVisibilityQuality(f);
+        PitchRoadQuality(f);
         GhostContrastQuality(f);
         SkyVisibilityQuality(f);
         OutwardFeatherQuality(f);

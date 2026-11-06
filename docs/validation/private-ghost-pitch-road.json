@@ -1,0 +1,70 @@
+{
+  "static": {
+    "before": {
+      "samples": 128,
+      "mean_ms": 0.071344,
+      "sd_ms": 0.0014315792282001642
+    },
+    "after": {
+      "samples": 128,
+      "mean_ms": 0.071048,
+      "sd_ms": 0.0023027538187149533
+    },
+    "delta_ms": -0.0002960000000000046,
+    "quality": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0,
+      "mean_rgb_difference": 0,
+      "rms_rgb_difference": 0,
+      "max_mask_difference": 0,
+      "changed_mask_pixels": 0,
+      "increased_mask_pixels": 0,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 148936,
+      "old_active_mask_pixels": 365580,
+      "new_active_mask_pixels": 365580,
+      "history_bit_exact": false
+    }
+  },
+  "moving": {
+    "before": {
+      "samples": 128,
+      "mean_ms": 0.071592,
+      "sd_ms": 0.0027260420156091023
+    },
+    "after": {
+      "samples": 128,
+      "mean_ms": 0.07317599999999999,
+      "sd_ms": 0.0033085512875044316
+    },
+    "delta_ms": 0.0015839999999999882,
+    "quality": {
+      "pixels": 3504384,
+      "max_rgb_difference": 0.660645,
+      "mean_rgb_difference": 0.0014609,
+      "rms_rgb_difference": 0.0108743,
+      "max_mask_difference": 1,
+      "changed_mask_pixels": 625272,
+      "increased_mask_pixels": 624817,
+      "decreased_mask_pixels": 0,
+      "strong_mask_lost_pixels": 0,
+      "soft_mask_pixels": 371496,
+      "old_active_mask_pixels": 190304,
+      "new_active_mask_pixels": 810504,
+      "history_bit_exact": false
+    }
+  },
+  "baseline_commit": "0301b61b1476fc0ded6f99c03c4a619b9ec2eda2",
+  "device": "NVIDIA GeForce RTX 4090",
+  "resolution": [
+    2496,
+    1404
+  ],
+  "warmup_pairs": 16,
+  "abba_blocks": 64,
+  "quality_sequences": 72,
+  "active_reference_samples": 454914,
+  "baseline_timer_errors": 145998,
+  "candidate_timer_errors": 0
+}

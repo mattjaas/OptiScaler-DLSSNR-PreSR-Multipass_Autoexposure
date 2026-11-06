@@ -26,6 +26,7 @@ RWTexture2D<uint2> WriteState : register(u1);
 uint2 PreviousState(int2 p) { return Previous.Load(int3(p, 0)); }
 uint2 CurrentState(int2 p) { return WriteState[p]; }
 void StoreState(int2 p, uint2 bits) { WriteState[p] = bits; }
+float4 PreviousGhostGuide(int2 p) { return UnpackGhost(PreviousState(p)); }
 #include "GhostSurfaceContinuation.hlsli"
 bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height); }
 #ifdef DLSSNR_COMPACT_WAVE_SCATTER

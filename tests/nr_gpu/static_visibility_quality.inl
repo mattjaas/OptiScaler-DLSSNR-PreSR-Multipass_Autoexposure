@@ -185,7 +185,8 @@ void StaticVisibilityCapture(Fixture& f, const std::string& stem)
 
 // Diagnostic only: frozen nonzero guides approximate a mask, never replay recorded temporal state.
 void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frames, bool baseline = false,
-                             bool skyBaseline = false, bool feather = false)
+                             bool skyBaseline = false, bool feather = false, unsigned ringLayers = 0,
+                             float motionGate = 2.f)
 {
     unsigned w, h, aw, ah, dw, dh, mw, mh;
     auto raw = GuidedPlane(stem + ".raw.dds", 4, 2, w, h), after = GuidedPlane(stem + ".after.dds", 4, 2, aw, ah),
@@ -202,7 +203,7 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
     if (baseline)
         t.age = f.r.pipeline("artifacts/ghost-study/road-baseline", "private_ghost_coarse_2");
     for (unsigned frame = 0; frame < frames; ++frame)
-        t.FrameGuides(depth, motion, false, true, 0, 18, 12, .05f, 2.f);
+        t.FrameGuides(depth, motion, false, true, 0, 18, 12, .05f, motionGate);
     const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
     f.r.begin();
     std::vector<float> zero(raw.size(), 0);
@@ -216,6 +217,9 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
     DlssNr::GhostRejection::Settings settings { true, .01f, .02f, 1, false, 5 };
     settings.historyFrames = 18;
     settings.historyFade = 12;
+    settings.outwardMethod = ringLayers ? 1u : 0u;
+    settings.outwardLayers = ringLayers ? ringLayers : 1u;
+    settings.motionGate = motionGate;
     DlssNr::Superior::DlssNrConstants c {};
     DlssNr::Superior::Fields::SetCoarseGhostDilate(c, t.mw, t.mh, settings);
     auto dilate = f.r.pipeline(dir, "private_ghost_coarse_dilate_1");
@@ -233,11 +237,14 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
                field.Get());
     if (feather)
     {
-        const unsigned step = std::clamp(unsigned(std::ceil(settings.outwardRadius * h / 1080.f)), 1u, 128u),
+        const unsigned step = ringLayers
+                                  ? 4u
+                                  : std::clamp(unsigned(std::ceil(settings.outwardRadius * h / 1080.f)), 1u, 128u),
                        fw = (w + step - 1) / step, fh = (h + step - 1) / step;
         auto horizontal = f.texture(fw, fh, nullptr, DXGI_FORMAT_R32G32_FLOAT), expanded = f.texture(w, h);
-        auto hp = f.visibilityPipeline("private_ghost_feather_horizontal"),
-             vp = f.visibilityPipeline("private_ghost_feather_apply");
+        auto hp = f.visibilityPipeline(ringLayers ? "private_ghost_feather_rings" : "private_ghost_feather_horizontal"),
+             vp =
+                 f.visibilityPipeline(ringLayers ? "private_ghost_feather_rings_apply" : "private_ghost_feather_apply");
         f.r.barrier(out.Get(), UAV, SRV);
         DlssNr::Superior::Fields::SetGhostOutwardFeather(c, w, h, settings, true, 0, 0, false);
         f.dispatch(hp.Get(), c, out.Get(), out.Get(), horizontal.Get(), (fw + 7) / 8, (fh + 7) / 8, d.Get());
@@ -250,10 +257,11 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
     auto values = f.read(out.Get());
     const auto name = std::filesystem::path(stem).filename().string();
     std::ofstream output("artifacts/ghost-study/" + name +
-                             (skyBaseline ? ".sky-baseline-"
-                              : feather   ? ".feather-mask-"
-                              : baseline  ? ".frozen-mask-baseline-"
-                                          : ".frozen-mask-") +
+                             (ringLayers    ? ".rings" + std::to_string(ringLayers) + "-mask-"
+                              : skyBaseline ? ".sky-baseline-"
+                              : feather     ? ".feather-mask-"
+                              : baseline    ? ".frozen-mask-baseline-"
+                                            : ".frozen-mask-") +
                              std::to_string(frames) + ".dds",
                          std::ios::binary);
     if (!DlssNr::EditDump::WriteRows(w, h, values.data(), size_t(w) * 16,
@@ -269,7 +277,7 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
 
 void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false,
                             bool contrast = false, bool road = false, bool brightness = false, bool sky = false,
-                            bool feather = false, bool fastCompare = false, unsigned ringLayers = 0)
+                            bool feather = false, bool fastCompare = false, unsigned ringLayers = 0, bool pitch = false)
 {
     const unsigned radius = 1;
     const bool residual = true;
@@ -319,6 +327,22 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                         mv[i] = object ? 0.f : (float(x) + .5f - float(w) * .52f) * (k - 1);
                         mv[i + 1] = object ? 0.f : (float(y) + .5f - float(h) * .314f) * (k - 1);
                     }
+                    if (pitch)
+                    {
+                        // Analytic plane with alternating camera pitch, independent of the mask algorithm.
+                        const double angle = phase ? .15 : .175, oldAngle = phase ? .175 : .15;
+                        const double delta = angle - oldAngle, focal = double(h) * .75;
+                        const double sy = (double(y) + .5 - h * .5) / focal, sx = (double(x) + .5 - w * .5) / focal;
+                        const double roadDepth = std::max(.00001, .015 * (std::sin(angle) + sy * std::cos(angle)));
+                        const double den = std::cos(delta) - sy * std::sin(delta) + 8 * roadDepth * std::cos(oldAngle);
+                        const double px = sx / den, py = (std::sin(delta) + sy * std::cos(delta) -
+                                                          8 * roadDepth * std::sin(oldAngle)) /
+                                                         den;
+                        object = x >= w * 3 / 8 && x < w * 49 / 80 && y >= h * 4 / 15 && y < h * 13 / 20;
+                        z[i] = object ? .06f : float(roadDepth);
+                        mv[i] = object ? 0.f : float((px - sx) * focal);
+                        mv[i + 1] = object ? 0.f : float((py - sy) * focal);
+                    }
                 }
             movingDepth[phase] = f.texture(w, h, &z, DXGI_FORMAT_R32_FLOAT);
             movingMotion[phase] = f.texture(w, h, &mv, DXGI_FORMAT_R32G32_FLOAT);
@@ -361,7 +385,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     f.r.finish();
     f.uploads.clear();
     std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
-    const std::string oldDir = sky                     ? "artifacts/ghost-study/sky-baseline"
+    const std::string oldDir = pitch                   ? "artifacts/ghost-study/pitch-baseline"
+                               : sky                   ? "artifacts/ghost-study/sky-baseline"
                                : (contrast || feather) ? dir
                                : road                  ? "artifacts/ghost-study/road-baseline"
                                : interior              ? "artifacts/ghost-study/occluded-interior-baseline"
@@ -421,7 +446,7 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         DlssNr::GhostRejection::Settings settings { true, .01f, .02f, 1, false, 2 };
         settings.historyFrames = road ? 18 : 19;
         settings.historyFade = road ? 12 : 9;
-        settings.motionGate = 2.02f;
+        settings.motionGate = pitch ? 2.5f : 2.02f;
         DlssNr::Superior::Fields::SetGhostVisibility(c, mw, mh, w, h, settings, true, s.valid, 0);
 
         if (!s.valid)
@@ -562,7 +587,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     };
     const auto name = std::filesystem::path(stem).filename().string();
     const auto prefix = "artifacts/ghost-study/" + name +
-                        (ringLayers    ? ".rings" + std::to_string(ringLayers)
+                        (pitch         ? ".pitch"
+                         : ringLayers  ? ".rings" + std::to_string(ringLayers)
                          : fastCompare ? ".feather-fast"
                          : feather     ? ".feather"
                          : sky         ? ".sky"

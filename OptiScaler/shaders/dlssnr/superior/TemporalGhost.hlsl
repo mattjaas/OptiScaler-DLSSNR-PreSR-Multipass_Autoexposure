@@ -41,6 +41,7 @@ float4 CurrentGuide(uint2 p, out float2 previousPos)
     previousPos = (float2(chosen) + .5 + mv) * .5 - .5;
     return valid ? float4(nearZ, 0, mv) : float4(0, 0, 0, 0);
 }
+float4 PreviousGhostGuide(int2 p) { return Previous.Load(int3(p, 0)); }
 #include "GhostSurfaceContinuation.hlsli"
 bool Inside(int2 p) { return all(p >= 0) && p.x < int(width) && p.y < int(height); }
 [numthreads(8, 8, 1)] void TemporalGhostMain(uint3 id : SV_DispatchThreadID)

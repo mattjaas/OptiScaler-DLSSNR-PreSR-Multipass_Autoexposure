@@ -43,3 +43,5 @@ RTX4090,2496×1404, ustawienia jak w JSON. Depth/MV to syntetyczny nieruchomy pr
 Wariant daje bezpośrednią kontrolę liczby punktów i spadku krycia. Nie deklarujemy, że będzie szybszy od Fast soft reconstruction: tutaj1warstwa ma podobny narzut, a2–3kosztują więcej. Poprzednie pomiary soft około.06ms są innym przebiegiem ABBA, nie jednoczesnym rankingiem obu algorytmów. Zmieniony kształt maski to świadomy kompromis. Samo pokrycie maski nie jest precision/recall ghostingu ani potwierdzeniem działania w grze. [Statystyki i pokrycie](private-ghost-coarse-rings.json); CSV obok.
 
 Odtworzenie: pełny `private_exposure_quality` / `--warp`, grupa `--sky-feather-quality[-warp]`; pomiar `--rings-timing <capture stem> moving <1|2|3>`.
+
+Kontynuacja licznika przy jednoczesnym ruchu kamery w górę: [poprawka niezależna od feather, reprodukcja i pomiary](private-ghost-pitch-road.md).
