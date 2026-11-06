@@ -20,6 +20,20 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/dlssnr_superior_resolve_Shader.h"
 #include "precompile/dlssnr_superior_sdr_Shader.h"
 #include "precompile/private_carrier_Shader.h"
+#include "precompile/private_transport_bounds_Shader.h"
+#include "precompile/private_transport_reduce_Shader.h"
+#include "precompile/private_affine_base_Shader.h"
+#include "precompile/private_affine_ghost_Shader.h"
+#include "precompile/private_affine_guided_Shader.h"
+#include "precompile/private_affine_temporal_Shader.h"
+#include "precompile/private_affine_simple_Shader.h"
+#include "precompile/private_affine_fast_Shader.h"
+#include "precompile/private_affine_fast_fade_Shader.h"
+#include "precompile/private_affine_coarse_Shader.h"
+#include "precompile/private_affine_contrast_temporal_Shader.h"
+#include "precompile/private_affine_contrast_simple_Shader.h"
+#include "precompile/private_affine_contrast_fast_Shader.h"
+#include "precompile/private_affine_contrast_coarse_Shader.h"
 #include "precompile/private_carrier_ghost_Shader.h"
 #include "precompile/private_carrier_guided_ghost_Shader.h"
 #include "precompile/private_carrier_temporal_ghost_Shader.h"
@@ -61,6 +75,32 @@ namespace DlssNr::Superior::Bytecode
 #include "precompile/private_carrier_contrast_coarse_1_Shader.h"
 #include "precompile/private_exposure_Shader.h"
 } // namespace DlssNr::Superior::Bytecode
+
+// Optional superset root: the original table and its descriptor ring stay unchanged. b1 is a GPU-written 256B buffer.
+bool DlssNr_Dx12::EnsureSuperiorTransportRoot()
+{
+    if (_superiorTransportRootAttempted)
+        return _superiorTransportRoot != nullptr;
+    _superiorTransportRootAttempted = true;
+    CD3DX12_DESCRIPTOR_RANGE1 ranges[3];
+    ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, kSrvCount, 0);
+    ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, kUavCount, 0);
+    ranges[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+    CD3DX12_ROOT_PARAMETER1 params[2];
+    params[0].InitAsDescriptorTable(3, ranges);
+    params[1].InitAsConstantBufferView(1, 0, D3D12_ROOT_DESCRIPTOR_FLAG_DATA_VOLATILE);
+    D3D12_STATIC_SAMPLER_DESC sampler {};
+    sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+    sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    sampler.MaxLOD = D3D12_FLOAT32_MAX;
+    sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC desc;
+    desc.Init_1_1(2, params, 1, &sampler);
+    Microsoft::WRL::ComPtr<ID3DBlob> blob, error;
+    return SUCCEEDED(D3D12SerializeVersionedRootSignature(&desc, &blob, &error)) &&
+           SUCCEEDED(_device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(),
+                                                  IID_PPV_ARGS(&_superiorTransportRoot)));
+}
 
 bool DlssNr_Dx12::EnsureSuperiorRing()
 {
@@ -159,11 +199,15 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
                                        const DlssNr::Superior::DlssNrConstants& InConstants, ID3D12Resource* InSource,
                                        ID3D12Resource* InModel, ID3D12Resource* InOriginal, ID3D12Resource* InMotion,
                                        ID3D12Resource* InPrevEdit, ID3D12Resource* InAux2, ID3D12Resource* OutTarget,
-                                       ID3D12Resource* OutKeep, uint32_t* immutableSlot)
+                                       ID3D12Resource* OutKeep, uint32_t* immutableSlot,
+                                       ID3D12Resource* transportCoefficients)
 {
     using namespace DlssNr::Superior::Bytecode;
+    const bool affine = DlssNr::Superior::Fields::CarrierTransport(InConstants) != 0;
+    if (affine && (!transportCoefficients || !EnsureSuperiorTransportRoot()))
+        return false;
     const bool ghostRejection = DlssNr::Superior::Fields::CarrierGhostRejection(InConstants);
-    ID3D12PipelineState* pipeline = ghostRejection || (InConstants.Mode >= 49u && InConstants.Mode <= 59u)
+    ID3D12PipelineState* pipeline = affine || ghostRejection || (InConstants.Mode >= 49u && InConstants.Mode <= 61u)
                                         ? nullptr
                                         : SuperiorPipeline(InConstants, InSource);
     const auto get = [&](unsigned index, const void* blob, size_t size)
@@ -173,131 +217,192 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
         if (!_superiorAttempted[index])
         {
             _superiorAttempted[index] = true;
-            CreateComputePipeline(_device, &_superiorPipeline[index], blob, size, nullptr);
+            if (index >= 58u)
+                CreateComputeShader(_device, _superiorTransportRoot.Get(), &_superiorPipeline[index], nullptr,
+                                    CD3DX12_SHADER_BYTECODE(blob, size));
+            else
+                CreateComputePipeline(_device, &_superiorPipeline[index], blob, size, nullptr);
         }
         return _superiorPipeline[index];
     };
     const bool contrastGhost = DlssNr::Superior::Fields::GhostEditContrast(InConstants);
-    if (ghostRejection && !contrastGhost && !DlssNr::Superior::Fields::CompactGhostRejection(InConstants))
-        pipeline = DlssNr::Superior::Fields::TemporalGhostRejection(InConstants)
-                       ? get(22u, private_carrier_temporal_ghost_cso, sizeof(private_carrier_temporal_ghost_cso))
-                   : DlssNr::Superior::Fields::GuidedGhostRejection(InConstants)
-                       ? get(18u, private_carrier_guided_ghost_cso, sizeof(private_carrier_guided_ghost_cso))
-                       : get(17u, private_carrier_ghost_cso, sizeof(private_carrier_ghost_cso));
-    if (!contrastGhost && DlssNr::Superior::Fields::CompactGhostRejection(InConstants))
+    if (!affine)
     {
-        if (InConstants.GuideHeight == 5u)
-            pipeline = InConstants.DirectDetailMode != 0u
-                           ? get(36u, private_carrier_coarse_answer_cso, sizeof(private_carrier_coarse_answer_cso))
-                           : get(35u, private_carrier_coarse_cso, sizeof(private_carrier_coarse_cso));
-        else if (InConstants.GuideHeight == 4u)
-            pipeline =
-                InConstants.DirectDetailMode != 0u
-                    ? get(28u, private_carrier_compact_fast_answer_cso, sizeof(private_carrier_compact_fast_answer_cso))
-                : DlssNr::Superior::Fields::PositiveUnfilteredEditWeight(InConstants)
-                    ? get(30u, private_carrier_compact_fast_fade_cso, sizeof(private_carrier_compact_fast_fade_cso))
-                    : get(27u, private_carrier_compact_fast_cso, sizeof(private_carrier_compact_fast_cso));
-        else
-            pipeline = InConstants.DirectDetailMode != 0u
-                           ? get(26u, private_carrier_compact_simple_answer_cso,
-                                 sizeof(private_carrier_compact_simple_answer_cso))
-                           : get(25u, private_carrier_compact_simple_cso, sizeof(private_carrier_compact_simple_cso));
-        if (!pipeline)
-            return false;
+        if (ghostRejection && !contrastGhost && !DlssNr::Superior::Fields::CompactGhostRejection(InConstants))
+            pipeline = DlssNr::Superior::Fields::TemporalGhostRejection(InConstants)
+                           ? get(22u, private_carrier_temporal_ghost_cso, sizeof(private_carrier_temporal_ghost_cso))
+                       : DlssNr::Superior::Fields::GuidedGhostRejection(InConstants)
+                           ? get(18u, private_carrier_guided_ghost_cso, sizeof(private_carrier_guided_ghost_cso))
+                           : get(17u, private_carrier_ghost_cso, sizeof(private_carrier_ghost_cso));
+        if (!contrastGhost && DlssNr::Superior::Fields::CompactGhostRejection(InConstants))
+        {
+            if (InConstants.GuideHeight == 5u)
+                pipeline = InConstants.DirectDetailMode != 0u
+                               ? get(36u, private_carrier_coarse_answer_cso, sizeof(private_carrier_coarse_answer_cso))
+                               : get(35u, private_carrier_coarse_cso, sizeof(private_carrier_coarse_cso));
+            else if (InConstants.GuideHeight == 4u)
+                pipeline =
+                    InConstants.DirectDetailMode != 0u ? get(28u, private_carrier_compact_fast_answer_cso,
+                                                             sizeof(private_carrier_compact_fast_answer_cso))
+                    : DlssNr::Superior::Fields::PositiveUnfilteredEditWeight(InConstants)
+                        ? get(30u, private_carrier_compact_fast_fade_cso, sizeof(private_carrier_compact_fast_fade_cso))
+                        : get(27u, private_carrier_compact_fast_cso, sizeof(private_carrier_compact_fast_cso));
+            else
+                pipeline = InConstants.DirectDetailMode != 0u ? get(26u, private_carrier_compact_simple_answer_cso,
+                                                                    sizeof(private_carrier_compact_simple_answer_cso))
+                                                              : get(25u, private_carrier_compact_simple_cso,
+                                                                    sizeof(private_carrier_compact_simple_cso));
+            if (!pipeline)
+                return false;
+        }
+        if (InConstants.Mode == 49u)
+        {
+            pipeline = InConstants.DebugView == 2u
+                           ? get(34u, private_ghost_coarse_dilate_2_cso, sizeof(private_ghost_coarse_dilate_2_cso))
+                           : get(33u, private_ghost_coarse_dilate_1_cso, sizeof(private_ghost_coarse_dilate_1_cso));
+            if (!pipeline)
+                return false;
+        }
+        if (InConstants.Mode == 50u || InConstants.Mode == 51u)
+        {
+            pipeline = InConstants.Mode == 50u
+                           ? get(31u, private_ghost_coarse_1_cso, sizeof(private_ghost_coarse_1_cso))
+                           : get(32u, private_ghost_coarse_2_cso, sizeof(private_ghost_coarse_2_cso));
+            if (!pipeline)
+                return false;
+        }
+        if (InConstants.Mode == 47u || InConstants.Mode == 48u)
+        {
+            pipeline = nullptr;
+            if (DlssNr::Superior::Fields::FastCompactScatter(InConstants))
+                pipeline = get(29u, private_ghost_compact_wave_cso, sizeof(private_ghost_compact_wave_cso));
+            // Devices that cannot create the wave shader retain the same algorithm via the ordinary scatter.
+            if (!pipeline)
+                pipeline = InConstants.Mode == 47u
+                               ? get(23u, private_ghost_compact_1_cso, sizeof(private_ghost_compact_1_cso))
+                               : get(24u, private_ghost_compact_2_cso, sizeof(private_ghost_compact_2_cso));
+            if (!pipeline)
+                return false;
+        }
+        if (InConstants.Mode >= 44u && InConstants.Mode <= 46u)
+        {
+            const void* blobs[] = { private_ghost_clear_cso, private_ghost_scatter_cso, private_ghost_history_cso };
+            const size_t sizes[] = { sizeof(private_ghost_clear_cso), sizeof(private_ghost_scatter_cso),
+                                     sizeof(private_ghost_history_cso) };
+            const unsigned stage = InConstants.Mode - 44u;
+            pipeline = get(19u + stage, blobs[stage], sizes[stage]);
+            if (!pipeline)
+                return false;
+        }
+        if (InConstants.Mode == 52u)
+        {
+            pipeline = InConstants.CompareMode == 5u
+                           ? get(39u, private_ghost_contrast_coarse_cso, sizeof(private_ghost_contrast_coarse_cso))
+                       : InConstants.CompareMode >= 3u
+                           ? get(38u, private_ghost_contrast_compact_cso, sizeof(private_ghost_contrast_compact_cso))
+                           : get(37u, private_ghost_contrast_history_cso, sizeof(private_ghost_contrast_history_cso));
+            if (!pipeline)
+                return false;
+        }
+        if (InConstants.Mode == 53u)
+        {
+            pipeline = InConstants.DebugView == 2u
+                           ? get(41u, private_ghost_contrast_dilate_2_cso, sizeof(private_ghost_contrast_dilate_2_cso))
+                           : get(40u, private_ghost_contrast_dilate_1_cso, sizeof(private_ghost_contrast_dilate_1_cso));
+            if (!pipeline)
+                return false;
+        }
+        if (InConstants.Mode >= 54u && InConstants.Mode <= 56u)
+        {
+            pipeline = InConstants.Mode == 54u ? get(50u, private_ghost_feather_horizontal_cso,
+                                                     sizeof(private_ghost_feather_horizontal_cso))
+                       : InConstants.Mode == 56u
+                           ? get(52u, private_ghost_feather_inplace_cso, sizeof(private_ghost_feather_inplace_cso))
+                           : get(51u, private_ghost_feather_apply_cso, sizeof(private_ghost_feather_apply_cso));
+            if (!pipeline)
+                return false;
+        }
+        if (InConstants.Mode >= 57u && InConstants.Mode <= 59u)
+        {
+            pipeline = InConstants.Mode == 57u
+                           ? get(53u, private_ghost_feather_rings_cso, sizeof(private_ghost_feather_rings_cso))
+                       : InConstants.Mode == 58u ? get(54u, private_ghost_feather_rings_apply_cso,
+                                                       sizeof(private_ghost_feather_rings_apply_cso))
+                                                 : get(55u, private_ghost_feather_rings_inplace_cso,
+                                                       sizeof(private_ghost_feather_rings_inplace_cso));
+            if (!pipeline)
+                return false;
+        }
+        if (contrastGhost)
+        {
+            const void* blobs[] = { private_carrier_contrast_temporal_0_cso, private_carrier_contrast_temporal_1_cso,
+                                    private_carrier_contrast_simple_0_cso,   private_carrier_contrast_simple_1_cso,
+                                    private_carrier_contrast_fast_0_cso,     private_carrier_contrast_fast_1_cso,
+                                    private_carrier_contrast_coarse_0_cso,   private_carrier_contrast_coarse_1_cso };
+            const size_t sizes[] = {
+                sizeof(private_carrier_contrast_temporal_0_cso), sizeof(private_carrier_contrast_temporal_1_cso),
+                sizeof(private_carrier_contrast_simple_0_cso),   sizeof(private_carrier_contrast_simple_1_cso),
+                sizeof(private_carrier_contrast_fast_0_cso),     sizeof(private_carrier_contrast_fast_1_cso),
+                sizeof(private_carrier_contrast_coarse_0_cso),   sizeof(private_carrier_contrast_coarse_1_cso)
+            };
+            const unsigned selected = 2u * (InConstants.GuideHeight - 2u) + (InConstants.DirectDetailMode != 0u);
+            pipeline = get(42u + selected, blobs[selected], sizes[selected]);
+            if (!pipeline)
+                return false;
+        }
     }
-    if (InConstants.Mode == 49u)
+    else
     {
-        pipeline = InConstants.DebugView == 2u
-                       ? get(34u, private_ghost_coarse_dilate_2_cso, sizeof(private_ghost_coarse_dilate_2_cso))
-                       : get(33u, private_ghost_coarse_dilate_1_cso, sizeof(private_ghost_coarse_dilate_1_cso));
-        if (!pipeline)
-            return false;
+        unsigned selected = 58;
+        if (ghostRejection)
+        {
+            if (contrastGhost)
+                selected = 66 + InConstants.GuideHeight - 2;
+            else if (InConstants.GuideHeight == 0)
+                selected = 59;
+            else if (InConstants.GuideHeight == 1)
+                selected = 60;
+            else if (InConstants.GuideHeight == 2)
+                selected = 61;
+            else if (InConstants.GuideHeight == 3)
+                selected = 62;
+            else if (InConstants.GuideHeight == 4)
+                selected = DlssNr::Superior::Fields::PositiveUnfilteredEditWeight(InConstants) ? 64 : 63;
+            else
+                selected = 65;
+        }
+        const void* blobs[] = { private_affine_base_cso,
+                                private_affine_ghost_cso,
+                                private_affine_guided_cso,
+                                private_affine_temporal_cso,
+                                private_affine_simple_cso,
+                                private_affine_fast_cso,
+                                private_affine_fast_fade_cso,
+                                private_affine_coarse_cso,
+                                private_affine_contrast_temporal_cso,
+                                private_affine_contrast_simple_cso,
+                                private_affine_contrast_fast_cso,
+                                private_affine_contrast_coarse_cso };
+        const size_t sizes[] = { sizeof(private_affine_base_cso),
+                                 sizeof(private_affine_ghost_cso),
+                                 sizeof(private_affine_guided_cso),
+                                 sizeof(private_affine_temporal_cso),
+                                 sizeof(private_affine_simple_cso),
+                                 sizeof(private_affine_fast_cso),
+                                 sizeof(private_affine_fast_fade_cso),
+                                 sizeof(private_affine_coarse_cso),
+                                 sizeof(private_affine_contrast_temporal_cso),
+                                 sizeof(private_affine_contrast_simple_cso),
+                                 sizeof(private_affine_contrast_fast_cso),
+                                 sizeof(private_affine_contrast_coarse_cso) };
+        pipeline = get(selected, blobs[selected - 58], sizes[selected - 58]);
     }
-    if (InConstants.Mode == 50u || InConstants.Mode == 51u)
-    {
-        pipeline = InConstants.Mode == 50u ? get(31u, private_ghost_coarse_1_cso, sizeof(private_ghost_coarse_1_cso))
-                                           : get(32u, private_ghost_coarse_2_cso, sizeof(private_ghost_coarse_2_cso));
-        if (!pipeline)
-            return false;
-    }
-    if (InConstants.Mode == 47u || InConstants.Mode == 48u)
-    {
-        pipeline = nullptr;
-        if (DlssNr::Superior::Fields::FastCompactScatter(InConstants))
-            pipeline = get(29u, private_ghost_compact_wave_cso, sizeof(private_ghost_compact_wave_cso));
-        // Devices that cannot create the wave shader retain the same algorithm via the ordinary scatter.
-        if (!pipeline)
-            pipeline = InConstants.Mode == 47u
-                           ? get(23u, private_ghost_compact_1_cso, sizeof(private_ghost_compact_1_cso))
-                           : get(24u, private_ghost_compact_2_cso, sizeof(private_ghost_compact_2_cso));
-        if (!pipeline)
-            return false;
-    }
-    if (InConstants.Mode >= 44u && InConstants.Mode <= 46u)
-    {
-        const void* blobs[] = { private_ghost_clear_cso, private_ghost_scatter_cso, private_ghost_history_cso };
-        const size_t sizes[] = { sizeof(private_ghost_clear_cso), sizeof(private_ghost_scatter_cso),
-                                 sizeof(private_ghost_history_cso) };
-        const unsigned stage = InConstants.Mode - 44u;
-        pipeline = get(19u + stage, blobs[stage], sizes[stage]);
-        if (!pipeline)
-            return false;
-    }
-    if (InConstants.Mode == 52u)
-    {
-        pipeline = InConstants.CompareMode == 5u
-                       ? get(39u, private_ghost_contrast_coarse_cso, sizeof(private_ghost_contrast_coarse_cso))
-                   : InConstants.CompareMode >= 3u
-                       ? get(38u, private_ghost_contrast_compact_cso, sizeof(private_ghost_contrast_compact_cso))
-                       : get(37u, private_ghost_contrast_history_cso, sizeof(private_ghost_contrast_history_cso));
-        if (!pipeline)
-            return false;
-    }
-    if (InConstants.Mode == 53u)
-    {
-        pipeline = InConstants.DebugView == 2u
-                       ? get(41u, private_ghost_contrast_dilate_2_cso, sizeof(private_ghost_contrast_dilate_2_cso))
-                       : get(40u, private_ghost_contrast_dilate_1_cso, sizeof(private_ghost_contrast_dilate_1_cso));
-        if (!pipeline)
-            return false;
-    }
-    if (InConstants.Mode >= 54u && InConstants.Mode <= 56u)
-    {
-        pipeline = InConstants.Mode == 54u
-                       ? get(50u, private_ghost_feather_horizontal_cso, sizeof(private_ghost_feather_horizontal_cso))
-                   : InConstants.Mode == 56u
-                       ? get(52u, private_ghost_feather_inplace_cso, sizeof(private_ghost_feather_inplace_cso))
-                       : get(51u, private_ghost_feather_apply_cso, sizeof(private_ghost_feather_apply_cso));
-        if (!pipeline)
-            return false;
-    }
-    if (InConstants.Mode >= 57u && InConstants.Mode <= 59u)
-    {
-        pipeline =
-            InConstants.Mode == 57u ? get(53u, private_ghost_feather_rings_cso, sizeof(private_ghost_feather_rings_cso))
-            : InConstants.Mode == 58u
-                ? get(54u, private_ghost_feather_rings_apply_cso, sizeof(private_ghost_feather_rings_apply_cso))
-                : get(55u, private_ghost_feather_rings_inplace_cso, sizeof(private_ghost_feather_rings_inplace_cso));
-        if (!pipeline)
-            return false;
-    }
-    if (contrastGhost)
-    {
-        const void* blobs[] = { private_carrier_contrast_temporal_0_cso, private_carrier_contrast_temporal_1_cso,
-                                private_carrier_contrast_simple_0_cso,   private_carrier_contrast_simple_1_cso,
-                                private_carrier_contrast_fast_0_cso,     private_carrier_contrast_fast_1_cso,
-                                private_carrier_contrast_coarse_0_cso,   private_carrier_contrast_coarse_1_cso };
-        const size_t sizes[] = {
-            sizeof(private_carrier_contrast_temporal_0_cso), sizeof(private_carrier_contrast_temporal_1_cso),
-            sizeof(private_carrier_contrast_simple_0_cso),   sizeof(private_carrier_contrast_simple_1_cso),
-            sizeof(private_carrier_contrast_fast_0_cso),     sizeof(private_carrier_contrast_fast_1_cso),
-            sizeof(private_carrier_contrast_coarse_0_cso),   sizeof(private_carrier_contrast_coarse_1_cso)
-        };
-        const unsigned selected = 2u * (InConstants.GuideHeight - 2u) + (InConstants.DirectDetailMode != 0u);
-        pipeline = get(42u + selected, blobs[selected], sizes[selected]);
-        if (!pipeline)
-            return false;
-    }
+    if (InConstants.Mode == 60u)
+        pipeline = get(56u, private_transport_bounds_cso, sizeof(private_transport_bounds_cso));
+    if (InConstants.Mode == 61u)
+        pipeline = get(57u, private_transport_reduce_cso, sizeof(private_transport_reduce_cso));
+    if ((InConstants.Mode == 60u || InConstants.Mode == 61u) && !pipeline)
+        return false;
     if (!pipeline && (InConstants.Mode == 37u || InConstants.Mode == 38u || InConstants.Mode == 39u || InConstants.Mode == 43u))
         return false;
     const bool privateExposure = InConstants.Mode >= 40u && InConstants.Mode <= 42u;
@@ -352,7 +457,17 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
         };
 
         for (uint32_t i = 0; i < kUavCount; ++i)
-            CreateUnorderedAccessView(_device, uavs[i], currentHeap.GetUavCPU(i), 0);
+            if (InConstants.Mode == 61u)
+            {
+                D3D12_UNORDERED_ACCESS_VIEW_DESC view {};
+                view.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+                view.Format = DXGI_FORMAT_R32_TYPELESS;
+                view.Buffer.NumElements = 64;
+                view.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+                _device->CreateUnorderedAccessView(uavs[i], nullptr, &view, currentHeap.GetUavCPU(i));
+            }
+            else
+                CreateUnorderedAccessView(_device, uavs[i], currentHeap.GetUavCPU(i), 0);
 
         if (!CreateConstantsBuffer(_device, _superiorConstantBuffers[slot], InConstants, currentHeap.GetCbvCPU(0)))
         {
@@ -366,13 +481,17 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
 
     ID3D12DescriptorHeap* heaps[] = { currentHeap.GetHeapCSU() };
     InCmdList->SetDescriptorHeaps(_countof(heaps), heaps);
-    InCmdList->SetComputeRootSignature(_rootSignature);
+    InCmdList->SetComputeRootSignature(affine ? _superiorTransportRoot.Get() : _rootSignature);
+    if (affine)
+        InCmdList->SetComputeRootConstantBufferView(1, transportCoefficients->GetGPUVirtualAddress());
     InCmdList->SetPipelineState(pipeline);
     InCmdList->SetComputeRootDescriptorTable(0, currentHeap.GetTableGPUStart());
 
     // Sized from the constants rather than from a resource, because the pass that shrinks the proxy
     // writes fewer pixels than its source has.
-    const UINT dispatchWidth = privateExposure ? (InConstants.Mode == 40u ? (InConstants.Width + 31u) / 32u : 1u)
+    const UINT dispatchWidth = InConstants.Mode == 60u   ? (InConstants.Width + 31) / 32
+                               : InConstants.Mode == 61u ? 1
+                               : privateExposure ? (InConstants.Mode == 40u ? (InConstants.Width + 31u) / 32u : 1u)
                                : InConstants.Mode == DlssNr::Superior::DlssNrMode_Meter
                                    ? InConstants.Width
                                    : (InConstants.Width + _numThreadsX - 1) / _numThreadsX;
@@ -380,7 +499,9 @@ bool DlssNr_Dx12::DispatchSuperiorPass(ID3D12GraphicsCommandList* InCmdList,
     const UINT threadsY = pipeline == _superiorPipeline[8] || pipeline == _superiorRawLow
                               ? DlssNr::SuperiorScaling::LowGroupHeight
                               : _numThreadsY;
-    const UINT dispatchHeight = privateExposure ? (InConstants.Mode == 40u ? (InConstants.Height + 31u) / 32u : 1u)
+    const UINT dispatchHeight = InConstants.Mode == 60u   ? (InConstants.Height + 31) / 32
+                                : InConstants.Mode == 61u ? 1
+                                : privateExposure ? (InConstants.Mode == 40u ? (InConstants.Height + 31u) / 32u : 1u)
                                 : InConstants.Mode == DlssNr::Superior::DlssNrMode_Meter
                                     ? InConstants.Height
                                     : (InConstants.Height + threadsY - 1) / threadsY;

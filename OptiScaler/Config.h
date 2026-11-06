@@ -453,6 +453,8 @@ class Config
     CustomOptional<bool> DlssNrSuperiorScalingDisableIsHDR { false };
     CustomOptional<bool> DlssNrSuperiorScalingDisableAutoExposure { false };
     CustomOptional<float> DlssNrSuperiorPositiveEditGain { 1.0f };
+    CustomOptional<float> DlssNrSuperiorAutoPositiveEditGainMax { 1024.f };
+    CustomOptional<uint32_t> DlssNrSuperiorEditTransportMode { 0 };
     // Shared measurement and opt-in automatic application; manual preference is retained.
     CustomOptional<float> DlssNrSuperiorGainPreviewFastDownSeconds { 1.f };
     CustomOptional<bool> DlssNrSuperiorGainPreviewBoundaryUseMotion { true };

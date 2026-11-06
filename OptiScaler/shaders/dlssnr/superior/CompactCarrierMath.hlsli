@@ -20,7 +20,11 @@ void CompactCarrierMath(int2 pixel, float gain)
             edit = DecodeNrAnswer(SanitizeFinite3(gSource.Load(p).rgb, proxy), proxy, gain);
         }
         else
+#ifdef DLSSNR_EDIT_TRANSPORT
+            edit = AffineDecode(gSource.Load(p).rgb);
+#else
             edit = DecodePositiveCarrier(SanitizeFinite3(gSource.Load(p).rgb, float3(.5, .5, .5)), gain);
+#endif
         if (rawWeight > 0)
             edit = lerp(edit, GhostRawEdit(pixel), rawWeight);
     }

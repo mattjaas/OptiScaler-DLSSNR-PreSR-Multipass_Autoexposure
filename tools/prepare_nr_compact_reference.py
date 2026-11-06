@@ -30,6 +30,7 @@ def extract(commit,dest,stems):
 
 
 def main():
+    extract('a1fd2b1bffa72ea7ec06e5c0cd6e6f5dbcf82b2e',ROOT/'artifacts/transport-modes/baseline',('private_carrier',))
     extract('ca52c0e35119dee1a13ec7b02438a020a7844bd8',ROOT/'artifacts/ghost-study/feather-full-baseline',
             ('private_ghost_feather_horizontal','private_ghost_feather_apply'))
     extract('c6a88c1d8f272b9a40e11b3e351488cf54883a47',ROOT/'artifacts/ghost-study/sky-baseline',

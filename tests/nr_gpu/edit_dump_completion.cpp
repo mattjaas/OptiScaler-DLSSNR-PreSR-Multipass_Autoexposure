@@ -29,7 +29,8 @@ void Run(bool hardware, D3D12_COMMAND_LIST_TYPE type, unsigned count)
         std::vector<float> expected;
     };
     std::array<Plane, Copy::MaxItems> planes;
-    const DXGI_FORMAT formats[] { DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32_FLOAT, DXGI_FORMAT_R32G32_FLOAT,
+    const DXGI_FORMAT formats[] { DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32_FLOAT,
+                                  DXGI_FORMAT_R32G32_FLOAT,       DXGI_FORMAT_R32G32B32A32_FLOAT,
                                   DXGI_FORMAT_R32G32B32A32_FLOAT, DXGI_FORMAT_R32G32B32A32_FLOAT };
     static_assert(std::size(formats)==Copy::MaxItems);
     for (unsigned i = 0; i < count; ++i)

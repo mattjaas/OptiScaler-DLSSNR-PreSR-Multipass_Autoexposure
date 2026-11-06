@@ -5,6 +5,8 @@
 #include "Constants.h"
 #include "../../../dlssnr/DlssNr_DepthTransport.h"
 #include "../../../dlssnr/DlssNr_GhostRejection.h"
+#include "../../../dlssnr/DlssNr_EditTransport.h"
+#include "../../../dlssnr/DlssNr_PrivateExposure.h"
 #include "../DlssNr_Common.h"
 
 // Superior passes reuse constant-buffer fields named for other modes (the v59 shader ABI and the shared resolve's
@@ -36,6 +38,35 @@ inline bool InterPassLowField(const DlssNrConstants& c) { return c.GuideWidth !=
 
 // Private carrier only: WhitePoint is unused by its encode/decode modes.
 inline void SetPositiveCarrierGain(DlssNrConstants& c, float gain) { c.WhitePoint = gain; }
+// Private carrier identity is explicit; stale retired colour slots can never activate it.
+inline void SetCarrierTransport(DlssNrConstants& c, uint32_t mode)
+{
+    mode = DlssNr::EditTransport::SanitizeMode(mode);
+    c.ExposureAnchors[0] = float(mode);
+    c.DirectResolveFlags = (c.DirectResolveFlags & 0x7fffffffu) | (mode ? 0x80000000u : 0u);
+}
+inline uint32_t CarrierTransport(const DlssNrConstants& c)
+{
+    if (c.DirectDetailMode != 0 || (c.DirectResolveFlags & 0x80000000u) == 0 ||
+        (c.Mode != 37u && c.Mode != 38u && c.Mode != 39u && c.Mode != 43u))
+        return 0;
+    return c.ExposureAnchors[0] == 1.f ? 1u : c.ExposureAnchors[0] == 2.f ? 2u : 0u;
+}
+static_assert(offsetof(DlssNrConstants, ExposureAnchors) == 176 &&
+              offsetof(DlssNrConstants, DirectResolveFlags) == 252);
+// Bounds/reduce use bytes 0..27: requested manual gain, source/block extent and mode selector at byte24.
+inline void SetEditTransportBounds(DlssNrConstants& c, unsigned width, unsigned height, unsigned mode, float gain,
+                                   bool reduce)
+{
+    c = {};
+    c.Mode = reduce ? 61u : 60u;
+    c.Width = width;
+    c.Height = height;
+    c.WhitePoint = DlssNr::PrivateExposure::PositiveGain(gain);
+    c.DebugView = DlssNr::EditTransport::SanitizeMode(mode);
+}
+static_assert(offsetof(DlssNrConstants, WhitePoint) == 4 && offsetof(DlssNrConstants, Width) == 8 &&
+              offsetof(DlssNrConstants, Height) == 12 && offsetof(DlssNrConstants, DebugView) == 24);
 // Carrier decode only: the otherwise unused exposure padding stores the raw-edit blend weight as float bits.
 inline void SetUnfilteredEditWeight(DlssNrConstants& c, float weight)
 {

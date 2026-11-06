@@ -45,6 +45,9 @@ inline PreviewSnapshot SnapshotPreview(const GainPreview::Status& status, double
 struct Metadata
 {
     bool paired = false;
+    uint32_t transportMode = 0;
+    float autoGainMaximum = 1024;
+    bool transportParametersIncluded = false;
     DepthTransport::Settings depthTransport;
     bool depthIncluded = false, originalGuides = false;
     unsigned dlssDepthW = 0, dlssDepthH = 0, dlssMotionW = 0, dlssMotionH = 0;
@@ -183,7 +186,16 @@ inline std::string MetadataJson(const Metadata& m)
     value("submission_epoch", m.submissionEpoch);
     value("width", m.width);
     value("height", m.height);
-    value("positive_gain", m.gain);
+    value("positive_gain", m.transportMode ? NAN : m.gain);
+    value("edit_transport_mode", m.transportMode);
+    out << ",\n  \"transported_dds_units\": \""
+        << (m.transportMode == 2 ? "shifted_nonnegative_dlss_input" : "signed_edit_after_gain_zero_neutral") << "\"";
+    value("requested_transport_multiplier", m.gain);
+    value("automatic_positive_gain_maximum", m.autoGainMaximum);
+    value("gpu_transport_parameters_included", m.transportParametersIncluded);
+    if (m.transportParametersIncluded)
+        out << ",\n  \"transport_parameters_suffix\": \".transport.dds\",\n  \"transport_parameters_layout\": "
+               "\"gain,bias,raw_min,raw_max\"";
     value("edit_saturation", m.saturation);
     value("depth_colour_strength", m.depthStrength);
     value("full_nr_answer", m.fullNrAnswer);

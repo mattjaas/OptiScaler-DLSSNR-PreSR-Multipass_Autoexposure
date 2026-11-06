@@ -65,7 +65,7 @@ struct Fixture
         return p;
     }
 
-    Fixture(bool hardware) : r(hardware, 64)
+    Fixture(bool hardware) : r(hardware, 64, 2, true)
     {
         const std::string dir = "OptiScaler/shaders/dlssnr/superior/precompile";
         meter = r.pipeline(dir, "private_exposure");
@@ -118,7 +118,7 @@ struct Fixture
                   ID3D12Resource* model, ID3D12Resource* target, UINT gx, UINT gy, ID3D12Resource* depth = nullptr,
                   ID3D12Resource* rawProxy = nullptr, ID3D12Resource* rawAnswer = nullptr,
                   ID3D12Resource* guideMotion = nullptr, double* gpuMs = nullptr, UINT tableSlot = 0,
-                  bool submit = true, ID3D12Resource* keep = nullptr)
+                  bool submit = true, ID3D12Resource* keep = nullptr, ID3D12Resource* transport = nullptr)
     {
         auto cpu = r.heap->GetCPUDescriptorHandleForHeapStart();
         cpu.ptr += SIZE_T(tableSlot) * 8 * r.stride;
@@ -143,11 +143,20 @@ struct Fixture
         {
             auto* write = i == 7 && keep ? keep : target;
             u.Format = write->GetDesc().Format;
+            if (write->GetDesc().Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+            {
+                u.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+                u.Format = DXGI_FORMAT_R32_TYPELESS;
+                u.Buffer.NumElements = 64;
+                u.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+            }
             r.device->CreateUnorderedAccessView(write, nullptr, &u, { cpu.ptr + SIZE_T(i) * r.stride });
         }
         auto b = r.buffer(256, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
         void* p; check(b->Map(0, nullptr, &p)); std::memcpy(p, &c, 256); b->Unmap(0, nullptr);
         r.list->SetComputeRootSignature(r.root.Get());
+        if (transport)
+            r.list->SetComputeRootConstantBufferView(2, transport->GetGPUVirtualAddress());
         ID3D12DescriptorHeap* heaps[] { r.heap.Get() }; r.list->SetDescriptorHeaps(1, heaps);
         auto gpu = r.heap->GetGPUDescriptorHandleForHeapStart();
         gpu.ptr += UINT64(tableSlot) * 8 * r.stride;
@@ -361,7 +370,8 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
             };
             auto roots = [&]
             {
-                r.list->SetComputeRootSignature(r.root.Get()); ID3D12DescriptorHeap* heaps[] { r.heap.Get() };
+                r.list->SetComputeRootSignature(r.root.Get());
+                ID3D12DescriptorHeap* heaps[] { r.heap.Get() };
                 r.list->SetDescriptorHeaps(1, heaps);
             };
             // Separate warmup for each variant; no warmup samples enter the report.
@@ -402,6 +412,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "road_visibility_quality.inl"
 #include "sky_feather_quality.inl"
 #include "coarse_boundary_rings_quality.inl"
+#include "edit_transport_quality.inl"
 
 int main(int argc, char** argv)
 {
@@ -409,7 +420,20 @@ int main(int argc, char** argv)
     {
         std::cout.setf(std::ios::unitbuf);
         Fixture f(argc < 2 || (std::string(argv[1]) != "--warp" && std::string(argv[1]) != "--contrast-quality-warp" &&
-                               std::string(argv[1]) != "--sky-feather-quality-warp"));
+                               std::string(argv[1]) != "--sky-feather-quality-warp" &&
+                               std::string(argv[1]) != "--transport-quality-warp"));
+        if (argc == 3 && std::string(argv[1]) == "--transport-timing")
+        {
+            EditTransportTiming(f, argv[2]);
+            return 0;
+        }
+        if (argc == 2 &&
+            (std::string(argv[1]) == "--transport-quality" || std::string(argv[1]) == "--transport-quality-warp"))
+        {
+            EditTransportQuality(f);
+            AffineGhostQuality(f);
+            return 0;
+        }
         if (argc == 4 && std::string(argv[1]) == "--brightness-contrast-timing")
         {
             StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, true, true, true);
@@ -623,6 +647,8 @@ int main(int argc, char** argv)
                 }
             std::cout << "Disabled colour transport bit parity PASS: " << cases << " cases\n"; return 0;
         }
+        EditTransportQuality(f);
+        AffineGhostQuality(f);
         GhostQuality(f);
         GuidedGhostQuality(f);
         TemporalGhostQuality(f);

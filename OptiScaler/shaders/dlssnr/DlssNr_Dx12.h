@@ -78,6 +78,9 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool _superiorRingAttempted = false;
     bool _superiorRingReady = false;
     bool EnsureSuperiorRing();
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> _superiorTransportRoot;
+    bool _superiorTransportRootAttempted = false;
+    bool EnsureSuperiorTransportRoot();
 
     static constexpr size_t kSuperiorResolveCount = 10;
     ID3D12PipelineState* _superiorResolve[kSuperiorResolveCount] {};
@@ -91,7 +94,7 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     ID3D12PipelineState* _superiorRawLow = nullptr;
     bool _superiorRawLowAttempted = false;
     ID3D12PipelineState* SuperiorRawLowPipeline();
-    static constexpr size_t kSuperiorPipelineCount = 56;
+    static constexpr size_t kSuperiorPipelineCount = 70;
     ID3D12PipelineState* _superiorPipeline[kSuperiorPipelineCount] {};
     bool _superiorAttempted[kSuperiorPipelineCount] {};
     ID3D12PipelineState* SuperiorPipeline(const DlssNr::Superior::DlssNrConstants&, ID3D12Resource*);
@@ -215,7 +218,8 @@ class DlssNr_Dx12 : public Shader_Dx12, public DlssNr_Common
     bool DispatchSuperiorPass(ID3D12GraphicsCommandList* cmd, const DlssNr::Superior::DlssNrConstants& constants,
                               ID3D12Resource* source, ID3D12Resource* model, ID3D12Resource* original,
                               ID3D12Resource* motion, ID3D12Resource* previous, ID3D12Resource* low,
-                              ID3D12Resource* target, ID3D12Resource* keep, uint32_t* immutableSlot = nullptr);
+                              ID3D12Resource* target, ID3D12Resource* keep, uint32_t* immutableSlot = nullptr,
+                              ID3D12Resource* transportCoefficients = nullptr);
 
     // One compute pass of Finished Picture's shader (dlssnr_finished_color.hlsl). Same descriptor
     // table shape as DispatchPass; binds _finishedColorPipelineState instead of _pipelineState.

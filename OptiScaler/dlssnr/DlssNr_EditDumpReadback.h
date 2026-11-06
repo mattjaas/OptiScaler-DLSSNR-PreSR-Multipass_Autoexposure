@@ -17,7 +17,8 @@ class ReadbackCopy
     Microsoft::WRL::ComPtr<ID3D12Fence> fence;
 
   public:
-    static constexpr unsigned MaxItems = 5; // edit + depth/MV + comparable before/after edits
+    static constexpr unsigned MaxItems =
+        6; // edit + depth/MV + comparable before/after edits + optional 1x1 transport coefficients
 
   private:
     std::array<Microsoft::WRL::ComPtr<ID3D12Resource>, MaxItems> sources, destinations;

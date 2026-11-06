@@ -46,7 +46,7 @@ struct ResidentCnn
     NVSDK_NGX_Handle* feature = nullptr;
     const void* creation = nullptr;
     unsigned waitedFrames = 0;
-    bool submitted = false, ready = false;
+    bool submitted = false, ready = false, transportReset = false;
     void DropNgx() { parameters = nullptr; feature = nullptr; }
     ~ResidentCnn()
     {
@@ -90,6 +90,9 @@ struct Generation
     bool disableIsHDR = false; // creation identity, independent of the game's HDR and AutoExposure
     uint32_t exposureMode = DlssNr::PrivateExposure::Native;
     float positiveGain = 1.f, manualExposure = 1.f;
+    uint32_t transportMode = 0;
+    bool mainTransportReset = false;
+    Texture transportBounds, transportCoefficients;
     bool originalGuides = false, originalMvLowRes = true, usedOriginalGuides = false, originalRejected = false;
     std::string originalGuideStatus;
     unsigned dlssDepthW = 0, dlssDepthH = 0, dlssMotionW = 0, dlssMotionH = 0;
@@ -211,7 +214,7 @@ struct EditDumpJob
     std::array<EditDumpGuide, DlssNr::EditDump::ReadbackCopy::MaxItems - 1> guides;
     unsigned guideCount = 0;
     bool paired = false;
-    unsigned rawEdit = 0, afterEdit = 0;
+    unsigned rawEdit = 0, afterEdit = 0, transportParameters = UINT_MAX;
     UINT64 budget = 512ull << 20;
     std::string metadata;
 };
@@ -288,9 +291,10 @@ void CollectEditDump()
         void* mapped = nullptr;
         const D3D12_RANGE range { 0, size_t(bytes) };
         if (FAILED(readback->Map(0, &range, &mapped)) || !mapped) return false;
-        const bool ok = DlssNr::EditDump::WriteRows(job->width, job->height,
-            static_cast<const char*>(mapped) + fp.Offset, fp.Footprint.RowPitch,
-            [&](const void* data, size_t count) { return writeBytes(file, data, count); }, format);
+        const bool ok = DlssNr::EditDump::WriteRows(
+            fp.Footprint.Width, fp.Footprint.Height, static_cast<const char*>(mapped) + fp.Offset,
+            fp.Footprint.RowPitch, [&](const void* data, size_t count) { return writeBytes(file, data, count); },
+            format);
         const D3D12_RANGE none { 0, 0 };
         readback->Unmap(0, &none);
         return ok;
@@ -307,11 +311,15 @@ void CollectEditDump()
         written = writeBytes(files.back(), job->metadata.data(), job->metadata.size());
     outputs.Finish(written);
     const auto utf8 = job->path.u8string();
-    s.editDumpStatus = written ? (job->paired ? "Saved ghosting sample: transported edit + raw before/after + depth + motion + settings: " :
-                                  job->guideCount == 2 ? "Saved edit + depth + motion + settings: " :
-                                  job->guideCount == 1 ? "Saved edit + transport depth + settings: " : "Saved edit + settings: ") +
-                                   std::string(utf8.begin(), utf8.end())
-                               : "Edit not saved: automatic filename reservation, GPU readback or file writing failed.";
+    s.editDumpStatus =
+        written
+            ? (job->paired ? "Saved ghosting sample: transported edit + raw before/after + depth + motion + settings: "
+               : job->transportParameters != UINT_MAX ? "Saved edit + GPU transport parameters + settings: "
+               : job->guideCount == 2                 ? "Saved edit + depth + motion + settings: "
+               : job->guideCount == 1                 ? "Saved edit + transport depth + settings: "
+                                                      : "Saved edit + settings: ") +
+                  std::string(utf8.begin(), utf8.end())
+            : "Edit not saved: automatic filename reservation, GPU readback or file writing failed.";
 }
 // Set by the first Superior frame. Until then the NGX shutdown path does not touch the NR lock at all.
 std::atomic_bool g_used = false;
@@ -469,7 +477,10 @@ bool Dispatch(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, const Constan
     if (keep)
         keep->To(cmd, Uav);
     if (!shader.DispatchSuperiorPass(cmd, c, source, model, original, motion, previous, low, output.Get(),
-                                     keep ? keep->Get() : nullptr, immutableSlot))
+                                     keep ? keep->Get() : nullptr, immutableSlot,
+                                     Fields::CarrierTransport(c) && GetState().current
+                                         ? GetState().current->transportCoefficients.Get()
+                                         : nullptr))
         return false;
     const auto finish = [&](Texture& texture, bool staysUav)
     {
@@ -481,7 +492,7 @@ bool Dispatch(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, const Constan
             cmd->ResourceBarrier(1, &barrier);
         }
         else
-            texture.To(cmd, Srv);
+            texture.To(cmd, c.Mode == 61u ? D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER : Srv);
     };
     finish(output, outputStaysUav);
     if (keep && keep != &output)
@@ -489,17 +500,22 @@ bool Dispatch(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, const Constan
     return true;
 }
 
-bool PrepareDumpGuide(EditDumpJob& job, unsigned index, ID3D12Resource* source,
-                      DlssNr::EditDump::Format format, const char* extension,
-                      UINT64& snapshots, UINT64& readbacks)
+bool PrepareDumpGuide(EditDumpJob& job, unsigned index, ID3D12Resource* source, DlssNr::EditDump::Format format,
+                      const char* extension, UINT64& snapshots, UINT64& readbacks, unsigned width = 0,
+                      unsigned height = 0)
 {
+    width = width ? width : job.width;
+    height = height ? height : job.height;
     if (index >= job.guides.size() || (!source && format != DlssNr::EditDump::Format::Rgba32Float)) return false;
-    auto desc = source ? source->GetDesc() : CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32B32A32_FLOAT,
-        job.width, job.height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    auto desc = source ? source->GetDesc()
+                       : CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32B32A32_FLOAT, width, height, 1, 1, 1, 0,
+                                                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
     if (desc.Dimension != D3D12_RESOURCE_DIMENSION_TEXTURE2D || desc.SampleDesc.Count != 1 ||
-        desc.DepthOrArraySize != 1 || desc.Width < job.width || desc.Height < job.height ||
-        uint32_t(desc.Format) != uint32_t(format)) return false;
-    desc.Width = job.width; desc.Height = job.height;
+        desc.DepthOrArraySize != 1 || desc.Width < width || desc.Height < height ||
+        uint32_t(desc.Format) != uint32_t(format))
+        return false;
+    desc.Width = width;
+    desc.Height = height;
     desc.MipLevels = 1; desc.Flags = source ? D3D12_RESOURCE_FLAG_NONE : D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS; desc.Alignment = 0;
     auto& guide = job.guides[index];
     guide.format = format; guide.extension = extension;
@@ -611,10 +627,24 @@ std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, 
             return {};
         }
     }
+    if (g.transportMode != 0)
+    {
+        job->transportParameters = job->guideCount;
+        if (!PrepareDumpGuide(*job, job->transportParameters, nullptr, DlssNr::EditDump::Format::Rgba32Float,
+                              ".transport.dds", snapshotTotal, readbackTotal, 1, 1))
+        {
+            s.editDumpStatus = "Edit not saved: GPU transport parameter snapshot allocation failed.";
+            return {};
+        }
+    }
     {
         const auto& cfg = *Config::Instance();
         DlssNr::EditDump::Metadata m;
         m.paired = paired;
+        m.transportMode = g.transportMode;
+        m.transportParametersIncluded = job->transportParameters != UINT_MAX;
+        m.autoGainMaximum =
+            DlssNr::EditTransport::AutoMaximum(cfg.DlssNrSuperiorAutoPositiveEditGainMax.value_or_default());
         const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
         m.guidesIncluded = withGuides;
         m.depthIncluded = withDepth;
@@ -672,6 +702,7 @@ std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, 
     c.Width = job->width;
     c.Height = job->height;
     Fields::SetPositiveCarrierGain(c, gain);
+    Fields::SetCarrierTransport(c, g.transportMode);
     Record(cmd);
     // Even a failed dispatch may have recorded a barrier referencing the snapshot.
     // Retain before recording anything that could leave a partial command sequence.
@@ -686,7 +717,7 @@ std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, 
         return {};
     }
     job->image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
-    const unsigned copiedGuides = paired ? job->rawEdit : job->guideCount;
+    const unsigned copiedGuides = withGuides ? 2u : 0u;
     for (unsigned i = 0; i < copiedGuides; ++i)
     {
         auto* source = i == 0 ? depth : motion;
@@ -700,6 +731,21 @@ std::shared_ptr<EditDumpJob> RecordEditDump(Generation& g, DlssNr_Dx12& shader, 
         cmd->CopyTextureRegion(&dst, 0, 0, 0, &src, &box);
         Barrier(cmd, source, D3D12_RESOURCE_STATE_COPY_SOURCE, Srv);
         guide.image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    }
+    if (job->transportParameters != UINT_MAX)
+    {
+        auto& parameters = job->guides[job->transportParameters];
+        parameters.image.To(cmd, D3D12_RESOURCE_STATE_COPY_DEST);
+        g.transportCoefficients.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        D3D12_TEXTURE_COPY_LOCATION src {}, dst {};
+        src.pResource = g.transportCoefficients.Get();
+        src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        src.PlacedFootprint.Footprint = { DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 1, 1, 256 };
+        dst.pResource = parameters.image.Get();
+        dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        cmd->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+        parameters.image.To(cmd, D3D12_RESOURCE_STATE_COPY_SOURCE);
+        g.transportCoefficients.To(cmd, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
     }
     if (paired)
     {
@@ -1272,6 +1318,61 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
     return coarse ? &h.softField : &h.state[next];
 }
 
+bool PrepareEditTransport(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Resource* proxy,
+                          ID3D12Resource* answer, float requestedGain)
+{
+    if (g.transportMode == 0)
+    {
+        if (!g.transportBounds.resource && !g.transportCoefficients.resource)
+            return true;
+        auto bounds = std::move(g.transportBounds.resource), coefficients = std::move(g.transportCoefficients.resource);
+        if (bounds || coefficients)
+            GetState().lifetime.Retire([bounds, coefficients] {});
+        g.transportBounds = {};
+        g.transportCoefficients = {};
+        return true;
+    }
+    const unsigned bx = (g.workWidth + 31) / 32, by = (g.workHeight + 31) / 32;
+    if (g.transportBounds.resource)
+    {
+        const auto d = g.transportBounds.Get()->GetDesc();
+        if (d.Width != bx || d.Height != by)
+        {
+            auto old = std::move(g.transportBounds.resource);
+            GetState().lifetime.Retire([old] {});
+            g.transportBounds = {};
+        }
+    }
+    if (!g.transportBounds.resource)
+    {
+        auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        auto desc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R32G32_FLOAT, bx, by, 1, 1, 1, 0,
+                                                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        if (FAILED(g.device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc, Srv, nullptr,
+                                                     IID_PPV_ARGS(&g.transportBounds.resource))))
+            return false;
+        g.transportBounds.state = Srv;
+    }
+    if (!g.transportCoefficients.resource)
+    {
+        auto heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+        auto desc = CD3DX12_RESOURCE_DESC::Buffer(256, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+        if (FAILED(g.device->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+                                                     D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER, nullptr,
+                                                     IID_PPV_ARGS(&g.transportCoefficients.resource))))
+            return false;
+        g.transportCoefficients.state = D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+    }
+    Record(cmd);
+    Constants c {};
+    Fields::SetEditTransportBounds(c, g.workWidth, g.workHeight, g.transportMode, requestedGain, false);
+    if (!Dispatch(shader, cmd, c, proxy, answer, nullptr, nullptr, nullptr, nullptr, g.transportBounds))
+        return false;
+    Fields::SetEditTransportBounds(c, bx, by, g.transportMode, requestedGain, true);
+    return Dispatch(shader, cmd, c, g.transportBounds.Get(), nullptr, nullptr, nullptr, nullptr, nullptr,
+                    g.transportCoefficients);
+}
+
 ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Resource* proxy,
                           ID3D12Resource* answer, ID3D12Resource* originalDepth, ID3D12Resource* originalMotion, const DlssNr::GuideRegions& regions,
                           const DlssNrFrameInfo& frame, bool reset, bool hold, ID3D12Resource* packedDepth,
@@ -1296,7 +1397,11 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         GetState().lifetime.Retire([old] {});
     }
     const bool filterNrAnswer = cfg.DlssNrSuperiorFilterNrAnswer.value_or_default();
-    const bool autoRequested = cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
+    const auto transportMode =
+        DlssNr::EditTransport::EffectiveMode(cfg.DlssNrSuperiorEditTransportMode.value_or_default(), filterNrAnswer);
+    const float autoMaximum =
+        DlssNr::EditTransport::AutoMaximum(cfg.DlssNrSuperiorAutoPositiveEditGainMax.value_or_default());
+    const bool autoRequested = transportMode == 0 && cfg.DlssNrSuperiorAutoPositiveEditGain.value_or_default();
     const bool measurementRequested = cfg.DlssNrSuperiorGainPreview.value_or_default() || autoRequested;
     const auto lowMotionSettings=DlssNr::LowMotionReset::Read(cfg);
     const uint64_t baseContext = uint64_t(g.workWidth) | (uint64_t(g.workHeight) << 16) |
@@ -1307,35 +1412,47 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     const uint64_t context = DlssNr::GainPreview::Context(baseContext,measurementSettings);
     const double now = (measurementRequested || lowMotionSettings.enabled) ? std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count() : 0;
     auto& runtime = GetState();
-    const bool supported = !filterNrAnswer && !cfg.DlssNrSuperiorOriginalGuides.value_or_default();
+    const bool supported =
+        transportMode == 0 && !filterNrAnswer && !cfg.DlssNrSuperiorOriginalGuides.value_or_default();
     // Auto never attenuates positive edit, including during warmup, fallback and secondary views.
-    float gain = autoRequested ? std::max(1.f, manualGain) : manualGain;
+    float gain = autoRequested        ? std::min(autoMaximum, std::max(1.f, manualGain))
+                 : transportMode == 1 ? 1.f
+                                      : manualGain;
     if (!g_viewSecondary && autoRequested)
     {
         // Reject a result from another device, grid, preset or private exposure context
         // before selecting this frame's gain, rather than resetting it after encoding.
         const auto estimate = runtime.preview.MatchesContext(g.device.Get(), context)
                                   ? runtime.preview.Get() : DlssNr::GainPreview::Status{};
-        gain = runtime.automaticGain.Update(autoRequested, supported, hold, manualGain, estimate,
-                                           g.device.Get(), context, now);
+        gain = runtime.automaticGain.Update(autoRequested, supported, hold, manualGain, estimate, g.device.Get(),
+                                            context, now, autoMaximum);
     }
     const bool automaticControlled = !g_viewSecondary && autoRequested && runtime.automaticGain.state.controlled;
 
     const bool gainChanged = gain != g.positiveGain;
-    const bool transformChanged = filterNrAnswer != g.filterNrAnswer;
+    const bool transformChanged = filterNrAnswer != g.filterNrAnswer || transportMode != g.transportMode;
     if (gainChanged || transformChanged)
     {
         g.positiveGain = gain;
         g.filterNrAnswer = filterNrAnswer;
+        if (transportMode != g.transportMode)
+            runtime.automaticGain.Reset();
+        g.transportMode = transportMode;
         // Automatic gain follows the existing DLSS history, explicitly requested for live regulation.
         // Manual gain and other transport changes retain their previous reset behaviour.
         if (DlssNr::AutoGain::ResetHistoryForTransport(gainChanged,autoRequested && supported,transformChanged))
         {
             g.reset = true;
+            g.mainTransportReset = true;
+            if (g.residentCnn)
+                g.residentCnn->transportReset = true;
             for (auto& h : g.exposure) h.initialized = false;
         }
     }
+    if (!PrepareEditTransport(g, shader, cmd, proxy, answer, gain))
+        return nullptr;
     auto encode = GuideConstants(g.workWidth, g.workHeight, regions, frame, true, hold);
+    Fields::SetCarrierTransport(encode, transportMode);
     Fields::SetPositiveCarrierGain(encode, gain);
     Fields::SetCarrierDepthConvention(encode, g.inverted);
     Fields::SetCarrierNrAnswer(encode, filterNrAnswer);
@@ -1379,7 +1496,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
             g.depth.To(cmd, Uav);
             g.carrier.To(cmd, Uav);
             g.temporalMotion.To(cmd, Uav);
-            prepared = shader.DispatchSuperiorPrivateGuides(cmd, fused, proxy, answer, packedDepth, packedMotion,
+            prepared = transportMode == 0 &&
+                       shader.DispatchSuperiorPrivateGuides(cmd, fused, proxy, answer, packedDepth, packedMotion,
                                                             g.depth.Get(), g.temporalMotion.Get(), g.carrier.Get());
             if (prepared)
             {
@@ -1510,7 +1628,8 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     p->Set(NVSDK_NGX_Parameter_ExposureTexture, exposure);
     p->Set(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Width, g.workWidth);
     p->Set(NVSDK_NGX_Parameter_DLSS_Render_Subrect_Dimensions_Height, g.workHeight);
-    p->Set(NVSDK_NGX_Parameter_Reset, (unsigned) (reset || g.reset));
+    p->Set(NVSDK_NGX_Parameter_Reset,
+           (unsigned) (reset || g.reset || (idle ? g.residentCnn->transportReset : g.mainTransportReset)));
     p->Set(NVSDK_NGX_Parameter_Jitter_Offset_X, 0.0f);
     p->Set(NVSDK_NGX_Parameter_Jitter_Offset_Y, 0.0f);
     p->Set(NVSDK_NGX_Parameter_MV_Scale_X, dlssMvX);
@@ -1532,6 +1651,10 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         Say("Private DLSS evaluation failed; keeping the game frame.");
         return nullptr;
     }
+    if (idle)
+        g.residentCnn->transportReset = false;
+    else
+        g.mainTransportReset = false;
     g.temporalOutput.To(cmd, Srv);
     if (g.exposureMode >= DlssNr::PrivateExposure::LegacyCNN)
         ++g.exposure[g.exposureMode - DlssNr::PrivateExposure::LegacyCNN].evaluations;
@@ -1540,6 +1663,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
     decode.Width = g.workWidth;
     decode.Height = g.workHeight;
     Fields::SetPositiveCarrierGain(decode, gain);
+    Fields::SetCarrierTransport(decode, transportMode);
     Fields::SetCarrierDepthConvention(decode, g.inverted);
     Fields::SetCarrierNrAnswer(decode, filterNrAnswer);
     RecordAfterEditDump(pairedDump, g, shader, cmd, decode, proxy, nullptr);

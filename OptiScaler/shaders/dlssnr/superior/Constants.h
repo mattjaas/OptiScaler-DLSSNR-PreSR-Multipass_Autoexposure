@@ -42,7 +42,9 @@ enum DlssNrMode : uint32_t
     DlssNrMode_PrivateGhostFeatherInPlace = 56,
     DlssNrMode_PrivateGhostFeatherRings = 57,
     DlssNrMode_PrivateGhostFeatherRingsApply = 58,
-    DlssNrMode_PrivateGhostFeatherRingsInPlace = 59
+    DlssNrMode_PrivateGhostFeatherRingsInPlace = 59,
+    DlssNrMode_PrivateTransportBounds = 60,
+    DlssNrMode_PrivateTransportReduce = 61
 };
 
 struct alignas(256) DlssNrConstants

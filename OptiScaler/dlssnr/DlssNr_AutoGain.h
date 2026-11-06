@@ -1,6 +1,7 @@
 #pragma once
 #include "DlssNr_GainPreview.h"
 #include "DlssNr_PrivateExposure.h"
+#include "DlssNr_EditTransport.h"
 
 namespace DlssNr::AutoGain
 {
@@ -16,7 +17,7 @@ struct Status
     std::string text = "Automatic multiplier disabled.";
 };
 // CPU-only actuator. The saved manual preference is never overwritten.
-// Every actual gain change still resets the private DLSS history in Stabilize.
+// Automatic changes preserve private DLSS history; the manual preference remains independent of the ceiling.
 class Controller
 {
     const void* device = nullptr;
@@ -30,9 +31,19 @@ class Controller
     Status state;
     void Reset() { *this = {}; }
     float Update(bool enabled, bool supported, bool hold, float manual, const GainPreview::Status& estimate,
-                 const void* currentDevice, uint64_t currentContext, double now)
+                 const void* currentDevice, uint64_t currentContext, double now, float maximum = 1024.f)
     {
+        maximum = EditTransport::AutoMaximum(maximum);
         manual = PrivateExposure::PositiveGain(manual);
+        if (enabled)
+        {
+            manual = std::min(manual, maximum);
+            if (state.applied > maximum)
+            {
+                state.applied = maximum;
+                ++state.changes;
+            }
+        }
         if (!enabled || !supported)
         {
             if (haveContext || state.controlled || state.enabled != enabled)
@@ -71,7 +82,7 @@ class Controller
         if (estimate.measurements == lastMeasurement)
             return state.applied;
         lastMeasurement = estimate.measurements;
-        const float target = std::max(1.f, estimate.smoothed);
+        const float target = std::min(maximum, std::max(1.f, estimate.smoothed));
         // Asymmetric hysteresis: follow increases sooner; avoid oscillating down/up.
         const bool outsideBand = target >= double(state.applied) * 1.02 || target <= double(state.applied) / 1.05;
         if (!state.controlled || (outsideBand && now - lastChange >= Cooldown))

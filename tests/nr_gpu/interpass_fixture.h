@@ -16,7 +16,7 @@ struct Runner
     UINT stride;
     UINT64 serial = 0;
     HANDLE event;
-    Runner(bool hardware, UINT descriptors = 8, UINT uavs = 2)
+    Runner(bool hardware, UINT descriptors = 8, UINT uavs = 2, bool transport = false)
     {
         ComPtr<IDXGIFactory4> factory; check(CreateDXGIFactory1(IID_PPV_ARGS(&factory)));
         ComPtr<IDXGIAdapter1> adapter;
@@ -36,7 +36,7 @@ struct Runner
         ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
         ranges[1].NumDescriptors = uavs;
         ranges[1].OffsetInDescriptorsFromTableStart = 6;
-        D3D12_ROOT_PARAMETER params[2]{};
+        D3D12_ROOT_PARAMETER params[3] {};
         params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
         params[0].DescriptorTable = {2, ranges};
         params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
@@ -44,7 +44,9 @@ struct Runner
         sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
         sampler.AddressU = sampler.AddressV = sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
         sampler.MaxLOD = D3D12_FLOAT32_MAX;
-        D3D12_ROOT_SIGNATURE_DESC desc{2, params, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_NONE};
+        params[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+        params[2].Descriptor.ShaderRegister = 1;
+        D3D12_ROOT_SIGNATURE_DESC desc { transport ? 3u : 2u, params, 1, &sampler, D3D12_ROOT_SIGNATURE_FLAG_NONE };
         ComPtr<ID3DBlob> blob, errors;
         check(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &blob, &errors));
         check(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&root)));

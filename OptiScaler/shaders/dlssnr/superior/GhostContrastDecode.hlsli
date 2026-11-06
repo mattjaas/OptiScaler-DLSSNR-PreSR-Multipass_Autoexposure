@@ -34,10 +34,15 @@ float GhostContrastMask(int2 pixel, float mask)
         return 0;
     // Apply the CURRENT effective transport gain independently to both signed edits.
     // Multiplying their difference is wrong when only one edit component is positive.
+#ifdef DLSSNR_EDIT_TRANSPORT
+    // The common affine offset cancels; both positive and negative edits use the same frame gain.
+    float3 signedDifference = (GhostRawEdit(pixel) - reference.rgb / reference.a) * AffineGain();
+#else
     float gain = PositiveCarrierGain(gWhitePoint);
     float3 currentEdit = GhostRawEdit(pixel), oldEdit = reference.rgb / reference.a;
     float3 signedDifference =
         min(currentEdit, 0) + max(currentEdit, 0) * gain - (min(oldEdit, 0) + max(oldEdit, 0) * gain);
+#endif
     float distance;
     // Compare one brightness scalar; take abs AFTER the sum so equal-brightness colours can cancel.
     // Unknown/nonfinite selectors retain the existing RGB criterion.

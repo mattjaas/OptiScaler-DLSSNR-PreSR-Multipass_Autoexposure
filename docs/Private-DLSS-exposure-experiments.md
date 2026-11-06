@@ -260,3 +260,7 @@ No shader/blob changes or additional GPU passes relative to preview metering. Lo
 [Current controls and validation](NR-private-controls-update.md) add automatic capture suffixes, optional local/global MV checks for the boundary meter, configurable pair count, separate catch-up up/down times, and private CNN A/C/D/E or Transformer J/K overrides. These settings have complete INI/profile round-trip. Explicit preset creation failures do not silently fall back to the runtime default.
 
 Aktualizacja: [trzy rodziny modeli, osobne cele i cykliczny reset przy niskim MV](NR-private-models-low-motion.md).
+
+## Additional edit transport modes
+
+The default remains positive-only. [Shared symmetric auto-to-zero, shift-minimum transport, automatic positive-gain maximum, GPU parameters and validation](validation/private-edit-transport-modes.md) describe the opt-in modes and their matching inverses/contrast/captures.

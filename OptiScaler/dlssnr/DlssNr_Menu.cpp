@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "DlssNr_PrivateExposure.h"
+#include "DlssNr_EditTransport.h"
 #include "DlssNr_GhostRejection.h"
 #include "DlssNrFeature_Vk.h"
 
@@ -4448,25 +4449,66 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             }
             ImGui::EndDisabled();
             ImGui::EndDisabled();
-            const bool previewInputSupported =
-                !filterNrAnswer && !config->DlssNrSuperiorOriginalGuides.value_or_default();
-            ImGui::BeginDisabled(automaticGain && previewInputSupported);
-            if (ImGui::SliderFloat("Positive NR edit transport multiplier", &gain, .01f, 64.f, "%.3fx",
-                                   ImGuiSliderFlags_Logarithmic))
-                config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
-            if (ImGui::InputFloat("Exact transport multiplier", &gain, .01f, 1.f, "%.4f"))
-                config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
+            uint32_t transportMode =
+                DlssNr::EditTransport::SanitizeMode(config->DlssNrSuperiorEditTransportMode.value_or_default());
+            ImGui::BeginDisabled(filterNrAnswer);
+            const char* transportModes[] = { "Positive edit only", "Symmetric auto to zero",
+                                             "Shift minimum to zero, then multiply" };
+            int selectedTransport = int(transportMode);
+            if (ImGui::Combo("NR edit transport mode", &selectedTransport, transportModes,
+                             IM_ARRAYSIZE(transportModes)))
+            {
+                transportMode = uint32_t(selectedTransport);
+                config->DlssNrSuperiorEditTransportMode = transportMode;
+            }
             ImGui::EndDisabled();
             HelpMarker(
-                "Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
-                "then divide positive changes by the same multiplier. In edit mode, zero "
-                "edit enters as 0.5; "
-                "darkening is not multiplied. Input is limited to nonnegative FP16 values, not to 2.0. "
-                "Below 1x attenuates positive changes before DLSS and restores their scale afterwards. "
-                "Small multipliers can lose detail to FP16 precision; large values can change temporal behaviour. "
-                "Exact entry supports 0.01..1024.");
+                "Symmetric auto uses ONE shared multiplier for every pixel and R/G/B: the darkest channel "
+                "reaches zero around neutral 0.5. Positive and negative edit are scaled equally and restored after "
+                "DLSS. "
+                "With no negative edit it uses 1x; the FP16 format can limit the scale. "
+                "Shift mode subtracts the frame's global RGB minimum, multiplies the entire range from zero with the "
+                "slider, "
+                "then undoes both operations after DLSS. These two modes need edit input; full NR answer keeps "
+                "positive-only transport. "
+                "Bounds are calculated exactly on the GPU each frame. Dynamic bounds do not reset DLSS history.");
+            const uint32_t effectiveTransport = DlssNr::EditTransport::EffectiveMode(transportMode, filterNrAnswer);
+            const bool previewInputSupported =
+                effectiveTransport == 0 && !filterNrAnswer && !config->DlssNrSuperiorOriginalGuides.value_or_default();
+            if (effectiveTransport == 1)
+                ImGui::TextUnformatted("Multiplier: GPU automatic, one shared value for R/G/B");
+            else
+            {
+                ImGui::BeginDisabled(effectiveTransport == 1 || (automaticGain && previewInputSupported));
+                if (ImGui::SliderFloat(effectiveTransport == 2 ? "Shifted NR edit transport multiplier"
+                                                               : "Positive NR edit transport multiplier",
+                                       &gain, .01f, 64.f, "%.3fx", ImGuiSliderFlags_Logarithmic))
+                    config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
+                if (ImGui::InputFloat("Exact transport multiplier", &gain, .01f, 1.f, "%.4f"))
+                    config->DlssNrSuperiorPositiveEditGain = DlssNr::PrivateExposure::PositiveGain(gain);
+                ImGui::EndDisabled();
+            }
+            if (effectiveTransport == 0)
+                HelpMarker(
+                    "Experimental: amplify only RGB changes that brighten the proxy before the private DLSS, "
+                    "then divide positive changes by the same multiplier. In edit mode, zero "
+                    "edit enters as 0.5; "
+                    "darkening is not multiplied. Input is limited to nonnegative FP16 values, not to 2.0. "
+                    "Below 1x attenuates positive changes before DLSS and restores their scale afterwards. "
+                    "Small multipliers can lose detail to FP16 precision; large values can change temporal behaviour. "
+                    "Exact entry supports 0.01..1024.");
+            else if (effectiveTransport == 1)
+                HelpMarker(
+                    "Scales positive and negative edit equally around 0.5 with one GPU-calculated gain. "
+                    "No negative edit uses 1x; FP16 range limits can stop before the darkest channel reaches zero.");
+            else
+                HelpMarker("Subtract the current frame's global RGB minimum, then multiply the entire nonnegative "
+                           "range by this slider. "
+                           "The neutral point is no longer fixed at 0.5 before DLSS. Both shift and scale are undone "
+                           "after DLSS; "
+                           "FP16 storage and DLSS filtering can introduce reconstruction error. Manual 0.01..1024x.");
 
-            ImGui::BeginDisabled(!previewInputSupported && !automaticGain);
+            ImGui::BeginDisabled(effectiveTransport != 0 || (!previewInputSupported && !automaticGain));
             if (ImGui::Checkbox("Automatically apply suggested multiplier", &automaticGain))
                 config->DlssNrSuperiorAutoPositiveEditGain = automaticGain;
             ImGui::EndDisabled();
@@ -4477,9 +4519,22 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                        "Dynamic automatic gain changes continue private DLSS history. Manual gain/other transport "
                        "changes reset it. "
                        "When disabled, the saved manual multiplier returns unchanged. "
-                       "Needs edit mode and original guides off. Can run without the "
+                       "Needs positive-only edit transport and original guides off. Can run without the "
                        "preview checkbox. "
                        "This estimate is calibrated on the supplied examples; it does not guarantee no ghosting.");
+            float maximumAuto =
+                DlssNr::EditTransport::AutoMaximum(config->DlssNrSuperiorAutoPositiveEditGainMax.value_or_default());
+            ImGui::BeginDisabled(effectiveTransport != 0);
+            if (ImGui::SliderFloat("Maximum automatic positive multiplier", &maximumAuto, 1.f, 1024.f, "%.2fx",
+                                   ImGuiSliderFlags_Logarithmic))
+                config->DlssNrSuperiorAutoPositiveEditGainMax = DlssNr::EditTransport::AutoMaximum(maximumAuto);
+            if (ImGui::InputFloat("Exact automatic multiplier maximum", &maximumAuto, .1f, 1.f, "%.3f"))
+                config->DlssNrSuperiorAutoPositiveEditGainMax = DlssNr::EditTransport::AutoMaximum(maximumAuto);
+            ImGui::EndDisabled();
+            HelpMarker("Ceiling for the positive-only automatic multiplier, including warmup, paused measurements and "
+                       "secondary views. "
+                       "Applied immediately when lowered. Manual values and the two other transport modes are "
+                       "independent. Default 1024x.");
             bool gainPreview = config->DlssNrSuperiorGainPreview.value_or_default();
             DlssNr::GainPreview::Status displayedPreview;
             ImGui::BeginDisabled(!previewInputSupported && !gainPreview);
@@ -4491,12 +4546,13 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 "Transformer examples; depth-boundary target comes from one Transformer scene. This checkbox displays "
                 "a suggestion; automatic application is a separate "
                 "option. "
-                "Not a ghosting detector or a guarantee for other scenes. Needs edit mode and original guides off. "
+                "Not a ghosting detector or a guarantee for other scenes. Needs positive-only edit transport and "
+                "original guides off. "
                 "Samples up to eight times per second; the boundary motion "
                 "gate is optional. "
                 "EMA smooths the measurements and catches up faster after a sustained image change. "
                 "Changing motion helps reject frozen buffers, but cannot reliably identify every menu or video.");
-            if (gainPreview || automaticGain)
+            if (gainPreview || (automaticGain && effectiveTransport == 0))
             {
                 displayedPreview = DlssNr::SuperiorScaling::GainPreviewStatus();
                 if (!previewInputSupported)
@@ -4516,7 +4572,7 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 if (status.valid)
                     ImGui::Text("Latest sample: %.2fx | moving MV: %.1f%% | changed MV: %.1f%%", status.raw,
                                 status.motionPercent, status.changedPercent);
-                if (automaticGain)
+                if (automaticGain && effectiveTransport == 0)
                 {
                     const auto applied = DlssNr::SuperiorScaling::AutomaticGainStatus();
                     ImGui::Text("Applied positive multiplier: %.3fx", applied.applied);
@@ -4562,16 +4618,19 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
             ImGui::InputText("Pre-DLSS edit filename", editFilename, IM_ARRAYSIZE(editFilename));
             ImGui::BeginDisabled(DlssNr::SuperiorScaling::EditDumpBusy());
             if (ImGui::Button("Save pre-DLSS edit"))
-                DlssNr::SuperiorScaling::RequestEditDump(editFilename, false,
-                                                         (gainPreview || automaticGain) ? &displayedPreview : nullptr);
+                DlssNr::SuperiorScaling::RequestEditDump(
+                    editFilename, false,
+                    (gainPreview || (automaticGain && effectiveTransport == 0)) ? &displayedPreview : nullptr);
             ImGui::SameLine();
             ImGui::BeginDisabled(config->DlssNrSuperiorOriginalGuides.value_or_default());
             if (ImGui::Button("Save edit + object guides"))
-                DlssNr::SuperiorScaling::RequestEditDump(editFilename, true,
-                                                         (gainPreview || automaticGain) ? &displayedPreview : nullptr);
+                DlssNr::SuperiorScaling::RequestEditDump(
+                    editFilename, true,
+                    (gainPreview || (automaticGain && effectiveTransport == 0)) ? &displayedPreview : nullptr);
             if (ImGui::Button("Save DLSS ghosting sample (before + after + guides)"))
                 DlssNr::SuperiorScaling::RequestEditDump(
-                    editFilename, true, (gainPreview || automaticGain) ? &displayedPreview : nullptr, true);
+                    editFilename, true,
+                    (gainPreview || (automaticGain && effectiveTransport == 0)) ? &displayedPreview : nullptr, true);
             HelpMarker("Saves one matched-frame diagnostic: .dds is the pre-DLSS positive-gain edit; .raw.dds is "
                        "the signed NR edit before transport; .after.dds is the decoded private DLSS result after "
                        "undoing transport, before ghost rejection and fade. Both comparable edits use zero as "

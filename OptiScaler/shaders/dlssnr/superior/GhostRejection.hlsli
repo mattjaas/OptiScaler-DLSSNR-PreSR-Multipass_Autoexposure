@@ -3,7 +3,11 @@ float3 GhostRawEdit(int2 pixel)
 {
     const int3 p = int3(clamp(pixel, int2(0, 0), int2(gWidth, gHeight) - 1), 0);
     const float3 proxy = SanitizeFinite3(gOriginal.Load(p).rgb, 0.0);
+#ifdef DLSSNR_EDIT_TRANSPORT
+    return AffineRawEdit(proxy, SanitizeFinite3(gAux.Load(p).rgb, proxy));
+#else
     return SanitizeFinite3(gAux.Load(p).rgb, proxy) - proxy;
+#endif
 }
 float3 RejectUnsupportedEdit(float3 filtered, int2 pixel, out float mask)
 {

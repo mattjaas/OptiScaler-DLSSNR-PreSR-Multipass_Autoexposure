@@ -156,6 +156,22 @@ try {
     Build (Join-Path $shaders 'superior/GhostOutwardFeather.hlsl') 'GhostOutwardFeather' @('-D','DLSSNR_GHOST_FEATHER_STAGE=0','-D','DLSSNR_GHOST_FEATHER_RINGS=1') 'private_ghost_feather_rings'
     Build (Join-Path $shaders 'superior/GhostOutwardFeather.hlsl') 'GhostOutwardFeather' @('-D','DLSSNR_GHOST_FEATHER_STAGE=1','-D','DLSSNR_GHOST_FEATHER_RINGS=1') 'private_ghost_feather_rings_apply'
     Build (Join-Path $shaders 'superior/GhostOutwardFeather.hlsl') 'GhostOutwardFeather' @('-D','DLSSNR_GHOST_FEATHER_STAGE=1','-D','DLSSNR_GHOST_FEATHER_RINGS=1','-D','DLSSNR_GHOST_FEATHER_INPLACE=1') 'private_ghost_feather_rings_inplace'
+    Build (Join-Path $shaders 'superior/EditTransportBounds.hlsl') 'EditTransportBounds' @('-D','DLSSNR_TRANSPORT_BOUNDS_STAGE=0') 'private_transport_bounds'
+    Build (Join-Path $shaders 'superior/EditTransportBounds.hlsl') 'EditTransportBounds' @('-D','DLSSNR_TRANSPORT_BOUNDS_STAGE=1') 'private_transport_reduce'
+    foreach($kind in @('base','ghost','guided','temporal','simple','fast','fast_fade','coarse','contrast_temporal','contrast_simple','contrast_fast','contrast_coarse')) {
+        $transportDefines=@('-D','DLSSNR_EDIT_TRANSPORT=1','-D','DLSSNR_COMPACT_NR_ANSWER=0')
+        $type=$kind -replace '^contrast_',''
+        if($kind -ne 'base') { $transportDefines+=@('-D','DLSSNR_GHOST_REJECTION=1') }
+        if($type -eq 'guided') { $transportDefines+=@('-D','DLSSNR_GUIDED_GHOST=1') }
+        if($type -eq 'temporal') { $transportDefines+=@('-D','DLSSNR_TEMPORAL_GHOST=1') }
+        if($type -in @('simple','fast','fast_fade','coarse')) { $transportDefines+=@('-D','DLSSNR_COMPACT_GHOST=1') }
+        if($type -in @('fast','fast_fade')) { $transportDefines+=@('-D','DLSSNR_COMPACT_FAST_BLEND=1') }
+        if($type -eq 'fast_fade' -or $kind -eq 'contrast_fast') { $transportDefines+=@('-D','DLSSNR_COMPACT_FUSED_DECODE=1') }
+        if($type -eq 'coarse') { $transportDefines+=@('-D','DLSSNR_COARSE_GHOST=1') }
+        if($kind.StartsWith('contrast_')) { $transportDefines+=@('-D','DLSSNR_GHOST_CONTRAST=1') }
+        if($type -eq 'simple') { Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' $transportDefines "private_affine_$kind" -Native16 }
+        else { Build (Join-Path $shaders 'superior/ExperimentalCarrier.hlsl') 'ExperimentalCarrierMain' $transportDefines "private_affine_$kind" }
+    }
     Build (Join-Path $shaders 'superior/PrivateExposure.hlsl') 'PrivateExposureMain' @() 'private_exposure'
     Build (Join-Path $shaders 'superior/GainPreview.hlsl') 'GainPreviewMain' @() 'private_gain_preview'
     Build (Join-Path $shaders 'superior/MotionWatch.hlsl') 'MotionWatchMain' @() 'private_motion_watch'

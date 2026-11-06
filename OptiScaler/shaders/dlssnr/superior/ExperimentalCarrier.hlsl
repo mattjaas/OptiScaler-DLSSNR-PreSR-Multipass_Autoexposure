@@ -25,6 +25,7 @@
 #endif
 #endif
 #include "PositiveCarrier.hlsli"
+#include "EditTransport.hlsli"
 #ifdef DLSSNR_GHOST_REJECTION
 #include "GhostRejection.hlsli"
 #ifdef DLSSNR_GHOST_CONTRAST
@@ -65,18 +66,28 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
         const float3 model = SanitizeFinite3(gModel.Load(p).rgb, proxy);
         precise float3 edit = model - proxy;
         // One-shot diagnostic: signed edit after positive gain, before carrier offset/clipping.
+#ifdef DLSSNR_EDIT_TRANSPORT
+        float3 value = gExposureAnchors[0].x == 2 ? AffineEncode(AffineRawEdit(proxy, model))
+                                                  : AffineRawEdit(proxy, model) * AffineGain();
+        gTarget[id.xy] = float4(value, 1);
+#else
         gTarget[id.xy] = float4(min(edit, 0.0) + max(edit, 0.0) * gain, 1.0);
+#endif
         return;
     }
     if (gMode == 37u || gMode == 39u)
     {
         const float3 proxy = SanitizeFinite3(gSource.Load(p).rgb, 0.0);
         const float3 model = SanitizeFinite3(gModel.Load(p).rgb, proxy);
+#ifdef DLSSNR_EDIT_TRANSPORT
+        gTarget[id.xy] = float4(AffineEncode(AffineRawEdit(proxy, model)), 1);
+#else
         gTarget[id.xy] = float4(min((gDirectDetailMode != 0u ? EncodeNrAnswer(proxy, model, gain)
                                                              : EncodePositiveCarrier(proxy, model, gain)) +
                                         0.0,
                                     65504.0),
                                 1.0);
+#endif
         if (gMode == 39u)
         {
             const float2 uv = (float2(id.xy) + 0.5) / float2(gWidth, gHeight);
@@ -98,7 +109,11 @@ void ExperimentalCarrierMain(uint3 id : SV_DispatchThreadID)
         else
         {
             const float3 filtered = SanitizeFinite3(gSource.Load(p).rgb, float3(.5, .5, .5));
+#ifdef DLSSNR_EDIT_TRANSPORT
+            edit = AffineDecode(gSource.Load(p).rgb);
+#else
             edit = DecodePositiveCarrier(filtered, gain);
+#endif
         }
 #ifdef DLSSNR_GHOST_REJECTION
         float rejectionMask;

@@ -1,0 +1,41 @@
+{
+  "device": "NVIDIA GeForce RTX 4090",
+  "resolution": [
+    2496,
+    1404
+  ],
+  "baseline_commit": "a1fd2b1bffa72ea7ec06e5c0cd6e6f5dbcf82b2e",
+  "warmup_pairs": 16,
+  "abba_blocks": 64,
+  "scope": "Bounds when active + carrier encode with matched MV + identity carrier decode; excludes NR, NGX and game composition",
+  "positive_only_gain": 1,
+  "shift_gain": 6,
+  "statistics": {
+    "1": {
+      "before": {
+        "samples": 128,
+        "mean_ms": 0.082808,
+        "sd_ms": 0.000912018786931789
+      },
+      "after": {
+        "samples": 128,
+        "mean_ms": 0.183152,
+        "sd_ms": 0.002228458907487915
+      },
+      "delta_ms": 0.100344
+    },
+    "2": {
+      "before": {
+        "samples": 128,
+        "mean_ms": 0.082792,
+        "sd_ms": 0.000843530040445422
+      },
+      "after": {
+        "samples": 128,
+        "mean_ms": 0.18304,
+        "sd_ms": 0.0021655701873226135
+      },
+      "delta_ms": 0.100248
+    }
+  }
+}
