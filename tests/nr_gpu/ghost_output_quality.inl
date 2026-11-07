@@ -140,7 +140,7 @@ void GhostOutputQuality(Fixture& f)
                             }
                             if (deviation > 1.0 / 1024.0)
                             {
-                                double lo = scenario == 9 ? .1 : .125, ramp = scenario == 9 ? .05 : .125;
+                                double lo = .18, ramp = scenario == 9 ? .05 : .125;
                                 double t = std::clamp((deviation / (.02 + amplitude) - lo) / ramp, 0., 1.);
                                 keep = std::max(keep, float(t * t * (3 - 2 * t)));
                             }

@@ -59,7 +59,8 @@ float GhostOutputRangeEvidence(int2 pixel, float3 raw)
     if (!all(isfinite(output)) || !all(isfinite(current)))
         return 1;
 
-    float threshold = isfinite(gExposureAnchors[0].z) ? saturate(gExposureAnchors[0].z) : .1;
+    // Local evidence alone needs a stronger deviation than a match to saved history.
+    float threshold = isfinite(gExposureAnchors[0].z) ? clamp(gExposureAnchors[0].z, .18, 1) : .18;
     float softness = isfinite(gExposureAnchors[0].w) ? saturate(gExposureAnchors[0].w) : .05;
     float3 precision = max(1.0 / 1024.0, abs(current) / 1024.0);
     float scale = .02 + GhostMaxChannel(abs(current - neutral));

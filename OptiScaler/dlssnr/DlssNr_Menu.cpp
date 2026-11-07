@@ -4369,10 +4369,9 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 ImGui::BeginDisabled(!ghost.outputGate);
                 if (ImGui::SliderFloat("Minimum DLSS occluder carry-over", &ghost.outputThreshold, 0.f, 1.f, "%.3f"))
                     config->DlssNrSuperiorGhostOutputThreshold = ghost.outputThreshold;
-                HelpMarker("Minimum relative deviation from the current edit or its local range. Below "
-                           "this value the mask is removed. Higher values preserve more DLSS, but can leave more "
-                           "faint ghosting. Default 0.10. Near-identical references with a changed output remain "
-                           "masked because the evidence is ambiguous.");
+                HelpMarker("Minimum fraction of the saved occluder difference found in the DLSS output. Higher "
+                           "values preserve more DLSS. Default 0.10. The local edit range needs at least 0.18 "
+                           "relative deviation to restore protection on its own.");
                 if (ImGui::SliderFloat("DLSS carry-over gate softness", &ghost.outputSoftness, 0.f, .25f, "%.3f"))
                     config->DlssNrSuperiorGhostOutputSoftness = ghost.outputSoftness;
                 HelpMarker("Restore the full disocclusion mask gradually above the minimum carry-over. Default "
