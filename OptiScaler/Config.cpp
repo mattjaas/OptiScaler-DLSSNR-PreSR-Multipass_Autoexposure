@@ -1160,6 +1160,9 @@ void Config::ReadDlssNr()
     DlssNrSuperiorGhostHistoryDepth.set_from_config(readFloat("DlssNr", "SuperiorGhostHistoryDepth"));
     DlssNrSuperiorGhostSoftExpansion.set_from_config(readFloat("DlssNr", "SuperiorGhostSoftExpansion"));
     DlssNrSuperiorGhostCoarseRadius.set_from_config(readUInt("DlssNr", "SuperiorGhostCoarseRadius"));
+    DlssNrSuperiorGhostOutputGate.set_from_config(readBool("DlssNr", "SuperiorGhostOutputGate"));
+    DlssNrSuperiorGhostOutputThreshold.set_from_config(readFloat("DlssNr", "SuperiorGhostOutputThreshold"));
+    DlssNrSuperiorGhostOutputSoftness.set_from_config(readFloat("DlssNr", "SuperiorGhostOutputSoftness"));
     DlssNrSuperiorGhostContrast.set_from_config(readBool("DlssNr", "SuperiorGhostContrast"));
     DlssNrSuperiorGhostContrastMetric.set_from_config(readUInt("DlssNr", "SuperiorGhostContrastMetric"));
     DlssNrSuperiorGhostOutwardFeather.set_from_config(readBool("DlssNr", "SuperiorGhostOutwardFeather"));
@@ -1487,6 +1490,12 @@ static void WriteDlssNr(Config& c, CSimpleIniA& out)
                  GetIntValue(c.DlssNrSuperiorGhostHistoryFade.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostHistoryDepth",
                  GetFloatValue(c.DlssNrSuperiorGhostHistoryDepth.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostOutputGate",
+                 GetBoolValue(c.DlssNrSuperiorGhostOutputGate.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostOutputThreshold",
+                 GetFloatValue(c.DlssNrSuperiorGhostOutputThreshold.value_for_config()).c_str());
+    out.SetValue("DlssNr", "SuperiorGhostOutputSoftness",
+                 GetFloatValue(c.DlssNrSuperiorGhostOutputSoftness.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostContrast",
                  GetBoolValue(c.DlssNrSuperiorGhostContrast.value_for_config()).c_str());
     out.SetValue("DlssNr", "SuperiorGhostContrastMetric",
@@ -1931,6 +1940,9 @@ size_t Config::ApplyDlssNrSection(const DlssNrProfiles::Section& section)
         NR_PROFILE_FIELD("SuperiorGhostHistoryFade", DlssNrSuperiorGhostHistoryFade),
         NR_PROFILE_FIELD("SuperiorGhostHistoryDepth", DlssNrSuperiorGhostHistoryDepth),
         NR_PROFILE_FIELD("SuperiorGhostSoftExpansion", DlssNrSuperiorGhostSoftExpansion),
+        NR_PROFILE_FIELD("SuperiorGhostOutputGate", DlssNrSuperiorGhostOutputGate),
+        NR_PROFILE_FIELD("SuperiorGhostOutputThreshold", DlssNrSuperiorGhostOutputThreshold),
+        NR_PROFILE_FIELD("SuperiorGhostOutputSoftness", DlssNrSuperiorGhostOutputSoftness),
         NR_PROFILE_FIELD("SuperiorGhostContrast", DlssNrSuperiorGhostContrast),
         NR_PROFILE_FIELD("SuperiorGhostContrastMetric", DlssNrSuperiorGhostContrastMetric),
         NR_PROFILE_FIELD("SuperiorGhostOutwardFeather", DlssNrSuperiorGhostOutwardFeather),

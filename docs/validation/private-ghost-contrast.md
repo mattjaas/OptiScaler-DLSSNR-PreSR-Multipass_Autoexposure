@@ -50,3 +50,7 @@ Powtarzane guides służą do kosztu, nie do odtworzenia prawdziwej sekwencji gr
 [Metadane i CSV](private-ghost-contrast.json). Odtworzenie: kompilacja `tests/nr_gpu/private_exposure_quality.cpp`, `--contrast-quality`, `--contrast-quality-warp`, `--contrast-timing <capture stem> static` / `moving`. Domyślne testy i `--warp` również zawierają nową grupę.
 
 Aktualizacja 2026-11-06: [prawidłowe niebo, kontrast po gain i opcjonalny jednostronny miękki brzeg](private-ghost-sky-feather.md). Historyczne pomiary poniżej dotyczą pierwotnej wersji.
+
+## Usuwanie maski na podstawie wyniku DLSS
+
+Osobne, domyślnie wyłączone **Remove mask without DLSS carry-over (experimental)** ocenia wynik po DLSS względem bieżącego editu i zapisanej referencji przeszkody. Może działać niezależnie lub razem z kontrastem. Obie opcje współdzielą historię referencji; jej zmiana potrzeby, a nie każdy przełącznik osobno, inicjalizuje lokalną historię maski. NR/NGX pozostaje bez resetu. [Algorytm, ograniczenia, para kontrolna i pomiary GPU](private-ghost-output-gate.md).

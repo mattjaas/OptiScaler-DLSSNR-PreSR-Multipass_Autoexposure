@@ -80,7 +80,8 @@ inline bool PositiveUnfilteredEditWeight(const DlssNrConstants& c)
 }
 static_assert(offsetof(DlssNrConstants, ExposurePadding) == 172);
 
-// Decode only: select the rejection PSO. Former transport slots 0..3 remain reserved.
+// Decode only: slot 0 selects affine transport; slots 1..3 carry the optional output-evidence gate.
+// They never read the retired saturation/depth-colour/depth-brightness preferences.
 inline void SetCarrierGhostRejection(DlssNrConstants& c, DlssNr::GhostRejection::Settings settings)
 {
     const auto s = DlssNr::GhostRejection::Sanitize(settings);
@@ -100,6 +101,9 @@ inline void SetCarrierGhostRejection(DlssNrConstants& c, DlssNr::GhostRejection:
     c.ExposureAnchors[13] = s.contrastThreshold;
     c.ExposureAnchors[14] = s.contrastSoftness;
     c.ExposureAnchors[15] = float(s.contrastMetric);
+    c.ExposureAnchors[1] = s.outputGate && s.method >= 2 ? 1.f : 0.f;
+    c.ExposureAnchors[2] = s.outputThreshold;
+    c.ExposureAnchors[3] = s.outputSoftness;
 }
 inline bool CarrierGhostRejection(const DlssNrConstants& c) { return c.Mode == 38u && c.GuideWidth == 1u; }
 inline bool GuidedGhostRejection(const DlssNrConstants& c) { return CarrierGhostRejection(c) && c.GuideHeight == 1u; }
@@ -143,10 +147,13 @@ static_assert(offsetof(DlssNrConstants, Width) == 8 && offsetof(DlssNrConstants,
 // Stage 47 only; MvScaleY is the unused visibility slot at byte 40, not an MV multiplier here.
 inline bool FastCompactScatter(const DlssNrConstants& c) { return c.Mode == 47u && c.MvScaleY == 1.f; }
 static_assert(offsetof(DlssNrConstants, MvScaleY) == 40);
-// Optional decode PSOs bind the original occluder edit at t1; fields occupy bytes 224..236.
+// Optional decode PSOs bind the original occluder edit at t1. Input contrast: bytes 224..236;
+// output evidence: bytes 180..188, independent of the transport mode at byte 176.
+static_assert(offsetof(DlssNrConstants, ExposureAnchors) + 1 * 4 == 180 &&
+              offsetof(DlssNrConstants, ExposureAnchors) + 3 * 4 == 188);
 inline bool GhostEditContrast(const DlssNrConstants& c)
 {
-    return TemporalGhostRejection(c) && c.ExposureAnchors[12] == 1.f;
+    return TemporalGhostRejection(c) && (c.ExposureAnchors[12] == 1.f || c.ExposureAnchors[1] == 1.f);
 }
 inline void SetGhostContrastHistory(DlssNrConstants& c, unsigned method, bool previous)
 {

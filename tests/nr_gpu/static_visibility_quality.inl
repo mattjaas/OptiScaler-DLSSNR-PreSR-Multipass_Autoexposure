@@ -277,7 +277,8 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
 
 void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false,
                             bool contrast = false, bool road = false, bool brightness = false, bool sky = false,
-                            bool feather = false, bool fastCompare = false, unsigned ringLayers = 0, bool pitch = false)
+                            bool feather = false, bool fastCompare = false, unsigned ringLayers = 0, bool pitch = false,
+                            bool outputGate = false)
 {
     const unsigned radius = 1;
     const bool residual = true;
@@ -475,9 +476,11 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         settings.method = 5;
         settings.outwardMethod = ringLayers ? 1u : 0u;
         settings.outwardLayers = ringLayers ? ringLayers : 1u;
-        settings.contrastEnabled = contrast && (variant == 1 || brightness || feather);
-        settings.contrastMetric = brightness && variant == 1 ? 1u : 0u;
-        if (settings.contrastEnabled)
+        settings.contrastEnabled = contrast && (!outputGate || brightness) && (variant == 1 || brightness || feather);
+        settings.outputGate = outputGate && variant == 1;
+        const bool referenceEnabled = DlssNr::GhostRejection::NeedsEditReference(settings);
+        settings.contrastMetric = brightness && (variant == 1 || outputGate) ? 1u : 0u;
+        if (referenceEnabled)
         {
             if (s.valid)
             {
@@ -503,17 +506,17 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
             if (s.valid)
                 f.r.barrier(s.field.Get(), SRV, UAV);
             DlssNr::Superior::Fields::SetCoarseGhostDilate(c, mw, mh, settings);
-            if (settings.contrastEnabled)
+            if (referenceEnabled)
             {
                 c.Mode = 53;
                 if (s.valid)
                     f.r.barrier(s.expanded.Get(), SRV, UAV);
             }
-            f.dispatch(settings.contrastEnabled ? contrastDilate.Get() : dilate.Get(), c, s.state[next].Get(),
-                       settings.contrastEnabled ? s.reference[next].Get() : s.state[next].Get(), s.field.Get(),
-                       (mw + 7) / 8, (mh + 7) / 8, nullptr, nullptr, nullptr, nullptr, nullptr, contrast ? 4 : 3, false,
-                       settings.contrastEnabled ? s.expanded.Get() : nullptr);
-            if (settings.contrastEnabled)
+            f.dispatch(referenceEnabled ? contrastDilate.Get() : dilate.Get(), c, s.state[next].Get(),
+                       referenceEnabled ? s.reference[next].Get() : s.state[next].Get(), s.field.Get(), (mw + 7) / 8,
+                       (mh + 7) / 8, nullptr, nullptr, nullptr, nullptr, nullptr, contrast ? 4 : 3, false,
+                       referenceEnabled ? s.expanded.Get() : nullptr);
+            if (referenceEnabled)
                 f.r.barrier(s.expanded.Get(), UAV, SRV);
             f.r.barrier(s.field.Get(), UAV, SRV);
             decodeGuide = s.field.Get();
@@ -531,11 +534,11 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         settings.softExpansion = .5f;
         DlssNr::Superior::Fields::SetCarrierGhostRejection(dc, settings);
         DlssNr::Superior::Fields::SetGhostDepthPrecision(dc, 0);
-        f.dispatch(settings.contrastEnabled ? contrastDecode.Get()
-                   : variant                ? decode16.Get()
-                                            : baseDecode.Get(),
-                   dc, a.Get(), settings.contrastEnabled ? s.expanded.Get() : p.Get(), out.Get(), (w + 7) / 8,
-                   (h + 7) / 8, guideDepth, p.Get(), r.Get(), decodeGuide, nullptr, contrast ? 5 : 4, false);
+        f.dispatch(referenceEnabled ? contrastDecode.Get()
+                   : variant        ? decode16.Get()
+                                    : baseDecode.Get(),
+                   dc, a.Get(), referenceEnabled ? s.expanded.Get() : p.Get(), out.Get(), (w + 7) / 8, (h + 7) / 8,
+                   guideDepth, p.Get(), r.Get(), decodeGuide, nullptr, contrast ? 5 : 4, false);
         f.r.barrier(out.Get(), UAV, SRV);
         if (feather && (variant == 1 || fastCompare))
         {
@@ -587,7 +590,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     };
     const auto name = std::filesystem::path(stem).filename().string();
     const auto prefix = "artifacts/ghost-study/" + name +
-                        (pitch         ? ".pitch"
+                        (outputGate    ? (brightness ? ".output-gate-with-contrast" : ".output-gate")
+                         : pitch       ? ".pitch"
                          : ringLayers  ? ".rings" + std::to_string(ringLayers)
                          : fastCompare ? ".feather-fast"
                          : feather     ? ".feather"
@@ -637,11 +641,11 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
             {
                 if (newOutput[i] < 0 || newOutput[i] > 1)
                     throw std::runtime_error("Invalid coarse weight");
-                if (contrast && !brightness && !feather && newOutput[i] > oldOutput[i] + .002f)
+                if (((contrast && !brightness && !feather) || outputGate) && newOutput[i] > oldOutput[i] + .002f)
                     throw std::runtime_error("Contrast gate increased the visibility mask");
                 if (feather && !fastCompare && newOutput[i] < oldOutput[i])
                     throw std::runtime_error("Outward feather eroded the post-contrast mask");
-                if (brightness && newOutput[i] < oldOutput[i] - .002f)
+                if (brightness && !outputGate && newOutput[i] < oldOutput[i] - .002f)
                     throw std::runtime_error("Brightness metric removed a mask retained by maximum RGB");
                 maxMask = std::max(maxMask, delta);
                 oldActive += oldOutput[i] > 0;

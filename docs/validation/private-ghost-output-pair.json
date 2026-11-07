@@ -1,0 +1,705 @@
+{
+  "warning": "Current silhouette colour at inset 4/8/16 is an APPROXIMATE reference, not saved historical occluder data. Probe retention is NOT actual mask coverage, precision or recall. No replay of temporal history, no GPU benchmark, no proof of universal ghost detection.",
+  "parameters": {
+    "depth_threshold_reversed": 0.02,
+    "seed": [
+      1250,
+      800
+    ],
+    "output_threshold": 0.1,
+    "output_softness": 0.05,
+    "cosine_squared_interval": [
+      0.64,
+      0.81
+    ],
+    "carrier_noise_floor": 0.0009765625,
+    "input_contrast_threshold": 0.0723,
+    "input_contrast_softness": 0.01
+  },
+  "samples": [
+    {
+      "sample": "nr-edit",
+      "dimensions": [
+        2496,
+        1404
+      ],
+      "head": 524,
+      "waist": 876,
+      "sha256": {
+        ".raw.dds": "a9fef32f8cb9ea86612d22a902101c089e71899f30e49924c8d950a4b687fe00",
+        ".after.dds": "3d3fd5c7241a2e73fdc50ba52ff0df21590ec348775c347fe1ed96b611789a33",
+        ".depth.dds": "c01218735a0debb7344765a4b4a531f6914d2f1b92b1269e428f6efd7ddd3c96",
+        ".motion.dds": "4e36eb949a320ff6f43f06565008651cdeb958ada950d9da4ea048de3eb18035",
+        ".json": "8572f5f48679dad1991a1331ac74b22cd283b43c3fc81e4a910413eb54c5b5ec"
+      },
+      "probes": [
+        {
+          "part": "upper",
+          "y": [
+            524,
+            876
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 4,
+          "pixels": 9152,
+          "fraction_median": 0.21256643533706665,
+          "output_gate_mean": 0.5193845622029073,
+          "brightness_gate_mean": 0.9906551241874695,
+          "rgb_gate_mean": 0.9444204568862915,
+          "residual_brightness_mean": 0.009843177162110806
+        },
+        {
+          "part": "upper",
+          "y": [
+            524,
+            876
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 4,
+          "pixels": 17600,
+          "fraction_median": 0.08561301231384277,
+          "output_gate_mean": 0.3446541747623041,
+          "brightness_gate_mean": 0.9965682625770569,
+          "rgb_gate_mean": 0.9482650756835938,
+          "residual_brightness_mean": 0.004243677947670221
+        },
+        {
+          "part": "upper",
+          "y": [
+            524,
+            876
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 4,
+          "pixels": 35200,
+          "fraction_median": 0.03332052007317543,
+          "output_gate_mean": 0.09560880961886131,
+          "brightness_gate_mean": 0.997481107711792,
+          "rgb_gate_mean": 0.9463315606117249,
+          "residual_brightness_mean": 0.0016737034311518073
+        },
+        {
+          "part": "lower",
+          "y": [
+            876,
+            1354
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 4,
+          "pixels": 12428,
+          "fraction_median": 0.6495957374572754,
+          "output_gate_mean": 0.9209742338295781,
+          "brightness_gate_mean": 1.0,
+          "rgb_gate_mean": 1.0,
+          "residual_brightness_mean": 0.014815258793532848
+        },
+        {
+          "part": "lower",
+          "y": [
+            876,
+            1354
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 4,
+          "pixels": 23900,
+          "fraction_median": 0.2582920789718628,
+          "output_gate_mean": 0.8043158257953797,
+          "brightness_gate_mean": 1.0,
+          "rgb_gate_mean": 1.0,
+          "residual_brightness_mean": 0.006214737426489592
+        },
+        {
+          "part": "lower",
+          "y": [
+            876,
+            1354
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 4,
+          "pixels": 47800,
+          "fraction_median": 0.06323182582855225,
+          "output_gate_mean": 0.17026665318157458,
+          "brightness_gate_mean": 1.0,
+          "rgb_gate_mean": 1.0,
+          "residual_brightness_mean": 0.0017773102736100554
+        },
+        {
+          "part": "upper",
+          "y": [
+            524,
+            876
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 8,
+          "pixels": 9152,
+          "fraction_median": 0.2157442569732666,
+          "output_gate_mean": 0.5692091019936288,
+          "brightness_gate_mean": 0.9421877264976501,
+          "rgb_gate_mean": 0.8565154671669006,
+          "residual_brightness_mean": 0.009843177162110806
+        },
+        {
+          "part": "upper",
+          "y": [
+            524,
+            876
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 8,
+          "pixels": 17600,
+          "fraction_median": 0.08353249728679657,
+          "output_gate_mean": 0.36418202087293616,
+          "brightness_gate_mean": 0.9337005019187927,
+          "rgb_gate_mean": 0.847568690776825,
+          "residual_brightness_mean": 0.004243677947670221
+        },
+        {
+          "part": "upper",
+          "y": [
+            524,
+            876
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 8,
+          "pixels": 35200,
+          "fraction_median": 0.03249179571866989,
+          "output_gate_mean": 0.10919115245886873,
+          "brightness_gate_mean": 0.935904860496521,
+          "rgb_gate_mean": 0.8476656675338745,
+          "residual_brightness_mean": 0.0016737034311518073
+        },
+        {
+          "part": "lower",
+          "y": [
+            876,
+            1354
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 8,
+          "pixels": 12428,
+          "fraction_median": 0.6961420774459839,
+          "output_gate_mean": 0.9862888872297392,
+          "brightness_gate_mean": 1.0,
+          "rgb_gate_mean": 1.0,
+          "residual_brightness_mean": 0.014815258793532848
+        },
+        {
+          "part": "lower",
+          "y": [
+            876,
+            1354
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 8,
+          "pixels": 23900,
+          "fraction_median": 0.2805255651473999,
+          "output_gate_mean": 0.9004230956187035,
+          "brightness_gate_mean": 1.0,
+          "rgb_gate_mean": 1.0,
+          "residual_brightness_mean": 0.006214737426489592
+        },
+        {
+          "part": "lower",
+          "y": [
+            876,
+            1354
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 8,
+          "pixels": 47800,
+          "fraction_median": 0.061882659792900085,
+          "output_gate_mean": 0.213928212028327,
+          "brightness_gate_mean": 1.0,
+          "rgb_gate_mean": 1.0,
+          "residual_brightness_mean": 0.0017773102736100554
+        },
+        {
+          "part": "upper",
+          "y": [
+            524,
+            876
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 16,
+          "pixels": 9152,
+          "fraction_median": 0.173928901553154,
+          "output_gate_mean": 0.5030617165938476,
+          "brightness_gate_mean": 0.8724286556243896,
+          "rgb_gate_mean": 0.7864626049995422,
+          "residual_brightness_mean": 0.009843177162110806
+        },
+        {
+          "part": "upper",
+          "y": [
+            524,
+            876
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 16,
+          "pixels": 17600,
+          "fraction_median": 0.06812490522861481,
+          "output_gate_mean": 0.30244686577874386,
+          "brightness_gate_mean": 0.8658435940742493,
+          "rgb_gate_mean": 0.7513900399208069,
+          "residual_brightness_mean": 0.004243677947670221
+        },
+        {
+          "part": "upper",
+          "y": [
+            524,
+            876
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 16,
+          "pixels": 35200,
+          "fraction_median": 0.027954012155532837,
+          "output_gate_mean": 0.07124296557145741,
+          "brightness_gate_mean": 0.8595288991928101,
+          "rgb_gate_mean": 0.7166488170623779,
+          "residual_brightness_mean": 0.0016737034311518073
+        },
+        {
+          "part": "lower",
+          "y": [
+            876,
+            1354
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 16,
+          "pixels": 12428,
+          "fraction_median": 0.682304859161377,
+          "output_gate_mean": 0.8168902744660809,
+          "brightness_gate_mean": 0.9999515414237976,
+          "rgb_gate_mean": 0.9999069571495056,
+          "residual_brightness_mean": 0.014815258793532848
+        },
+        {
+          "part": "lower",
+          "y": [
+            876,
+            1354
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 16,
+          "pixels": 23900,
+          "fraction_median": 0.26363322138786316,
+          "output_gate_mean": 0.677594684872897,
+          "brightness_gate_mean": 0.9999478459358215,
+          "rgb_gate_mean": 0.9998789429664612,
+          "residual_brightness_mean": 0.006214737426489592
+        },
+        {
+          "part": "lower",
+          "y": [
+            876,
+            1354
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 16,
+          "pixels": 47800,
+          "fraction_median": 0.05619704723358154,
+          "output_gate_mean": 0.14159736378106288,
+          "brightness_gate_mean": 1.0,
+          "rgb_gate_mean": 1.0,
+          "residual_brightness_mean": 0.0017773102736100554
+        }
+      ]
+    },
+    {
+      "sample": "nr-edit-001",
+      "dimensions": [
+        2496,
+        1404
+      ],
+      "head": 545,
+      "waist": 889,
+      "sha256": {
+        ".raw.dds": "edf0a5f0c88672849fea8a5957da82912b540d1f21dace0c76dd1407e88b7421",
+        ".after.dds": "c1994146ba1fd475ebfdc47f3c2a629b07ac9207bd36d92454477a12dc20139b",
+        ".depth.dds": "a4705826621c3e9b76c3ef682e77c19ffc39bc3ddd3b1d1298a7ee4f29e09009",
+        ".motion.dds": "842350c1d3d308bb61c13ba3e69d6454c120c45483b61f54555a20906938b7cd",
+        ".json": "2d0a5741f1e1884f995a5dcfcde16a706205391af6bec4b5c5e8b6b19009b82a"
+      },
+      "probes": [
+        {
+          "part": "upper",
+          "y": [
+            545,
+            889
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 4,
+          "pixels": 8944,
+          "fraction_median": 0.0017980043776333332,
+          "output_gate_mean": 0.09355270226766209,
+          "brightness_gate_mean": 0.5275511741638184,
+          "rgb_gate_mean": 0.27163466811180115,
+          "residual_brightness_mean": 0.003364595351740718
+        },
+        {
+          "part": "upper",
+          "y": [
+            545,
+            889
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 4,
+          "pixels": 17200,
+          "fraction_median": -0.006860469933599234,
+          "output_gate_mean": 0.050801325286624996,
+          "brightness_gate_mean": 0.5317022204399109,
+          "rgb_gate_mean": 0.29816871881484985,
+          "residual_brightness_mean": 0.003796376520767808
+        },
+        {
+          "part": "upper",
+          "y": [
+            545,
+            889
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 4,
+          "pixels": 34400,
+          "fraction_median": -0.027915015816688538,
+          "output_gate_mean": 0.03090846755815311,
+          "brightness_gate_mean": 0.535321831703186,
+          "rgb_gate_mean": 0.3092241585254669,
+          "residual_brightness_mean": 0.005059980321675539
+        },
+        {
+          "part": "lower",
+          "y": [
+            889,
+            1354
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 4,
+          "pixels": 12090,
+          "fraction_median": 0.12352120131254196,
+          "output_gate_mean": 0.3037635668368957,
+          "brightness_gate_mean": 0.9797523021697998,
+          "rgb_gate_mean": 0.8486542701721191,
+          "residual_brightness_mean": 0.008282436989247799
+        },
+        {
+          "part": "lower",
+          "y": [
+            889,
+            1354
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 4,
+          "pixels": 23250,
+          "fraction_median": 0.1369958221912384,
+          "output_gate_mean": 0.3553752112794672,
+          "brightness_gate_mean": 0.9931378364562988,
+          "rgb_gate_mean": 0.8236487507820129,
+          "residual_brightness_mean": 0.007209427189081907
+        },
+        {
+          "part": "lower",
+          "y": [
+            889,
+            1354
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 4,
+          "pixels": 46500,
+          "fraction_median": 0.04264434427022934,
+          "output_gate_mean": 0.15306642218517622,
+          "brightness_gate_mean": 0.9735917448997498,
+          "rgb_gate_mean": 0.7696466445922852,
+          "residual_brightness_mean": 0.004424744285643101
+        },
+        {
+          "part": "upper",
+          "y": [
+            545,
+            889
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 8,
+          "pixels": 8944,
+          "fraction_median": 0.003521684790030122,
+          "output_gate_mean": 0.10431081992738413,
+          "brightness_gate_mean": 0.728384792804718,
+          "rgb_gate_mean": 0.33173856139183044,
+          "residual_brightness_mean": 0.003364595351740718
+        },
+        {
+          "part": "upper",
+          "y": [
+            545,
+            889
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 8,
+          "pixels": 17200,
+          "fraction_median": 0.009576181881129742,
+          "output_gate_mean": 0.019980924149660732,
+          "brightness_gate_mean": 0.7260100841522217,
+          "rgb_gate_mean": 0.35886499285697937,
+          "residual_brightness_mean": 0.003796376520767808
+        },
+        {
+          "part": "upper",
+          "y": [
+            545,
+            889
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 8,
+          "pixels": 34400,
+          "fraction_median": -0.016225961968302727,
+          "output_gate_mean": 0.003950005382727417,
+          "brightness_gate_mean": 0.7289221286773682,
+          "rgb_gate_mean": 0.35867875814437866,
+          "residual_brightness_mean": 0.005059980321675539
+        },
+        {
+          "part": "lower",
+          "y": [
+            889,
+            1354
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 8,
+          "pixels": 12090,
+          "fraction_median": 0.13625840842723846,
+          "output_gate_mean": 0.3959791729554598,
+          "brightness_gate_mean": 0.9667860269546509,
+          "rgb_gate_mean": 0.7419125437736511,
+          "residual_brightness_mean": 0.008282436989247799
+        },
+        {
+          "part": "lower",
+          "y": [
+            889,
+            1354
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 8,
+          "pixels": 23250,
+          "fraction_median": 0.10809695720672607,
+          "output_gate_mean": 0.3694469361283827,
+          "brightness_gate_mean": 0.9825159907341003,
+          "rgb_gate_mean": 0.842551052570343,
+          "residual_brightness_mean": 0.007209427189081907
+        },
+        {
+          "part": "lower",
+          "y": [
+            889,
+            1354
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 8,
+          "pixels": 46500,
+          "fraction_median": 0.02713695541024208,
+          "output_gate_mean": 0.13773952014042432,
+          "brightness_gate_mean": 0.9888073801994324,
+          "rgb_gate_mean": 0.7931480407714844,
+          "residual_brightness_mean": 0.004424744285643101
+        },
+        {
+          "part": "upper",
+          "y": [
+            545,
+            889
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 16,
+          "pixels": 8944,
+          "fraction_median": 0.0021273097954690456,
+          "output_gate_mean": 0.08846565814372565,
+          "brightness_gate_mean": 0.6471498012542725,
+          "rgb_gate_mean": 0.23037703335285187,
+          "residual_brightness_mean": 0.003364595351740718
+        },
+        {
+          "part": "upper",
+          "y": [
+            545,
+            889
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 16,
+          "pixels": 17200,
+          "fraction_median": 0.013965381309390068,
+          "output_gate_mean": 0.019106961881731357,
+          "brightness_gate_mean": 0.5944967865943909,
+          "rgb_gate_mean": 0.23690265417099,
+          "residual_brightness_mean": 0.003796376520767808
+        },
+        {
+          "part": "upper",
+          "y": [
+            545,
+            889
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 16,
+          "pixels": 34400,
+          "fraction_median": 0.020042814314365387,
+          "output_gate_mean": 0.013077575408525293,
+          "brightness_gate_mean": 0.6037355661392212,
+          "rgb_gate_mean": 0.2244078516960144,
+          "residual_brightness_mean": 0.005059980321675539
+        },
+        {
+          "part": "lower",
+          "y": [
+            889,
+            1354
+          ],
+          "distance": [
+            4,
+            30
+          ],
+          "reference_inset": 16,
+          "pixels": 12090,
+          "fraction_median": 0.13322368264198303,
+          "output_gate_mean": 0.3793079116157842,
+          "brightness_gate_mean": 0.7731691002845764,
+          "rgb_gate_mean": 0.4972754716873169,
+          "residual_brightness_mean": 0.008282436989247799
+        },
+        {
+          "part": "lower",
+          "y": [
+            889,
+            1354
+          ],
+          "distance": [
+            30,
+            80
+          ],
+          "reference_inset": 16,
+          "pixels": 23250,
+          "fraction_median": 0.0833333358168602,
+          "output_gate_mean": 0.3026721798886044,
+          "brightness_gate_mean": 0.8795573711395264,
+          "rgb_gate_mean": 0.5758184790611267,
+          "residual_brightness_mean": 0.007209427189081907
+        },
+        {
+          "part": "lower",
+          "y": [
+            889,
+            1354
+          ],
+          "distance": [
+            80,
+            180
+          ],
+          "reference_inset": 16,
+          "pixels": 46500,
+          "fraction_median": 0.03171224892139435,
+          "output_gate_mean": 0.10700111940949737,
+          "brightness_gate_mean": 0.8997553586959839,
+          "rgb_gate_mean": 0.49138692021369934,
+          "residual_brightness_mean": 0.004424744285643101
+        }
+      ]
+    }
+  ]
+}

@@ -488,6 +488,9 @@ class Config
     CustomOptional<float> DlssNrSuperiorGhostHistoryDepth { .05f };
     CustomOptional<float> DlssNrSuperiorGhostSoftExpansion { .5f };
     CustomOptional<uint32_t> DlssNrSuperiorGhostCoarseRadius { 1 };
+    CustomOptional<bool> DlssNrSuperiorGhostOutputGate { false };
+    CustomOptional<float> DlssNrSuperiorGhostOutputThreshold { .1f };
+    CustomOptional<float> DlssNrSuperiorGhostOutputSoftness { .05f };
     CustomOptional<bool> DlssNrSuperiorGhostContrast { false };
     CustomOptional<uint32_t> DlssNrSuperiorGhostContrastMetric { 0 };
     CustomOptional<bool> DlssNrSuperiorGhostOutwardFeather { false };

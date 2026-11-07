@@ -4360,6 +4360,25 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 HelpMarker("Fade the mask to zero above the contrast threshold across this interval. Default 0.005; "
                            "zero uses a hard cutoff. Does not change NR or DLSS history.");
                 ImGui::EndDisabled();
+                if (ImGui::Checkbox("Remove mask without DLSS carry-over (experimental)", &ghost.outputGate))
+                    config->DlssNrSuperiorGhostOutputGate = ghost.outputGate;
+                HelpMarker("Remove the disocclusion mask when the DLSS edit stays close to the current raw edit or "
+                           "does not move towards the saved occluder edit. Retain the mask for colour-consistent "
+                           "occluder carry-over. Independent of the contrast filter; both can be combined. Evaluated "
+                           "after the current transport gain, before mask blending and outward feather. Default Off. "
+                           "This is a heuristic and may miss mixed-colour or very faint ghosts.");
+                ImGui::BeginDisabled(!ghost.outputGate);
+                if (ImGui::SliderFloat("Minimum DLSS occluder carry-over", &ghost.outputThreshold, 0.f, 1.f, "%.3f"))
+                    config->DlssNrSuperiorGhostOutputThreshold = ghost.outputThreshold;
+                HelpMarker("Fraction of the current-to-occluder edit difference found in the DLSS output. Below "
+                           "this value the mask is removed. Higher values preserve more DLSS, but can leave more "
+                           "faint ghosting. Default 0.10. Near-identical references with a changed output remain "
+                           "masked because the evidence is ambiguous.");
+                if (ImGui::SliderFloat("DLSS carry-over gate softness", &ghost.outputSoftness, 0.f, .25f, "%.3f"))
+                    config->DlssNrSuperiorGhostOutputSoftness = ghost.outputSoftness;
+                HelpMarker("Restore the full disocclusion mask gradually above the minimum carry-over. Default "
+                           "0.05; zero uses a hard cutoff. No NR/DLSS history reset when adjusting these sliders.");
+                ImGui::EndDisabled();
                 if (ImGui::Checkbox("Outward-only mask feather", &ghost.outwardFeather))
                     config->DlssNrSuperiorGhostOutwardFeather = ghost.outwardFeather;
                 HelpMarker(

@@ -23,6 +23,8 @@ struct Settings
     bool outwardFeather = false;
     float outwardRadius = 4.f; // 1080p-height reference pixels, applied after contrast cancellation
     uint32_t outwardMethod = 0, outwardLayers = 1; // 0 soft reconstruction, 1 coarse boundary rings (method 6)
+    bool outputGate = false;
+    float outputThreshold = .1f, outputSoftness = .05f;
 };
 inline Settings Sanitize(Settings s)
 {
@@ -44,8 +46,11 @@ inline Settings Sanitize(Settings s)
     s.outwardRadius = std::isfinite(s.outwardRadius) ? std::clamp(s.outwardRadius, .25f, 32.f) : 4.f;
     s.outwardMethod = s.outwardMethod == 1 && s.method == 5 ? 1u : 0u;
     s.outwardLayers = std::clamp(s.outwardLayers, 1u, 3u);
+    s.outputThreshold = std::isfinite(s.outputThreshold) ? std::clamp(s.outputThreshold, 0.f, 1.f) : .1f;
+    s.outputSoftness = std::isfinite(s.outputSoftness) ? std::clamp(s.outputSoftness, 0.f, 1.f) : .05f;
     return s;
 }
+inline bool NeedsEditReference(const Settings& s) { return s.contrastEnabled || s.outputGate; }
 template <class Config> Settings Read(const Config& c)
 {
     auto s = Sanitize({ c.DlssNrSuperiorGhostRejection.value_or_default(),
@@ -69,7 +74,10 @@ template <class Config> Settings Read(const Config& c)
                         c.DlssNrSuperiorGhostOutwardFeather.value_or_default(),
                         c.DlssNrSuperiorGhostOutwardRadius.value_or_default(),
                         c.DlssNrSuperiorGhostOutwardMethod.value_or_default(),
-                        c.DlssNrSuperiorGhostOutwardLayers.value_or_default() });
+                        c.DlssNrSuperiorGhostOutwardLayers.value_or_default(),
+                        c.DlssNrSuperiorGhostOutputGate.value_or_default(),
+                        c.DlssNrSuperiorGhostOutputThreshold.value_or_default(),
+                        c.DlssNrSuperiorGhostOutputSoftness.value_or_default() });
     if (s.method == 1)
     {
         s.threshold = c.DlssNrSuperiorGhostGuidedThreshold.value_or_default();

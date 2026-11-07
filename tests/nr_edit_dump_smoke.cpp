@@ -196,6 +196,12 @@ int main(int argc, char** argv)
     fastMetadata.ghostRejection.coarseRadius = 2;
     fastMetadata.ghostRejection.contrastEnabled = true;
     fastMetadata.ghostRejection.contrastMetric = 1;
+    fastMetadata.ghostRejection.outputGate = true;
+    fastMetadata.ghostRejection.outputThreshold = .125f;
+    fastMetadata.ghostRejection.outputSoftness = .0625f;
+    assert(MetadataJson(fastMetadata).find("\"ghost_output_gate\": true") != std::string::npos);
+    assert(MetadataJson(fastMetadata).find("\"ghost_output_threshold\": 0.125") != std::string::npos);
+    assert(MetadataJson(fastMetadata).find("\"ghost_output_softness\": 0.0625") != std::string::npos);
     fastMetadata.ghostRejection.outwardFeather = true;
     fastMetadata.ghostRejection.outwardRadius = 6;
     fastMetadata.ghostRejection.outwardMethod = 1;

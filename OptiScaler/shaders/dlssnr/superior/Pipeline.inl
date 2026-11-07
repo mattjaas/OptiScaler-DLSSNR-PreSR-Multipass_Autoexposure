@@ -1184,13 +1184,14 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
                            const DlssNrFrameInfo& frame, bool reset, const DlssNr::GhostRejection::Settings& settings,
                            float precision)
 {
+    const bool needReference = DlssNr::GhostRejection::NeedsEditReference(settings);
     auto& h = g.ghostHistory;
-    if (h.contrastEnabled != settings.contrastEnabled)
+    if (h.contrastEnabled != needReference)
     {
         auto old = std::make_shared<GhostHistory>(std::move(h));
         h = {};
         GetState().lifetime.Retire([old] {});
-        h.contrastEnabled = settings.contrastEnabled;
+        h.contrastEnabled = needReference;
     }
     const auto identity = Util::RealObjectIdentity(cmd);
     const bool coarse = settings.method == 5;
@@ -1219,7 +1220,7 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
         h.initialized = false;
         return nullptr;
     }
-    if (settings.contrastEnabled &&
+    if (needReference &&
         (!proxy || !answer || !Ensure(h.contrastRaw[0], g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, w, ht) ||
          !Ensure(h.contrastRaw[1], g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, w, ht) ||
          !Ensure(h.contrastReference[0], g.device.Get(), DXGI_FORMAT_R16G16B16A16_FLOAT, w, ht) ||
@@ -1281,7 +1282,7 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
         h.initialized = false;
         return nullptr;
     }
-    if (settings.contrastEnabled)
+    if (needReference)
     {
         const bool colorPrevious = previous && h.contrastInitialized;
         auto* oldRaw = colorPrevious ? h.contrastRaw[h.index].Get() : proxy;
@@ -1299,11 +1300,10 @@ Texture* TemporalGhostMask(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsCom
     if (coarse)
     {
         Fields::SetCoarseGhostDilate(c, w, ht, settings);
-        if (settings.contrastEnabled)
+        if (needReference)
             c.Mode = DlssNr::Superior::DlssNrMode_PrivateGhostContrastDilate;
-        if (!Dispatch(shader, cmd, c, h.state[next].Get(),
-                      settings.contrastEnabled ? h.contrastReference[next].Get() : nullptr, nullptr, nullptr, nullptr,
-                      nullptr, h.softField, settings.contrastEnabled ? &h.expandedReference : nullptr))
+        if (!Dispatch(shader, cmd, c, h.state[next].Get(), needReference ? h.contrastReference[next].Get() : nullptr,
+                      nullptr, nullptr, nullptr, nullptr, h.softField, needReference ? &h.expandedReference : nullptr))
         {
             h.initialized = false;
             return nullptr;

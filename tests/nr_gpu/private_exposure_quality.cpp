@@ -414,6 +414,7 @@ void Timing(Fixture& f, const std::string& saturationBaseline = "", float satura
 #include "sky_feather_quality.inl"
 #include "coarse_boundary_rings_quality.inl"
 #include "edit_transport_quality.inl"
+#include "ghost_output_quality.inl"
 
 int main(int argc, char** argv)
 {
@@ -422,7 +423,20 @@ int main(int argc, char** argv)
         std::cout.setf(std::ios::unitbuf);
         Fixture f(argc < 2 || (std::string(argv[1]) != "--warp" && std::string(argv[1]) != "--contrast-quality-warp" &&
                                std::string(argv[1]) != "--sky-feather-quality-warp" &&
-                               std::string(argv[1]) != "--transport-quality-warp"));
+                               std::string(argv[1]) != "--transport-quality-warp" &&
+                               std::string(argv[1]) != "--output-gate-quality-warp"));
+        if (argc == 2 &&
+            (std::string(argv[1]) == "--output-gate-quality" || std::string(argv[1]) == "--output-gate-quality-warp"))
+        {
+            GhostOutputQuality(f);
+            return 0;
+        }
+        if ((argc == 4 || argc == 5) && std::string(argv[1]) == "--output-gate-timing")
+        {
+            StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, true, false, argc == 5, false,
+                                   false, false, 0, false, true);
+            return 0;
+        }
         if (argc == 3 && std::string(argv[1]) == "--transport-timing")
         {
             EditTransportTiming(f, argv[2]);
@@ -531,6 +545,7 @@ int main(int argc, char** argv)
             (std::string(argv[1]) == "--contrast-quality" || std::string(argv[1]) == "--contrast-quality-warp"))
         {
             GhostContrastQuality(f);
+            GhostOutputQuality(f);
             return 0;
         }
         if (argc == 4 && std::string(argv[1]) == "--interior-visibility-timing")
@@ -684,6 +699,7 @@ int main(int argc, char** argv)
         RoadVisibilityQuality(f);
         PitchRoadQuality(f);
         GhostContrastQuality(f);
+        GhostOutputQuality(f);
         SkyVisibilityQuality(f);
         OutwardFeatherQuality(f);
         CoarseBoundaryRingsQuality(f);
