@@ -654,8 +654,6 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
                 if (((contrast && !brightness && !feather) || (outputGate && !brightness)) &&
                     newOutput[i] > oldOutput[i] + .002f)
                     throw std::runtime_error("Contrast gate increased the visibility mask");
-                if (compareOutputGate && newOutput[i] + .002f < oldOutput[i])
-                    throw std::runtime_error("Local range weakened an existing rejection");
                 if (feather && !fastCompare && newOutput[i] < oldOutput[i])
                     throw std::runtime_error("Outward feather eroded the post-contrast mask");
                 if (brightness && !outputGate && newOutput[i] < oldOutput[i] - .002f)

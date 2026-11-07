@@ -4362,15 +4362,15 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 ImGui::EndDisabled();
                 if (ImGui::Checkbox("Remove mask without DLSS carry-over (experimental)", &ghost.outputGate))
                     config->DlssNrSuperiorGhostOutputGate = ghost.outputGate;
-                HelpMarker("Compare the DLSS edit with the saved occluder and nearby current edits. Keep the "
-                           "disocclusion mask where DLSS introduces a change outside the local edit range, even "
-                           "when the saved colour or contrast filter misses the trail. Runs after transport gain "
-                           "and before mask blending and outward feather. Default Off.");
+                HelpMarker(
+                    "Compare the DLSS edit with the saved occluder and nearby current edits. Weaken the "
+                    "mask where the current neighbourhood explains the output. Retain protection for "
+                    "strong changes outside its range. Runs before mask blending and outward feather. Default Off.");
                 ImGui::BeginDisabled(!ghost.outputGate);
                 if (ImGui::SliderFloat("Minimum DLSS occluder carry-over", &ghost.outputThreshold, 0.f, 1.f, "%.3f"))
                     config->DlssNrSuperiorGhostOutputThreshold = ghost.outputThreshold;
                 HelpMarker("Minimum fraction of the saved occluder difference found in the DLSS output. Higher "
-                           "values preserve more DLSS. Default 0.10. The local edit range needs at least 0.18 "
+                           "values preserve more DLSS. Default 0.10. The local edit range needs at least 0.13 "
                            "relative deviation to restore protection on its own.");
                 if (ImGui::SliderFloat("DLSS carry-over gate softness", &ghost.outputSoftness, 0.f, .25f, "%.3f"))
                     config->DlssNrSuperiorGhostOutputSoftness = ghost.outputSoftness;

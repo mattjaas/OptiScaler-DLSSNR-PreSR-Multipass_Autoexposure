@@ -46,9 +46,9 @@ float3 GhostOutputCarrier(float3 raw, float3 base, float gain)
 
 float GhostMaxChannel(float3 value) { return max(value.r, max(value.g, value.b)); }
 
-// A trail may contain several past poses and colours. Protect changes outside the
-// current neighbourhood's range even when the single stored reference disagrees.
-float GhostOutputRangeEvidence(int2 pixel, float3 raw)
+// Local support can explain a change that happens to match the saved occluder.
+// A strong unsupported change can still come from a trail of several past poses.
+float GhostOutputRangeWeight(int2 pixel, float3 raw, float historyKeep)
 {
     const int3 p = int3(pixel, 0);
     float3 base = gDirectDetailMode != 0u ? SanitizeFinite3(gModel.Load(p).rgb, 0) : float3(.5, .5, .5);
@@ -59,14 +59,14 @@ float GhostOutputRangeEvidence(int2 pixel, float3 raw)
     if (!all(isfinite(output)) || !all(isfinite(current)))
         return 1;
 
-    // Local evidence alone needs a stronger deviation than a match to saved history.
-    float threshold = isfinite(gExposureAnchors[0].z) ? clamp(gExposureAnchors[0].z, .18, 1) : .18;
-    float softness = isfinite(gExposureAnchors[0].w) ? saturate(gExposureAnchors[0].w) : .05;
+    // The stand-alone local cue uses a higher default threshold and a shorter ramp.
+    float threshold = isfinite(gExposureAnchors[0].z) ? clamp(gExposureAnchors[0].z, .13, 1) : .13;
+    float softness = .4 * (isfinite(gExposureAnchors[0].w) ? saturate(gExposureAnchors[0].w) : .05);
     float3 precision = max(1.0 / 1024.0, abs(current) / 1024.0);
     float scale = .02 + GhostMaxChannel(abs(current - neutral));
     // Adding neighbours can only lower the score. Skip their reads when the centre already rules it out.
-    [branch] if (GhostMaxChannel(abs(output - current)) <= threshold * scale ||
-                 all(abs(output - current) <= precision)) return 0;
+    [branch] if (all(abs(output - current) <= precision) ||
+                 (historyKeep <= 0 && GhostMaxChannel(abs(output - current)) <= threshold * scale)) return 0;
 
     float3 low = current, high = current;
     // Six work-resolution pixels at the capture resolution. Keep a similar footprint under resolution changes.
@@ -83,7 +83,10 @@ float GhostOutputRangeEvidence(int2 pixel, float3 raw)
         return 0;
     scale = .02 + GhostMaxChannel(max(abs(low - neutral), abs(high - neutral)));
     float score = GhostMaxChannel(outside) / scale;
-    return softness > 0 ? smoothstep(threshold, threshold + softness, score) : float(score > threshold);
+    float independentKeep =
+        softness > 0 ? smoothstep(threshold, threshold + softness, score) : float(score > threshold);
+    float confirmedKeep = historyKeep * smoothstep(0, .025, score);
+    return max(confirmedKeep, independentKeep);
 }
 
 float4 LoadGhostContrastReference(int2 pixel)
@@ -163,6 +166,6 @@ float GhostContrastMask(int2 pixel, float mask)
             keep *= isfinite(distance) ? contrastKeep : 0;
         }
     }
-    [branch] if (outputGate && keep < 1) keep = max(keep, GhostOutputRangeEvidence(pixel, raw));
+    [branch] if (outputGate) keep = GhostOutputRangeWeight(pixel, raw, keep);
     return mask * keep;
 }

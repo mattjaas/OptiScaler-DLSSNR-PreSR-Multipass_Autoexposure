@@ -88,3 +88,16 @@ Porównanie GPU używa historycznego PSO z `786bc905` jako A oraz nowego jako B,
 | 004 / moving | .09146 ± .00105 | .09154 ± .00148 | +.00009 |
 
 Zapisz `private_carrier_contrast_coarse_0_Shader.cso` z commita A do katalogu referencji i uruchom `--output-range-timing <stem> static|moving <katalog referencji>`. Testy RTX i WARP obejmują zachowanie odchylenia bez zgodności barwy oraz usunięcie maski, gdy takie samo odchylenie mieści się w zakresie bieżących sąsiadów.
+
+## Wzmocnienie smugi i osłabienie maski na czystym tle
+
+Wersja po `9d66e398` używa lokalnego zakresu także do weryfikacji wcześniejszej decyzji o zachowaniu maski. Odchylenie poza zakresem jest liczone w tej samej skali co wcześniej. Wynik mieszczący się w lokalnym zakresie z tolerancją nośnika wygasza ochronę opartą na kolorze historycznym. Ochrona z historii wraca płynnie do swojej poprzedniej wagi przy względnym odchyleniu 0,025. Osobny sygnał silnego odchylenia zaczyna działać od większej z wartości suwaka i 0,13, z rampą o szerokości 40% ustawionej miękkości. Shader bierze maksimum z tych dwóch wag i mnoży przez istniejącą maskę dysokluzji. Ustawienia z próbek .101/.05 dają rampę 0,13–0,15 dla silnego odchylenia. Test regresji sprawdza także przypadek, w którym kierunek zmiany pasuje do historycznej przeszkody, a aktualni sąsiedzi wyjaśniają całą zmianę.
+
+W powtórzonym teście ABBA bazą jest PSO z `9d66e398`. Pozostałe parametry oraz geometria testu są takie jak wyżej. Odczyt alfy decode przed feather w wybranym pasie tła x=771–1149, y=606–1259, depth <.023 daje poniższe średnie. Guides i historia w tym teście są przybliżeniem. Zapisane próbki pochodzą z dwóch pojedynczych klatek. Pojedyncze piksele w obu próbkach nadal mogą zmienić maskę w przeciwną stronę.
+
+| Zrzut / guides | Średnia maska A → B | A ms ± SD | B ms ± SD | Różnica ms |
+|---|---:|---:|---:|---:|
+| 003 / static | 49,78% → 50,96% | .09717 ± .00099 | .09968 ± .00183 | +.00251 |
+| 003 / moving | 10,85% → 11,04% | .09207 ± .00210 | .09204 ± .00101 | −.00003 |
+| 004 / static | 1,84% → 1,01% | .09543 ± .00127 | .09694 ± .00176 | +.00150 |
+| 004 / moving | 0,55% → 0,15% | .09129 ± .00107 | .09140 ± .00143 | +.00011 |

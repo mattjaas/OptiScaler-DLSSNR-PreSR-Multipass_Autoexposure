@@ -7,7 +7,7 @@ void GhostOutputQuality(Fixture& f)
         for (unsigned method : { 2u, 3u, 4u, 5u })
             for (bool full : { false, true })
                 for (float gain : { .5f, 6.f })
-                    for (unsigned scenario = 0; scenario < 14; ++scenario)
+                    for (unsigned scenario = 0; scenario < 15; ++scenario)
                     {
                         if (mode && full)
                             continue;
@@ -27,12 +27,13 @@ void GhostOutputQuality(Fixture& f)
                         for (size_t i = 0; i < proxy.size(); i += 4)
                             for (unsigned ch = 0; ch < 3; ++ch)
                                 answer[i + ch] += raw[ch];
-                        if (scenario == 13)
+                        if (scenario >= 13)
                         {
-                            // A neighbouring current edit can account for the same perpendicular change.
+                            // Current neighbours explain an off-axis change (13) or an aligned change (14).
+                            unsigned channel = scenario == 13 ? 1 : 0;
                             for (int y : { 2, 6 })
                                 for (int x : { 6, 10 })
-                                    answer[(y * w + x) * 4 + 1] = .25f + filtered[1];
+                                    answer[(y * w + x) * 4 + channel] = .25f + filtered[channel];
                         }
                         TransportFixture t(f, w, h, proxy, answer);
                         std::array<float, 4> coeff { 1, 0, 0, 0 };
@@ -121,7 +122,7 @@ void GhostOutputQuality(Fixture& f)
                                              scenario == 11 || scenario == 12
                                          ? 1.f
                                          : 0.f;
-                        if (scenario != 13)
+                        if (scenario < 13 && scenario != 7)
                         {
                             // A uniform current edit has a zero-width envelope in every channel.
                             const auto carrier = [&](double edit)
@@ -140,15 +141,20 @@ void GhostOutputQuality(Fixture& f)
                             }
                             if (deviation > 1.0 / 1024.0)
                             {
-                                double lo = .18, ramp = scenario == 9 ? .05 : .125;
-                                double t = std::clamp((deviation / (.02 + amplitude) - lo) / ramp, 0., 1.);
-                                keep = std::max(keep, float(t * t * (3 - 2 * t)));
+                                const auto smooth = [](double t)
+                                {
+                                    t = std::clamp(t, 0., 1.);
+                                    return float(t * t * (3 - 2 * t));
+                                };
+                                double score = deviation / (.02 + amplitude);
+                                double ramp = scenario == 9 ? .02 : .05;
+                                keep = std::max(keep * smooth(score / .025), smooth((score - .13) / ramp));
                             }
                         }
                         const float rejection = .75f * keep, weight = .25f + .75f * rejection;
                         for (size_t i = 0; i < values.size(); i += 4)
                         {
-                            if (scenario == 13 && i != (4 * w + 8) * 4)
+                            if (scenario >= 13 && i != (4 * w + 8) * 4)
                                 continue;
                             Near(values[i + 3], .75f * rejection, "output evidence mask/fade/ambiguity");
                             for (unsigned ch = 0; ch < 3; ++ch)
