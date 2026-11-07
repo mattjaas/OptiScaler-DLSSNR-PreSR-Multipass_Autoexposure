@@ -69,3 +69,22 @@ RTX4090,2496×1404,metoda6/coarse radius1,gain1,strength1,N19/fade9,depth.05,bez
 Samodzielna opcja dodaje w tych pomiarach około .017–.023 ms, głównie opcjonalną historię referencji. Przy już włączonym kontraście przyrost jest mniejszy od zmienności; nie deklarujemy zerowego kosztu ani przyspieszenia. [Surowe czasy, statystyki i różnice pokrycia](private-ghost-output-timing.json). Odtworzenie: `--output-gate-timing <stem> static|moving [with-contrast]`. Przy bazie z kontrastem obie strony używają jasności .02/.005, B dodatkowo bramkuje wynik.
 
 Ocena z gry po tej zmianie pozostaje do wykonania. Nie nazywamy lokalnego podglądu z przybliżoną referencją dokładnym wynikiem nowej maski gry.
+
+## Korekta po próbkach 003 i 004
+
+W `003` po DLSS widać kilka przesuniętych sylwetek biegnącej postaci. Pojedyncza referencja RGB nie opisuje wszystkich poprzednich póz. Gdy filtr ma osłabić maskę, sprawdza dodatkowo zakres koloru bieżącego editu w centrum i w czterech punktach po przekątnych, odsuniętych o 6 px przy wysokości roboczej 1404. Rozmiar rośnie z rozdzielczością roboczą. Odchylenie po DLSS poza zakres jest dzielone przez największą amplitudę lokalnego editu powiększoną o 0,02. Wynik używa istniejących ustawień **Minimum DLSS occluder carry-over** i **DLSS carry-over gate softness**. Wstępny test centrum pomija odczyty sąsiadów, gdy wynik nie może osiągnąć progu. Przy wyraźnym przekroczeniu zakresu ochrona może pozostać mimo odrzucenia przez kontrast.
+
+Decode maski temporalnej dostaje teraz głębię roboczą w t3. Poprzednio puste wiązanie dla temporalnego decode podstawiało obraz wyjściowy DLSS jako teksturę t3. Dotyczy to również metod sprawdzających zgodność głębi z komórkami historii.
+
+Analiza zrzutów przy progu .101 i miękkości .05 daje średnią wagę dodatkowego kryterium 44,3% w `003` i 0,7% w `004` w pasie x=771–1149, y=606–1259, depth <.023. Obejmuje to obszar za postacią, gdzie zgłoszono smugi. Na innych fragmentach, np. na teksturze ściany, zdarzają się dodatnie odpowiedzi. Zrzuty zawierają wynik przed maską i nie przechowują pełnej sekwencji historii ani końcowej maski z gry.
+
+Porównanie GPU używa historycznego PSO z `786bc905` jako A oraz nowego jako B, z tą samą głębią i parametrami obu filtrów. Pole widoczności i kontrast mierzone razem z decode, bez DLSS, rekonstrukcji NR i feather. RTX 4090, 2496×1404, Metoda 6, 16 par rozgrzewkowych, 64 bloki ABBA, 128 próbek na wariant. `static` powtarza guides ze zrzutu, `moving` używa kontrolowanego ruchu z fixture. Oba odtwarzają tę samą parę obrazów editu przez kolejne pomiary.
+
+| Zrzut / guides | A ms ± SD | B ms ± SD | Różnica ms |
+|---|---:|---:|---:|
+| 003 / static | .09600 ± .00188 | .10163 ± .00228 | +.00563 |
+| 003 / moving | .09041 ± .00080 | .09080 ± .00084 | +.00039 |
+| 004 / static | .09191 ± .00200 | .09788 ± .00190 | +.00597 |
+| 004 / moving | .09094 ± .00148 | .09164 ± .00150 | +.00070 |
+
+Odtworzenie po zapisaniu `private_carrier_contrast_coarse_0_Shader.cso` z commita A do katalogu referencji: `--output-range-timing <stem> static|moving <katalog referencji>`. Testy RTX i WARP obejmują zachowanie odchylenia bez zgodności barwy oraz usunięcie maski, gdy takie samo odchylenie mieści się w zakresie bieżących sąsiadów.

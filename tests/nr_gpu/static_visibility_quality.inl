@@ -278,8 +278,9 @@ void FrozenVisibilityPreview(Fixture& f, const std::string& stem, unsigned frame
 void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = false, bool interior = false,
                             bool contrast = false, bool road = false, bool brightness = false, bool sky = false,
                             bool feather = false, bool fastCompare = false, unsigned ringLayers = 0, bool pitch = false,
-                            bool outputGate = false)
+                            bool outputGate = false, const std::string& outputGateBaseline = {})
 {
+    const bool compareOutputGate = !outputGateBaseline.empty();
     const unsigned radius = 1;
     const bool residual = true;
     const float gMathGain = 1, gMathBlend = 0;
@@ -417,6 +418,8 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         contrast ? f.r.pipeline(dir, "private_ghost_contrast_dilate_1") : ComPtr<ID3D12PipelineState> {};
     auto contrastDecode =
         contrast ? f.r.pipeline(dir, "private_carrier_contrast_coarse_0") : ComPtr<ID3D12PipelineState> {};
+    auto baselineContrastDecode =
+        compareOutputGate ? f.r.pipeline(outputGateBaseline, "private_carrier_contrast_coarse_0") : contrastDecode;
     ComPtr<ID3D12QueryHeap> queries;
     D3D12_QUERY_HEAP_DESC desc {};
     desc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
@@ -477,7 +480,13 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         settings.outwardMethod = ringLayers ? 1u : 0u;
         settings.outwardLayers = ringLayers ? ringLayers : 1u;
         settings.contrastEnabled = contrast && (!outputGate || brightness) && (variant == 1 || brightness || feather);
-        settings.outputGate = outputGate && variant == 1;
+        settings.outputGate = outputGate && (variant == 1 || compareOutputGate);
+        if (compareOutputGate)
+        {
+            settings.outputThreshold = .101f;
+            settings.contrastThreshold = .0723f;
+            settings.contrastSoftness = .01f;
+        }
         const bool referenceEnabled = DlssNr::GhostRejection::NeedsEditReference(settings);
         settings.contrastMetric = brightness && (variant == 1 || outputGate) ? 1u : 0u;
         if (referenceEnabled)
@@ -534,7 +543,7 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
         settings.softExpansion = .5f;
         DlssNr::Superior::Fields::SetCarrierGhostRejection(dc, settings);
         DlssNr::Superior::Fields::SetGhostDepthPrecision(dc, 0);
-        f.dispatch(referenceEnabled ? contrastDecode.Get()
+        f.dispatch(referenceEnabled ? (variant ? contrastDecode.Get() : baselineContrastDecode.Get())
                    : variant        ? decode16.Get()
                                     : baseDecode.Get(),
                    dc, a.Get(), referenceEnabled ? s.expanded.Get() : p.Get(), out.Get(), (w + 7) / 8, (h + 7) / 8,
@@ -590,17 +599,18 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
     };
     const auto name = std::filesystem::path(stem).filename().string();
     const auto prefix = "artifacts/ghost-study/" + name +
-                        (outputGate    ? (brightness ? ".output-gate-with-contrast" : ".output-gate")
-                         : pitch       ? ".pitch"
-                         : ringLayers  ? ".rings" + std::to_string(ringLayers)
-                         : fastCompare ? ".feather-fast"
-                         : feather     ? ".feather"
-                         : sky         ? ".sky"
-                         : brightness  ? ".brightness"
-                         : road        ? ".road"
-                         : contrast    ? ".contrast"
-                         : interior    ? ".interior"
-                                       : "") +
+                        (compareOutputGate ? ".output-range"
+                         : outputGate      ? (brightness ? ".output-gate-with-contrast" : ".output-gate")
+                         : pitch           ? ".pitch"
+                         : ringLayers      ? ".rings" + std::to_string(ringLayers)
+                         : fastCompare     ? ".feather-fast"
+                         : feather         ? ".feather"
+                         : sky             ? ".sky"
+                         : brightness      ? ".brightness"
+                         : road            ? ".road"
+                         : contrast        ? ".contrast"
+                         : interior        ? ".interior"
+                                           : "") +
                         (moving ? ".moving-fix" : ".static-fix");
     std::ofstream csv(prefix + "-timing.csv");
     csv << "sample,width,height,comparison,block,position,variant,ms\n";
@@ -641,8 +651,11 @@ void StaticVisibilityTiming(Fixture& f, const std::string& stem, bool moving = f
             {
                 if (newOutput[i] < 0 || newOutput[i] > 1)
                     throw std::runtime_error("Invalid coarse weight");
-                if (((contrast && !brightness && !feather) || outputGate) && newOutput[i] > oldOutput[i] + .002f)
+                if (((contrast && !brightness && !feather) || (outputGate && !brightness)) &&
+                    newOutput[i] > oldOutput[i] + .002f)
                     throw std::runtime_error("Contrast gate increased the visibility mask");
+                if (compareOutputGate && newOutput[i] + .002f < oldOutput[i])
+                    throw std::runtime_error("Local range weakened an existing rejection");
                 if (feather && !fastCompare && newOutput[i] < oldOutput[i])
                     throw std::runtime_error("Outward feather eroded the post-contrast mask");
                 if (brightness && !outputGate && newOutput[i] < oldOutput[i] - .002f)

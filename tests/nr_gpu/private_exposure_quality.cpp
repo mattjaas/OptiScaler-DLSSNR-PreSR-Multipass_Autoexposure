@@ -431,6 +431,12 @@ int main(int argc, char** argv)
             GhostOutputQuality(f);
             return 0;
         }
+        if (argc == 5 && std::string(argv[1]) == "--output-range-timing")
+        {
+            StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, true, false, true, false, false,
+                                   false, 0, false, true, argv[4]);
+            return 0;
+        }
         if ((argc == 4 || argc == 5) && std::string(argv[1]) == "--output-gate-timing")
         {
             StaticVisibilityTiming(f, argv[2], std::string(argv[3]) == "moving", true, true, false, argc == 5, false,

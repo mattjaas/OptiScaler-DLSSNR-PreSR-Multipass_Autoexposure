@@ -1687,7 +1687,7 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
                   contrastReference ? contrastReference
                   : filterNrAnswer  ? proxy
                                     : nullptr,
-                  needsRawEdit ? proxy : nullptr, guidedGhost ? temporalDepth : nullptr,
+                  needsRawEdit ? proxy : nullptr, (guidedGhost || history) ? temporalDepth : nullptr,
                   needsRawEdit ? answer : nullptr,
                   history       ? history->Get()
                   : guidedGhost ? g.temporalMotion.Get()

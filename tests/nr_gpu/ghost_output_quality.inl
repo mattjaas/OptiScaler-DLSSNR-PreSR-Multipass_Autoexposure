@@ -7,7 +7,7 @@ void GhostOutputQuality(Fixture& f)
         for (unsigned method : { 2u, 3u, 4u, 5u })
             for (bool full : { false, true })
                 for (float gain : { .5f, 6.f })
-                    for (unsigned scenario = 0; scenario < 13; ++scenario)
+                    for (unsigned scenario = 0; scenario < 14; ++scenario)
                     {
                         if (mode && full)
                             continue;
@@ -18,8 +18,8 @@ void GhostOutputQuality(Fixture& f)
                         float filtered[3] = { raw[0], raw[1], raw[2] };
                         if (scenario < 5)
                             filtered[0] += .25f * fractions[scenario];
-                        else if (scenario == 5)
-                            filtered[1] += .0625f; // Legitimate colour change perpendicular to old occluder.
+                        else if (scenario == 5 || scenario == 13)
+                            filtered[1] += .0625f; // Perpendicular to the old occluder.
                         else
                             filtered[0] += .09375f;
                         std::vector<float> proxy(w * h * 4, .25f), answer(proxy), encoded(proxy),
@@ -27,6 +27,13 @@ void GhostOutputQuality(Fixture& f)
                         for (size_t i = 0; i < proxy.size(); i += 4)
                             for (unsigned ch = 0; ch < 3; ++ch)
                                 answer[i + ch] += raw[ch];
+                        if (scenario == 13)
+                        {
+                            // A neighbouring current edit can account for the same perpendicular change.
+                            for (int y : { 2, 6 })
+                                for (int x : { 6, 10 })
+                                    answer[(y * w + x) * 4 + 1] = .25f + filtered[1];
+                        }
                         TransportFixture t(f, w, h, proxy, answer);
                         std::array<float, 4> coeff { 1, 0, 0, 0 };
                         if (mode)
@@ -109,14 +116,40 @@ void GhostOutputQuality(Fixture& f)
                                    mode ? t.coefficients.Get() : nullptr);
                         auto values = f.read(out.Get());
                         // Midpoint fraction .1875 lies halfway through .125..25; smoothstep = .5.
-                        const float keep = scenario == 2 ? .5f
-                                           : scenario == 3 || scenario == 6 || scenario == 7 || scenario == 9 ||
-                                                   scenario == 11 || scenario == 12
-                                               ? 1.f
-                                               : 0.f;
+                        float keep = scenario == 2 ? .5f
+                                     : scenario == 3 || scenario == 6 || scenario == 7 || scenario == 9 ||
+                                             scenario == 11 || scenario == 12
+                                         ? 1.f
+                                         : 0.f;
+                        if (scenario != 13)
+                        {
+                            // A uniform current edit has a zero-width envelope in every channel.
+                            const auto carrier = [&](double edit)
+                            {
+                                if (mode == 1)
+                                    return std::clamp(.5 + edit * coeff[0], 0., 65504.);
+                                if (mode == 2)
+                                    return std::clamp((edit - coeff[2]) * coeff[0], 0., 65504.);
+                                return std::clamp((full ? .25 : .5) + edit * (edit > 0 ? gain : 1), 0., 65504.);
+                            };
+                            double deviation = 0, amplitude = 0;
+                            for (unsigned ch = 0; ch < 3; ++ch)
+                            {
+                                deviation = std::max(deviation, std::abs(carrier(filtered[ch]) - carrier(raw[ch])));
+                                amplitude = std::max(amplitude, std::abs(carrier(raw[ch]) - carrier(0)));
+                            }
+                            if (deviation > 1.0 / 1024.0)
+                            {
+                                double lo = scenario == 9 ? .1 : .125, ramp = scenario == 9 ? .05 : .125;
+                                double t = std::clamp((deviation / (.02 + amplitude) - lo) / ramp, 0., 1.);
+                                keep = std::max(keep, float(t * t * (3 - 2 * t)));
+                            }
+                        }
                         const float rejection = .75f * keep, weight = .25f + .75f * rejection;
                         for (size_t i = 0; i < values.size(); i += 4)
                         {
+                            if (scenario == 13 && i != (4 * w + 8) * 4)
+                                continue;
                             Near(values[i + 3], .75f * rejection, "output evidence mask/fade/ambiguity");
                             for (unsigned ch = 0; ch < 3; ++ch)
                                 Near(values[i + ch], filtered[ch] * (1 - weight) + raw[ch] * weight,
@@ -125,6 +158,6 @@ void GhostOutputQuality(Fixture& f)
                         ++checks;
                     }
     std::cout << "Output evidence PASS: " << checks
-              << " known mixtures, absence/opposite/orthogonal controls, ambiguous reference, contrast, "
+              << " known mixtures, local support, off-axis trails, ambiguous reference, contrast, "
                  "transport/gain/full-answer, fade, nonfinite fallbacks\n";
 }

@@ -35,14 +35,62 @@ float GhostOutputEvidence(int2 pixel, float3 raw, float3 oldEdit, float3 current
     float result = keep * smoothstep(.64, .81, alignment);
     return isfinite(result) ? saturate(result) : 1;
 }
-float GhostContrastMask(int2 pixel, float mask)
+float3 GhostOutputCarrier(float3 raw, float3 base, float gain)
 {
-    if (mask <= 0)
+#ifdef DLSSNR_EDIT_TRANSPORT
+    return AffineEncode(raw);
+#else
+    return clamp(base + min(raw, 0) + max(raw, 0) * gain, 0, 65504);
+#endif
+}
+
+float GhostMaxChannel(float3 value) { return max(value.r, max(value.g, value.b)); }
+
+// A trail may contain several past poses and colours. Protect changes outside the
+// current neighbourhood's range even when the single stored reference disagrees.
+float GhostOutputRangeEvidence(int2 pixel, float3 raw)
+{
+    const int3 p = int3(pixel, 0);
+    float3 base = gDirectDetailMode != 0u ? SanitizeFinite3(gModel.Load(p).rgb, 0) : float3(.5, .5, .5);
+    float gain = PositiveCarrierGain(gWhitePoint);
+    float3 neutral = GhostOutputCarrier(0, base, gain);
+    float3 current = GhostOutputCarrier(raw, base, gain);
+    float3 output = gSource.Load(p).rgb;
+    if (!all(isfinite(output)) || !all(isfinite(current)))
+        return 1;
+
+    float threshold = isfinite(gExposureAnchors[0].z) ? saturate(gExposureAnchors[0].z) : .1;
+    float softness = isfinite(gExposureAnchors[0].w) ? saturate(gExposureAnchors[0].w) : .05;
+    float3 precision = max(1.0 / 1024.0, abs(current) / 1024.0);
+    float scale = .02 + GhostMaxChannel(abs(current - neutral));
+    // Adding neighbours can only lower the score. Skip their reads when the centre already rules it out.
+    [branch] if (GhostMaxChannel(abs(output - current)) <= threshold * scale ||
+                 all(abs(output - current) <= precision)) return 0;
+
+    float3 low = current, high = current;
+    // Six work-resolution pixels at the capture resolution. Keep a similar footprint under resolution changes.
+    int radius = int(clamp(round(6.0 * gHeight / 1404.0), 2.0, 12.0));
+    [unroll] for (int y = -1; y <= 1; y += 2)[unroll] for (int x = -1; x <= 1; x += 2)
+    {
+        float3 tap = GhostOutputCarrier(GhostRawEdit(pixel + int2(x, y) * radius), base, gain);
+        low = min(low, tap);
+        high = max(high, tap);
+    }
+
+    float3 outside = max(output - high, low - output);
+    if (all(outside <= precision))
         return 0;
+    scale = .02 + GhostMaxChannel(max(abs(low - neutral), abs(high - neutral)));
+    float score = GhostMaxChannel(outside) / scale;
+    return softness > 0 ? smoothstep(threshold, threshold + softness, score) : float(score > threshold);
+}
+
+float4 LoadGhostContrastReference(int2 pixel)
+{
     uint w, h;
     gGhostContrast.GetDimensions(w, h);
     if (w == 0 || h == 0)
-        return gExposureAnchors[3].x == 1 ? 0 : mask;
+        return 0;
     float2 pos = (float2(pixel) + .5) * float2(w, h) / float2(gWidth, gHeight) - .5;
     int2 nearest = clamp(int2(round(pos)), int2(0, 0), int2(w, h) - 1);
     float4 reference = gGhostContrast.Load(int3(nearest, 0));
@@ -65,35 +113,55 @@ float GhostContrastMask(int2 pixel, float mask)
             }
         }
     }
-    if (!all(isfinite(reference)) || reference.a <= 0)
-        return gExposureAnchors[3].x == 1 ? 0 : mask;
-    // Transform each edit separately: positive-only gain is nonlinear across zero.
-    float3 raw = GhostRawEdit(pixel), oldEdit = reference.rgb / reference.a;
-#ifdef DLSSNR_EDIT_TRANSPORT
-    // The common affine offset cancels in both input contrast and output evidence.
-    float3 currentTransport = raw * AffineGain(), oldTransport = oldEdit * AffineGain();
-#else
-    float gain = PositiveCarrierGain(gWhitePoint);
-    float3 currentTransport = min(raw, 0) + max(raw, 0) * gain;
-    float3 oldTransport = min(oldEdit, 0) + max(oldEdit, 0) * gain;
-#endif
-    if (gExposureAnchors[0].y == 1.0)
-        mask *= GhostOutputEvidence(pixel, raw, oldEdit, currentTransport, oldTransport);
-    if (mask <= 0 || gExposureAnchors[3].x != 1.0)
-        return mask;
-    float3 signedDifference = currentTransport - oldTransport;
-    float distance;
-    // Compare one brightness scalar; take abs AFTER the sum so equal-brightness colours can cancel.
-    // Unknown/nonfinite selectors retain the existing RGB criterion.
-    [branch] if (gExposureAnchors[3].w == 1.0) distance = abs(dot(signedDifference, float3(.2126, .7152, .0722)));
-    else
+    return reference;
+}
+
+float GhostContrastMask(int2 pixel, float mask)
+{
+    if (mask <= 0)
+        return 0;
+    bool outputGate = gExposureAnchors[0].y == 1.0;
+    bool contrastGate = gExposureAnchors[3].x == 1.0;
+    float4 reference = LoadGhostContrastReference(pixel);
+    bool valid = all(isfinite(reference)) && reference.a > 0;
+    if (!valid && (!contrastGate || !outputGate))
+        return contrastGate ? 0 : mask;
+
+    float3 raw = GhostRawEdit(pixel);
+    float keep = 0;
+    [branch] if (valid)
     {
-        float3 difference = abs(signedDifference);
-        distance = max(difference.r, max(difference.g, difference.b));
+        // Transform each edit separately: positive-only gain is nonlinear across zero.
+        float3 oldEdit = reference.rgb / reference.a;
+#ifdef DLSSNR_EDIT_TRANSPORT
+        // The common affine offset cancels in both input contrast and output evidence.
+        float3 currentTransport = raw * AffineGain(), oldTransport = oldEdit * AffineGain();
+#else
+        float gain = PositiveCarrierGain(gWhitePoint);
+        float3 currentTransport = min(raw, 0) + max(raw, 0) * gain;
+        float3 oldTransport = min(oldEdit, 0) + max(oldEdit, 0) * gain;
+#endif
+        keep = outputGate ? GhostOutputEvidence(pixel, raw, oldEdit, currentTransport, oldTransport) : 1;
+        [branch] if (contrastGate && keep > 0)
+        {
+            float3 signedDifference = currentTransport - oldTransport;
+            float distance;
+            // Compare one brightness scalar; take abs AFTER the sum so equal-brightness colours can cancel.
+            // Unknown/nonfinite selectors retain the existing RGB criterion.
+            [branch] if (gExposureAnchors[3].w == 1.0) distance =
+                abs(dot(signedDifference, float3(.2126, .7152, .0722)));
+            else
+            {
+                float3 difference = abs(signedDifference);
+                distance = max(difference.r, max(difference.g, difference.b));
+            }
+            float threshold = isfinite(gExposureAnchors[3].y) ? clamp(gExposureAnchors[3].y, 0, 1) : .02;
+            float softness = isfinite(gExposureAnchors[3].z) ? clamp(gExposureAnchors[3].z, 0, 1) : .005;
+            float contrastKeep =
+                softness > 0 ? 1 - smoothstep(threshold, threshold + softness, distance) : float(distance <= threshold);
+            keep *= isfinite(distance) ? contrastKeep : 0;
+        }
     }
-    float threshold = isfinite(gExposureAnchors[3].y) ? clamp(gExposureAnchors[3].y, 0, 1) : .02;
-    float softness = isfinite(gExposureAnchors[3].z) ? clamp(gExposureAnchors[3].z, 0, 1) : .005;
-    float keep =
-        softness > 0 ? 1 - smoothstep(threshold, threshold + softness, distance) : float(distance <= threshold);
-    return isfinite(distance) ? mask * keep : 0;
+    [branch] if (outputGate && keep < 1) keep = max(keep, GhostOutputRangeEvidence(pixel, raw));
+    return mask * keep;
 }

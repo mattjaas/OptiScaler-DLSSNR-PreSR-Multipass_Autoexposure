@@ -4362,15 +4362,14 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 ImGui::EndDisabled();
                 if (ImGui::Checkbox("Remove mask without DLSS carry-over (experimental)", &ghost.outputGate))
                     config->DlssNrSuperiorGhostOutputGate = ghost.outputGate;
-                HelpMarker("Remove the disocclusion mask when the DLSS edit stays close to the current raw edit or "
-                           "does not move towards the saved occluder edit. Retain the mask for colour-consistent "
-                           "occluder carry-over. Independent of the contrast filter; both can be combined. Evaluated "
-                           "after the current transport gain, before mask blending and outward feather. Default Off. "
-                           "This is a heuristic and may miss mixed-colour or very faint ghosts.");
+                HelpMarker("Compare the DLSS edit with the saved occluder and nearby current edits. Keep the "
+                           "disocclusion mask where DLSS introduces a change outside the local edit range, even "
+                           "when the saved colour or contrast filter misses the trail. Runs after transport gain "
+                           "and before mask blending and outward feather. Default Off.");
                 ImGui::BeginDisabled(!ghost.outputGate);
                 if (ImGui::SliderFloat("Minimum DLSS occluder carry-over", &ghost.outputThreshold, 0.f, 1.f, "%.3f"))
                     config->DlssNrSuperiorGhostOutputThreshold = ghost.outputThreshold;
-                HelpMarker("Fraction of the current-to-occluder edit difference found in the DLSS output. Below "
+                HelpMarker("Minimum relative deviation from the current edit or its local range. Below "
                            "this value the mask is removed. Higher values preserve more DLSS, but can leave more "
                            "faint ghosting. Default 0.10. Near-identical references with a changed output remain "
                            "masked because the evidence is ambiguous.");
