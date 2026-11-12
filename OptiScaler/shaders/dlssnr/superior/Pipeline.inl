@@ -92,6 +92,7 @@ struct Generation
     bool temporal = false, shaping = false, packed = false;
     bool privateFailed = false, residentAttempted = false;
     unsigned actualPreset = 0;
+    DlssNr::SuperiorScaling::Variant variant = DlssNr::SuperiorScaling::Variant::Standard;
     Private::Fade presetFade;
     std::shared_ptr<ResidentCnn> resident;
     std::unique_ptr<MotionProbe> motionProbe;
@@ -548,7 +549,8 @@ static_assert(unsigned(NVSDK_NGX_Result_Success) == 1u && unsigned(NVSDK_NGX_Res
               unsigned(NVSDK_NGX_Result_FAIL_OutOfDate) == NgxOutOfDate);
 } // namespace SuperiorPrivatePolicyCheck
 
-static_assert(unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_D) == 4u &&
+static_assert(unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_A) == 1u &&
+              unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_D) == 4u &&
               unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_E) == 5u &&
               unsigned(NVSDK_NGX_DLSS_Hint_Render_Preset_K) == 11u);
 
@@ -720,17 +722,18 @@ ID3D12Resource* Stabilize(Generation& g, DlssNr_Dx12& shader, ID3D12GraphicsComm
         idle = probe.selection.idle;
         mix *= probe.selection.fade.weight;
     }
-    // Transformer reuses one disocclusion field for the bias before DLSS and the repair after it. CNN keeps its
-    // D/E route without allocating or dispatching the ghost field; its steady-state cost stays unchanged.
-    const bool repair = DlssNr::SuperiorScaling::NeedsGhostField(g.actualPreset);
-    ID3D12Resource* bias = repair ? GhostBiasMask(g, shader, cmd, temporalDepth, proxy, answer, frame,
-                                                reset || g.reset, packedDepthPrecision)
-                                 : nullptr;
+    // The variant controls the two mask uses independently. Input-only A/K keeps the same field and never
+    // substitutes raw NR after DLSS. The standard CNN D/E path still builds neither mask.
+    const bool repair = DlssNr::SuperiorScaling::NeedsGhostRepair(g.actualPreset, g.variant);
+    const bool inputMask = DlssNr::SuperiorScaling::NeedsInputMask(g.actualPreset, g.variant);
+    ID3D12Resource* bias = inputMask ? GhostBiasMask(g, shader, cmd, temporalDepth, proxy, answer, frame,
+                                                   reset || g.reset, packedDepthPrecision)
+                                    : nullptr;
     g.temporalOutput.To(cmd, Uav);
     auto* p = idle ? g.resident->parameters : g.parameters;
-    if (repair)
+    if (inputMask)
     {
-        // CNN owns separate parameters and never binds a bias, so it needs no per-frame mask parameter updates.
+        // A generation owns its parameters: unmasked variants never bind a mask or update its parameters.
         p->Set(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_Mask, bias);
         p->Set(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_X, 0u);
         p->Set(NVSDK_NGX_Parameter_DLSS_Input_Bias_Current_Color_SubrectBase_Y, 0u);
@@ -818,9 +821,10 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
     }
     const auto& cfg = *Config::Instance();
     using namespace DlssNr::SuperiorScaling;
+    const auto variant = VariantFrom(cfg.DlssNrSuperiorScalingVariant.value_or_default());
     const unsigned preset = PresetChoice().Select(cfg.DlssNrSuperiorScalingPreset.value_or_default(),
                                                   cfg.DlssNrModelResolutionAuto.value_or_default(),
-                                                  cfg.DlssNrWorkingScale.value_or_default(), modelScale);
+                                                  cfg.DlssNrWorkingScale.value_or_default(), modelScale, variant);
     const bool shaping = temporal;
     temporal = shaping && preset != NoPrivateDlss;
     if (auto* previous = state.current.get())
@@ -833,7 +837,8 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
             previous->workWidth != workWidth || previous->workHeight != workHeight || previous->format != format ||
             previous->inverted != frame.DepthInverted || previous->beforeSr != frame.BeforeUpscale ||
             previous->packed != (layout != nullptr) || (layout && previous->layout != *layout);
-        const bool selectionChanged = previous->temporal != temporal || previous->preset != preset;
+        const bool selectionChanged = previous->temporal != temporal ||
+                                      PrivatePresetChanged(previous->preset, preset, previous->variant, variant);
         if (!ngxGone && !geometryChanged && haveDepth && previous->PrivateReady() &&
             (previous->actualPreset == CnnD || previous->actualPreset == CnnE))
         {
@@ -871,6 +876,7 @@ Began Begin(DlssNr_Dx12& shader, ID3D12GraphicsCommandList* cmd, ID3D12Device* d
         if (layout)
             g.layout = *layout;
         g.preset = preset;
+        g.variant = variant;
     }
     auto& g = *state.current;
     // Allocator tracking (an earlier retire of the private DLSS) while one is wanted, exists or retires. A session only

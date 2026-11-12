@@ -94,6 +94,12 @@ static void Keys()
               !IsKept("NativeDebugView") && !IsKept("Compare"),
           "the player's own and session keys left out");
     Check(!IsKept("Unknown"), "unknown key left out");
+    Check(IsKept("SuperiorScalingVariant") && !IsLeftOut("SuperiorScalingVariant"),
+          "Superior variant is kept in a profile");
+    Check(Filter({ { "SuperiorScalingVariant", "2" }, { "SuperiorScalingPreset", "1" } }).size() == 2,
+          "profile keeps the variant together with its CNN/Transformer preference");
+    Check(!Same({ { "SuperiorScalingVariant", "1" } }, { { "SuperiorScalingVariant", "2" } }),
+          "unmasked and input-mask-only profiles differ");
 
     Check(SameGame("NBA2K27.exe", "nba2k27.EXE") && SameGame("", "x.exe") && !SameGame("Cyberpunk2077.exe", "x.exe"),
           "same game by exe name, a file without one counts as this game's");

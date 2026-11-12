@@ -4528,7 +4528,22 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
 
         if (superior)
         {
-            static const char* presets[] = { "No DLSS", "CNN (recommended)", "Transformer" };
+            static const char* variants[] = { "Standard (CNN D/E, Transformer K)", "A/K - no masks",
+                                              "A/K - DLSS input mask only" };
+            int variantIndex =
+                int(DlssNr::SuperiorScaling::VariantFrom(config->DlssNrSuperiorScalingVariant.value_or_default()));
+            if (ImGui::Combo("Superior Scaling variant", &variantIndex, variants, IM_ARRAYSIZE(variants)))
+                config->DlssNrSuperiorScalingVariant = uint32_t(variantIndex);
+            HelpMarker("Standard: the existing CNN D/E route and Transformer K ghost repair.\n\n"
+                       "A/K - no masks: fixed CNN A or Transformer K without an input mask or raw-NR ghost repair.\n\n"
+                       "A/K - DLSS input mask only: fixed CNN A or Transformer K with the disocclusion mask sent "
+                       "to DLSS as its bias-current-colour input. No raw-NR ghost repair after DLSS. Its effect "
+                       "depends on support in the installed DLSS runtime.");
+            const auto variant = DlssNr::SuperiorScaling::VariantFrom(unsigned(variantIndex));
+            const bool usesA = DlssNr::SuperiorScaling::UsesPresetA(variant);
+            static const char* standardPresets[] = { "No DLSS", "CNN (recommended)", "Transformer" };
+            static const char* akPresets[] = { "No DLSS", "CNN (preset A)", "Transformer (preset K)" };
+            const char* const* presets = usesA ? akPresets : standardPresets;
             static constexpr unsigned choices[] = { DlssNr::SuperiorScaling::NoPrivateDlss,
                                                     DlssNr::SuperiorScaling::CnnPreference,
                                                     DlssNr::SuperiorScaling::TransformerK };
@@ -4536,16 +4551,22 @@ static void RenderOutputPage(Config* config, float menuResScale, const NrCommon&
                 DlssNr::SuperiorScaling::Preset(config->DlssNrSuperiorScalingPreset.value_or_default());
             int preset = selected == choices[0] ? 0 : selected == choices[2] ? 2 : 1;
             ImGui::BeginDisabled(nr.vulkan || DlssNr::SuperiorScaling::SrUnavailable());
-            if (ImGui::Combo("DLSS to temporally stabilize NR", &preset, presets, IM_ARRAYSIZE(presets)))
+            if (ImGui::Combo("DLSS to temporally stabilize NR", &preset, presets, IM_ARRAYSIZE(choices)))
                 config->DlssNrSuperiorScalingPreset = choices[preset];
             ImGui::EndDisabled();
-            HelpMarker("No DLSS - Best performance, lowest NR stability. Use when the current game and OptiScaler "
-                       "settings give a stable enough image that the cost of DLSS seems unwarranted, or when the other "
-                       "DLSS options produce visible artifacts.\n\n"
-                       "CNN - A good balance between performance and NR stability. Recommended in most cases.\n\n"
-                       "Transformer - Should provide greater stability than CNN at a performance cost. Use it when CNN "
-                       "is not stable enough or shows artifacts that Transformer avoids. Transformer can introduce "
-                       "different artifacts of its own.");
+            if (usesA)
+                HelpMarker("No DLSS - Use the current NR edit with Superior reconstruction.\n\n"
+                           "CNN - Fixed preset A, at every model resolution and during both motion and stillness.\n\n"
+                           "Transformer - Preset K. Mask handling follows the selected Superior Scaling variant.");
+            else
+                HelpMarker(
+                    "No DLSS - Best performance, lowest NR stability. Use when the current game and OptiScaler "
+                    "settings give a stable enough image that the cost of DLSS seems unwarranted, or when the other "
+                    "DLSS options produce visible artifacts.\n\n"
+                    "CNN - A good balance between performance and NR stability. Recommended in most cases.\n\n"
+                    "Transformer - Should provide greater stability than CNN at a performance cost. Use it when CNN "
+                    "is not stable enough or shows artifacts that Transformer avoids. Transformer can introduce "
+                    "different artifacts of its own.");
 
             const auto unavailable = DlssNr::SuperiorScaling::Unavailable();
             if (nr.vulkan)

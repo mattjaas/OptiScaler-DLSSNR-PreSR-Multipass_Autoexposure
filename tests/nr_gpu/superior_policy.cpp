@@ -209,6 +209,42 @@ int main() {
         latch = {};
         require(latch.Select(CnnPreference, true, .65f, .65f) == CnnD);
 
+        {
+            // A/K comparison variants keep A at every scale, never create resident E, and separate the native
+            // DLSS input mask from the post-DLSS raw-NR repair. The standard route must remain unchanged.
+            require(VariantFrom(0) == Variant::Standard && VariantFrom(1) == Variant::WithoutMask &&
+                    VariantFrom(2) == Variant::InputMaskOnly && VariantFrom(UINT32_MAX) == Variant::Standard);
+            require(NeedsInputMask(TransformerK) && NeedsGhostRepair(TransformerK));
+            require(UsesResidentCnn(CnnD) && !UsesResidentCnn(CnnE));
+            for (const auto variant : { Variant::WithoutMask, Variant::InputMaskOnly })
+            {
+                for (unsigned percent = 25; percent <= 200; ++percent)
+                {
+                    const float scale = percent / 100.f;
+                    require(PrivatePreset(CnnPreference, GuidedRange(scale), variant) == CnnA);
+                    require(PrivatePreset(TransformerK, GuidedRange(scale), variant) == TransformerK);
+                    require(PrivatePreset(NoPrivateDlss, GuidedRange(scale), variant) == NoPrivateDlss);
+                }
+                for (unsigned model : { NoPrivateDlss, CnnA, CnnD, CnnE, TransformerK })
+                {
+                    const bool input = variant == Variant::InputMaskOnly && (model == CnnA || model == TransformerK);
+                    require(NeedsInputMask(model, variant) == input);
+                    require(NeedsGhostField(model, variant) == input);
+                    require(!NeedsGhostRepair(model, variant));
+                    require(!UsesResidentCnn(model, variant));
+                }
+            }
+            PrivatePresetChoice choice;
+            require(choice.Select(CnnPreference, false, 1.f, 1.f) == CnnE);
+            require(choice.Select(CnnPreference, false, 1.f, 1.f, Variant::WithoutMask) == CnnA);
+            require(choice.Select(CnnPreference, true, .65f, .65f, Variant::InputMaskOnly) == CnnA);
+            require(choice.Select(CnnPreference, true, .65f, 1.f, Variant::InputMaskOnly) == CnnA);
+            require(choice.Select(CnnPreference, true, .65f, .65f, Variant::Standard) == CnnD);
+            require(PrivatePresetChanged(TransformerK, TransformerK, Variant::WithoutMask, Variant::InputMaskOnly));
+            require(PrivatePresetChanged(CnnA, CnnA, Variant::InputMaskOnly, Variant::WithoutMask));
+            require(!PrivatePresetChanged(TransformerK, TransformerK, Variant::InputMaskOnly, Variant::InputMaskOnly));
+        }
+
         // Still below 288 / 576 moving samples, moving from 432; in between the last reading stands. A reading has to
         // hold 50 ms before the preset follows it (both ways), then a 0.3 s fade; only a switch resets the next one.
         using DlssNr::SuperiorPrivate::CnnMotion;

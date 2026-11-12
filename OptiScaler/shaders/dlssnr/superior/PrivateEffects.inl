@@ -2,7 +2,7 @@
 void UpdateResidentCnn(Generation& g, ID3D12GraphicsCommandList* cmd, const DlssNrFrameInfo& frame)
 {
     using namespace DlssNr::SuperiorScaling;
-    if (g.actualPreset != CnnD)
+    if (!UsesResidentCnn(g.actualPreset, g.variant))
         return;
     if (!g.residentAttempted)
     {

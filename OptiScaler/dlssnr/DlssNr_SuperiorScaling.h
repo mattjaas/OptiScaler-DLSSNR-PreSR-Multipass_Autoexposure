@@ -25,19 +25,48 @@ constexpr uint32_t ShaderFlag = 65536u;
 constexpr uint32_t LowGroupHeight = 16u;
 inline bool Enabled(uint32_t transfer) { return transfer == Transfer; }
 template <class C> inline bool Enabled(const C& cfg) { return Enabled(cfg.DlssNrTransfer.value_or_default()); }
-constexpr unsigned NoPrivateDlss = 0, CnnPreference = 1, CnnD = 4, CnnE = 5, TransformerK = 11;
-// Only the running K model builds the shared pre-DLSS bias/post-DLSS repair field.
-constexpr bool NeedsGhostField(unsigned actualPreset) { return actualPreset == TransformerK; }
+constexpr unsigned NoPrivateDlss = 0, CnnPreference = 1, CnnA = 1, CnnD = 4, CnnE = 5, TransformerK = 11;
+enum class Variant : uint32_t
+{
+    Standard = 0,
+    WithoutMask = 1,
+    InputMaskOnly = 2
+};
+constexpr Variant VariantFrom(unsigned value)
+{
+    return value == 1u ? Variant::WithoutMask : value == 2u ? Variant::InputMaskOnly : Variant::Standard;
+}
+constexpr bool UsesPresetA(Variant variant)
+{
+    return variant == Variant::WithoutMask || variant == Variant::InputMaskOnly;
+}
+constexpr bool NeedsGhostRepair(unsigned actualPreset, Variant variant = Variant::Standard)
+{
+    return variant == Variant::Standard && actualPreset == TransformerK;
+}
+constexpr bool NeedsInputMask(unsigned actualPreset, Variant variant = Variant::Standard)
+{
+    return NeedsGhostRepair(actualPreset, variant) ||
+           (variant == Variant::InputMaskOnly && (actualPreset == CnnA || actualPreset == TransformerK));
+}
+constexpr bool NeedsGhostField(unsigned actualPreset, Variant variant = Variant::Standard)
+{
+    return NeedsInputMask(actualPreset, variant) || NeedsGhostRepair(actualPreset, variant);
+}
+constexpr bool UsesResidentCnn(unsigned actualPreset, Variant variant = Variant::Standard)
+{
+    return variant == Variant::Standard && actualPreset == CnnD;
+}
 inline unsigned Preset(unsigned preset)
 {
     return preset == NoPrivateDlss || preset == TransformerK ? preset : CnnPreference;
 }
 // Preserve the saved CNN/Transformer preference. CNN switches from D to E only
 // below the range-sigma threshold; compression itself does not choose the model.
-inline unsigned PrivatePreset(unsigned saved, float rangeSigma)
+inline unsigned PrivatePreset(unsigned saved, float rangeSigma, Variant variant = Variant::Standard)
 {
     const auto preference = Preset(saved);
-    return preference == CnnPreference ? (rangeSigma < .01f ? CnnE : CnnD) : preference;
+    return preference == CnnPreference ? (UsesPresetA(variant) ? CnnA : rangeSigma < .01f ? CnnE : CnnD) : preference;
 }
 inline float GuidedRange(float scale)
 {
@@ -50,24 +79,33 @@ inline float GuidedRange(float scale)
 struct PrivatePresetChoice
 {
     unsigned preference = 0, selected = CnnD;
+    Variant variant = Variant::Standard;
     float manualScale = 0.f;
     bool automatic = false, valid = false;
-    unsigned Select(unsigned saved, bool isAuto, float configuredScale, float effectiveScale)
+    unsigned Select(unsigned saved, bool isAuto, float configuredScale, float effectiveScale,
+                    Variant requestedVariant = Variant::Standard)
     {
         configuredScale = std::isfinite(configuredScale) ? configuredScale : 1.f;
         const unsigned wanted = Preset(saved);
-        if (!valid || preference != wanted || automatic != isAuto || manualScale != configuredScale)
+        requestedVariant = VariantFrom(unsigned(requestedVariant));
+        if (!valid || preference != wanted || variant != requestedVariant || automatic != isAuto ||
+            manualScale != configuredScale)
         {
             preference = wanted;
+            variant = requestedVariant;
             automatic = isAuto;
             manualScale = configuredScale;
-            selected = PrivatePreset(wanted, GuidedRange(effectiveScale));
+            selected = PrivatePreset(wanted, GuidedRange(effectiveScale), variant);
             valid = true;
         }
         return selected;
     }
 };
-inline bool PrivatePresetChanged(unsigned previous, unsigned requested) { return previous != requested; }
+inline bool PrivatePresetChanged(unsigned previous, unsigned requested, Variant previousVariant = Variant::Standard,
+                                 Variant requestedVariant = Variant::Standard)
+{
+    return previous != requested || previousVariant != requestedVariant;
+}
 
 // Final Superior composition does not use meter dimensions. Pass inverse range
 // variance as float bits without growing the 256-byte composition ABI.

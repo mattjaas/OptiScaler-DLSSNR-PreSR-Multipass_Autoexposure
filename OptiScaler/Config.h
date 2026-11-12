@@ -487,6 +487,8 @@ class Config
     CustomOptional<uint32_t> DlssNrTransfer { 1 }; // 11: Superior Scaling
     // Private SR preference: No DLSS=0, CNN=1 (D/E), Transformer=11 (K).
     CustomOptional<uint32_t> DlssNrSuperiorScalingPreset { 1 };
+    // Superior variant: 0 standard D/E + K repair, 1 A/K without masks, 2 A/K with DLSS input mask only.
+    CustomOptional<uint32_t> DlssNrSuperiorScalingVariant { 0 };
 
     // Measure the white point from the frame instead of taking it from the slider. On a frame the
     // game already tone mapped there is nothing to measure and this has no effect.
